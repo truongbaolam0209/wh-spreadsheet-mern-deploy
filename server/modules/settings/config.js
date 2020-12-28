@@ -2,10 +2,6 @@ const uuidv1 = require('uuid').v1;
 
 
 const SHEET_PUBLIC_FIELDS_MAP = {
-   users: {
-      type: Array,
-      default: undefined, // prevent mongoose create empty array
-   },
    headers: {
       type: Array,
       default: undefined, // prevent mongoose create empty array
@@ -14,15 +10,19 @@ const SHEET_PUBLIC_FIELDS_MAP = {
    colSettings: Object,
    cellSettings: Object,
    rowSettings: Object,
+   cellEditRestriction: Object
 };
 const SHEET_PUBLIC_FIELDS = Object.keys(SHEET_PUBLIC_FIELDS_MAP);
 
 
 const createTemplatePublicSettings = (sheetId) => {
 
+   let key1 = uuidv1();
+   let key2 = uuidv1();
+
    return {
       sheet: sheetId,
-      users: [],
+      // users: [],
       headers: [
          {
             key: uuidv1(),
@@ -49,11 +49,11 @@ const createTemplatePublicSettings = (sheetId) => {
             text: 'Unit/CJ',
          },
          {
-            key: uuidv1(),
+            key: key1,
             text: 'Drg Type',
          },
          {
-            key: uuidv1(),
+            key: key2,
             text: 'Use For',
          },
          {
@@ -148,33 +148,34 @@ const createTemplatePublicSettings = (sheetId) => {
             key: uuidv1(),
             text: 'Remark',
          },
+         {
+            key: uuidv1(),
+            text: 'Drawing',
+         },
       ],
       sheetSettings: {},
       rowSettings: {},
       colSettings: {},
       cellSettings: {},
+      cellEditRestriction: {
+         'modeller': [ key1, key2 ]
+      }
    };
 };
 
 
 const SHEET_USER_FIELDS_MAP = {
    user: String,
-   headersUser: Object,
-   rowsUser: Object,
+   headersShown: Array,
+   headersHidden: Array,
+   nosColumnFixed: Number,
+   rowsFolded: Array,
+   rowsHidden: Array,
    colorization: String,
 };
 
 const SHEET_USER_FIELDS = Object.keys(SHEET_USER_FIELDS_MAP);
 
-const createTemplateUserSettings = (sheetId, userId) => {
-   return {
-      sheet: sheetId,
-      user: userId,
-      headersUser: {},
-      rowsUser: {},
-      colorization: null,
-   };
-};
 
 
 module.exports = {
@@ -183,5 +184,5 @@ module.exports = {
    createTemplatePublicSettings,
    SHEET_USER_FIELDS_MAP,
    SHEET_USER_FIELDS,
-   createTemplateUserSettings,
+
 };

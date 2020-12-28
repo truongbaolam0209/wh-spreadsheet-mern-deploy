@@ -1,4 +1,3 @@
-const express = require('express');
 const schema = require('./schema');
 const model = require('./model');
 const { genCRUDHandlers } = require('../crud');
@@ -7,7 +6,8 @@ const {
    findPublicSettings,
    findUserSettings,
    updatePublicSettings,
-   updateUserSettings,
+   updateUserSettings
+   
 } = require('../settings');
 const { HTTP } = require('../errors');
 const rowModel = require('../row/model');
@@ -25,6 +25,7 @@ function genQueryToFindMany() {
 };
 
 
+
 async function findOneWithUserEmail(req, res, next) {
    try {
       let sheetId = req.params.id;
@@ -33,7 +34,7 @@ async function findOneWithUserEmail(req, res, next) {
       if (!sheetId || !userId) throw new HTTP(404);
 
       let [item, userSettings] = await Promise.all([
-         findSheetIncludingRowsSortedFinal(sheetId),
+         findSheetIncludingRowsSortedFnc(sheetId),
          findUserSettings(sheetId, userId)
       ]);
 
@@ -46,8 +47,10 @@ async function findOneWithUserEmail(req, res, next) {
    };
 };
 
-async function findSheetIncludingRowsSortedFinal(sheetId) {
 
+
+async function findSheetIncludingRowsSortedFnc(sheetId) {
+   
    let [publicSettings, dataRows] = await Promise.all([
 
       findPublicSettings(sheetId),
@@ -62,8 +65,8 @@ async function findSheetIncludingRowsSortedFinal(sheetId) {
    let rows = [];
    let subRowsLv1 = [];
    let subRowsLv2 = [];
-   let headers = publicSettings && publicSettings.headersSheet instanceof Array
-      ? publicSettings.headersSheet
+   let headers = publicSettings && publicSettings.headers instanceof Array
+      ? publicSettings.headers
       : [];
 
    for (let row of dataRows) {
@@ -83,94 +86,14 @@ async function findSheetIncludingRowsSortedFinal(sheetId) {
 
 
 
-
-
-
-
-
-
-
-const findManyByUserId = async (req, res, next) => {
-
-   try {
-      let userId = toObjectId(req.query.userId, null);
-
-      if (!userId) throw new HTTP(400, 'Missing userId!');
-
-      let sheets = await model.find({
-         createdBy: userId
-      });
-
-      return res.json(sheets);
-   } catch (error) {
-      next(error);
-   };
-};
-
-
-const create = async (req, res, next) => {
-   try {
-      let userId = toObjectId(req.query.userId, null);
-      let { name } = req.body;
-
-      if (!userId) throw new HTTP(400, 'Missing userId!');
-      if (!name) throw new HTTP(400, 'Missing sheet name!');
-
-      let sheet = await model.create({
-         name,
-         createdBy: userId
-      });
-
-      let [publicSettings, userSettings] = await Promise.all([
-         findPublicSettings(sheet._id),
-         findUserSettings(sheet._id, userId)
-      ]);
-
-      sheet.publicSettings = publicSettings;
-      sheet.userSettings = userSettings;
-
-      return res.json(sheet);
-   } catch (error) {
-      next(error);
-   };
-};
-
-
-const findOne = async (req, res, next) => {
-
-   try {
-      let sheetId = toObjectId(req.params.id, null);
-      let userId = toObjectId(req.query.userId, null);
-
-      if (!sheetId) throw new HTTP(404);
-
-      let [item, userSettings] = await Promise.all([
-         findSheetIncludingRowsSorted(sheetId), // including public settings
-         userId ? findUserSettings(sheetId, userId) : null,
-      ]);
-
-      if (item) item.userSettings = userSettings;
-
-
-      return res.json(item);
-   } catch (error) {
-      next(error);
-   };
-};
-
-
-
 const updateOrCreateRows = async (req, res, next) => {
 
    try {
       let sheetId = req.params.id;
-      console.log(sheetId);
       if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
-
       let { rows = [] } = req.body;
 
       // await _validateUserPermissionEditRows(sheetId, userId, rows);
-
       let result = await _updateOrCreateManyRows(rows, sheetId);
 
       return res.json(result);
@@ -179,9 +102,6 @@ const updateOrCreateRows = async (req, res, next) => {
       next(err);
    };
 };
-
-
-
 const _updateOrCreateManyRows = async (rowsData, sheetId) => {
 
    let { rowsToUpdate, rowsToCreate } = await _processRowsData(rowsData, sheetId);
@@ -196,70 +116,6 @@ const _updateOrCreateManyRows = async (rowsData, sheetId) => {
       updated: rowsToUpdate.length
    };
 };
-
-
-
-
-
-
-const deleteRow = async (req, res, next) => {
-
-   try {
-      let qId = req.params.id;
-      let sheetId = toObjectId(qId, null);
-      let { rowId: qRowId } = req.body;
-      let rowId = toObjectId(qRowId, null);
-
-      if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
-
-      if (!rowId) throw new HTTP(400, 'Invalid row id!');
-
-
-      let [row, rowAtSamePlace] = await Promise.all([
-         rowModel.findOne({ sheet: sheetId, _id: rowId }),
-         rowModel.findOne({ sheet: sheetId, preRow: rowId }),
-      ]);
-
-      if (row) {
-         await Promise.all([
-            row.deleteOne(),
-            rowAtSamePlace ? rowAtSamePlace.updateOne({ preRow: row.preRow }) : null,
-         ]);
-      };
-
-      // _clearUnusedRows(sheetId);
-
-      return res.json({ deleteCount: row ? 1 : 0 });
-   } catch (err) {
-      next(err)
-   };
-};
-
-
-const updateSetting = async (req, res, next) => {
-   try {
-      let qId = req.params.id;
-      let qUserId = req.query.userId;
-      let sheetId = toObjectId(qId, null);
-      let userId = toObjectId(qUserId, null);
-      let settingData = req.body;
-
-      if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
-
-
-      let setting = await (userId
-         ? updateUserSettings(sheetId, userId, settingData)
-         : updatePublicSettings(sheetId, settingData));
-
-      return res.json(setting);
-
-   } catch (err) {
-      next(err);
-   };
-};
-
-
-
 const _processRowsData = async (rowsData, sheetId) => {
    let rowsToUpdate = [];
    let rowsToCreate = [];
@@ -287,44 +143,62 @@ const _processRowsData = async (rowsData, sheetId) => {
          };
       };
    };
-
    return { rowsToCreate, rowsToUpdate };
 };
 
 
 
-const findSheetIncludingRowsSorted = async (sheetId) => {
-   let [sheet, publicSettings, dataRows] = await Promise.all([
 
-      model.findById(sheetId).lean().exec(),
+const deleteRow = async (req, res, next) => {
 
-      findPublicSettings(sheetId),
-      rowModel.find({
-         sheet: sheetId,
-         level: { $in: [0, 1, 2] },
-      }).lean().exec(),
-   ]);
+   try {
+      let sheetId = req.params.id;
+      let { rowId: qRowId } = req.body;
+      let rowId = toObjectId(qRowId, null);
 
-   if (!sheet) return sheet;
+      if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
+      if (!rowId) throw new HTTP(400, 'Invalid row id!');
 
-   let rows = [];
-   let subRowsLv1 = [];
-   let subRowsLv2 = [];
-   let headers = publicSettings && publicSettings.headersSheet instanceof Array
-      ? publicSettings.headersSheet
-      : [];
+      let [row, rowAtSamePlace] = await Promise.all([
+         rowModel.findOne({ sheet: sheetId, _id: rowId }),
+         rowModel.findOne({ sheet: sheetId, preRow: rowId }),
+      ]);
 
-   for (let row of dataRows) {
-      if (row.level == 0) rows.push(row);
-      else if (row.level == 1) subRowsLv1.push(row);
-      else if (row.level == 2) subRowsLv2.push(row);
+      if (row) {
+         await Promise.all([
+            row.deleteOne(),
+            rowAtSamePlace ? rowAtSamePlace.updateOne({ preRow: row.preRow }) : null,
+         ]);
+      };
+
+      return res.json({ deleteCount: row ? 1 : 0 });
+   } catch (err) {
+      next(err)
    };
-
-   sheet.rows = _processRows(headers, rows, subRowsLv1, subRowsLv2);
-   sheet.publicSettings = publicSettings;
-
-   return sheet;
 };
+
+
+
+const updateSetting = async (req, res, next) => {
+   try {
+      let sheetId = req.params.id;
+      let userId = req.query.userId;
+
+      let settingData = req.body;
+
+      if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
+
+      let setting = await (userId
+         ? updateUserSettings(sheetId, userId, settingData)
+         : updatePublicSettings(sheetId, settingData));
+
+      return res.json(setting);
+   } catch (err) {
+      next(err);
+   };
+};
+
+
 
 
 
@@ -386,7 +260,6 @@ const _processRows = (sheetHeaders, rows, subRowsLv1, subRowsLv2) => {
          };
       };
    };
-
    return rowsProcessed;
 };
 
@@ -394,13 +267,13 @@ const _formalRowData = (row, sheetHeaders) => {
    // data sheet level parentRow preRow createdAt updatedAt
    let { _id, data, sheet, level, parentRow, preRow, createdAt, updatedAt } = row;
    let rowFormal = {
-      _id,
-      _sheet: sheet,
+      id: _id,
+      // _sheet: sheet,
       _rowLevel: level,
       _parentRow: parentRow,
       _preRow: preRow,
-      _createdAt: createdAt,
-      _updatedAt: updatedAt,
+      // _createdAt: createdAt,
+      // _updatedAt: updatedAt,
    };
    if (data instanceof Object) {
       for (let header of sheetHeaders) {
@@ -424,21 +297,13 @@ const _groupSubRowsByParentId = (subRows) => {
 };
 
 
-const _clearUnusedRows = (sheetId) => {
-   try {
-
-   } catch (err) {
-      console.error(err);
-   };
-};
 
 module.exports = {
    schema,
    model,
    ...handlers,
-   findManyByUserId,
-   create,
-   findOne,
+
+
    updateOrCreateRows,
    deleteRow,
    updateSetting,
@@ -446,7 +311,3 @@ module.exports = {
 };
 
 
-console.log('RUN');
-findSheetIncludingRowsSortedFinal('MTYwMzc3MDA5NDY1MS10ZXN0NA')
-.then(e => console.log(e))
-.catch(e => console.log(e));

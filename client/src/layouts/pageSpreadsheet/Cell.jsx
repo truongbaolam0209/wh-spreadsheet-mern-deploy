@@ -3,8 +3,8 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
+import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { Context as UserContext } from '../../contexts/userContext';
 import PanelCalendar from './PanelCalendar';
 
 
@@ -12,23 +12,19 @@ import PanelCalendar from './PanelCalendar';
 const Cell = (props) => {
 
     const {
-        cellData, rowData, column, setPosition, rowIndex, columnIndex,
-        updateStatusCell, isScrolling, container, onRightClickCell, colorized,
-        cellOnDoubleClickTrigger, mouseDownStartCellsRange, mouseUpEndCellsRange
+        cellData, rowData, column, rowIndex, columnIndex,
+        container, onRightClickCell, colorized,
+        setPosition,
+        cellsSearchFound, cellsHistoryCheck
     } = props;
 
 
-    const {
-        state: stateCell,
-        getCellModifiedTemp,
-        setCellActive,
-    } = useContext(CellContext);
 
-    const { state: stateUser } = useContext(UserContext);
 
+    const { state: stateCell, getCellModifiedTemp, setCellActive } = useContext(CellContext);
+    const { state: stateProject } = useContext(ProjectContext);
     const { state: stateRow, getSheetRows } = useContext(RowContext);
 
-    
     const inputRef = useRef();
     const cellRef = useRef();
     const panelRef = useRef();
@@ -37,6 +33,8 @@ const Cell = (props) => {
     const [inputRender, setInputRender] = useState(false);
     const [initValue, setInitValue] = useState(cellData || '');
     const [value, setValue] = useState(cellData || '');
+
+
 
 
 
@@ -73,13 +71,13 @@ const Cell = (props) => {
             } else {
                 getSheetRows({
                     ...stateRow,
-                    rowsUpdateAndNews: [...stateRow.rowsUpdateAndNews, {...rowData, [column.key]: value}]
+                    rowsUpdateAndNews: [...stateRow.rowsUpdateAndNews, { ...rowData, [column.key]: value }]
                 });
             }
         } else {
             getSheetRows({
                 ...stateRow,
-                rowsUpdateAndNews: [{...rowData, [column.key]: value}]
+                rowsUpdateAndNews: [{ ...rowData, [column.key]: value }]
             });
         };
     };
@@ -87,7 +85,6 @@ const Cell = (props) => {
 
     const onDoubleClick = () => {
         setInputRender(true);
-        cellOnDoubleClickTrigger();
     };
     const onClick = () => {
         setBtnShown(true);
@@ -129,15 +126,15 @@ const Cell = (props) => {
     const onMouseDown = (e) => {
         if (e.button === 2) { // check mouse RIGHT CLICK ...
             onRightClickCell(e, props);
-        } else { // MULTI SELECT CELL RANGES
+        } else {
             if (!inputRender) {
-                mouseDownStartCellsRange({ e, rowIndex, columnIndex, cell: cellRef });
+                // MULTI SELECT CELL RANGES
             };
         };
     };
     const onMouseUp = (e) => {
         if (e.button !== 2) {
-            mouseUpEndCellsRange({ e, rowIndex, columnIndex, cell: cellRef });
+            // MULTI END CELL RANGES
         };
     };
     const pickDataSelect = (value) => {
@@ -186,23 +183,20 @@ const Cell = (props) => {
         };
     };
 
-
     const cellBackground =
-        (
-            stateCell.cellsRangeStart &&
-            stateCell.cellsRangeEnd &&
-            checkIfCellsRangeContainsCell(stateCell.cellsRangeStart, stateCell.cellsRangeEnd, rowIndex, columnIndex)
-        )
-            ? colorType.cellHighlighted
-            // : (
-            //     cellSearchFound &&
-            //     rowData.id in cellSearchFound &&
-            //     cellSearchFound[rowData.id].indexOf(column.key) !== -1
-            // )
-            //     ? 'green'
-            : null;
+        // (
+        //     stateCell.cellsRangeStart &&
+        //     stateCell.cellsRangeEnd &&
+        //     checkIfCellsRangeContainsCell(stateCell.cellsRangeStart, stateCell.cellsRangeEnd, rowIndex, columnIndex)
+        // )
+        //     ? colorType.cellHighlighted :
+        (cellsSearchFound && rowData.id in cellsSearchFound && cellsSearchFound[rowData.id].indexOf(column.key) !== -1)
+            ? '#badc58'
+            : (cellsHistoryCheck && cellsHistoryCheck.find(dt => dt.rowId === rowData.id && column.key === dt.header))
+                ? '#f6e58d'
+                : null;
 
-    const cellFontWeight = (rowData._rowLevel === 0 || rowData._rowLevel === - 1) && 'bold';
+    // const cellFontWeight = (rowData._rowLevel === 0 || rowData._rowLevel === - 1) && 'bold';
 
     return (
         <>
@@ -216,12 +210,14 @@ const Cell = (props) => {
                 style={{
                     width: '100%',
                     height: '100%',
-                    color: cellLocked(stateUser.role, column) ? '#8FBC8F' : 'black',
+                    color: cellLocked(stateProject.userData.role, column) ? '#8FBC8F' : 'black',
+                    // color: cellLocked('modeller', column) ? '#8FBC8F' : 'black',
                     background: cellBackground,
-                    fontWeight: cellFontWeight,
+                    // fontWeight: cellFontWeight,
                     padding: 5,
                     position: 'relative',
-                    pointerEvents: cellLocked(stateUser.role, column) && 'none'
+                    pointerEvents: cellLocked(stateProject.userData.role, column) && 'none'
+                    // pointerEvents: cellLocked('modeller', column) && 'none'
                 }}
             >
                 {inputRender ? (
@@ -295,10 +291,6 @@ const Cell = (props) => {
                                     onMouseDown={(e) => {
                                         e.stopPropagation();
                                         pickDataSelect(item);
-                                        if (column.key === 'Status' || column.key === 'Rev' ||
-                                            column.key === 'Coordinator In Charge' || column.key === 'Modeller') {
-                                            updateStatusCell({ [getCellTempId()]: item });
-                                        };
                                     }}
                                 >{item}</SelectStyled>
                             )

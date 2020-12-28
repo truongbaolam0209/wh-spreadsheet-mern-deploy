@@ -1,4 +1,4 @@
-const express = require('express');
+
 const schema = require('./schema');
 const model = require('./model');
 const { HTTP } = require('../errors');
@@ -8,9 +8,7 @@ const HISTORY_LIMIT = 10;
 
 const findHistoriesForSheet = async (req, res, next) => {
    try {
-      let { sheetId: qSheetId } = req.params;
-
-      let sheetId = toObjectId(qSheetId);
+      let { sheetId } = req.params;
 
       if (!sheetId) throw new HTTP(400, 'Missing sheet id!');
 
@@ -28,9 +26,8 @@ const findHistoriesForSheet = async (req, res, next) => {
 
 const findHistoryForOneRow = async (req, res, next) => {
    try {
-      let { sheetId: qSheetId, rowId: qRowId } = req.params;
+      let { sheetId, rowId: qRowId } = req.params;
 
-      let sheetId = toObjectId(qSheetId);
       let rowId = toObjectId(qRowId);
 
       if (!sheetId) throw new HTTP(400, 'Missing sheet id!');
@@ -48,9 +45,17 @@ const findHistoryForOneRow = async (req, res, next) => {
 
 const saveRowHistory = async (req, res, next) => {
    try {
+      let username = req.query.username;
+      let qSheetId = req.params.sheetId;
+
       let data = req.body;
 
       if (!(data instanceof Array)) throw new HTTP(400, 'Body data must be array info of cell history!');
+
+      for (let d of data) {
+         d.sheet = qSheetId;
+         d.username = username;
+      };
 
       let history = await model.create(data);
 
@@ -62,9 +67,11 @@ const saveRowHistory = async (req, res, next) => {
 };
 
 
+
 module.exports = {
    schema,
    model,
+
    findHistoriesForSheet,
    findHistoryForOneRow,
    saveRowHistory

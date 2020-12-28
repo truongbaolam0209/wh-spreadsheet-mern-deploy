@@ -8,7 +8,7 @@ const PanelFunction = (props) => {
     const { buttonPanelFunction, panelType } = props;
 
 
-    
+
     const listButton = panelType.type === 'column' ? [
         'Insert Column Left',
         'Insert Column Right',
@@ -20,18 +20,20 @@ const PanelFunction = (props) => {
         'Group This Column'
 
     ] : [
+            'View Drawing Revision',
             'Create New Drawing Revision',
             'Date Automation',
             'View Cell History',
-            'View Drawing Revision',
             'Insert Drawings Below',
             'Insert Drawings Above',
+            'Move Drawing',
+            'Paste Drawing',
+            'Delete Drawing',
         ];
 
-
     return (
-        <div 
-            style={{ 
+        <div
+            style={{
                 border: `1px solid ${colorType.grey1}`,
                 background: 'white',
             }}
@@ -65,12 +67,15 @@ const Container = styled.div`
 `;
 
 
-const disabledBtn = (props, btn) => {
-    const { buttonPanelFunction, panelType, groupingMode } = props;
+const disabledBtn = ({ panelType }, btn) => {
 
-    if (!groupingMode && btn === 'Group This Column') return {
-        pointerEvents: 'none',
-        color: 'grey'
+    if (panelType.type === 'cell') {
+        const { _rowLevel } = panelType.cellProps.rowData;
+
+        if (_rowLevel === 0 && btn !== 'View Cell History') return {
+            pointerEvents: 'none',
+            color: 'grey'
+        };
     };
 };
 

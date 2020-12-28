@@ -2,8 +2,8 @@ import { Icon, Select } from 'antd';
 import React, { useContext, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
+import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { Context as UserContext } from '../../contexts/userContext';
 import { mongoObjectId } from '../../utils';
 import ButtonGroupComp from './ButtonGroupComp';
 
@@ -27,13 +27,10 @@ const FormFilter = ({ applyFilter, onClickCancelModal }) => {
     };
 
     const [tags, setTags] = useState([mongoObjectId()]);
-    const onClickAddTag = () => {
-        setTags([...tags, mongoObjectId()]);
-    };
 
     const onClickApply = () => {
 
-        let rowArr = stateRow.rowsVisible;
+        let rowArr = stateRow.rowsAll;
 
         Object.keys(filterColumn).forEach(cl => {
             rowArr = rowArr.filter(r => r[cl] === filterColumn[cl]);
@@ -43,7 +40,10 @@ const FormFilter = ({ applyFilter, onClickCancelModal }) => {
     };
 
     return (
-        <>
+        <div style={{
+            width: '100%',
+            height: '100%'
+        }}>
             <div style={{ padding: 20, borderBottom: `1px solid ${colorType.grey4}` }}>
                 {Object.keys(filterColumn).map(key => (
                     <div key={key} style={{ display: 'flex' }}>
@@ -52,20 +52,20 @@ const FormFilter = ({ applyFilter, onClickCancelModal }) => {
                             removeFilterTag={removeFilterTag}
                             filterColumn={filterColumn}
                             headerKey={key}
-                            
+
                         />
                         <IconStyled>
-                            <Icon 
-                                type='close' 
-                                style={{ 
+                            <Icon
+                                type='close'
+                                style={{
                                     transform: 'translate(0, -3px)',
                                     color: colorType.grey2,
                                     fontSize: 11
                                 }}
-                                onClick={() => removeFilterTag(key)} 
+                                onClick={() => removeFilterTag(key)}
                             />
                         </IconStyled>
-                        
+
                     </div>
                 ))}
 
@@ -82,7 +82,7 @@ const FormFilter = ({ applyFilter, onClickCancelModal }) => {
                     onClickApply={onClickApply}
                 />
             </div>
-        </>
+        </div>
     );
 };
 export default FormFilter;
@@ -103,30 +103,29 @@ const IconStyled = styled.div`
 
 
 
-
 const SelectComp = ({ setFilterSelect, removeFilterTag, filterColumn, headerKey }) => {
 
-    const { state: stateUser } = useContext(UserContext);
+    const { state: stateProject } = useContext(ProjectContext);
     const { state: stateRow } = useContext(RowContext);
 
-    let columnsValueArr = getColumnsValue(stateRow.rowsAll, stateUser.headersShown);
+    let columnsValueArr = getColumnsValue(stateRow.rowsAll, stateProject.userData.headersAll);
 
     const [column, setColumn] = useState(headerKey);
 
 
     return (
-        <div style={{ display: 'flex', paddingBottom: 25, width: '90%' }}>
+        <div style={{ display: 'flex', paddingBottom: 25, width: '100%' }}>
 
             <SelectStyled
                 defaultValue={headerKey === undefined ? 'Select Field...' : headerKey}
-                style={{ 
-                    marginRight: 13, 
+                style={{
+                    marginRight: 13,
                     width: '47%',
                 }}
                 onChange={(column) => setColumn(column)}
-            
+
             >
-                {getHeadersFilterArr(stateUser.headersShown, columnsValueArr, Object.keys(filterColumn)).map(hd => (
+                {getHeadersFilterArr(stateProject.userData.headersAll, columnsValueArr, Object.keys(filterColumn)).map(hd => (
                     <Option key={hd} value={hd}>{hd}</Option>
                 ))}
             </SelectStyled>
@@ -134,7 +133,7 @@ const SelectComp = ({ setFilterSelect, removeFilterTag, filterColumn, headerKey 
 
             <SelectStyled
                 defaultValue={filterColumn[headerKey] === undefined ? 'Select Value...' : filterColumn[headerKey]}
-                style={{ 
+                style={{
                     // background: headerKey === undefined && 'red',
                     width: '47%'
                 }}

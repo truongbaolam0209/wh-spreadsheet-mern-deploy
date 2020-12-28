@@ -1,4 +1,3 @@
-const express = require('express');
 const schema = require('./schema');
 const model = require('./model');
 const { HTTP } = require('../errors');
@@ -8,9 +7,7 @@ const HISTORY_LIMIT = 10;
 
 const findHistoriesForSheet = async (req, res, next) => {
    try {
-      let { sheetId: qSheetId } = req.params;
-
-      let sheetId = toObjectId(qSheetId);
+      let { sheetId } = req.params;
 
       if (!sheetId) throw new HTTP(400, 'Missing sheet id!');
 
@@ -27,9 +24,8 @@ const findHistoriesForSheet = async (req, res, next) => {
 
 const findHistoryForOneCell = async (req, res, next) => {
    try {
-      let { sheetId: qSheetId, rowId: qRowId, headerKey: qHeaderKey } = req.params;
+      let { sheetId, rowId: qRowId, headerKey: qHeaderKey } = req.params;
 
-      let sheetId = toObjectId(qSheetId);
       let rowId = toObjectId(qRowId);
       let headerKey = String(qHeaderKey);
 
@@ -51,11 +47,13 @@ const findHistoryForOneCell = async (req, res, next) => {
 const saveCellHistories = async (req, res, next) => {
 
    try {
+      let qSheetId = req.params.sheetId;
+
       let data = req.body;
 
       if (!(data instanceof Array)) throw new HTTP(400, 'Body data must be array info of cell history!');
 
-      await _processSaveCellHistories(data);
+      await _processSaveCellHistories(qSheetId, data);
 
       return res.json({ 'message': 'success' })
    } catch (error) {
@@ -65,14 +63,15 @@ const saveCellHistories = async (req, res, next) => {
 
 
 
-const _processSaveCellHistories = async (data) => {
+const _processSaveCellHistories = async (sheetId, data) => {
    let _map = {};
 
    for (let d of data) {
       if (!(d instanceof Object)) throw new HTTP(400, 'Invalid data cell history!');
 
-      let { sheetId: qSheetId, rowId: qRowId, headerKey: qHeaderKey, history: qHistory } = d;
-      let sheetId = toObjectId(qSheetId, null);
+
+      let { rowId: qRowId, headerKey: qHeaderKey, history: qHistory } = d;
+
       let rowId = toObjectId(qRowId, null);
       let headerKey = String(qHeaderKey);
 
@@ -102,7 +101,6 @@ const _processSaveCellHistories = async (data) => {
    await Promise.all(cellHistoryData.map(_updateCellHistories));
 };
 
-
 const _updateCellHistories = async (cellHistoryData) => {
 
    let { sheet, row, headerKey, histories: newHistories } = cellHistoryData;
@@ -121,8 +119,6 @@ const _updateCellHistories = async (cellHistoryData) => {
 
    return cellHistory.save();
 };
-
-
 const _findCellHistory = async (sheetId, rowId, headerKey) => {
    let history = await model.findOne({ sheet: sheetId, row: rowId, headerKey });
    if (!history) {
@@ -140,6 +136,7 @@ const _findCellHistory = async (sheetId, rowId, headerKey) => {
 module.exports = {
    schema,
    model,
+
    findHistoriesForSheet,
    findHistoryForOneCell,
    saveCellHistories

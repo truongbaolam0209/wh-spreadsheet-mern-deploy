@@ -1,14 +1,9 @@
-import React, { useContext } from 'react';
-import { Context as CellContext } from '../../contexts/cellContext';
+import React from 'react';
 
 
 const CellHeader = (props) => {
 
     const { className, column, columns, columnIndex, onMouseDownColumnHeader, headerIndex, container } = props;
-
-    const {
-        state: stateCell, getCellModifiedTemp, clearCellModifiedTemp, setCellActive
-    } = useContext(CellContext);
 
 
     return (

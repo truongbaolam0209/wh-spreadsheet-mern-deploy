@@ -29,27 +29,36 @@ const FormDateAutomation = ({ applyDateAutomation }) => {
 
 
     return (
-        <div>
-            
-            {arrHeaders.map((hd, i) => (
-                <DatePickerComp
-                    key={hd}
-                    header={hd}
-                    disabled={!(i === 0)}
-                    firstItem={!(i === 0)}
-                    firstItemValue={date}
-                    onChangeNosOfDays={onChangeNosOfDays}
-                    onClickCalculate={onClickCalculate}
-                    onChangePickdate={onChangePickdate}
-      
-                    defaultDate={defaultDate}
+        <div style={{
+            width: '30vw',
+            background: 'white',
+            padding: 10,
+            paddingLeft: 40,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+        }}>
+            <div>
+                <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 10 }}>Date Automation</div>
+                {arrHeaders.map((hd, i) => (
+                    <DatePickerComp
+                        key={hd}
+                        header={hd}
+                        disabled={!(i === 0)}
+                        firstItem={!(i === 0)}
+                        firstItemValue={date}
+                        onChangeNosOfDays={onChangeNosOfDays}
+                        onClickCalculate={onClickCalculate}
+                        onChangePickdate={onChangePickdate}
+        
+                        defaultDate={defaultDate}
 
-                />
-            ))}
-            <Button 
-            onClick={() => applyDateAutomation(defaultDate)} 
-            style={{ width: 6 }}
-            >Assign Date</Button>
+                    />
+                ))}
+                <Button 
+                    onClick={() => applyDateAutomation(defaultDate)} 
+                >Assign Date</Button>
+            </div>
         </div>
     );
 };
@@ -89,7 +98,7 @@ const DatePickerComp = ({
 
             {firstItem ? (
                 <Input
-                    defaultValue='5'
+                    defaultValue='7'
                     onChange={(e) => onChangeNosOfDays(header, e)}
                     type='number'
                     min='1'
@@ -132,7 +141,7 @@ export const arrHeaders = [
 const getInitObj = (arr) => {
     let obj = {};
     arr.forEach(dt => {
-        obj[dt] = '5';
+        obj[dt] = '7';
     });
     return obj
 };

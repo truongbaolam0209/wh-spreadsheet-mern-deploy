@@ -7,6 +7,6 @@ router.get('/:sheetId', CellHistory.findHistoriesForSheet);
 
 router.get('/:sheetId/:rowId/:headerKey', CellHistory.findHistoryForOneCell);
 
-router.post('/', CellHistory.saveCellHistories);
+router.post('/:sheetId', CellHistory.saveCellHistories);
 
 module.exports = router;

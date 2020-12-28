@@ -1,60 +1,137 @@
-import { Table } from 'antd';
-import React from 'react';
+
+import Axios from 'axios';
+import React, { useContext, useEffect, useState } from 'react';
+import BaseTable, { AutoResizer } from 'react-base-table';
 import styled from 'styled-components';
+import { colorType, SERVER_URL } from '../../constants';
+import { Context as ProjectContext } from '../../contexts/projectContext';
+import { Context as RowContext } from '../../contexts/rowContext';
+import { getHeaderWidth, mongoObjectId } from '../../utils';
+
+
+const Table = (props) => {
+    return (
+        <AutoResizer>
+            {({ width, height }) => {
+                return (
+                    <BaseTable
+                        {...props}
+                        width={width}
+                        height={height}
+                    />
+                );
+            }}
+        </AutoResizer>
+    );
+};
 
 
 const TableDrawingDetail = (props) => {
 
-    console.log(props);
-
 
     const { rowData } = props;
+    const { state: stateProject } = useContext(ProjectContext);
+    const { state: stateRow } = useContext(RowContext);
 
-    let data = [];
-    for (let key = 0; key < 3; key++) {
-        data.push({ 
-            ...rowData, 
-            key,
-            Rev: key === 0 ? '0' : key === 1 ? 'A' : 'B',
-            ...oldRevisionDrawingData
-        });
+    const [rowsHistoryDatabase, setRowsHistoryDatabase] = useState(null);
+    const [rowsHistoryPrevious, setRowsHistoryPrevious] = useState([]);
+    const [rowCurrent, setRowCurrent] = useState(null);
+
+
+    useEffect(() => {
+        const fetchRowsHistory = async () => {
+            try {
+                const res = await Axios.get(`${SERVER_URL}/row/history/${stateProject.allDataOneSheet._id}/${rowData.id}`);
+                let rowsHistory = [];
+                res.data.map((r, i) => {
+                    const { history } = r;
+                    const { headers } = stateProject.allDataOneSheet.publicSettings;
+                    let data = { id: mongoObjectId() };
+                    Object.keys(history).map(key => {
+                        const hdText = headers.find(hd => hd.key === key).text;
+                        data[hdText] = history[key];
+                    });
+                    rowsHistory.push(data);
+                });
+                setRowsHistoryDatabase(rowsHistory);
+
+
+                let rowsHistoryPrevious = [];
+                if (stateRow.rowsVersionsToSave) {
+                    rowsHistoryPrevious = stateRow.rowsVersionsToSave.filter(r => r.id === rowData.id);
+                    rowsHistoryPrevious.forEach((r, i) => {
+                        r.id = mongoObjectId();
+                    });
+                    setRowsHistoryPrevious(rowsHistoryPrevious);
+                };
+
+
+                setRowCurrent({
+                    ...rowData,
+                    key: rowsHistory.length + rowsHistoryPrevious.length + 1
+                });
+
+
+
+            } catch (err) {
+                console.log(err);
+            };
+        };
+        fetchRowsHistory();
+    }, []);
+
+    let data;
+    if (rowsHistoryDatabase && rowCurrent) {
+        data = [
+            ...rowsHistoryDatabase,
+            ...rowsHistoryPrevious,
+            rowCurrent
+        ];
     };
 
+    const panelWidth = window.innerWidth * 0.8;
+    const panelHeight = window.innerHeight * 0.8;
 
-
-    const convertColumns = (data) => {
-        const dt = data[0];
-        let columns = [];
-        Object.keys(dt).forEach(key => {
-            columns.push({
-                title: key,
-                dataIndex: key,
-                render: args => (
-                    <span>
-                        {args}
-                    </span>
-                )
-            });
-        });
-        return columns;
-    };
 
     return (
-        <div>
-            <div style={{ overflow: 'auto' }}>
-                <div style={{ width: 5000, padding: 0 }}>
-                    <TableStyled
-                        columns={convertColumns(data)}
-                        dataSource={data} 
-                        size='small'
-                        bordered={true}
-                    />
-                </div>
-            </div>
+        <div style={{
+            height: panelHeight,
+            background: 'white',
+            padding: 10,
+            display: 'flex',
+            justifyContent: 'center',
+            flexDirection: 'column',
+        }}>
 
-            <div style={{ width: '100%' }}>
-                <img src='./img/timeline.JPG' alt='visualize' height='430' />
-            </div>
+            {rowsHistoryDatabase && rowCurrent && (
+                <>
+                    <div style={{
+                        width: panelWidth,
+                        height: 100 + data.length * 30,
+                        margin: '0 auto',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{ fontSize: 20, fontWeight: 'bold' }}>DRAWING HISTORY</div>
+                        <TableStyled
+                            fixed
+                            columns={generateColumns(getHeadersText(stateProject.allDataOneSheet.publicSettings.headers))}
+                            data={data}
+                            rowHeight={28}
+                        />
+
+                    </div>
+
+                    <div style={{
+                        margin: '0 auto',
+                        textAlign: 'center',
+                        marginTop: 100
+                    }}>
+                        <img src='./img/timeline.JPG' alt='visualize' height={panelHeight - (100 + data.length * 30) - 100} />
+                    </div>
+                </>
+            )}
+
+
 
         </div>
 
@@ -64,36 +141,84 @@ const TableDrawingDetail = (props) => {
 export default TableDrawingDetail;
 
 
+const generateColumns = (headers) => headers.map((column, columnIndex) => ({
+
+    key: column,
+    dataKey: column,
+    title: column,
+    resizable: true,
+    width: getHeaderWidth(column),
+}));
+
+const getHeadersText = (headersData) => {
+    return headersData.map(hd => {
+        return hd.text;
+    });
+};
+
+
+
+
 const TableStyled = styled(Table)`
 
-   td {
-      /* height: 15px; */
-      padding: 0px;
-      margin: 0px;
-      /* background-color: red; */
-   }
+    .BaseTable__table .BaseTable__body {
+
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+
+        ::-webkit-scrollbar {
+            -webkit-appearance: none;
+            background-color: #e3e3e3;
+        }
+
+        ::-webkit-scrollbar:vertical {
+            width: 15px;
+        }
+
+        ::-webkit-scrollbar:horizontal {
+            height: 15px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            border-radius: 10px;
+            border: 2px solid #e3e3e3;
+            background-color: #999;
+
+            &:hover {
+                background-color: #666;
+            }
+        }
+
+        ::-webkit-resizer {
+            display: none;
+        }
+
+        .BaseTable__row-cell-text {
+            color: black
+        }
+    }
+
+    .BaseTable__header-cell {
+        padding: 10px;
+        border-right: 1px solid #DCDCDC;
+
+        background: ${colorType.grey1};
+        color: black
+    }
+
+    .BaseTable__row-cell {
+        padding: 10px;
+        border-right: 1px solid #DCDCDC;
+
+        overflow: visible !important;
+    }
+
+
 
 
 `;
 
-
-
-const oldRevisionDrawingData = {
-    'Model Start (A)': '02/12/20',
-    'Model Finish (T)': '05/10/20',
-    'Model Finish (A)': '06/12/20',
-    'Model Progress': '',
-    'Drawing Start (T)': '02/10/20',
-    'Drawing Start (A)': '05/12/20',
-    'Drawing Finish (T)': '13/12/20',
-    'Drawing Finish (A)': '04/10/20',
-    'Drawing Progress': '',
-    'Drg To Consultant (T)': '11/10/20',
-    'Drg To Consultant (A)': '12/06/20',
-    'Consultant Reply (T)': '28/07/20',
-    'Consultant Reply (A)': '11/09/20',
-    'Get Approval (T)': '11/08/20',
-    'Get Approval (A)': '15/09/20',
-    'Construction Issuance Date': '12/12/20',
-    'Construction Start': '02/12/20',
-}

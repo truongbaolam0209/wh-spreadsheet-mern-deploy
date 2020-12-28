@@ -2,7 +2,9 @@ import { Icon, Select } from 'antd';
 import React, { useContext, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-import { Context as UserContext } from '../../contexts/userContext';
+import { Context as ProjectContext } from '../../contexts/projectContext';
+import { Context as RowContext } from '../../contexts/rowContext';
+import { groupByHeaders } from '../../utils';
 import ButtonGroupComp from './ButtonGroupComp';
 
 const { Option } = Select;
@@ -11,6 +13,8 @@ const { Option } = Select;
 
 const FormGroup = ({ applyGroup, onClickCancelModal }) => {
 
+    const { state: stateRow } = useContext(RowContext);
+
 
     const [group, setGroup] = useState([]);
 
@@ -18,49 +22,59 @@ const FormGroup = ({ applyGroup, onClickCancelModal }) => {
         setGroup([...group, hd]);
     };
 
-    const onClickApply = () => {
+    // console.log('CCCCC', groupByHeaders(stateRow.rowsAll.filter(r => r._rowLevel === 1), group));
 
-        applyGroup(group);
+    
+
+    const onClickApply = () => {
+        let output = groupByHeaders(stateRow.rowsAll.filter(r => r._rowLevel === 1), group);
+
+        applyGroup(output);
     };
 
     return (
-        <>
-            <div style={{ 
-                padding: 20, 
+        <div style={{
+            width: '100%',
+            height: '100%'
+        }}>
+            <div style={{
+                padding: 20,
                 borderBottom: `1px solid ${colorType.grey4}`,
-                
+
             }}>
+                <SelectComp
+                    setGroupHeader={setGroupHeader}
+                />
                 {Object.keys(group).map(key => (
                     <div key={key} style={{ display: 'flex' }}>
                         <SelectComp
                             setGroupHeader={setGroupHeader}
                         />
                         <IconStyled>
-                            <Icon 
-                                type='close' 
-                                style={{ 
+                            <Icon
+                                type='close'
+                                style={{
                                     transform: 'translate(0, -3px)',
                                     color: colorType.grey2,
                                     fontSize: 11
                                 }}
-                                onClick={() => {}} 
+                                onClick={() => { }}
                             />
                         </IconStyled>
                     </div>
                 ))}
 
-                <SelectComp
-                    setGroupHeader={setGroupHeader}
-                />
+                
             </div>
 
             <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
-            <ButtonGroupComp
+                <ButtonGroupComp
                     onClickCancel={onClickCancelModal}
                     onClickApply={onClickApply}
                 />
             </div>
-        </>
+            
+        </div>
     );
 };
 export default FormGroup;
@@ -81,7 +95,7 @@ const IconStyled = styled.div`
 
 const SelectComp = ({ setGroupHeader }) => {
 
-    const { state: stateUser } = useContext(UserContext);
+    const { state: stateProject } = useContext(ProjectContext);
 
     return (
         <div style={{ display: 'flex', paddingBottom: 20, width: '70%' }}>
@@ -91,7 +105,7 @@ const SelectComp = ({ setGroupHeader }) => {
                 style={{ width: '100%', marginRight: 20 }}
                 onChange={(column) => setGroupHeader(column)}
             >
-                {stateUser.headersShown.map(hd => (
+                {stateProject.userData.headersAll.map(hd => (
                     <Option key={hd} value={hd}>{hd}</Option>
                 ))}
             </SelectStyled>

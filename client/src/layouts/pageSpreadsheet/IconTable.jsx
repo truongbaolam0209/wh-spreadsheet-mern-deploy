@@ -11,6 +11,7 @@ const IconTable = (props) => {
                 <IconStyled
                     type={type}
                     onClick={onClick}
+                    
                 />
             </DivStyled>
         </Tooltip>
@@ -35,8 +36,10 @@ const toolTipBtn = (type) => {
     type === 'border-outer' ? 'PUBLIC' :
     type === 'radius-upright' ? 'USER' :
     type === 'save' ? 'Save' :
-    type === 'fullscreen-exit' ? 'Save Rows To Server' :
+    type === 'fullscreen-exit' ? 'Save SMARTSHEET To Server' :
     type === 'pic-center' ? 'Save Random Rows To Server' :
+    type === 'folder-add' ? 'Drawing Type Organization' :
+    type === 'heat-map' ? 'Highlight Data Changed' :
     'xxx';
 };
 
@@ -53,11 +56,8 @@ const DivStyled = styled.div`
 const IconStyled = styled(Icon)`
 
     border: 1px solid black;
-    /* color: grey; */
     padding: 3px;
     font-size: 17px;
     margin: 3px;
     border-radius: 5px;
-
-    
 `;

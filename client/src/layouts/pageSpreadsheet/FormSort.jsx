@@ -2,8 +2,8 @@ import { Select } from 'antd';
 import React, { useContext, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
+import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { Context as UserContext } from '../../contexts/userContext';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
 
@@ -12,7 +12,7 @@ const { Option } = Select;
 
 
 
-const FormSort = ({ applySort, onClickCancelModal }) => {
+const FormSort = ({ applySort, onClickCancel }) => {
 
     const { state: stateRow } = useContext(RowContext);
 
@@ -21,7 +21,7 @@ const FormSort = ({ applySort, onClickCancelModal }) => {
         setSortColumn(dataSort);
     };
 
-
+    
     const [sortColumn, setSortColumn] = useState({});
     const [type, setType] = useState('Sort Rows In Project');
     const [backgroundSortDrawingType, setBackgroundSortDrawingType] = useState('white');
@@ -38,59 +38,69 @@ const FormSort = ({ applySort, onClickCancelModal }) => {
     };
 
 
-
     const onClickApply = () => {
 
         const headerSorted = Object.keys(sortColumn)[0];
 
         const typeSort = sortColumn[headerSorted].toLowerCase();
 
-        let rowArr = [];
-
+        let rowsOutput = [];
         if (type === 'Sort Rows In Drawing Type') {
 
-            let rows = stateRow.rowsVisible.filter(r => r._rowLevel === 0);
+            let rows = stateRow.rowsAll.filter(r => r._rowLevel === 0);
 
             if (rows.length === 0) {
-
-                rowArr = stateRow.rowsVisible.filter(r => r._rowLevel === 1);
-
-                if (typeSort.toLowerCase() === 'ascending') {
-                    rowArr.sort((a, b) => (a[headerSorted].toLowerCase() > b[headerSorted].toLowerCase()) ? 1 : ((b[headerSorted].toLowerCase() > a[headerSorted].toLowerCase()) ? -1 : 0));
-                } else if (typeSort.toLowerCase() === 'descending') {
-                    rowArr.sort((b, a) => (a[headerSorted].toLowerCase() > b[headerSorted].toLowerCase()) ? 1 : ((b[headerSorted].toLowerCase() > a[headerSorted].toLowerCase()) ? -1 : 0));
+                let rowArr = stateRow.rowsAll.filter(r => r._rowLevel === 1);
+                if (typeSort === 'ascending') {
+                    rowsOutput = sortFnc(rowArr, headerSorted, true);
+                } else if (typeSort === 'descending') {
+                    rowsOutput = sortFnc(rowArr, headerSorted, false);
                 };
-
-            } else {
+            } else if (rows.length > 0) {
                 rows.forEach(r => {
-                    rowArr.push(r);
+                    rowsOutput.push(r);
 
-                    let subRows = stateRow.rowsVisible.filter(subR => subR._parentRow === r.id);
+                    let subRows = stateRow.rowsAll.filter(subR => subR._parentRow === r.id);
 
-                    if (typeSort.toLowerCase() === 'ascending') {
-                        subRows.sort((a, b) => (a[headerSorted].toLowerCase() > b[headerSorted].toLowerCase()) ? 1 : ((b[headerSorted].toLowerCase() > a[headerSorted].toLowerCase()) ? -1 : 0));
-                    } else if (typeSort.toLowerCase() === 'descending') {
-                        subRows.sort((b, a) => (a[headerSorted].toLowerCase() > b[headerSorted].toLowerCase()) ? 1 : ((b[headerSorted].toLowerCase() > a[headerSorted].toLowerCase()) ? -1 : 0));
+                    if (typeSort === 'ascending') {
+                        subRows = sortFnc(subRows, headerSorted, true);
+                    } else if (typeSort === 'descending') {
+                        subRows = sortFnc(subRows, headerSorted, false);
                     };
-                    rowArr = [...rowArr, ...subRows];
+                    rowsOutput = [...rowsOutput, ...subRows];
                 });
             };
 
         } else if (type === 'Sort Rows In Project') {
-            rowArr = stateRow.rowsVisible.filter(r => r._rowLevel === 1);
-            if (typeSort.toLowerCase() === 'ascending') {
-                rowArr.sort((a, b) => (a[headerSorted].toLowerCase() > b[headerSorted].toLowerCase()) ? 1 : ((b[headerSorted].toLowerCase() > a[headerSorted].toLowerCase()) ? -1 : 0));
-            } else if (typeSort.toLowerCase() === 'descending') {
-                rowArr.sort((b, a) => (a[headerSorted].toLowerCase() > b[headerSorted].toLowerCase()) ? 1 : ((b[headerSorted].toLowerCase() > a[headerSorted].toLowerCase()) ? -1 : 0));
+            let rowArr = stateRow.rowsAll.filter(r => r._rowLevel === 1);
+            if (typeSort === 'ascending') {
+                rowsOutput = sortFnc(rowArr, headerSorted, true);
+            } else if (typeSort === 'descending') {
+                rowsOutput = sortFnc(rowArr, headerSorted, false);
             };
         };
-
-        applySort(rowArr);
+        applySort(rowsOutput);
     };
 
 
+    const sortFnc = (rows, header, ascending) => {
+        if (ascending) {
+            rows.sort((a, b) => (a[header] || '').toLowerCase() > (b[header] || '').toLowerCase() ? 
+            1 : 
+            ((b[header] || '').toLowerCase() > (a[header] || '').toLowerCase()) ? -1 : 0);
+        } else {
+            return rows.sort((b, a) => (a[header] || '').toLowerCase() > (b[header] || '').toLowerCase() ? 
+            1 : 
+            ((b[header] || '').toLowerCase() > (a[header] || '').toLowerCase()) ? -1 : 0);
+        };
+        return rows;
+    };
+
     return (
-        <>
+        <div style={{
+            width: '100%',
+            height: '100%'
+        }}>
             <div style={{
                 padding: 20,
                 borderBottom: `1px solid ${colorType.grey4}`
@@ -117,12 +127,12 @@ const FormSort = ({ applySort, onClickCancelModal }) => {
 
             <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
                 <ButtonGroupComp
-                    onClickCancel={onClickCancelModal}
+                    onClickCancel={onClickCancel}
                     onClickApply={onClickApply}
                 />
             </div>
 
-        </>
+        </div>
     );
 };
 export default FormSort;
@@ -131,7 +141,7 @@ export default FormSort;
 
 const SelectComp = ({ setSortSelect }) => {
 
-    const { state: stateUser } = useContext(UserContext);
+    const { state: stateProject } = useContext(ProjectContext);
 
     const [column, setColumn] = useState(null);
 
@@ -145,7 +155,7 @@ const SelectComp = ({ setSortSelect }) => {
                     setSortSelect({ [column]: 'Ascending' })
                 }}
             >
-                {stateUser.headersShown.map(hd => (
+                {stateProject.userData.headersAll.map(hd => (
                     <Option key={hd} value={hd}>{hd}</Option>
                 ))}
             </SelectStyled>

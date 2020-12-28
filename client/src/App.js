@@ -1,42 +1,36 @@
 import 'antd/dist/antd.css';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Provider as CellProvider } from './contexts/cellContext';
 import { Provider as ProjectProvider } from './contexts/projectContext';
 import { Provider as RowProvider } from './contexts/rowContext';
-import { Provider as UserProvider } from './contexts/userContext';
 import PageSpreadsheet from './layouts/PageSpreadsheet';
-// import TableRowSelection from './layouts/TableRowSelection';
 
 
 
 const App = () => {
 
 
-   useEffect(() => {
-      document.addEventListener('contextmenu', event => event.preventDefault());
-      return () => document.addEventListener('contextmenu', event => event.preventDefault());
-   }, []);
-
-
    return (
-      <UserProvider>
-         <ProjectProvider>
-            <RowProvider>
-               <CellProvider>
 
+      <ProjectProvider>
+         <RowProvider>
+            <CellProvider>
+               <PageSpreadsheet
+                  userData={{
+                     email: 'tblggmail.com',
+                     role: 'modeller',
+                     username: 'Truongt Bao Lam',
+                     isAdmin: true
+                  }}
+                  projectData={{
+                     projectId: 'TGPwMzc6GGG5NDY1MS10ZXN4GG',
+                     projectName: 'HANDY'
+                  }}
+               />
+            </CellProvider>
+         </RowProvider>
+      </ProjectProvider>
 
-                  <PageSpreadsheet
-                     email='baoquylan@gmail.com'
-                     projectIdForge='MTYwMzc3MDA5NDY1MS10ZXN0NA'
-                     role='modeller'
-                  />
-                  {/* <TableRowSelection /> */}
-
-
-               </CellProvider>
-            </RowProvider>
-         </ProjectProvider>
-      </UserProvider>
    );
 };
 

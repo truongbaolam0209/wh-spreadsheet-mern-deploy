@@ -1,7 +1,5 @@
 import createDataContext from './_createDataContext';
 
-const SERVER_URL = 'http://localhost:9000/api';
-
 
 const projectReducer = (state, { type, payload }) => {
     switch (type) {
@@ -10,6 +8,11 @@ const projectReducer = (state, { type, payload }) => {
             return {
                 ...state,
                 allDataOneSheet: payload
+            }
+        case 'SET_USER_DATA':
+            return {
+                ...state,
+                userData: payload
             }
 
         default:
@@ -23,14 +26,22 @@ const fetchDataOneSheet = dispatch => (data) => {
         payload: data
     });
 };
+const setUserData = dispatch => (data) => {
+    dispatch({
+        type: 'SET_USER_DATA',
+        payload: data
+    });
+};
 
 
 export const { Provider, Context } = createDataContext(
     projectReducer,
     {
-        fetchDataOneSheet
+        fetchDataOneSheet,
+        setUserData
     },
     {
-        allDataOneSheet: null
+        allDataOneSheet: null,
+        userData: null
     }
 );

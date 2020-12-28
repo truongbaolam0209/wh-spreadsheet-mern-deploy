@@ -1,30 +1,63 @@
 import { List } from 'antd';
-import React from 'react';
+import Axios from 'axios';
+import React, { useContext, useEffect, useState } from 'react';
+import { SERVER_URL } from '../../constants';
+import { Context as ProjectContext } from '../../contexts/projectContext';
+import { Context as RowContext } from '../../contexts/rowContext';
 
 
-const TableCellHistory = () => {
+const TableCellHistory = (props) => {
+    console.log(props);
+    const { rowData, column } = props;
 
-    const data = [
-        { user: 'Anne', title: 'Modeller', content: 'Not Started', createdAt: '15/10/20 - 14:25 PM' },
-        { user: 'Hannah', title: 'Coordinator In Charge', content: 'Consultant Reviewing', createdAt: '12/10/20 - 11:25 AM' },
-        { user: 'Anne', title: 'Modeller', content: 'Reject And Resubmit', createdAt: '10/10/20 - 13:33 PM' },
-    ];
+    const {
+        state: stateProject
+    } = useContext(ProjectContext);
+
+    const {
+        state: stateRow
+    } = useContext(RowContext);
+
+    const projectId = stateProject.allDataOneSheet.projectId;
+    const headers = stateProject.allDataOneSheet.publicSettings.headers;
+    const headerKey = headers.find(hd => hd.text === column.key).key;
+
+
+    const [history, setHistory] = useState()
+
+    useEffect(() => {
+        const fetchCellHistory = async () => {
+            try {
+
+                const res = await Axios.get(`${SERVER_URL}/cell/history/${projectId}/${rowData.id}/${headerKey}`);
+
+                console.log('HISTORY...', res.data);
+                setHistory(res.data.histories.reverse());
+
+
+            } catch (err) {
+                console.log(err);
+            };
+        };
+        fetchCellHistory();
+    }, [])
+
+
     return (
-        <div>
+        <div style={{ width: '100%', padding: 15 }}>
             <List
                 size='small'
                 header={null}
                 footer={null}
                 bordered
-                dataSource={data}
+                dataSource={history}
                 renderItem={item => (
                     <List.Item>
                         <div>
-                            <div style={{ fontWeight: 'bold' }}>{`${item.user} - ${item.title}`}</div>
+                            <div>{`${item.username}`}</div>
                             <div style={{ fontSize: 12, color: 'grey' }}>{item.createdAt}</div>
-                            <div>{item.content}</div>
+                            <div style={{ fontWeight: 'bold' }}>{item.text}</div>
                         </div>
-
                     </List.Item>
                 )}
             />

@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 import { DraggableArea } from 'react-draggable-tags';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-import { Context as UserContext } from '../../contexts/userContext';
+import { Context as ProjectContext } from '../../contexts/projectContext';
 import ButtonGroupComp from './ButtonGroupComp';
 
 
@@ -11,71 +11,84 @@ import ButtonGroupComp from './ButtonGroupComp';
 const ReorderColumnForm = ({ applyReorderColumns, onClickCancelModal }) => {
 
 
-    const { state: stateUser } = useContext(UserContext);
+    const { state: stateProject } = useContext(ProjectContext);
 
     const onClickApply = () => {
+
+
         let arr = [];
         let arrHidden = [];
-        let arrOrder = [];
         let countfrozen = 0;
         tags.forEach(tg => {
-            arrOrder.push(tg.header);
             if (tg.mode === 'frozen') {
                 arr.push(tg.header);
                 countfrozen++;
-            };
+            } else if (tg.mode === 'hidden') {
+                arrHidden.push(tg.header);
+            }
         });
         tags.forEach(tg => {
-            if (tg.mode === 'shown') arr.push(tg.header);
-            if (tg.mode === 'hidden') arrHidden.push(tg.header);
+            if (tg.mode === 'shown') {
+                arr.push(tg.header);
+            };
         });
+
 
         applyReorderColumns({
             nosColumnFixed: countfrozen,
-            headersShown: arr,
+            headersAll: arr,
             headersHidden: arrHidden,
-            headersOrder: arrOrder
         });
     };
 
-    const checkHiddenColumns = (header, headersHidden) => {
-        return headersHidden.indexOf(header) === -1 ? false : true
-    };
 
     const setMode = (obj) => {
-        let tag = tags.find(tg => tg.header === obj.header);
 
-        let newTags = [...tags];
-        newTags[tags.indexOf(tag)].mode = obj.mode;
-        setTags(newTags);
+        // let xxx = [];
+        tags.forEach(tg => {
+            if (tg.header === obj.header) {
+                tg.mode = obj.mode;
+            };
+            // xxx.push({...tg});
+        });
+        // setTags(xxx);
     };
 
     const getTags = () => {
         let arr = [];
-        stateUser.headersOrder.forEach((header, index) => {
+        stateProject.userData.headersHidden.forEach((header, index) => {
             arr.push({
                 id: index,
                 header,
-                mode: checkHiddenColumns(header, stateUser.headersHidden) ? 'hidden' : 'shown'
+                mode: 'hidden'
             });
         });
+        stateProject.userData.headersAll.forEach((header, index) => {
+            arr.push({
+                id: index + stateProject.userData.headersHidden.length,
+                header,
+                mode: index < stateProject.userData.nosColumnFixed ? 'frozen' : 'shown'
+            });
+        });
+
         return arr;
     };
 
     const [tags, setTags] = useState(getTags());
-
+    console.log(tags);
 
     return (
-        <>
+        <div style={{
+            width: '100%',
+            height: '100%'
+        }}>
             <PanelStyled>
                 <div style={{ width: '100%', paddingTop: 20 }}>
                     <DraggableArea
                         isList
                         tags={tags}
                         render={(props) => {
-
-                            const { tag, index } = props;
-                            if (index < stateUser.nosColumnFixed) tag.mode = 'frozen'
+                            const { tag } = props;
                             return (
                                 <ButtonColumn tag={tag} setMode={setMode} />
                             );
@@ -107,7 +120,7 @@ const ReorderColumnForm = ({ applyReorderColumns, onClickCancelModal }) => {
                 />
             </div>
 
-        </>
+        </div>
     );
 };
 export default ReorderColumnForm;

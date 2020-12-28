@@ -1,20 +1,22 @@
-import { Icon, Input, Tooltip } from 'antd';
+import { Icon, Tooltip } from 'antd';
 import _, { debounce } from 'lodash';
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { Context as RowContext } from '../../contexts/rowContext';
 
-const { Search } = Input;
-
 
 const InputSearch = ({ searchGlobal, closeSearchInput }) => {
 
-    const { state: stateRow } = useContext(RowContext);
+    const { state: stateRow, getSheetRows } = useContext(RowContext);
+
+    const [mode, setMode] = useState(false);
+    const [rowsFoundSearch, setRowsFoundSearch] = useState(false);
+
 
     const onChange = debounce((e) => {
         let search = e.target.value;
-        let rows = [...stateRow.rowsVisible];
+        let rows = stateRow.rowsAll.filter(r => r._rowLevel === 1);
         let rowsFound = {};
         rows.forEach(row => {
             let obj = {};
@@ -27,7 +29,33 @@ const InputSearch = ({ searchGlobal, closeSearchInput }) => {
             if (!_.isEmpty(obj)) rowsFound = { ...rowsFound, [row.id]: obj[row.id] };
         });
         searchGlobal(rowsFound);
+        setRowsFoundSearch(rowsFound);
     }, 500);
+
+
+    const showDrawingSearchOnly = (rowsFoundSearch) => {
+        let arr = [];
+        let parentObj = [];
+        Object.keys(rowsFoundSearch).forEach(key => {
+            const row = stateRow.rowsAll.find(r => r.id === key && r._rowLevel === 1);
+            parentObj.push(row._parentRow);
+        });
+        stateRow.rowsAll.forEach(r => {
+            if (
+                parentObj.indexOf(r.id) !== -1 ||
+                (parentObj.indexOf(r._parentRow) !== -1 && rowsFoundSearch[r.id])
+            ) {
+                arr.push(r);
+            };
+        });
+
+        getSheetRows({ ...stateRow, rowsAll: arr });
+    };
+
+    const showDrawingAll = () => {
+        getSheetRows({ ...stateRow, rowsAll: stateRow.rowsAllInit });
+    };
+
 
     return (
         <InputStyled>
@@ -42,12 +70,29 @@ const InputSearch = ({ searchGlobal, closeSearchInput }) => {
                 }}
             />
             <div style={{ float: 'right' }}>
-                <Tooltip title='Show Searched Row Only'>
-                    <IconStyled
-                        type='right-circle'
-                        onClick={closeSearchInput}
-                    />
-                </Tooltip>
+
+                {mode ? (
+                    <Tooltip title='Show All Drawing'>
+                        <IconStyled
+                            type='right-circle'
+                            onClick={() => {
+                                setMode(false);
+                                showDrawingAll();
+                            }}
+                        />
+                    </Tooltip>
+                ) : (
+                        <Tooltip title='Show Searched Drawing Only'>
+                            <IconStyled
+                                type='left-circle'
+                                onClick={() => {
+                                    setMode(true);
+                                    showDrawingSearchOnly(rowsFoundSearch);
+                                }}
+                            />
+                        </Tooltip>
+                    )}
+
                 <Tooltip title='Quit Search'>
                     <IconStyled
                         type='close-circle'
