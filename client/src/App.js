@@ -16,16 +16,15 @@ const App = () => {
          <RowProvider>
             <CellProvider>
                <PageSpreadsheet
-                  userData={{
-                     email: 'tblggmail.com',
-                     role: 'modeller',
-                     username: 'Truongt Bao Lam',
-                     isAdmin: true
-                  }}
-                  projectData={{
-                     projectId: 'TGPwMzc6GGG5NDY1MS10ZXN4GG',
-                     projectName: 'HANDY'
-                  }}
+
+                  email='tblgb4g@gmail.com'
+                  username='Truongt Bao Lam'
+                  isAdmin={true}
+                  projectId='GGPwMzc6GGG5NDY1MS10ZXN4GF'
+                  projectName='HANDYT'
+                  role='manager'
+                  // modeller coordinator manager viewer production
+
                />
             </CellProvider>
          </RowProvider>

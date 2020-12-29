@@ -229,7 +229,6 @@ const generateColumns = (headers) => headers.map((column, columnIndex) => ({
     width: getHeaderWidth2(column),
 }));
 const getHeaderWidth2 = (header) => {
-    console.log(header);
     if (header === 'Drawing Number') return 300;
     if (header === 'Drawing Name') return 300;
     if (header === 'Column') return 200;

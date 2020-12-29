@@ -1,6 +1,6 @@
 import { Button, Input } from 'antd';
 import Axios from 'axios';
-import _ from 'lodash';
+import _, { debounce } from 'lodash';
 import moment from 'moment';
 import React, { useContext, useState } from 'react';
 import { SERVER_URL } from '../../constants';
@@ -24,7 +24,6 @@ import TableDrawingDetail from './TableDrawingDetail';
 
 
 
-
 const PanelSetting = (props) => {
 
     const { state: stateRow } = useContext(RowContext);
@@ -43,14 +42,14 @@ const PanelSetting = (props) => {
     const applyFilter = (filterRows) => {
         commandAction({
             type: 'filter-by-columns',
-            data: filterRows,
+            data: filterRows
         });
     };
-    const applyResetFilter = () => {
-        commandAction({
-            type: 'reset-filter-sort'
-        });
-    };
+    
+    const applyResetFilter = debounce((data) => {
+        commandAction({ type: 'reset-filter-sort' });
+    }, 7);
+
     const applySort = (sortRows) => {
         commandAction({
             type: 'sort-data',
@@ -123,10 +122,7 @@ const PanelSetting = (props) => {
 
 
     const applyGroup = (data) => {
-        commandAction({
-            type: 'group-columns',
-            data
-        });
+        commandAction({ type: 'group-columns', data });
     };
 
 
@@ -196,12 +192,9 @@ const PanelSetting = (props) => {
         });
     };
 
-    const setCellHistoryArr = (data) => {
-        commandAction({
-            type: 'highlight-cell-history',
-            data
-        });
-    };
+    const setCellHistoryArr = debounce((data) => {
+        commandAction({ type: 'highlight-cell-history', data });
+    }, 7);
 
     const applyFolderOrganize = (folders) => {
 
@@ -227,7 +220,7 @@ const PanelSetting = (props) => {
         let rowsUpdate = [];
         let unfoldIdsArrayNew = [];
         let rowsNew = [];
-        console.log(folders);
+
         folders.forEach((fld, i) => {
             let rowCheck = rowsFolderPrevious.find(r => r.id === fld.id);
             if (rowCheck) {
@@ -336,8 +329,7 @@ const PanelSetting = (props) => {
 
                 // DELETE ROWS FIRST
 
-
-                // GET LATEST ROWS FROM DB
+                // // GET LATEST ROWS FROM DB
                 const res = await Axios.get(`${SERVER_URL}/sheet/${projectId}?userId=${email}`);
                 let rowsInDB = res.data.rows;
 
@@ -358,7 +350,6 @@ const PanelSetting = (props) => {
                     }
                 });
 
-
                 let rowsUpdatePreRowParentRow = [];
 
                 let rowsCurrentLevel0 = rowsAll.filter(r => r._rowLevel === 0);
@@ -371,7 +362,8 @@ const PanelSetting = (props) => {
                         rowsLevel0NewFromDB.push(r);
                     };
                 });
-                let lastRowCurrentLevel0 = rowsCurrentLevel0.find(row => rowsCurrentLevel0.find(r => r._preRow === row.id));
+                
+                let lastRowCurrentLevel0 = rowsCurrentLevel0.find(row => !rowsCurrentLevel0.find(r => r._preRow === row.id));
                 rowsLevel0NewFromDB.forEach((r, i) => {
                     if (i === 0) {
                         if (r._preRow !== lastRowCurrentLevel0.id) {
@@ -385,7 +377,6 @@ const PanelSetting = (props) => {
                         };
                     };
                 });
-
 
                 let rowsCurrentLevel1 = rowsAll.filter(r => r._rowLevel === 1);
                 let rowsLevel1NewsFromDB = [];
@@ -403,22 +394,60 @@ const PanelSetting = (props) => {
                 });
                 Object.keys(objSameParent).forEach(key => {
                     let rowsCurrentSameParent = rowsCurrentLevel1.filter(r => r._parentRow === key);
-                    let lastRowL1ThisParent = rowsCurrentSameParent.find(row => rowsCurrentSameParent.find(r => r._preRow === row.id));
-                    let rowsNewL1ThisParentFromDB = objSameParent[key];
-                    rowsNewL1ThisParentFromDB.forEach((r, i) => {
-                        if (i === 0) {
-                            if (r._preRow !== lastRowL1ThisParent.id) {
-                                r._preRow = lastRowL1ThisParent.id;
-                                rowsUpdatePreRowParentRow.push(r);
+
+                    if (rowsCurrentSameParent.length === 0) { // new parent from DB that can not find in current
+                        // CHECK AGAIN ...
+                        // do nothing ...
+                    } else {
+                        let lastRowL1ThisParent = rowsCurrentSameParent.find(row => !rowsCurrentSameParent.find(r => r._preRow === row.id));
+                        console.log('LEVEL 1', rowsCurrentSameParent, lastRowL1ThisParent);
+                        let rowsNewL1ThisParentFromDB = objSameParent[key];
+                        rowsNewL1ThisParentFromDB.forEach((r, i) => {
+                            if (i === 0) {
+                                if (r._preRow !== lastRowL1ThisParent.id) {
+                                    r._preRow = lastRowL1ThisParent.id;
+                                    rowsUpdatePreRowParentRow.push(r);
+                                };
+                            } else {
+                                if (r._preRow !== rowsNewL1ThisParentFromDB[i - 1].id) {
+                                    r._preRow = rowsNewL1ThisParentFromDB[i - 1].id;
+                                    rowsUpdatePreRowParentRow.push(r);
+                                };
                             };
-                        } else {
-                            if (r._preRow !== rowsNewL1ThisParentFromDB[i - 1].id) {
-                                r._preRow = rowsNewL1ThisParentFromDB[i - 1].id;
-                                rowsUpdatePreRowParentRow.push(r);
-                            };
-                        };
-                    });
+                        });
+                    };
                 });
+
+
+                // rowsInDB.forEach(rowDB => {
+                //     let rowCheck = rowsAll.find(r => r.id === rowDB.id);
+                //     if (!rowCheck) { // found new row from DB ...
+                //         const rowsSameParent = rowsAll.filter(r => r._parentRow === rowDB._parentRow);
+                //         if (rowsSameParent.length > 0) {
+                //             rowsSameParent.forEach(row => {
+                //                 let rowBelow = rowsSameParent.find(r => r._preRow === row.id);
+                //                 if (!rowBelow) {
+                //                     rowDB._preRow = row.id;
+                //                     rowDB._parentRow = row._parentRow;
+                //                     rowsAll.push(rowDB);
+                //                     rowsUpdateAndNews.push(rowDB);
+                //                 };
+                //             });
+                //         };
+                //     } else {
+                //         if (rowCheck._preRow !== rowDB._preRow ||
+                //             (rowCheck._preRow === rowDB._preRow && rowCheck._parentRow !== rowDB._parentRow)
+                //         ) {
+                //             let checkInRowsUpdate = rowsUpdateAndNews.find(r => r.id === rowCheck.id);
+                //             if (checkInRowsUpdate) {
+                //                 checkInRowsUpdate._preRow = rowCheck._preRow;
+                //                 checkInRowsUpdate._parentRow = rowCheck._parentRow;
+                //             } else {
+                //                 rowsUpdateAndNews.push(rowCheck);
+                //             };
+                //         };
+                //     };
+                // });
 
 
                 let rowsUpdateNoChangePreRowParentRow = rowsUpdateAndNews.filter(row => !rowsUpdatePreRowParentRow.find(r => r.id === row.id));
@@ -436,7 +465,6 @@ const PanelSetting = (props) => {
                     ...rowsChangePreRowParentRow
                 ];
                 
-         
 
                 let rowsToSaveFinal = finalOutput.map(row => {
                     let rowDataObj = {};
@@ -464,7 +492,7 @@ const PanelSetting = (props) => {
             await Axios.post(
                 `${SERVER_URL}/sheet/update-setting/${projectId}?userId=${email}`,
                 {
-                    headersShown: stateProject.userData.headersAllInit.map(hd => headers.find(h => h.text === hd).key),
+                    headersShown: stateProject.userData.headersShown.map(hd => headers.find(h => h.text === hd).key),
                     headersHidden: stateProject.userData.headersHidden.map(hd => headers.find(h => h.text === hd).key),
                     nosColumnFixed: stateProject.userData.nosColumnFixed,
                     rowsFolded: stateProject.userData.rowsFolded,
@@ -488,13 +516,6 @@ const PanelSetting = (props) => {
             console.log(err);
         };
     };
-
-
-
-
-
-
-
 
 
 

@@ -4,14 +4,14 @@ import styled from 'styled-components';
 import { colorType } from '../../constants';
 
 const IconTable = (props) => {
-    const { type, onClick } = props;
+    const { type, onClick, disabled } = props;
     return (
         <Tooltip placement={type === 'menu' ? 'topLeft' : 'top'} title={toolTipBtn(type)}>
             <DivStyled>
                 <IconStyled
                     type={type}
                     onClick={onClick}
-                    
+                    disabled={disabled}
                 />
             </DivStyled>
         </Tooltip>
@@ -60,4 +60,5 @@ const IconStyled = styled(Icon)`
     font-size: 17px;
     margin: 3px;
     border-radius: 5px;
+    color: ${props => props.disabled ? 'grey' : 'black'}
 `;

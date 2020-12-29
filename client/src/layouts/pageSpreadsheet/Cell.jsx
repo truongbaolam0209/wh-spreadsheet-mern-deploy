@@ -12,12 +12,18 @@ import PanelCalendar from './PanelCalendar';
 const Cell = (props) => {
 
     const {
-        cellData, rowData, column, rowIndex, columnIndex,
-        container, onRightClickCell, colorized,
-        setPosition,
-        cellsSearchFound, cellsHistoryCheck
+        rowData, column, rowIndex, columnIndex,
+        onRightClickCell, setPosition, getCurrentDOMCell
     } = props;
 
+    let cellData = props.cellData;
+    
+    if ((column.key.includes('(A)') || 
+        column.key.includes('(T)') || 
+        column.key === 'Construction Issuance Date' ||
+        column.key === 'Construction Start') && cellData && cellData.length === 10 && cellData.includes('-')) {
+            cellData = moment(cellData, 'YYYY-MM-DD').format('DD/MM/YY');
+    };
 
 
 
@@ -30,12 +36,14 @@ const Cell = (props) => {
     const panelRef = useRef();
     const buttonRef = useRef();
 
+
+ 
+
     const [inputRender, setInputRender] = useState(false);
     const [initValue, setInitValue] = useState(cellData || '');
     const [value, setValue] = useState(cellData || '');
-
-
-
+    const [btnShown, setBtnShown] = useState(false);
+    const [panelData, setPanelData] = useState(false);
 
 
     // after keydown ENTER to show input ...
@@ -44,7 +52,8 @@ const Cell = (props) => {
             !inputRender &&
             stateCell.cellActive &&
             stateCell.cellActive.rowIndex === rowIndex &&
-            stateCell.cellActive.columnIndex === columnIndex
+            stateCell.cellActive.columnIndex === columnIndex &&
+            !cellLocked(stateProject.allDataOneSheet.role, column)
         ) {
             setInputRender(true);
         };
@@ -54,26 +63,21 @@ const Cell = (props) => {
     const getCellTempId = () => {
         return `${rowData['id']}-${column.key}`;
     };
-
     const cellEditDone = (value) => {
         getCellModifiedTemp({ [getCellTempId()]: value });
 
-        if (stateRow.rowsUpdateAndNews) {
-            let rowsUpdateAndNews = [...stateRow.rowsUpdateAndNews];
+        if (stateRow.rowsUpdateAndNews.length > 0) {
+            let { rowsUpdateAndNews } = stateRow;
             let rowsUpdate = rowsUpdateAndNews.find(r => r.id === rowData.id);
-
             if (rowsUpdate) {
                 rowsUpdate[column.key] = value;
-                getSheetRows({
-                    ...stateRow,
-                    rowsUpdateAndNews
-                });
+                getSheetRows({ ...stateRow, rowsUpdateAndNews });
             } else {
                 getSheetRows({
                     ...stateRow,
                     rowsUpdateAndNews: [...stateRow.rowsUpdateAndNews, { ...rowData, [column.key]: value }]
                 });
-            }
+            };
         } else {
             getSheetRows({
                 ...stateRow,
@@ -85,15 +89,12 @@ const Cell = (props) => {
 
     const onDoubleClick = () => {
         setInputRender(true);
+        getCurrentDOMCell();
     };
     const onClick = () => {
         setBtnShown(true);
         if (!inputRender) {
-            setPosition({
-                cell: cellRef.current.parentElement,
-                rowIndex,
-                columnIndex
-            });
+            setPosition({ cell: cellRef.current.parentElement, rowIndex, columnIndex });
         };
     };
     useEffect(() => {
@@ -116,9 +117,7 @@ const Cell = (props) => {
         };
     };
 
-    const [btnShown, setBtnShown] = useState(false);
 
-    const [panelData, setPanelData] = useState(false);
 
     const onMouseLeave = () => {
         setBtnShown(false);
@@ -126,21 +125,12 @@ const Cell = (props) => {
     const onMouseDown = (e) => {
         if (e.button === 2) { // check mouse RIGHT CLICK ...
             onRightClickCell(e, props);
-        } else {
-            if (!inputRender) {
-                // MULTI SELECT CELL RANGES
-            };
-        };
-    };
-    const onMouseUp = (e) => {
-        if (e.button !== 2) {
-            // MULTI END CELL RANGES
         };
     };
     const pickDataSelect = (value) => {
-        setValue(value);
-        setPanelData(false);
         setBtnShown(false);
+        setPanelData(false);
+        setValue(value);
         if (initValue !== value) {
             cellEditDone(value);
         } else {
@@ -148,9 +138,9 @@ const Cell = (props) => {
         };
     };
     const pickDate = (value) => {
-        setValue(moment(value).format('DD/MM/YY'));
-        setPanelData(false);
         setBtnShown(false);
+        setPanelData(false);
+        setValue(moment(value).format('DD/MM/YY'));
         if (initValue !== value) {
             cellEditDone(moment(value).format('DD/MM/YY'));
         } else {
@@ -176,27 +166,15 @@ const Cell = (props) => {
             inputRender &&
             stateCell.cellActive &&
             stateCell.cellActive.rowIndex === rowIndex &&
-            stateCell.cellActive.columnIndex === columnIndex
+            stateCell.cellActive.columnIndex === columnIndex &&
+            !cellLocked(stateProject.allDataOneSheet.role, column)
         ) {
             inputRef.current.blur();
             setCellActive(null);
         };
     };
 
-    const cellBackground =
-        // (
-        //     stateCell.cellsRangeStart &&
-        //     stateCell.cellsRangeEnd &&
-        //     checkIfCellsRangeContainsCell(stateCell.cellsRangeStart, stateCell.cellsRangeEnd, rowIndex, columnIndex)
-        // )
-        //     ? colorType.cellHighlighted :
-        (cellsSearchFound && rowData.id in cellsSearchFound && cellsSearchFound[rowData.id].indexOf(column.key) !== -1)
-            ? '#badc58'
-            : (cellsHistoryCheck && cellsHistoryCheck.find(dt => dt.rowId === rowData.id && column.key === dt.header))
-                ? '#f6e58d'
-                : null;
 
-    // const cellFontWeight = (rowData._rowLevel === 0 || rowData._rowLevel === - 1) && 'bold';
 
     return (
         <>
@@ -206,18 +184,14 @@ const Cell = (props) => {
                 onClick={onClick}
                 onMouseLeave={onMouseLeave}
                 onMouseDown={onMouseDown}
-                onMouseUp={onMouseUp}
                 style={{
                     width: '100%',
                     height: '100%',
                     color: cellLocked(stateProject.userData.role, column) ? '#8FBC8F' : 'black',
-                    // color: cellLocked('modeller', column) ? '#8FBC8F' : 'black',
-                    background: cellBackground,
-                    // fontWeight: cellFontWeight,
                     padding: 5,
                     position: 'relative',
-                    pointerEvents: cellLocked(stateProject.userData.role, column) && 'none'
-                    // pointerEvents: cellLocked('modeller', column) && 'none'
+                    pointerEvents: cellLocked(stateProject.allDataOneSheet.role, column) && 'none',
+                    color: cellLocked(stateProject.allDataOneSheet.role, column) ? '#979797' : 'black',
                 }}
             >
                 {inputRender ? (
@@ -231,34 +205,38 @@ const Cell = (props) => {
                             outline: 'none',
                             border: 'none',
                             background: 'transparent',
-                            width: column.width - 20
+                            width: column.width - 30
                         }}
                     />
 
                 ) : (
-                        <span>
+                        <div style={{
+                            textOverflow: 'ellipsis',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            width: column.width - 30
+                        }}>
                             {
                                 stateCell.cellsModifiedTemp[getCellTempId()] ||  // there is modified data
                                 (getCellTempId() in stateCell.cellsModifiedTemp && ' ') || // there is modified data === empty
                                 cellData // there is no modification
                             }
-                        </span>
+                        </div>
                     )
                 }
 
 
                 {btnShown && !cellBtnDisabled(column.key) && (
-                    <div
-                        style={{
-                            cursor: 'pointer',
-                            position: 'absolute',
-                            right: 5,
-                            top: 5,
-                            height: 17,
-                            width: 17,
-                            backgroundImage: `url('./img/btn-${checkIconBtn(column.key) ? 'calendar2' : 'down2'}.png')`,
-                            backgroundSize: 17
-                        }}
+                    <div style={{
+                        cursor: 'pointer',
+                        position: 'absolute',
+                        right: 5,
+                        top: 5,
+                        height: 17,
+                        width: 17,
+                        backgroundImage: `url('./img/btn-${checkIconBtn(column.key) ? 'calendar2' : 'down2'}.png')`,
+                        backgroundSize: 17
+                    }}
                         onMouseDown={(e) => {
                             e.stopPropagation();
                             setPanelData(!panelData);
@@ -269,17 +247,16 @@ const Cell = (props) => {
 
 
                 {panelData && (
-                    <div
-                        style={{
-                            position: 'absolute',
-                            background: 'white',
-                            top: 30,
-                            left: 0,
-                            minWidth: column.width,
-                            zIndex: 999,
-                            padding: '3px 5px 3px 7px',
-                            boxShadow: 'rgba(0, 0, 0, 0.09) 0px 2px 1px, rgba(0, 0, 0, 0.09) 0px 4px 2px, rgba(0, 0, 0, 0.09) 0px 8px 4px, rgba(0, 0, 0, 0.09) 0px 16px 8px, rgba(0, 0, 0, 0.09) 0px 32px 16px'
-                        }}
+                    <div style={{
+                        position: 'absolute',
+                        background: 'white',
+                        top: 30,
+                        left: 0,
+                        minWidth: column.width,
+                        zIndex: 999,
+                        padding: '3px 5px 3px 7px',
+                        boxShadow: 'rgba(0, 0, 0, 0.09) 0px 2px 1px, rgba(0, 0, 0, 0.09) 0px 4px 2px, rgba(0, 0, 0, 0.09) 0px 8px 4px, rgba(0, 0, 0, 0.09) 0px 16px 8px, rgba(0, 0, 0, 0.09) 0px 32px 16px'
+                    }}
                         ref={panelRef}
                     >
                         {checkIconBtn(column.key) ? (
@@ -293,7 +270,7 @@ const Cell = (props) => {
                                         pickDataSelect(item);
                                     }}
                                 >{item}</SelectStyled>
-                            )
+                            );
                         })}
                     </div>
                 )}
@@ -307,17 +284,18 @@ export default Cell;
 
 const SelectStyled = styled.div`
     padding: 4px;
-
     &:hover {
         background-color: ${colorType.grey4};
-        cursor: pointer
+        cursor: pointer;
     };
     transition: 0.2s;
-
 `;
 
 const checkIconBtn = (header) => {
-    return header.includes('(A)') || header.includes('(T)');
+    return header.includes('(A)') || 
+        header.includes('(T)') || 
+        header === 'Construction Issuance Date' ||
+        header === 'Construction Start';
 };
 
 const cellBtnDisabled = (headerId) => {
@@ -373,18 +351,20 @@ const colorizedRows = (colorized, rowData) => {
 
 
 const cellLocked = (title, column) => {
-    const ColumnsLocked = [
-        'Model Start (T)',
-        'Model Start (A)',
-        'Model Finish (T)',
-        'Model Finish (A)',
-        'Model Progress',
-        'Drawing Start (T)',
-        'Drawing Start (A)',
-        'Drawing Finish (T)',
-        'Drawing Finish (A)',
+    const ColumnsLockedModeller = [
+        'Drg To Consultant (T)',
+        'Drg To Consultant (A)',
+        'Consultant Reply (T)',
+        'Consultant Reply (A)',
+        'Get Approval (T)',
+        'Get Approval (A)',
+        'Construction Issuance Date',
+        'Construction Start',
     ];
-    if (title === 'modeller' && ColumnsLocked.includes(column.key)) return true;
+    if (title === 'modeller' && ColumnsLockedModeller.includes(column.key)) return true;
+    if (title === 'coordinator') return false;
+    if (title === 'manager' || title === 'viewer') return true;
+    if (title === 'production' && column === 'Construction Start') return false;
 };
 
 

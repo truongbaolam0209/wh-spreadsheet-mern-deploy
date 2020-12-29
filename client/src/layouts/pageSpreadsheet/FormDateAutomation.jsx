@@ -31,15 +31,19 @@ const FormDateAutomation = ({ applyDateAutomation }) => {
     return (
         <div style={{
             width: '30vw',
+            height: '80vh',
             background: 'white',
             padding: 10,
             paddingLeft: 40,
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'center'
+            justifyContent: 'center',
         }}>
-            <div>
-                <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 10 }}>Date Automation</div>
+            <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 10 }}>Date Automation</div>
+            <div style={{
+                overflowY: 'auto',
+                overflowX: 'hidden'
+            }}>
                 {arrHeaders.map((hd, i) => (
                     <DatePickerComp
                         key={hd}
@@ -50,15 +54,16 @@ const FormDateAutomation = ({ applyDateAutomation }) => {
                         onChangeNosOfDays={onChangeNosOfDays}
                         onClickCalculate={onClickCalculate}
                         onChangePickdate={onChangePickdate}
-        
                         defaultDate={defaultDate}
 
                     />
                 ))}
-                <Button 
-                    onClick={() => applyDateAutomation(defaultDate)} 
-                >Assign Date</Button>
             </div>
+            <Button 
+                onClick={() => applyDateAutomation(defaultDate)}
+                disabled={defaultDate === null ? true : false}
+            >Assign Date</Button>
+
         </div>
     );
 };
@@ -69,11 +74,11 @@ export default FormDateAutomation;
 
 
 
-const DatePickerComp = ({ 
-    header, 
-    disabled, 
-    firstItem, 
-    onChangeNosOfDays, 
+const DatePickerComp = ({
+    header,
+    disabled,
+    firstItem,
+    onChangeNosOfDays,
     onClickCalculate,
     onChangePickdate,
     defaultDate,
@@ -107,10 +112,10 @@ const DatePickerComp = ({
                     }}
                 />
             ) : (
-                <Button onClick={onClickCalculate} style={{
-                    width: 60
-                }}>CAL</Button>
-            )}
+                    <Button onClick={onClickCalculate} style={{
+                        width: 60
+                    }}>CAL</Button>
+                )}
             <div style={{ marginLeft: 15 }}>
                 {header}
             </div>

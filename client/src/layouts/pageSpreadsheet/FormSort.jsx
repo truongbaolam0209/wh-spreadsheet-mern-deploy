@@ -155,7 +155,7 @@ const SelectComp = ({ setSortSelect }) => {
                     setSortSelect({ [column]: 'Ascending' })
                 }}
             >
-                {stateProject.userData.headersAll.map(hd => (
+                {stateProject.userData.headersShown.map(hd => (
                     <Option key={hd} value={hd}>{hd}</Option>
                 ))}
             </SelectStyled>

@@ -1,5 +1,6 @@
 import { Divider, Icon, message, Modal } from 'antd';
 import Axios from 'axios';
+import { debounce } from 'lodash';
 import React, { forwardRef, useContext, useEffect, useRef, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import 'react-base-table/styles.css';
@@ -8,9 +9,7 @@ import { colorType, dimension, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import {
-    getActionName, getCurrentAndHistoryDrawings, getDataConvertedSmartsheet, getHeaderWidth, mapSubRows, sortRowsReorder
-} from '../utils';
+import { extractCellInfo, getActionName, getCurrentAndHistoryDrawings, getDataConvertedSmartsheet, getHeaderWidth, mapSubRows, sortRowsReorder } from '../utils';
 import Cell from './pageSpreadsheet/Cell';
 import CellHeader from './pageSpreadsheet/CellHeader';
 import CellIndex from './pageSpreadsheet/CellIndex';
@@ -29,23 +28,30 @@ const Table = forwardRef((props, ref) => {
                 {...props}
                 ref={ref}
                 width={window.innerWidth}
-                height={window.innerHeight - 95}
+                height={window.innerHeight - 99.78}
             />}
         </AutoResizer>
     );
 });
+let previousDOMCell = null;
+let currentDOMCell = null;
+let isTyping = false;
 
 
-const PageSpreadsheet = ({ userData, projectData }) => {
 
-    const { email, role, username, isAdmin } = userData;
-    const { projectId, projectName } = projectData;
+const PageSpreadsheet = (props) => {
+
+    const { email, role, username, isAdmin, projectId, projectName } = props;
     const tableRef = useRef();
 
-
-    let previousDOMCell = null;
-    let currentDOMCell = null;
-    let isTyping = false;
+    const getCurrentDOMCell = () => {
+        if (isTyping) {
+            isTyping = false;
+        } else {
+            isTyping = true;
+            setCellActive(currentDOMCell);
+        };
+    };
     const setPosition = (e) => {
         if (previousDOMCell) {
             previousDOMCell.cell.classList.remove('cell-current');
@@ -62,7 +68,6 @@ const PageSpreadsheet = ({ userData, projectData }) => {
         };
     }, []);
     const EventKeyDown = (e) => {
-
         if (e.key === 'ArrowUp') {
             if (isTyping) return;
             let cellTop = currentDOMCell.cell.parentElement.offsetTop;
@@ -73,6 +78,7 @@ const PageSpreadsheet = ({ userData, projectData }) => {
             currentDOMCell.cell.parentElement.childNodes.forEach((dv, i) => {
                 if (dv === currentDOMCell.cell) index = i;
             });
+            if (!currentDOMCell.cell.parentElement.previousSibling) return; // Scroll out of sight of cell selected
             currentDOMCell.cell = currentDOMCell.cell.parentElement.previousSibling.childNodes[index];
             currentDOMCell.cell.classList.add('cell-current');
             currentDOMCell.rowIndex = currentDOMCell.rowIndex - 1;
@@ -121,6 +127,7 @@ const PageSpreadsheet = ({ userData, projectData }) => {
             currentDOMCell.cell.parentElement.childNodes.forEach((dv, i) => {
                 if (dv === currentDOMCell.cell) index = i;
             });
+            if (!currentDOMCell.cell.parentElement.nextSibling) return; // Scroll out of sight of cell selected
             currentDOMCell.cell = currentDOMCell.cell.parentElement.nextSibling.childNodes[index];
             currentDOMCell.cell.classList.add('cell-current');
             currentDOMCell.rowIndex = currentDOMCell.rowIndex + 1;
@@ -174,7 +181,16 @@ const PageSpreadsheet = ({ userData, projectData }) => {
         };
     };
 
-    
+
+
+
+    const { state: stateCell, setCellActive, getCellModifiedTemp } = useContext(CellContext);
+    const { state: stateRow, getSheetRows } = useContext(RowContext);
+    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
+
+    // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
+    // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
+    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
 
     const [cursor, setCursor] = useState(null);
     const [panelType, setPanelType] = useState(null);
@@ -183,6 +199,19 @@ const PageSpreadsheet = ({ userData, projectData }) => {
     const [panelSettingVisible, setPanelSettingVisible] = useState(false);
 
     const buttonPanelFunction = (btn) => {
+
+        // Load latest input data table before any function
+        Object.keys(stateCell.cellsModifiedTemp).forEach(key => {
+            const { rowId, headerName } = extractCellInfo(key);
+            let row = stateRow.rowsAll.find(r => r.id === rowId);
+            row[headerName] = stateCell.cellsModifiedTemp[key];
+        });
+        getSheetRows({
+            ...stateRow,
+            rowsAll: stateRow.rowsAll
+        });
+
+
 
         setPanelFunctionVisible(false);
         if (btn === 'Move Drawing') {
@@ -255,32 +284,26 @@ const PageSpreadsheet = ({ userData, projectData }) => {
             getSheetRows({ ...stateRow, rowsAll: update.data });
 
         } else if (update.type === 'filter-by-columns') {
-            getSheetRows({ ...stateRow, rowsAll: update.data });
-
+            if (update.data.length > 0) {
+                getSheetRows({ ...stateRow, rowsAll: update.data });
+            } else {
+                message.info('There is no drawing found', 1.5);
+            };
         } else if (update.type === 'reset-filter-sort') {
             getSheetRows({ ...stateRow, rowsAll: stateRow.rowsAllInit });
-            setColumns(renderColumns(
-                stateProject.userData.headersAll,
-                stateProject.userData.nosColumnFixed
-            ));
-
-            setExpandedRows(stateRow.rowsAllInit
-                .filter(r => r._rowLevel === 0)
-                .map(r => r.id));
+            setExpandedRows(stateRow.rowsAllInit.filter(r => r._rowLevel === 0).map(r => r.id));
             setSearchInputShown(false);
-
+            setCellSearchFound(null);
+            setCellHistoryFound(null);
+            setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
+            setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
         } else if (update.type === 'reorder-columns') {
             setUserData({
                 ...stateProject.userData,
                 headersHidden: update.data.headersHidden,
-                headersAll: update.data.headersAll,
-                headersAllInit: update.data.headersAll,
+                headersShown: update.data.headersShown,
                 nosColumnFixed: update.data.nosColumnFixed,
             });
-            setColumns(renderColumns(
-                update.data.headersAll,
-                update.data.nosColumnFixed
-            ));
 
         } else if (update.type === 'unhide-all-rows') {
 
@@ -308,12 +331,9 @@ const PageSpreadsheet = ({ userData, projectData }) => {
         } else if (update.type === 'colorized') {
 
         } else if (update.type === 'highlight-cell-history') {
-            setColumns(renderColumns(
-                stateProject.userData.headersAll,
-                stateProject.userData.nosColumnFixed,
-                null,
-                update.data
-            ));
+            setCellHistoryFound(update.data);
+            setUserData({ ...stateProject.userData, nosColumnFixed: 1 });
+            setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
 
         } else if (update.type === 'drawing-folder-organization') {
             getSheetRows({
@@ -340,13 +360,8 @@ const PageSpreadsheet = ({ userData, projectData }) => {
             getCellModifiedTemp({});
             setCellActive(null);
 
-            setColumns(renderColumns(
-                getHeadersData(update.data, role).headersAll,
-                getHeadersData(update.data, role).nosColumnFixed
-            ));
             setLoading(false);
         };
-
         setPanelSettingVisible(false);
         setPanelSettingType(null);
         setPanelType(null);
@@ -356,13 +371,7 @@ const PageSpreadsheet = ({ userData, projectData }) => {
     };
 
 
-    const { state: stateCell, setCellActive, getCellModifiedTemp } = useContext(CellContext);
-    const { state: stateRow, getSheetRows } = useContext(RowContext);
-    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
-    useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
-    useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
-    useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
 
 
     // SAVE DATA TO SMART SHEET
@@ -406,7 +415,6 @@ const PageSpreadsheet = ({ userData, projectData }) => {
 
 
 
-                
                 fetchDataOneSheet({
                     ...res.data,
                     email, projectId, projectName, role, username
@@ -415,11 +423,6 @@ const PageSpreadsheet = ({ userData, projectData }) => {
                 getSheetRows(getInputDataInitially(res.data));
 
                 setExpandedRows(getRowsData(getInputDataInitially(res.data)).rowsUnfoldIds);
-
-                setColumns(renderColumns(
-                    getHeadersData(res.data, role).headersAll,
-                    getHeadersData(res.data, role).nosColumnFixed
-                ));
 
                 setLoading(false);
             } catch (err) {
@@ -430,53 +433,25 @@ const PageSpreadsheet = ({ userData, projectData }) => {
     }, []);
 
 
-    const renderColumns = (arr, nosColumnFixed, cellsSearchFound, cellsHistoryCheck) => {
 
-        let headersObj = [{
-            key: 'Index',
-            dataKey: 'Index',
-            title: '',
-            width: 50,
-            frozen: Column.FrozenDirection.LEFT,
-            cellRenderer: <CellIndex />,
-            style: { padding: 0, margin: 0 }
-        }];
-        arr.forEach((hd, index) => {
-            headersObj.push({
-                key: hd,
-                dataKey: hd,
-                title: hd,
-                width: getHeaderWidth(hd),
-                resizable: true,
-                frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
-                headerRenderer: (
-                    <CellHeader
-                        onMouseDownColumnHeader={onMouseDownColumnHeader}
-                    />
-                ),
-                cellRenderer: (
-                    <Cell
-                        setPosition={setPosition}
-                        onRightClickCell={onRightClickCell}
-                        cellsSearchFound={cellsSearchFound}
-                        cellsHistoryCheck={cellsHistoryCheck}
-                    />
-                )
-            });
-        });
-        return headersObj;
-    };
 
-    const [columns, setColumns] = useState(null);
+    // const [columns, setColumns] = useState(null);
     const [expandedRows, setExpandedRows] = useState([]);
     const [expandColumnKey, setExpandColumnKey] = useState('Drawing Number');
+    const [cellSearchFound, setCellSearchFound] = useState(null);
+    const [cellHistoryFound, setCellHistoryFound] = useState(null);
 
-
+    const [rowFoldedIds, setRowFoldedIds] = useState([]);
     const onRowExpand = (props) => {
         const { rowKey, expanded } = props;
         let arr = [...expandedRows];
-        if (expanded) arr.push(rowKey);
-        else arr.splice(arr.indexOf(rowKey), 1);
+        let foldedRowsSettings = stateRow.rowsFolded;
+        if (expanded) {
+            arr.push(rowKey);
+        } else {
+            arr.splice(arr.indexOf(rowKey), 1);
+        };
+        console.log(arr);
         setExpandedRows(arr);
     };
     const ExpandIcon = (props) => {
@@ -522,30 +497,71 @@ const PageSpreadsheet = ({ userData, projectData }) => {
 
     };
 
+    // console.log(cellSearchFound, cellHistoryFound);
 
     const [searchInputShown, setSearchInputShown] = useState(false);
     const searchGlobal = (found) => {
-        setColumns(renderColumns(
-            stateProject.userData.headersAll,
-            stateProject.userData.nosColumnFixed,
-            found
-        ));
+        setCellSearchFound(found);
+        setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
+        setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
     };
-    const closeSearchInput = () => {
+    const closeSearchInput = debounce(() => {
         setSearchInputShown(false);
-        getSheetRows({
-            ...stateRow,
-            rowsAll: stateRow.rowsAllInit
+        setCellSearchFound(null);
+        setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
+        setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
+    }, 7);
+
+
+    const renderColumns = (arr, nosColumnFixed) => {
+
+        let headersObj = [{
+            key: 'Index',
+            dataKey: 'Index',
+            title: '',
+            width: 50,
+            frozen: Column.FrozenDirection.LEFT,
+            cellRenderer: <CellIndex />,
+            style: { padding: 0, margin: 0 }
+        }];
+        arr.forEach((hd, index) => {
+            headersObj.push({
+                key: hd,
+                dataKey: hd,
+                title: hd,
+                width: getHeaderWidth(hd),
+                resizable: true,
+                frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
+                headerRenderer: (
+                    <CellHeader
+                        onMouseDownColumnHeader={onMouseDownColumnHeader}
+                    />
+                ),
+                cellRenderer: (
+                    <Cell
+                        setPosition={setPosition}
+                        onRightClickCell={onRightClickCell}
+                        getCurrentDOMCell={getCurrentDOMCell}
+                    />
+                ),
+                className: (props) => {
+                    const { rowData: { id }, column: { key } } = props;
+                    return (cellSearchFound && id in cellSearchFound && cellSearchFound[id].indexOf(key) !== -1)
+                        ? 'cell-found'
+                        : (cellHistoryFound && cellHistoryFound.find(cell => cell.rowId === id && cell.header === key))
+                            ? 'cell-history-highlight'
+                            : ''
+                }
+            });
         });
-        setColumns(renderColumns(
-            stateProject.userData.headersAll,
-            stateProject.userData.nosColumnFixed
-        ));
+        return headersObj;
     };
 
 
     return (
-        <PageSpreadsheetStyled onContextMenu={(e)=> e.preventDefault()}>
+        <PageSpreadsheetStyled
+            onContextMenu={(e) => e.preventDefault()}
+        >
 
             <ButtonBox>
                 <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
@@ -565,8 +581,11 @@ const PageSpreadsheet = ({ userData, projectData }) => {
                 <IconTable type='rollback' onClick={() => buttonPanelFunction('rollback-ICON')} />
                 <DividerRibbon />
                 <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
-                <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
-                <IconTable type='eye' onClick={() => buttonPanelFunction('eye-ICON')} />
+
+                {/* <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
+                <IconTable type='eye' onClick={() => buttonPanelFunction('eye-ICON')} /> */}
+                <IconTable type='highlight' disabled={true} />
+                <IconTable type='eye' disabled={true} />
                 <DividerRibbon />
                 <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
                 <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
@@ -585,8 +604,11 @@ const PageSpreadsheet = ({ userData, projectData }) => {
                 <TableStyled
                     ref={tableRef}
                     fixed
-                    // columns={renderColumns(stateProject.userData.headersAll, stateProject.userData.nosColumnFixed)}
-                    columns={columns}
+                    columns={renderColumns(
+                        stateProject.userData.headersShown,
+                        stateProject.userData.nosColumnFixed
+                    )}
+                    // columns={columns}
                     data={mapSubRows(getRowsData(stateRow).rowsDisplay)}
 
                     expandedRowKeys={expandedRows}
@@ -678,10 +700,10 @@ const PageSpreadsheetStyled = styled.div`
 const TableStyled = styled(Table)`
 
     .cell-found {
-        background-color: red;
+        background-color: #7bed9f;
     }
     .cell-history-highlight {
-        background-color: yellow;
+        background-color: #f6e58d;
     }
     .row-color-categorized {
         /* background-color: #9ACD32; */
@@ -824,8 +846,8 @@ const getHeadersData = (projectData, role) => {
 
     let headersShown, headersHidden, rowsFolded, rowsHidden, colorization, nosColumnFixed;
 
-    let headersEditRestriction = publicSettings.cellEditRestriction[role]
-        .map(hdKey => publicSettings.headers.find(hd => hd.key === hdKey).text);
+    // let headersEditRestriction = publicSettings.cellEditRestriction[role]
+    //     .map(hdKey => publicSettings.headers.find(hd => hd.key === hdKey).text);
 
     if (!userSettings) {
         headersShown = headers.map(hd => hd.text);
@@ -844,9 +866,8 @@ const getHeadersData = (projectData, role) => {
     };
 
     return {
-        headersAll: headersShown,
-        headersAllInit: headersShown,
-        headersEditRestriction,
+        headersShown,
+        // headersEditRestriction,
         nosColumnFixed,
         headersHidden,
         rowsFolded,

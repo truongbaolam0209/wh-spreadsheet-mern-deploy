@@ -7,7 +7,7 @@ import { Context as RowContext } from '../../contexts/rowContext';
 
 
 const TableCellHistory = (props) => {
-    console.log(props);
+
     const { rowData, column } = props;
 
     const {
@@ -31,9 +31,7 @@ const TableCellHistory = (props) => {
 
                 const res = await Axios.get(`${SERVER_URL}/cell/history/${projectId}/${rowData.id}/${headerKey}`);
 
-                console.log('HISTORY...', res.data);
                 setHistory(res.data.histories.reverse());
-
 
             } catch (err) {
                 console.log(err);

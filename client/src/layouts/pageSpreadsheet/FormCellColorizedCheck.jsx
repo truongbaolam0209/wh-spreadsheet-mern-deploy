@@ -28,11 +28,7 @@ const FormCellColorizedCheck = ({ setCellHistoryArr }) => {
         const fetchProjectHistory = async () => {
             try {
                 const res = await Axios.get(`${SERVER_URL}/cell/history/${projectId}`);
-
-                console.log('HISTORY...', res.data);
-                console.log(convertHistoryData(res.data));
                 setHistoryData(res.data);
-
 
             } catch (err) {
                 console.log(err);
@@ -47,6 +43,9 @@ const FormCellColorizedCheck = ({ setCellHistoryArr }) => {
 
 
     const onClick = () => {
+
+        if (!start || !end) return;
+        
         let startDate = start.toDate();
         let endDate = end.toDate();
 

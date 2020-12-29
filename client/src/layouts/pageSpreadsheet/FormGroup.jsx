@@ -4,10 +4,13 @@ import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { groupByHeaders } from '../../utils';
+import { groupByHeaders, mongoObjectId } from '../../utils';
 import ButtonGroupComp from './ButtonGroupComp';
+import ButtonStyle from './ButtonStyle';
 
 const { Option } = Select;
+
+
 
 
 
@@ -15,21 +18,33 @@ const FormGroup = ({ applyGroup, onClickCancelModal }) => {
 
     const { state: stateRow } = useContext(RowContext);
 
-
     const [group, setGroup] = useState([]);
 
     const setGroupHeader = (hd) => {
         setGroup([...group, hd]);
     };
+    const removeTag = (column, id) => {
+        console.log(id);
+        idArr.splice(idArr.indexOf(id), 1);
+        setIdArr([...idArr]);
 
-    // console.log('CCCCC', groupByHeaders(stateRow.rowsAll.filter(r => r._rowLevel === 1), group));
-
-    
+        group.splice(group.indexOf(column), 1);
+        setGroup([...group]);
+    };
 
     const onClickApply = () => {
         let output = groupByHeaders(stateRow.rowsAll.filter(r => r._rowLevel === 1), group);
-
         applyGroup(output);
+    };
+
+    const [idArr, setIdArr] = useState([]);
+    const onClickAddField = () => {
+        if (idArr.length <= group.length) {
+            setIdArr([
+                ...idArr, 
+                mongoObjectId()
+            ]);
+        };
     };
 
     return (
@@ -37,33 +52,26 @@ const FormGroup = ({ applyGroup, onClickCancelModal }) => {
             width: '100%',
             height: '100%'
         }}>
-            <div style={{
-                padding: 20,
-                borderBottom: `1px solid ${colorType.grey4}`,
-
-            }}>
-                <SelectComp
-                    setGroupHeader={setGroupHeader}
+            <div style={{ padding: 20, borderBottom: `1px solid ${colorType.grey4}` }}>
+                
+                <ButtonStyle
+                    colorText='black'
+                    marginRight={10}
+                    borderColor={colorType.grey1}
+                    background={colorType.grey4}
+                    onClick={onClickAddField}
+                    name='Add Field'
+                    marginBottom={10}
                 />
-                {Object.keys(group).map(key => (
-                    <div key={key} style={{ display: 'flex' }}>
-                        <SelectComp
-                            setGroupHeader={setGroupHeader}
-                        />
-                        <IconStyled>
-                            <Icon
-                                type='close'
-                                style={{
-                                    transform: 'translate(0, -3px)',
-                                    color: colorType.grey2,
-                                    fontSize: 11
-                                }}
-                                onClick={() => { }}
-                            />
-                        </IconStyled>
-                    </div>
+                {idArr.map(key => (
+                    <SelectComp
+                        key={key}
+                        id={key}
+                        setGroupHeader={setGroupHeader}
+                        group={group}
+                        removeTag={removeTag}
+                    />
                 ))}
-
                 
             </div>
 
@@ -93,31 +101,45 @@ const IconStyled = styled.div`
 `;
 
 
-const SelectComp = ({ setGroupHeader }) => {
+const SelectComp = ({ setGroupHeader, group, removeTag, id }) => {
 
     const { state: stateProject } = useContext(ProjectContext);
+    const [cl, setCl] = useState(null);
 
     return (
-        <div style={{ display: 'flex', paddingBottom: 20, width: '70%' }}>
+        <div style={{ display: 'flex', paddingBottom: 10, width: '70%' }}>
 
             <SelectStyled
                 defaultValue='Select Field...'
                 style={{ width: '100%', marginRight: 20 }}
-                onChange={(column) => setGroupHeader(column)}
+                onChange={(column) => {
+                    setGroupHeader(column);
+                    setCl(column);
+                }}
             >
-                {stateProject.userData.headersAll.map(hd => (
+                {stateProject.userData.headersShown.filter(hd => group.indexOf(hd) === -1).map(hd => (
                     <Option key={hd} value={hd}>{hd}</Option>
                 ))}
             </SelectStyled>
+            
+            <IconStyled>
+                <Icon
+                    type='close'
+                    style={{
+                        transform: 'translate(0, -3px)',
+                        color: colorType.grey2,
+                        fontSize: 11
+                    }}
+                    onClick={() => removeTag(cl, id)}
+                />
+            </IconStyled>
 
         </div>
     );
 };
-
-
-
 const SelectStyled = styled(Select)`
     .ant-select-selection {
         border-radius: 0;
     }
 `;
+

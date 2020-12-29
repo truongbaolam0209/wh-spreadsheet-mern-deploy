@@ -36,7 +36,7 @@ const ReorderColumnForm = ({ applyReorderColumns, onClickCancelModal }) => {
 
         applyReorderColumns({
             nosColumnFixed: countfrozen,
-            headersAll: arr,
+            headersShown: arr,
             headersHidden: arrHidden,
         });
     };
@@ -63,7 +63,7 @@ const ReorderColumnForm = ({ applyReorderColumns, onClickCancelModal }) => {
                 mode: 'hidden'
             });
         });
-        stateProject.userData.headersAll.forEach((header, index) => {
+        stateProject.userData.headersShown.forEach((header, index) => {
             arr.push({
                 id: index + stateProject.userData.headersHidden.length,
                 header,
@@ -75,7 +75,7 @@ const ReorderColumnForm = ({ applyReorderColumns, onClickCancelModal }) => {
     };
 
     const [tags, setTags] = useState(getTags());
-    console.log(tags);
+ 
 
     return (
         <div style={{

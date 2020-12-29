@@ -30,7 +30,7 @@ export const dimension = {
     innerTableHeight: 800,
     cellIndexWidth: '45px',
     bodyTableRowHeight: 28,
-    navBarHeight: '49px',
+    navBarHeight: '53.78px',
 };
 
 
