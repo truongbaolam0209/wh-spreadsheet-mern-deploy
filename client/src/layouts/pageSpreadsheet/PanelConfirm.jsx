@@ -3,14 +3,16 @@ import ButtonGroupComp from './ButtonGroupComp';
 
 
 
-const PanelConfirm = ({ onClickCancel, onClickApply }) => {
+const PanelConfirm = ({ onClickCancel, onClickApply, content }) => {
+
+
     return (
         <div style={{
             width: '100%',
             height: '100%'
         }}>
             <div style={{ padding: 20 }}>
-                Are you sure ?
+                {content || 'Are you sure ?'}
             </div>
             <div style={{ padding: 20, paddingTop: 0, display: 'flex', flexDirection: 'row-reverse' }}>
                 <ButtonGroupComp

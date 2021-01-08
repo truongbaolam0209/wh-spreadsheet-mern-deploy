@@ -32,6 +32,7 @@ const TableDrawingDetail = (props) => {
     const { rowData } = props;
     const { state: stateProject } = useContext(ProjectContext);
     const { state: stateRow } = useContext(RowContext);
+    const { headers } = stateProject.allDataOneSheet.publicSettings;
 
     const [rowsHistoryDatabase, setRowsHistoryDatabase] = useState(null);
     const [rowsHistoryPrevious, setRowsHistoryPrevious] = useState([]);
@@ -43,15 +44,16 @@ const TableDrawingDetail = (props) => {
             try {
                 const res = await Axios.get(`${SERVER_URL}/row/history/${stateProject.allDataOneSheet._id}/${rowData.id}`);
                 let rowsHistory = [];
-                res.data.map((r, i) => {
+                res.data.forEach((r, i) => {
                     const { history } = r;
-                    const { headers } = stateProject.allDataOneSheet.publicSettings;
-                    let data = { id: mongoObjectId() };
-                    Object.keys(history).map(key => {
-                        const hdText = headers.find(hd => hd.key === key).text;
-                        data[hdText] = history[key];
-                    });
-                    rowsHistory.push(data);
+                    if (history) {
+                        let data = { id: mongoObjectId() };
+                        Object.keys(history).forEach(key => {
+                            const hdText = headers.find(hd => hd.key === key).text;
+                            data[hdText] = history[key];
+                        });
+                        rowsHistory.push(data);
+                    };
                 });
                 setRowsHistoryDatabase(rowsHistory);
 

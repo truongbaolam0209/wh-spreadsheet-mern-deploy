@@ -1,13 +1,13 @@
 const schema = require('./schema');
 const model = require('./model');
 const { genCRUDHandlers } = require('../crud');
-const { toObjectId } = require('../utils');
+const { toObjectId, mongoObjectId } = require('../utils');
 const {
    findPublicSettings,
    findUserSettings,
    updatePublicSettings,
    updateUserSettings
-   
+
 } = require('../settings');
 const { HTTP } = require('../errors');
 const rowModel = require('../row/model');
@@ -48,34 +48,77 @@ async function findOneWithUserEmail(req, res, next) {
 };
 
 
+const createRowsEmptyInit = (drawingTypeTree) => {
+   const genId = (nosOfRows) => {
+      let arr = [];
+      for (let i = 0; i < nosOfRows; i++) {
+         arr.push(mongoObjectId());
+      };
+      return arr;
+   };
+
+   let output = [];
+   drawingTypeTree.forEach(row => {
+      if (row._rowLevel === 0) {
+         let idsArr = genId(5);
+         const newRows = idsArr.map((id, i) => {
+            return ({
+               _id: id,
+               level: 1,
+               parentRow: row.id,
+               preRow: i === 0 ? null : idsArr[i - 1]
+            });
+         });
+         output = [...output, ...newRows];
+      };
+   });
+
+   return output;
+};
+
+
 
 async function findSheetIncludingRowsSortedFnc(sheetId) {
-   
+
    let [publicSettings, dataRows] = await Promise.all([
-
       findPublicSettings(sheetId),
-
       rowModel.find({
          sheet: sheetId,
-         level: { $in: [0, 1, 2] },
+         level: 1,
       }).lean().exec()
    ]);
 
    let sheet = { _id: sheetId };
    let rows = [];
-   let subRowsLv1 = [];
-   let subRowsLv2 = [];
    let headers = publicSettings && publicSettings.headers instanceof Array
       ? publicSettings.headers
       : [];
 
-   for (let row of dataRows) {
-      if (row.level == 0) rows.push(row);
-      else if (row.level == 1) subRowsLv1.push(row);
-      else if (row.level == 2) subRowsLv2.push(row);
+   let drawingTypeTree = publicSettings.drawingTypeTree;
+
+   if (dataRows.length === 0) {
+
+      let emptyRows = createRowsEmptyInit(drawingTypeTree);
+      let manyRows = await _updateOrCreateManyRows(emptyRows, sheetId);
+      rows = manyRows.rowsToCreate;
+
+   } else {
+      for (let row of dataRows) {
+         if (row.level == 1) rows.push(row);
+      };
    };
 
-   sheet.rows = _processRows(headers, rows, subRowsLv1, subRowsLv2);
+   sheet.rows = _processRows(headers, rows);
+
+   drawingTypeTree.forEach(row => {
+      headers.forEach(hd => {
+         if (row[hd.key]) {
+            row[hd.text] = row[hd.key];
+            delete row[hd.key];
+         };
+      });
+   });
+
    sheet.publicSettings = publicSettings;
 
    return sheet;
@@ -90,12 +133,12 @@ const updateOrCreateRows = async (req, res, next) => {
 
    try {
       let sheetId = req.params.id;
+
       if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
+
       let { rows = [] } = req.body;
-
-      // await _validateUserPermissionEditRows(sheetId, userId, rows);
+      // // // await _validateUserPermissionEditRows(sheetId, userId, rows);
       let result = await _updateOrCreateManyRows(rows, sheetId);
-
       return res.json(result);
 
    } catch (err) {
@@ -107,15 +150,31 @@ const _updateOrCreateManyRows = async (rowsData, sheetId) => {
    let { rowsToUpdate, rowsToCreate } = await _processRowsData(rowsData, sheetId);
 
    await Promise.all([
-      ...rowsToUpdate.map((r) => rowModel.updateOne({ _id: r._id }, r)),
+      ...rowsToUpdate.map((r) => rowModel.updateOne({ _id: r._id }, _genUpdateRowQuery(r))),
+      // ...rowsToUpdate.map((r) => rowModel.updateOne({ _id: r._id }, r)),
       rowModel.create(rowsToCreate),
    ]);
-
    return {
       created: rowsToCreate.length,
-      updated: rowsToUpdate.length
+      updated: rowsToUpdate.length,
+
+      rowsToCreate,
+      rowsToUpdate
    };
 };
+function _genUpdateRowQuery(rowData) {
+   let { _id, data, ...rest } = rowData;
+   let setDataQuery = { ...rest };
+   for (let key in data) {
+      setDataQuery[`data.${key}`] = data[key];
+   };
+   return {
+      $set: setDataQuery
+   };
+};
+
+
+
 const _processRowsData = async (rowsData, sheetId) => {
    let rowsToUpdate = [];
    let rowsToCreate = [];
@@ -176,10 +235,54 @@ const deleteRow = async (req, res, next) => {
       next(err)
    };
 };
+const deleteRows = async (req, res, next) => {
+   try {
+      let sheetId = req.params.id;
+      let userId = req.query.userId;
+      if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
+      if (!userId) throw new HTTP(400, 'Invalid user id!');
+
+      let rowIdDatas = req.body;
+      if (!(rowIdDatas instanceof Array)) throw new HTTP(400, 'Body must be array of row id!');
+
+      let rowIds = rowIdDatas.map(rowIdData => {
+         return toObjectId(rowIdData, null)
+      }).filter(Boolean);
+      
+      let result = await rowModel.deleteMany({ _id: { $in: rowIds } });
+
+      return res.json(result);
+
+   } catch (error) {
+      next(error);
+   };
+};
+const deleteAllDataInCollection = async (req, res, next) => {
+   try {
+     let result = await rowModel.deleteMany({});
+     return res.json(result);
+   } catch(err) {
+     next(err);
+   };
+};
+
+const deleteAllRowsInOneProject = async (req, res, next) => {
+   try {
+      let sheetId = req.params.id;
+      if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
+      let result = await rowModel.deleteMany({ sheet: sheetId });
+      return res.json(result);
+
+   } catch (error) {
+      next(error);
+   };
+};
 
 
 
-const updateSetting = async (req, res, next) => {
+
+
+const updateSettingPublic = async (req, res, next) => {
    try {
       let sheetId = req.params.id;
       let userId = req.query.userId;
@@ -187,10 +290,26 @@ const updateSetting = async (req, res, next) => {
       let settingData = req.body;
 
       if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
+      if (!userId) throw new HTTP(400, 'Invalid sheet id!');
 
-      let setting = await (userId
-         ? updateUserSettings(sheetId, userId, settingData)
-         : updatePublicSettings(sheetId, settingData));
+      let setting = await updatePublicSettings(sheetId, userId, settingData);
+
+      return res.json(setting);
+   } catch (err) {
+      next(err);
+   };
+};
+const updateSettingUser = async (req, res, next) => {
+   try {
+      let sheetId = req.params.id;
+      let userId = req.query.userId;
+
+      let settingData = req.body;
+
+      if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
+      if (!userId) throw new HTTP(400, 'Invalid sheet id!');
+
+      let setting = await updateUserSettings(sheetId, userId, settingData);
 
       return res.json(setting);
    } catch (err) {
@@ -201,56 +320,16 @@ const updateSetting = async (req, res, next) => {
 
 
 
-
-
-const _processRows = (sheetHeaders, rows, subRowsLv1, subRowsLv2) => {
+const _processRows = (sheetHeaders, rows) => {
 
    let rowsProcessed = [];
-   let groupSubRowsLv1 = _groupSubRowsByParentId(subRowsLv1);
-   let groupSubRowsLv2 = _groupSubRowsByParentId(subRowsLv2);
 
    // sort & format rows
    let firstRowIndex = rows.findIndex((row) => row.preRow === null);
-   if (firstRowIndex >= 0) {
+   while (firstRowIndex >= 0) {
       let preRow = rows.splice(firstRowIndex, 1)[0];
       while (preRow) {
          rowsProcessed.push(_formalRowData(preRow, sheetHeaders));
-
-         // sort & format subRowsLv1
-         let subRowsLv1 = groupSubRowsLv1[preRow._id] || [];
-         let firstSubRowLv1Index = subRowsLv1.findIndex(sr1 => sr1.preRow == null);
-         if (firstSubRowLv1Index >= 0) {
-            let preSubRowLv1 = subRowsLv1.splice(firstSubRowLv1Index, 1)[0];
-            while (preSubRowLv1) {
-               rowsProcessed.push(_formalRowData(preSubRowLv1, sheetHeaders));
-
-               // sort & format subRowsLv2
-               let subRowsLv2 = groupSubRowsLv2[preSubRowLv1._id] || [];
-               let firstSubRowLv2Index = subRowsLv2.findIndex(sr2 => sr2.preRow == null);
-
-               if (firstSubRowLv2Index >= 0) {
-                  let preSubRowLv2 = subRowsLv2.splice(firstSubRowLv2Index, 1)[0];
-                  while (preSubRowLv2) {
-                     rowsProcessed.push(_formalRowData(preSubRowLv2, sheetHeaders));
-
-                     let nextSubRowLv2Index = subRowsLv2.findIndex(sr2 => String(sr2.preRow) == String(preSubRowLv2._id));
-                     if (nextSubRowLv2Index >= 0) {
-                        preSubRowLv2 = subRowsLv2.splice(nextSubRowLv2Index, 1)[0];
-                     } else {
-                        preSubRowLv2 = null;
-                     };
-                  };
-               };
-
-               let nextSubRowLv1Index = subRowsLv1.findIndex(sr1 => String(sr1.preRow) == String(preSubRowLv1._id));
-
-               if (nextSubRowLv1Index >= 0) {
-                  preSubRowLv1 = subRowsLv1.splice(nextSubRowLv1Index, 1)[0];
-               } else {
-                  preSubRowLv1 = null;
-               };
-            };
-         };
 
          let nextRowIndex = rows.findIndex(row => String(row.preRow) == String(preRow._id));
          if (nextRowIndex >= 0) {
@@ -259,7 +338,9 @@ const _processRows = (sheetHeaders, rows, subRowsLv1, subRowsLv2) => {
             preRow = null;
          };
       };
+      firstRowIndex = rows.findIndex((row) => row.preRow === null);
    };
+
    return rowsProcessed;
 };
 
@@ -306,8 +387,12 @@ module.exports = {
 
    updateOrCreateRows,
    deleteRow,
-   updateSetting,
-   findOneWithUserEmail
+   deleteRows,
+   updateSettingPublic,
+   updateSettingUser,
+   findOneWithUserEmail,
+   deleteAllRowsInOneProject,
+   deleteAllDataInCollection
 };
 
 

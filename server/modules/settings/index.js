@@ -20,19 +20,27 @@ const createPublicSettings = async (sheetId) => {
    let temp = createTemplatePublicSettings(sheetId);
    return model.create(temp);
 };
-const updatePublicSettings = async (sheetId, settingData = {}) => {
-
-   sheetId = toObjectId(sheetId, null);
+const updatePublicSettings = async (sheetId, userId, settingData = {}) => {
 
    if (!sheetId) throw new Error('Invalid sheet id to update settings!');
+   if (!userId) throw new Error('Invalid user id to update settings!');
+
 
    let setting = await findPublicSettings(sheetId);
-   let data = filterDataToUpdatePublicSettings(settingData);
 
-   await setting.update(data);
-
+   if (setting) {
+      let data = filterObject(settingData, ...SHEET_PUBLIC_FIELDS);
+      await setting.updateOne(data);
+   };
    return setting;
+
+   // let data = filterDataToUpdatePublicSettings(settingData);
+
+   // await setting.update(data);
+
+   // return setting;
 };
+
 const filterDataToUpdatePublicSettings = (settingData) => {
    let data = filterObject(settingData, ...SHEET_PUBLIC_FIELDS);
    for (let key in data) {
@@ -92,7 +100,14 @@ const updateUserSettings = async (sheetId, userId, settingData = {}) => {
    return setting;
 };
 
-
+const deleteAllDataInCollection = async (req, res, next) => {
+   try {
+     let result = await model.deleteMany({});
+     return res.json(result);
+   } catch(err) {
+     next(err);
+   };
+};
 
 
 module.exports = {
@@ -105,5 +120,6 @@ module.exports = {
 
    findUserSettings,
    createUserSettings,
-   updateUserSettings
+   updateUserSettings,
+   deleteAllDataInCollection
 };

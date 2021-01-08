@@ -1,9 +1,11 @@
 import { List } from 'antd';
 import Axios from 'axios';
+import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
 import { SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
+
 
 
 const TableCellHistory = (props) => {
@@ -42,7 +44,7 @@ const TableCellHistory = (props) => {
 
 
     return (
-        <div style={{ width: '100%', padding: 15 }}>
+        <div style={{ width: '100%', padding: 15, maxHeight: window.innerHeight * 0.7, overflowY: 'scroll' }}>
             <List
                 size='small'
                 header={null}
@@ -52,8 +54,8 @@ const TableCellHistory = (props) => {
                 renderItem={item => (
                     <List.Item>
                         <div>
-                            <div>{`${item.username}`}</div>
-                            <div style={{ fontSize: 12, color: 'grey' }}>{item.createdAt}</div>
+                            <div>{`${item.user}`}</div>
+                            <div style={{ fontSize: 12, color: 'grey' }}>{moment(item.createdAt).format('DD/MM/YY - HH:mm')}</div>
                             <div style={{ fontWeight: 'bold' }}>{item.text}</div>
                         </div>
                     </List.Item>

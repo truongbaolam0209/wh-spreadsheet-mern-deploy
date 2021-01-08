@@ -6,12 +6,14 @@ import { addZero } from '../../utils';
 const CellIndex = (props) => {
 
     const { state: stateRow } = useContext(RowContext);
-
+    const { rowsAll } = stateRow;
     const { rowData } = props;
+    
+
 
     return (
         <Styled>
-            {addZero(stateRow.rowsAll.indexOf(stateRow.rowsAll.find(r => r.id === rowData.id)) + 1)}
+            {rowData._rowLevel === 1 ? addZero(rowsAll.indexOf(rowsAll.find(r => r.id === rowData.id)) + 1) : ''}
         </Styled>
     );
 };

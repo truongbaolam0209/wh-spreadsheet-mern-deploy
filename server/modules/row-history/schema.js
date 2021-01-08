@@ -7,7 +7,7 @@ const schema = new Schema({
       type: String,
       required: true,
    },
-   username: {
+   userId: {
       type: String,
       required: true,
    },

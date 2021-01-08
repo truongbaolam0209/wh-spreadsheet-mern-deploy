@@ -99,7 +99,7 @@ export const groupByHeaders = (data, headers) => {
     for (let item of data) {
         let _prevLevelKey = '';
         let _prevLevelParent = null;
-        for (let i = 0; i < headers.length; i++) {
+        for (let i = 0, level = 2 - headers.length; i < headers.length; i++, level++) {
             let arrayParent = i == 0 ? res : _prevLevelParent.children;
 
             let header = headers[i];
@@ -111,7 +111,7 @@ export const groupByHeaders = (data, headers) => {
 
             if (!levelParent) {
                 let iddd = mongoObjectId();
-                levelParent = _newParent(item, header, i, iddd);
+                levelParent = _newParent(item, header, level, iddd);
 
                 _map[levelKey] = arrayParent.length;
                 arrayParent.push(levelParent);
@@ -134,18 +134,15 @@ export const groupByHeaders = (data, headers) => {
             };
         };
     };
-
     return {
         rows: res,
         expandedRows: parentIdsArr
     };
 };
 function _newParent(item, header, level, iddd) {
-
     return {
         id: iddd,
         _rowLevel: level,
-        [header]: `${item[header]}: (0 nos)`,
         _src_header: item[header],
         count: 0,
         children: []
@@ -163,10 +160,10 @@ export const convertCellTempToHistory = (
     cellsModifiedTemp,
     stateProject
 ) => {
-    const { username, publicSettings } = stateProject.allDataOneSheet;
+    const { email, publicSettings } = stateProject.allDataOneSheet;
 
     const cellsHistoryData = Object.keys(cellsModifiedTemp).map(key => {
-        const { rowId, headerName, email } = extractCellInfo(key);
+        const { rowId, headerName } = extractCellInfo(key);
 
         const dataOut = {
             rowId,
@@ -174,7 +171,6 @@ export const convertCellTempToHistory = (
             history: {
                 text: cellsModifiedTemp[key],
                 user: email,
-                username,
                 createdAt: new Date(),
             }
         };
@@ -403,46 +399,19 @@ export const getDataConvertedSmartsheet = (projectArray) => {
             });
         });
 
-        const indexDrawingName = columnsIndexArray['Drawing Name'];
-        const indexRev = columnsIndexArray['Rev'];
-
         let allDrawings = [];
-        let allDrawingsLatestRevision = [];
 
         for (let i = 0; i < project.rows.length; i++) {
             const dwg = project.rows[i];
-            if (dwg.cells[indexDrawingName].value === undefined) continue; // make sure all drawing name is keyed in
             allDrawings.push([...dwg.cells]);
-
-            if (dwg.cells[indexRev].value === undefined) {
-                allDrawingsLatestRevision.push([...dwg.cells]);
-                continue;
-            };
-
-            let found = false;
-            for (let j = 0; j < allDrawingsLatestRevision.length; j++) {
-
-                if (allDrawingsLatestRevision[j][indexDrawingName].value === dwg.cells[indexDrawingName].value) {
-
-                    found = true;
-                    if (String(allDrawingsLatestRevision[j][indexRev].value) < String(dwg.cells[indexRev].value)) {
-                        allDrawingsLatestRevision.splice(j, 1);
-                        allDrawingsLatestRevision.push([...dwg.cells]);
-                    };
-                    break;
-                };
-            };
-            if (!found) allDrawingsLatestRevision.push([...dwg.cells]);
         };
 
-
         dataOutput[project.name.slice(0, project.name.length - 17)] = {
-            columnsIndexArray: columnsIndexArray,
             allDrawings,
-            allDrawingsLatestRevision,
             allDrawingsSorted: pickDataToTable(allDrawings, columnsIndexArray)
         };
     };
+
     return dataOutput;
 };
 
@@ -451,7 +420,6 @@ const pickDataToTable = (drawings, columnsIndexArray) => {
     drawings.forEach(dwg => {
         let objDwg = {};
         Object.keys(columnsIndexArray).forEach(header => {
-
             if (header === 'Rev') {
                 objDwg[checkSpelling(header)] = dwg[columnsIndexArray[header]].displayValue;
             } else {
@@ -459,7 +427,6 @@ const pickDataToTable = (drawings, columnsIndexArray) => {
                     objDwg[checkSpelling(header)] = dwg[columnsIndexArray[header]].value;
                 };
             };
-
         });
         arrayDrw.push(objDwg);
     });
@@ -507,13 +474,22 @@ export const getHeaderWidth = (header) => {
     else if (header === 'Rev') return 50;
     else if (header === 'Status') return 280;
     else if (header === 'Remark') return 120;
-    else if (header === 'Drawing Number') return 270;
+    else if (header === 'Drawing Number') return 350;
     else if (header === 'Drawing Name') return 450;
     else return 300;
 
 };
 
-
+export const rowClassNameGetColumnsValue = (rows, headers) => {
+    let valueObj = {};
+    headers.forEach(hd => {
+       let valueArr = rows.map(row => row[hd.text] || '');
+       valueArr = [...new Set(valueArr)].filter(e => e);
+       valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
+       if (valueArr.length > 0) valueObj[hd.text] = valueArr;
+    });
+    return valueObj;
+ };
 export const getActionName = (type) => {
     if (type === 'filter-ICON') return 'Create New Filter';
     if (type === 'reorderColumn-ICON') return 'Columns Layout';
@@ -523,9 +499,15 @@ export const getActionName = (type) => {
     if (type === 'addDrawingType-ICON') return 'Drawing Type Organization';
     if (type === 'color-cell-history-ICON') return 'Check Data Changed';
     if (type === 'View Cell History') return 'Cell History';
+    if (type === 'Delete Drawing') return 'Delete Drawing';
+    if (type === 'history-ICON') return 'Activity History';
+    if (type === 'colorized-ICON') return 'Drawing Colorization';
     else return '';
 };
-
+export const getModalWidth = (type) => {
+    if (type === 'history-ICON') return window.innerWidth * 0.8 + 20;
+    else return 520;
+};
 
 
 
@@ -534,17 +516,15 @@ const createParentRows = (arr) => {
     let newRows = [];
     arr.forEach((title, i) => {
         newRows.push({
-            _id: mongoObjectId(),
+            id: mongoObjectId(),
             _rowLevel: 0,
-            _parentRow: null,
-            _preRow: i === 0 ? null : newRows[i - 1]._id,
+            expanded: true,
             'Drawing Number': title
         });
     });
     return newRows;
 };
 const getParentRowsHandy = () => {
-
     let arrParentTitle = [
         'COLUMN AND WALL SETTING OUT Keyplan',
         'UNIT TYPE LAYOUT TSO Plan',
@@ -569,87 +549,168 @@ const getParentRowsHandy = () => {
         'No Name 5',
         'TOILETS Details',
     ];
-
     let rows = createParentRows(arrParentTitle);
     return rows;
 };
-export const getCurrentAndHistoryDrawings = (rows, headers) => {
+const getParent_IdHandy = (i) => {
+    if (i >= 3 && i <= 47) return 0;
+    if (i >= 49 && i <= 94) return 1;
+    if (i >= 96 && i <= 147) return 2;
+    if (i >= 149 && i <= 162) return 3;
+    if (i >= 164 && i <= 168) return 4;
 
-    let obj = {};
-    rows.forEach(r => {
-        const key = `${r['Drawing Number'] || ''}-${r['Drawing Name'] || ''}`;
-        obj[key] = [...obj[key] || [], r];
-    });
+    if (i >= 170 && i <= 175) return 5;
+    if (i >= 177 && i <= 191) return 6;
+    if (i >= 193 && i <= 202) return 7;
+    if (i >= 204 && i <= 209) return 8;
+    if (i >= 211 && i <= 224) return 9;
 
-
-    let parentRows = getParentRowsHandy();
-    let historyOutput = [];
-    let objOutput = [];
-
-    Object.keys(obj).forEach((key, i) => {
-
-        const arr = obj[key];
-        arr.sort((a, b) => (a['Rev'].toLowerCase() > b['Rev'].toLowerCase()) ? 1 : ((b['Rev'].toLowerCase() > a['Rev'].toLowerCase()) ? -1 : 0));
-
-        let rowsHistory = arr.filter((r, index) => index < arr.length - 1);
-
-        let rowId = mongoObjectId();
-
-        if (rowsHistory.length > 0) {
-            let rowsHistoryOutput = rowsHistory.map(r => {
-                let rowDataObj = { row: rowId };
-
-                headers.forEach(hd => {
-                    if (r[hd.text]) rowDataObj.history = { ...rowDataObj.history || {}, [hd.key]: r[hd.text] };
-                });
-                return rowDataObj;
-            });
-            historyOutput = [...historyOutput, ...rowsHistoryOutput];
-        };
-
-
-        let rowCurrent = arr[arr.length - 1];
-        let rowCurrentOutput = {};
-
-        headers.forEach(hd => {
-            if (rowCurrent[hd.text]) rowCurrentOutput.data = { ...rowCurrentOutput.data || {}, [hd.key]: rowCurrent[hd.text] };
-        });
-
-        rowCurrentOutput._id = rowId;
-        rowCurrentOutput.parentRow = i === 0 ? null : parentRows[getParentId(i)]._id;
-        rowCurrentOutput.preRow = returnPreRowNull(i) ? null : objOutput[i - 1]._id;
-        rowCurrentOutput.level = 1;
-
-        objOutput.push(rowCurrentOutput);
-    });
-
-    objOutput.splice(0, 1);
-
-
-    const parentRowsOutput = parentRows.map(r => {
-        const { _id, _rowLevel, _parentRow, _preRow } = r;
-
-        let rowDTObj = {};
-        headers.forEach(hd => {
-            if (r[hd.text]) rowDTObj = { ...rowDTObj || {}, [hd.key]: r[hd.text] };
-        });
-        return {
-            _id,
-            level: _rowLevel,
-            parentRow: _parentRow,
-            preRow: _preRow,
-            data: rowDTObj
-        };
-    });
-
-
-
-    return {
-        rows: [...parentRowsOutput, ...objOutput],
-        historyRows: historyOutput
-    };
+    if (i >= 226 && i <= 246) return 10;
+    if (i >= 248 && i <= 250) return 11;
+    if (i >= 252 && i <= 259) return 12;
+    if (i >= 261 && i <= 264) return 13;
+    if (i >= 266 && i <= 269) return 14;
+    
+    if (i >= 271 && i <= 274) return 15;
+    if (i >= 276 && i <= 279) return 16;
+    if (i >= 281 && i <= 283) return 17;
+    if (i >= 285 && i <= 289) return 18;
+    if (i >= 291 && i <= 292) return 19;
+    
+    if (i >= 294 && i <= 296) return 20;
+    if (i >= 298 && i <= 306) return 21;
 };
-const getParentId = (i) => {
+const getParentRowsSumang = () => {
+    let arrParentTitle = [
+        'GRID LINE',
+        'PRE-COMPUTATION',
+        'SUBSTATION',
+        'BASEMENT',
+        'EDECK',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 42(11)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 44(12)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 22(1)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 24(3)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 26(4)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 32(6)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 34(7)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 28(5)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 46(13)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 36(8)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 30(2)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 38(9)',
+        'WSO (WALL SETTING-OUT PLANS) - BLK 40(10)',
+        'OVERALL FINISHING LAYOUT',
+        'SSS (STAIRCASE STOREY SHELTER)',
+        'REFLECTED CEILING PLAN',
+        'LIFT LOBBY',
+    ];
+    let rows = createParentRows(arrParentTitle);
+    return rows;
+};
+const getParent_IdSumang = (i) => {
+    if (i >= 3 && i <= 4) return 0;
+    if (i >= 6 && i <= 6) return 1;
+    if (i >= 8 && i <= 9) return 2;
+    if (i >= 11 && i <= 20) return 3;
+    if (i >= 22 && i <= 35) return 4;
+
+    if (i >= 38 && i <= 43) return 5;
+    if (i >= 45 && i <= 50) return 6;
+    if (i >= 52 && i <= 59) return 7;
+    if (i >= 61 && i <= 70) return 8;
+    if (i >= 72 && i <= 78) return 9;
+
+    if (i >= 80 && i <= 85) return 10;
+    if (i >= 87 && i <= 92) return 11;
+    if (i >= 94 && i <= 100) return 12;
+    if (i >= 102 && i <= 107) return 13;
+    if (i >= 109 && i <= 114) return 14;
+    
+    if (i >= 116 && i <= 121) return 15;
+    if (i >= 123 && i <= 128) return 16;
+    if (i >= 130 && i <= 135) return 17;
+    if (i >= 137 && i <= 175) return 18;
+    if (i >= 177 && i <= 211) return 19;
+    
+    if (i >= 213 && i <= 213) return 20;
+    if (i >= 216 && i <= 254) return 21;
+};
+
+export const getCurrentAndHistoryDrawings = (allProjects, headers) => {
+    let final = {};
+    Object.keys(allProjects).forEach(prj => {
+
+        let drawingTypeTree = prj === 'Sumang' ? getParentRowsSumang() : getParentRowsHandy();
+        drawingTypeTree.forEach(r => {
+            let headerKeyDrawingNumber = headers.find(hd => hd.text === 'Drawing Number').key;
+            r[headerKeyDrawingNumber] = r['Drawing Number'];
+            delete r['Drawing Number'];
+        });
+
+        let rows = prj === 'Sumang' ? allProjects['Sumang'].allDrawingsSorted : allProjects['Handy'].allDrawingsSorted;
+
+        let objChildren = {};
+        rows.forEach((r, i) => {
+            const parentIndex = prj === 'Sumang' ? getParent_IdSumang(i + 1) : getParent_IdHandy(i + 1);
+            objChildren[parentIndex] = [...objChildren[parentIndex] || [], r];
+        });
+
+        let historyOutput = [];
+        let rowsAllCurrentOutput = [];
+        Object.keys(objChildren).forEach(index => {
+            if (index !== 'undefined') {
+                let allRowsInEachFolder = objChildren[index];
+                let obj = {};
+                allRowsInEachFolder.forEach(r => {
+                    const key = `${r['Drawing Number'] || ''}-${r['Drawing Name'] || ''}`;
+                    obj[key] = [...obj[key] || [], r];
+                });
+
+                let rowCurrentOutput = [];
+                Object.keys(obj).forEach((key, i) => {
+                    const arr = obj[key];
+                    arr.sort((a, b) => ((a['Rev'] || '').toLowerCase() > (b['Rev'] || '').toLowerCase()) ? 1 : (((b['Rev'] || '').toLowerCase() > (a['Rev'] || '').toLowerCase()) ? -1 : 0));
+                    let rowsHistory = arr.filter((r, index) => index < arr.length - 1);
+                    let rowId = mongoObjectId();
+                    if (rowsHistory.length > 0) {
+                        let rowsHistoryOutput = rowsHistory.map(r => {
+                            let rowDataObj = { row: rowId };
+                            headers.forEach(hd => {
+                                if (r[hd.text]) rowDataObj.history = { ...rowDataObj.history || {}, [hd.key]: r[hd.text] };
+                            });
+                            return rowDataObj;
+                        });
+                        historyOutput = [...historyOutput, ...rowsHistoryOutput];
+                    };
+            
+                    let rowCurrent = arr[arr.length - 1];
+                    let rowCurrentObj = {};
+            
+                    headers.forEach(hd => {
+                        if (rowCurrent[hd.text]) rowCurrentObj.data = { ...rowCurrentObj.data || {}, [hd.key]: rowCurrent[hd.text] };
+                    });
+                    rowCurrentObj._id = rowId;
+                    rowCurrentObj.parentRow = drawingTypeTree[parseInt(index)].id;
+                    rowCurrentObj.level = 1;
+                    rowCurrentOutput.push(rowCurrentObj);
+                });
+                rowCurrentOutput.forEach((r, i) => {
+                    r.preRow = i === 0 ? null : rowCurrentOutput[i - 1]._id;
+                });
+                rowsAllCurrentOutput = [...rowsAllCurrentOutput, ...rowCurrentOutput];
+            };
+        });
+        final[prj] = {
+            rows: rowsAllCurrentOutput,
+            historyRows: historyOutput,
+            drawingTypeTree
+        };
+    });
+
+    return final;
+};
+const getParentIdHandy = (i) => {
     if (i >= 1 && i < 20) return 0;
     if (i >= 20 && i < 42) return 1;
     if (i >= 42 && i < 60) return 2;
@@ -673,7 +734,8 @@ const getParentId = (i) => {
     if (i >= 181 && i < 184) return 20;
     if (i >= 184 && i < 193) return 21;
 };
-const returnPreRowNull = (i) => {
+
+const returnPreRowNullSumang = (i) => {
     if (
         i === 0 ||
         i === 1 ||
@@ -703,3 +765,56 @@ const returnPreRowNull = (i) => {
         return true;
     } else return false;
 };
+const returnPreRowNullHandy = (i) => {
+    if (
+        i === 0 ||
+        i === 1 ||
+        i === 20 ||
+        i === 42 ||
+        i === 60 ||
+        i === 76 ||
+        i === 81 ||
+        i === 87 ||
+        i === 99 ||
+        i === 109 ||
+        i === 112 ||
+        i === 126 ||
+        i === 147 ||
+        i === 150 ||
+        i === 155 ||
+        i === 159 ||
+        i === 163 ||
+        i === 167 ||
+        i === 171 ||
+        i === 174 ||
+        i === 179 ||
+
+        i === 181 ||
+        i === 184
+    ) {
+        return true;
+    } else return false;
+};
+
+
+
+export const reorderRowsFnc = (rows) => {
+    let rowsProcessed = [];
+ 
+    let firstRowIndex = rows.findIndex(row => row._preRow === null);
+ 
+    while (firstRowIndex >= 0) {
+       let preRow = rows.splice(firstRowIndex, 1)[0];
+       while (preRow) {
+          rowsProcessed.push(preRow);
+          let nextRowIndex = rows.findIndex(row => String(row._preRow) == String(preRow.id));
+          if (nextRowIndex >= 0) {
+             preRow = rows.splice(nextRowIndex, 1)[0];
+          } else {
+             preRow = null;
+          };
+       };
+       firstRowIndex = rows.findIndex((row) => row._preRow === null);
+    };
+    return rowsProcessed;
+ };

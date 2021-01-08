@@ -5,7 +5,6 @@ const CellHeader = (props) => {
 
     const { className, column, columns, columnIndex, onMouseDownColumnHeader, headerIndex, container } = props;
 
-
     return (
         <div
             style={{
@@ -13,7 +12,7 @@ const CellHeader = (props) => {
                 width: '100%',
                 verticalAlign: 'middle',
             }}
-            onMouseDown={(e) => onMouseDownColumnHeader(e, column.title)}
+            // onMouseDown={(e) => onMouseDownColumnHeader(e, column.title)}
         >
             {column.title}
         </div>

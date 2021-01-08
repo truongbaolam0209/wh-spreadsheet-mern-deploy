@@ -14,6 +14,13 @@ const cellReducer = (state, { type, payload }) => {
                     ...payload 
                 }
             };
+
+        case 'OVERWRITE_CELL_MODIFIED_TEMP':
+            return {
+                ...state,
+                cellsModifiedTemp: payload
+            };
+
         case 'SET_CELL_ACTIVE':
             return {
                 ...state,
@@ -31,6 +38,12 @@ const getCellModifiedTemp = dispatch => (value) => {
         payload: value
     });
 };
+const OverwriteCellsModified = dispatch => (value) => {
+    dispatch({
+        type: 'OVERWRITE_CELL_MODIFIED_TEMP',
+        payload: value
+    });
+};
 const setCellActive = dispatch => (cell) => {
     dispatch({
         type: 'SET_CELL_ACTIVE',
@@ -44,6 +57,7 @@ export const { Provider, Context } = createDataContext(
     {
         getCellModifiedTemp,
         setCellActive,
+        OverwriteCellsModified
     },
     {
         cellsModifiedTemp: {},

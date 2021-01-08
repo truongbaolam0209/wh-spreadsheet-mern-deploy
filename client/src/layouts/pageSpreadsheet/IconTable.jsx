@@ -1,10 +1,26 @@
 import { Icon, Tooltip } from 'antd';
-import React from 'react';
+import React, { useContext } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
+import { Context as ProjectContext } from '../../contexts/projectContext';
+import { Context as RowContext } from '../../contexts/rowContext';
+
+
 
 const IconTable = (props) => {
-    const { type, onClick, disabled } = props;
+
+    const { type, onClick } = props;
+
+    const { state: stateRow } = useContext(RowContext);
+    const { state: stateProject } = useContext(ProjectContext);
+
+    const role = stateProject.allDataOneSheet && stateProject.allDataOneSheet.role;
+    const showDrawingsOnly = stateRow && stateRow.showDrawingsOnly;
+
+    let disabled;
+    disabled = showDrawingsOnly === 'group-columns' && type !== 'rollback';
+    disabled = (role === 'modeller' || role === 'manager' || role === 'viewer' || role === 'production') && type === 'folder-add';
+
     return (
         <Tooltip placement={type === 'menu' ? 'topLeft' : 'top'} title={toolTipBtn(type)}>
             <DivStyled>
@@ -36,7 +52,10 @@ const toolTipBtn = (type) => {
     type === 'border-outer' ? 'PUBLIC' :
     type === 'radius-upright' ? 'USER' :
     type === 'save' ? 'Save' :
-    type === 'fullscreen-exit' ? 'Save SMARTSHEET To Server' :
+    type === 'fullscreen-exit' ? 'Save SMARTSHEET To Server SUMANG' :
+    type === 'fall' ? 'Save SMARTSHEET To Server HANDY' :
+    type === 'delete' ? 'Delete Rows In Current Project' :
+    type === 'stock' ? 'Delete All Data In Every DB Collections' :
     type === 'pic-center' ? 'Save Random Rows To Server' :
     type === 'folder-add' ? 'Drawing Type Organization' :
     type === 'heat-map' ? 'Highlight Data Changed' :
@@ -54,11 +73,11 @@ const DivStyled = styled.div`
 
 
 const IconStyled = styled(Icon)`
-
-    border: 1px solid black;
+    border: ${props => props.disabled ? '1px solid grey' : '1px solid black'};
     padding: 3px;
     font-size: 17px;
     margin: 3px;
     border-radius: 5px;
-    color: ${props => props.disabled ? 'grey' : 'black'}
+    color: ${props => props.disabled ? 'grey' : 'black'};
+    pointer-events: ${props => props.disabled && 'none'};
 `;

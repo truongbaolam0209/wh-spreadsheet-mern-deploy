@@ -1,10 +1,18 @@
 const uuidv1 = require('uuid').v1;
-
+const { mongoObjectId } = require('../utils');
 
 const SHEET_PUBLIC_FIELDS_MAP = {
    headers: {
       type: Array,
       default: undefined, // prevent mongoose create empty array
+   },
+   drawingTypeTree: {
+      type: Array,
+      default: undefined
+   },
+   activityRecorded: {
+      type: Array,
+      default: undefined
    },
    sheetSettings: Object,
    colSettings: Object,
@@ -17,15 +25,13 @@ const SHEET_PUBLIC_FIELDS = Object.keys(SHEET_PUBLIC_FIELDS_MAP);
 
 const createTemplatePublicSettings = (sheetId) => {
 
-   let key1 = uuidv1();
-   let key2 = uuidv1();
+   const keyDrawingNumber = uuidv1();
 
    return {
       sheet: sheetId,
-      // users: [],
       headers: [
          {
-            key: uuidv1(),
+            key: keyDrawingNumber,
             text: 'Drawing Number',
          },
          {
@@ -49,11 +55,11 @@ const createTemplatePublicSettings = (sheetId) => {
             text: 'Unit/CJ',
          },
          {
-            key: key1,
+            key: uuidv1(),
             text: 'Drg Type',
          },
          {
-            key: key2,
+            key: uuidv1(),
             text: 'Use For',
          },
          {
@@ -153,13 +159,18 @@ const createTemplatePublicSettings = (sheetId) => {
             text: 'Drawing',
          },
       ],
+      drawingTypeTree: [
+         { id: mongoObjectId(), [keyDrawingNumber]: 'COLUMN AND WALL SETTING OUT', _rowLevel: 0, expanded: true },
+         { id: mongoObjectId(), [keyDrawingNumber]: 'UNIT TYPE LAYOUT TSO', _rowLevel: 0, expanded: true },
+         { id: mongoObjectId(), [keyDrawingNumber]: 'STAIRCASES & LIFT LOBBIES', _rowLevel: 0, expanded: true },
+         { id: mongoObjectId(), [keyDrawingNumber]: 'ANCILLARY STRUCTURES', _rowLevel: 0, expanded: true },
+         { id: mongoObjectId(), [keyDrawingNumber]: 'RCP', _rowLevel: 0, expanded: true },
+      ],
       sheetSettings: {},
       rowSettings: {},
       colSettings: {},
       cellSettings: {},
-      cellEditRestriction: {
-         'modeller': [ key1, key2 ]
-      }
+      activityRecorded: []
    };
 };
 
@@ -169,8 +180,6 @@ const SHEET_USER_FIELDS_MAP = {
    headersShown: Array,
    headersHidden: Array,
    nosColumnFixed: Number,
-   rowsFolded: Array,
-   rowsHidden: Array,
    colorization: String,
 };
 

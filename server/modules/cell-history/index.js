@@ -132,6 +132,14 @@ const _findCellHistory = async (sheetId, rowId, headerKey) => {
    return history;
 };
 
+const deleteAllDataInCollectionCell = async (req, res, next) => {
+   try {
+     let result = await model.deleteMany({});
+     return res.json(result);
+   } catch(err) {
+     next(err);
+   };
+};
 
 module.exports = {
    schema,
@@ -139,5 +147,6 @@ module.exports = {
 
    findHistoriesForSheet,
    findHistoryForOneCell,
-   saveCellHistories
+   saveCellHistories,
+   deleteAllDataInCollectionCell
 };

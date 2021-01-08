@@ -17,7 +17,7 @@ const schema = new Schema({
    level: {
       type: Number,
       required: true,
-      default: 0
+      default: 1
    },
    parentRow: {
       type: ObjectId,
@@ -46,3 +46,8 @@ const schema = new Schema({
 });
 
 module.exports = schema;
+
+
+
+
+

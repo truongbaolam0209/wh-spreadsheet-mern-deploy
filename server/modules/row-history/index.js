@@ -45,7 +45,7 @@ const findHistoryForOneRow = async (req, res, next) => {
 
 const saveRowHistory = async (req, res, next) => {
    try {
-      let username = req.query.username;
+      let userId = req.query.userId;
       let qSheetId = req.params.sheetId;
 
       let data = req.body;
@@ -54,7 +54,7 @@ const saveRowHistory = async (req, res, next) => {
 
       for (let d of data) {
          d.sheet = qSheetId;
-         d.username = username;
+         d.userId = userId;
       };
 
       let history = await model.create(data);
@@ -66,7 +66,14 @@ const saveRowHistory = async (req, res, next) => {
    };
 };
 
-
+const deleteAllDataInCollection = async (req, res, next) => {
+   try {
+     let result = await model.deleteMany({});
+     return res.json(result);
+   } catch(err) {
+     next(err);
+   };
+};
 
 module.exports = {
    schema,
@@ -74,5 +81,6 @@ module.exports = {
 
    findHistoriesForSheet,
    findHistoryForOneRow,
-   saveRowHistory
+   saveRowHistory,
+   deleteAllDataInCollection
 };

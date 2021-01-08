@@ -1,9 +1,11 @@
-import { Button, Select } from 'antd';
+import { Select } from 'antd';
 import React, { useState } from 'react';
+import styled from 'styled-components';
+import ButtonGroupComp from './ButtonGroupComp';
 
 const { Option } = Select;
 
-const ColorizedForm = ({ applyColorization }) => {
+const ColorizedForm = ({ applyColorization, onClickCancelModal }) => {
 
 
     const arr = [
@@ -16,16 +18,14 @@ const ColorizedForm = ({ applyColorization }) => {
 
     const [item, setItem] = useState(null);
 
-
     return (
         <div>
             <div style={{
                 height: '10vh',
                 width: 450,
-                marginBottom: 20
-
+                padding: 20
             }}>
-                <Select
+                <SelectStyled
                     defaultValue='Select Field...'
                     style={{ width: 250, paddingRight: 20 }}
                     onChange={item => setItem(item)}
@@ -33,16 +33,26 @@ const ColorizedForm = ({ applyColorization }) => {
                     {arr.map(item => (
                         <Option key={item} value={item}>{item}</Option>
                     ))}
-                </Select>
+                </SelectStyled>
 
             </div>
-            <Button type='primary' onClick={() => applyColorization(item)}>Apply</Button>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
+                <ButtonGroupComp
+                    onClickCancel={onClickCancelModal}
+                    onClickApply={() => applyColorization(item)}
+                />
+            </div>
         </div>
     );
 };
 export default ColorizedForm;
 
 
+const SelectStyled = styled(Select)`
+    .ant-select-selection {
+        border-radius: 0;
+    }
+`;
 
 
 

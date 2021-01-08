@@ -26,10 +26,11 @@ const Cell = (props) => {
     };
 
 
-
     const { state: stateCell, getCellModifiedTemp, setCellActive } = useContext(CellContext);
     const { state: stateProject } = useContext(ProjectContext);
     const { state: stateRow, getSheetRows } = useContext(RowContext);
+    let { drawingTypeTree, rowsAll, showDrawingsOnly } = stateRow;
+
 
     const inputRef = useRef();
     const cellRef = useRef();
@@ -53,7 +54,7 @@ const Cell = (props) => {
             stateCell.cellActive &&
             stateCell.cellActive.rowIndex === rowIndex &&
             stateCell.cellActive.columnIndex === columnIndex &&
-            !cellLocked(stateProject.allDataOneSheet.role, column)
+            !cellLocked(stateProject.allDataOneSheet.role, column.key, showDrawingsOnly)
         ) {
             setInputRender(true);
         };
@@ -64,25 +65,18 @@ const Cell = (props) => {
         return `${rowData['id']}-${column.key}`;
     };
     const cellEditDone = (value) => {
-        getCellModifiedTemp({ [getCellTempId()]: value });
+        if (rowData._rowLevel === 1) {
 
-        if (stateRow.rowsUpdateAndNews.length > 0) {
-            let { rowsUpdateAndNews } = stateRow;
-            let rowsUpdate = rowsUpdateAndNews.find(r => r.id === rowData.id);
-            if (rowsUpdate) {
-                rowsUpdate[column.key] = value;
-                getSheetRows({ ...stateRow, rowsUpdateAndNews });
-            } else {
-                getSheetRows({
-                    ...stateRow,
-                    rowsUpdateAndNews: [...stateRow.rowsUpdateAndNews, { ...rowData, [column.key]: value }]
-                });
-            };
+            getCellModifiedTemp({ [getCellTempId()]: value });
+            let row = rowsAll.find(r => r.id === rowData.id);
+            row[column.key] = value;
+            getSheetRows({ ...stateRow, rowsAll });
+
         } else {
-            getSheetRows({
-                ...stateRow,
-                rowsUpdateAndNews: [{ ...rowData, [column.key]: value }]
-            });
+
+            let row = drawingTypeTree.find(x => x.id === rowData.id);
+            row[column.key] = value;
+            getSheetRows({ ...stateRow, drawingTypeTree });
         };
     };
 
@@ -167,7 +161,7 @@ const Cell = (props) => {
             stateCell.cellActive &&
             stateCell.cellActive.rowIndex === rowIndex &&
             stateCell.cellActive.columnIndex === columnIndex &&
-            !cellLocked(stateProject.allDataOneSheet.role, column)
+            !cellLocked(stateProject.allDataOneSheet.role, column.key, showDrawingsOnly)
         ) {
             inputRef.current.blur();
             setCellActive(null);
@@ -187,11 +181,11 @@ const Cell = (props) => {
                 style={{
                     width: '100%',
                     height: '100%',
-                    color: cellLocked(stateProject.userData.role, column) ? '#8FBC8F' : 'black',
                     padding: 5,
                     position: 'relative',
-                    pointerEvents: cellLocked(stateProject.allDataOneSheet.role, column) && 'none',
-                    color: cellLocked(stateProject.allDataOneSheet.role, column) ? '#979797' : 'black',
+                    color: 'black',
+                    pointerEvents: cellLocked(stateProject.allDataOneSheet.role, column.key, showDrawingsOnly) && 'none',
+                    // background: cellBackground(stateProject.allDataOneSheet.role, column.key, rowData._rowLevel) ? '#fafafa' : 'transparent'
                 }}
             >
                 {inputRender ? (
@@ -261,7 +255,7 @@ const Cell = (props) => {
                     >
                         {checkIconBtn(column.key) ? (
                             <PanelCalendar pickDate={pickDate} />
-                        ) : textArr(column.key).map(item => {
+                        ) : getColumnsValue(rowsAll, column.key).map(item => {
                             return (
                                 <SelectStyled
                                     key={item}
@@ -302,25 +296,29 @@ const cellBtnDisabled = (headerId) => {
     if (headerId === 'Index' || headerId === 'Drawing Number' || headerId === 'Drawing Name') return true;
 };
 
+const getColumnsValue = (rows, headerKey) => {
 
-const textArr = (header) => {
-    const arr = header === 'Status' ? [
-        'Reject And Resubmit',
-        'Approved for Construction',
+    let valueArr = [];
+    rows.filter(r => r._rowLevel === 1).forEach(row => {
+        valueArr.push(row[headerKey]);
+    });
+    valueArr = [...new Set(valueArr)].filter(e => e);
+    valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
+
+    if (headerKey === 'Status') return [
         'Not Started',
-        'Consultant reviewing',
-        'Approved with comments, to Resubmit',
-        'Approved with Comment, no submission Required',
-        'Revise In-Progress',
+        '1st cut of model in-progress',
         '1st cut of drawing in-progress',
-    ] : header === 'Rev' ? [
-        '0', 'A', 'B', 'C'
-    ] : header === 'RFA Ref' ? [
-        'RFA/HAN/ARC/067', 'RFA/HAN/ARC/056', 'RFA/HAN/ARC/055', 'RFA/HAN/ARC/040', 'RFA/HAN/ARC/042', 'RFA/HAN/ARC/045',
-    ] : [];
-    return arr;
+        'Pending design',
+        'Consultant reviewing',
+        'Reject and resubmit',
+        'Approved with comments, to Resubmit',
+        'Revise In-Progress',
+        'Approved with Comment, no submission Required',
+        'Approved for Construction'
+    ];
+    return valueArr;
 };
-
 
 const colors = {
     red: '#FFDAB9',
@@ -349,24 +347,32 @@ const colorizedRows = (colorized, rowData) => {
     };
 };
 
-
-const cellLocked = (title, column) => {
-    const ColumnsLockedModeller = [
-        'Drg To Consultant (T)',
-        'Drg To Consultant (A)',
-        'Consultant Reply (T)',
-        'Consultant Reply (A)',
-        'Get Approval (T)',
-        'Get Approval (A)',
-        'Construction Issuance Date',
-        'Construction Start',
-    ];
-    if (title === 'modeller' && ColumnsLockedModeller.includes(column.key)) return true;
-    if (title === 'coordinator') return false;
+const ColumnsLockedModeller = [
+    'Drg To Consultant (T)',
+    'Drg To Consultant (A)',
+    'Consultant Reply (T)',
+    'Consultant Reply (A)',
+    'Get Approval (T)',
+    'Get Approval (A)',
+    'Construction Issuance Date',
+    'Construction Start',
+];
+const cellLocked = (title, column, showDrawingsOnly) => {
+    // lock in groups columns mode;
+    if (showDrawingsOnly === 'group-columns') return true;
+    if (title === 'modeller' && ColumnsLockedModeller.includes(column)) return true;
+    if (title === 'coordinator' || title === 'document controller') return false;
     if (title === 'manager' || title === 'viewer') return true;
-    if (title === 'production' && column === 'Construction Start') return false;
+    if (title === 'production' && column !== 'Construction Start') return true;
 };
+const cellBackground = (title, column, rowLevel) => {
+    if (rowLevel !== 1) return false;
 
+    if (title === 'modeller' && ColumnsLockedModeller.includes(column)) return true;
+    if (title === 'coordinator' || title === 'document controller') return false;
+    if (title === 'manager' || title === 'viewer') return true;
+    if (title === 'production' && column !== 'Construction Start') return true;
+};
 
 const checkIfCellsRangeContainsCell = (cellsRangeStart, cellsRangeEnd, rowIndex, columnIndex) => {
 

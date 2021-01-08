@@ -4,6 +4,7 @@ import React from 'react';
 const ButtonStyle = ({
     colorText,
     marginRight,
+    marginLeft,
     borderColor,
     marginBottom,
     background,
@@ -20,6 +21,7 @@ const ButtonStyle = ({
                 border: 'none',
                 marginRight,
                 marginBottom,
+                marginLeft,
                 border: `1px solid ${borderColor || background}`
             }}
             onClick={onClick}

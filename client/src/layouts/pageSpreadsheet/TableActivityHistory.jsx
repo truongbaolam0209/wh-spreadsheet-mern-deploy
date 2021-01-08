@@ -1,5 +1,6 @@
-import { Button, Input } from 'antd';
+import { Modal } from 'antd';
 import Axios from 'axios';
+import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
 import BaseTable, { AutoResizer } from 'react-base-table';
 import styled from 'styled-components';
@@ -7,8 +8,10 @@ import { colorType, SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { convertHistoryData, mongoObjectId } from '../../utils';
-
-
+import ButtonStyle from './ButtonStyle';
+import FormFilterActivityHistory from './FormFilterActivityHistory';
+import IconTable from './IconTable';
+import PanelCalendarDuration from './PanelCalendarDuration';
 
 const Table = (props) => {
     return (
@@ -31,9 +34,11 @@ const panelHeight = window.innerHeight * 0.8;
 
 const TableActivityHistory = (props) => {
 
-    const { rowData } = props;
     const { state: stateProject } = useContext(ProjectContext);
     const { state: stateRow } = useContext(RowContext);
+    const { allDataOneSheet: { publicSettings: { activityRecorded } } } = stateProject;
+
+
 
     const projectId = stateProject.allDataOneSheet.projectId;
     const headers = stateProject.allDataOneSheet.publicSettings.headers;
@@ -51,69 +56,60 @@ const TableActivityHistory = (props) => {
         'Action'
     ];
 
+    const revKey = headers.find(hd => hd.text === 'Rev').key;
+    const statusKey = headers.find(hd => hd.text === 'Status').key;
+    const dwgNumber = headers.find(hd => hd.text === 'Drawing Number').key;
+    const dwgName = headers.find(hd => hd.text === 'Drawing Name').key;
+
     useEffect(() => {
         const fetchRowsAndCellHistory = async () => {
             try {
                 const resRows = await Axios.get(`${SERVER_URL}/row/history/${projectId}`);
                 const resCells = await Axios.get(`${SERVER_URL}/cell/history/${projectId}`);
-                // console.log(resRows.data, resCells.data);
 
-                const rowsOutput = resRows.data.map(row => {
+                let rowsOutput = [];
+                resRows.data.forEach(row => {
                     const { history } = row;
-                    const revKey = headers.find(hd => hd.text === 'Rev').key;
-                    const statusKey = headers.find(hd => hd.text === 'Status').key;
-                    const dwgNumber = headers.find(hd => hd.text === 'Drawing Number').key;
-                    const dwgName = headers.find(hd => hd.text === 'Drawing Name').key;
-
-                    return {
+                    if (history) rowsOutput.push({
                         'Drawing Number': history[dwgNumber],
                         'Drawing Name': history[dwgName],
                         'Column': 'Rev & Status',
                         'Value': `${history[revKey]} - ${history[statusKey]}`,
-                        'User': row.username || 'n/a',
-                        'Created At': row.createdAt,
+                        'User': row.userId || 'n/a',
+                        'Created At': moment(row.createdAt).format('DD/MM/YY - HH:mm'),
                         'Action': 'Save Drawing Version',
                         id: mongoObjectId()
-                    }
+                    });
                 });
 
-                const cellsOutput = convertHistoryData(resCells.data).map(cell => {
-
+                let cellsOutput = [];
+                convertHistoryData(resCells.data).forEach(cell => {
                     const row = stateRow.rowsAll.find(r => r.id === cell.row);
-
-                    return {
+                    if (row) cellsOutput.push({
                         'Drawing Number': row['Drawing Number'],
                         'Drawing Name': row['Drawing Name'],
                         'Column': headers.find(hd => hd.key === cell.headerKey).text,
                         'Value': cell.text,
-                        'User': cell.username || 'n/a',
-                        'Created At': cell.createdAt,
+                        'User': cell.userId || 'n/a',
+                        'Created At': moment(cell.createdAt).format('DD/MM/YY - HH:mm'),
                         'Action': 'Edit Cell',
+                        id: mongoObjectId()
+                    });
+                });
+
+                const activityRecordedData = activityRecorded.map(r => {
+                    return {
+                        'Drawing Number': r[dwgNumber],
+                        'Drawing Name': r[dwgName],
+                        'Column': undefined,
+                        'Value': undefined,
+                        'User': r.userId || 'n/a',
+                        'Created At': moment(r.createdAt).format('DD/MM/YY - HH:mm'),
+                        'Action': r.action,
                         id: mongoObjectId()
                     };
                 });
-
-                const dummy = [
-                    {
-                        'Drawing Number': 'HAN_WH_A_CS_KP_01S_01',
-                        'Drawing Name': 'Level 2 Column and Wall Setting Out Keyplan',
-                        'User': 'user...',
-                        'Created At': '12/11/2020',
-                        'Action': 'Delete Drawing',
-                        id: mongoObjectId()
-                    },
-                    {
-                        'Drawing Number': 'HAN_WH_A_CS_KP_01S_34',
-                        'Drawing Name': 'Level 8 Column and Wall',
-                        'User': 'user...',
-                        'Created At': '13/10/2020',
-                        'Action': 'Delete Drawing',
-                        id: mongoObjectId()
-                    },
-                ];
-
-
-                let outputArr = [...rowsOutput, ...dummy, ...cellsOutput].sort((b, a) => a['Created At'] > b['Created At'] ? 1 : b['Created At'] > a['Created At'] ? -1 : 0);
+                let outputArr = [...rowsOutput, ...cellsOutput, ...activityRecordedData].sort((b, a) => a['Created At'] > b['Created At'] ? 1 : b['Created At'] > a['Created At'] ? -1 : 0);
 
                 setHistoryAll(outputArr);
 
@@ -125,42 +121,17 @@ const TableActivityHistory = (props) => {
     }, []);
 
 
-    const [historyData, setHistoryData] = useState([]);
 
-    const [data, setData] = useState([]);
+    const [modalFilter, setModalFilter] = useState(false);
 
-    const [valueStart, setValueStart] = useState('12/01/20');
-    const [valueEnd, setValueEnd] = useState('22/05/21');
+    const applyFilter = (data) => {
+        setHistoryAll(data);
+        setModalFilter(false);
+    };
+
 
     const onClick = () => {
-        // let start = moment(moment(valueStart,'DD/MM/YY').format('MM/DD/YY')).toDate();
-        // let end = moment(moment(valueEnd,'DD/MM/YY').format('MM/DD/YY')).toDate();
-
-        // if (start > end) return;
-
-        // let filterCells = convertHistoryData(historyData).filter(cell => {
-        //     let createdAt = moment(cell.createdAt).toDate()
-        //     return createdAt >= start && createdAt <= end;
-        // });
-
-        // setData(filterCells.map(cell => {
-        //     let drawingData = getDrawingName(
-        //         stateProject.allDataOneSheet.publicSettings.headers,
-        //         stateRow.rowsAll,
-        //         cell.row,
-        //         cell.headerKey
-        //     );
-        //     let obj = {
-        //         id: mongoObjectId(),
-        //         'Drawing Name': drawingData.drawingName,
-        //         'Drawing Number': drawingData.drawingNumber,
-        //         Column: drawingData.headerText,
-        //         Value: cell.text,
-        //         'Created At': moment(cell.createdAt).format('DD/MM/YY HH:mm:ss'),
-        //         User: cell.username
-        //     };
-        //     return obj;
-        // }));
+  
 
     };
 
@@ -178,24 +149,34 @@ const TableActivityHistory = (props) => {
                     flexDirection: 'column',
                 }}>
                     <div style={{ display: 'flex', marginBottom: 10 }}>
-                        <Input
-                            placeholder='From Date...'
-                            onChange={(e) => setValueStart(e.target.value)}
-                            value={valueStart}
-                            style={{}}
+                        <PanelCalendarDuration />
+                        <ButtonStyle
+                            onClick={onClick}
+                            marginLeft={5}
+                            name='Check History'
                         />
-                        <Input
-                            placeholder='To Date...'
-                            onChange={(e) => setValueEnd(e.target.value)}
-                            value={valueEnd}
-                            style={{}}
-                        />
-                        <Button type='primary' onClick={onClick}>Check</Button>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, width: '35%' }}>
-                        <Button>Last 7 Days</Button>
-                        <Button>Last 14 Days</Button>
-                        <Button>This Month</Button>
+                    <div style={{ display: 'flex', marginBottom: 10 }}>
+                        <div style={{ marginRight: 10, display: 'flex' }}>
+                            <IconTable type='filter' onClick={() => setModalFilter(true)} />
+                            <IconTable type='rollback' onClick={() => {}} />
+                        </div>
+
+                        <ButtonStyle
+                            onClick={() => { }}
+                            marginRight={5}
+                            name='Last 7 Days'
+                        />
+                        <ButtonStyle
+                            onClick={() => { }}
+                            marginRight={5}
+                            name='Last 14 Days'
+                        />
+                        <ButtonStyle
+                            onClick={() => { }}
+                            marginRight={5}
+                            name='This Month'
+                        />
                     </div>
 
                     <div style={{
@@ -212,6 +193,26 @@ const TableActivityHistory = (props) => {
                         />
                     </div>
                 </div>
+            )}
+
+            {modalFilter && (
+                <ModalStyledSetting
+                    title='Filter Data Activity History'
+                    visible={modalFilter}
+                    footer={null}
+                    onCancel={() => {
+                        setModalFilter(false);
+                    }}
+                    destroyOnClose={true}
+                    centered={true}
+                >
+                    <FormFilterActivityHistory
+                        applyFilter={applyFilter}
+                        onClickCancelModal={() => setModalFilter(false)}
+                        rowsAll={historyAll}
+                        headers={headersShown}
+                    />
+                </ModalStyledSetting>
             )}
         </>
     );
@@ -255,7 +256,27 @@ const getDrawingName = (headers, rowsAll, rowId, headerId) => {
     }
 };
 
-
+const ModalStyledSetting = styled(Modal)`
+    .ant-modal-content {
+        border-radius: 0;
+    }
+   .ant-modal-close {
+      display: none;
+   }
+   .ant-modal-header {
+      padding: 10px;
+   }
+   .ant-modal-title {
+        padding-left: 10px;
+        font-size: 20px;
+        font-weight: bold;
+   }
+   .ant-modal-body {
+      padding: 0;
+      display: flex;
+      justify-content: center;
+   }
+`;
 const TableStyled = styled(Table)`
 
     .BaseTable__table .BaseTable__body {

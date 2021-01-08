@@ -2,12 +2,13 @@ import { Button, Input } from 'antd';
 import Axios from 'axios';
 import _, { debounce } from 'lodash';
 import moment from 'moment';
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { SERVER_URL } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { convertCellTempToHistory, convertDrawingVersionToHistory, extractCellInfo, mongoObjectId, sortRowsReorder } from '../../utils';
+import { convertCellTempToHistory, convertDrawingVersionToHistory, extractCellInfo, mongoObjectId, reorderRowsFnc } from '../../utils';
+import { reorderDrawingsByDrawingTypeTree } from '../PageSpreadsheet';
 import ColorizedForm from './ColorizedForm';
 import FormCellColorizedCheck from './FormCellColorizedCheck';
 import FormDateAutomation from './FormDateAutomation';
@@ -21,713 +22,678 @@ import TableActivityHistory from './TableActivityHistory';
 import TableCellHistory from './TableCellHistory';
 import TableDrawingDetail from './TableDrawingDetail';
 
-
+const genId = (xxx) => {
+   let arr = [];
+   for (let i = 0; i < xxx; i++) {
+      arr.push(mongoObjectId());
+   };
+   return arr;
+};
 
 
 const PanelSetting = (props) => {
 
-    const { state: stateRow } = useContext(RowContext);
-    const { state: stateProject } = useContext(ProjectContext);
-    const { state: stateCell, getCellModifiedTemp } = useContext(CellContext);
+   const { state: stateRow, getSheetRows } = useContext(RowContext);
+   const { state: stateProject } = useContext(ProjectContext);
+   const { state: stateCell, getCellModifiedTemp, OverwriteCellsModified } = useContext(CellContext);
 
-    const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading } = props;
+   const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading } = props;
 
-
-    const applyReorderColumns = (reorderColumns) => {
-        commandAction({
-            type: 'reorder-columns',
-            data: reorderColumns
-        });
-    };
-    const applyFilter = (filterRows) => {
-        commandAction({
-            type: 'filter-by-columns',
-            data: filterRows
-        });
-    };
-    
-    const applyResetFilter = debounce((data) => {
-        commandAction({ type: 'reset-filter-sort' });
-    }, 7);
-
-    const applySort = (sortRows) => {
-        commandAction({
-            type: 'sort-data',
-            data: sortRows,
-        });
-    };
-    const unhideAllRows = () => {
-        commandAction({ type: 'unhide-all-rows' });
-    };
+   useEffect(() => {
+      if (panelSettingType === 'save-every-20min') {
+         saveDataToServer();
+      };
+   }, []);
 
 
-    const [nosOfRows, setNosOfRows] = useState(1);
-    const onClickInsertRow = () => {
+   const applyReorderColumns = (data) => {
+      commandAction({ type: 'reorder-columns', data });
+   };
+   const applyFilter = (data) => {
+      commandAction({ type: 'filter-by-columns', data });
+   };
+   const applySort = ({ type, rowsOutput: data }) => {
+      commandAction({
+         type: type === 'Sort Rows In Drawing Type' ? 'sort-data-drawing-type' : 'sort-data-project',
+         data,
+      });
+   };
+   const applyResetFilter = debounce(() => {
+      commandAction({ type: 'reset-filter-sort' });
+   }, 7);
 
-        const genId = (nosOfRows) => {
-            let arr = [];
-            for (let i = 0; i < nosOfRows; i++) {
-                arr.push(mongoObjectId());
-            };
-            return arr;
-        };
-        let idsArr = genId(nosOfRows);
+   
+   const applyGroup = (data) => {
+      commandAction({ type: 'group-columns', data });
+   };
 
-        let rowsUpdate, rowsAllOutput, newRows
+   
 
-        if (panelSettingType === 'Insert Drawings Below') {
-            let rowAbove = panelType.cellProps.rowData;
+   const [nosOfRows, setNosOfRows] = useState(1);
+   const onClickInsertRow = () => {
+      let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
 
-            newRows = idsArr.map((id, i) => {
-                return ({
-                    id,
-                    _rowLevel: 1,
-                    _parentRow: rowAbove._parentRow,
-                    _preRow: i === 0 ? rowAbove.id : idsArr[i - 1]
-                });
+      let idsArr = genId(nosOfRows);
+
+      idRowsNew = [...idRowsNew, ...idsArr];
+
+      let newRows = [];
+      let rowBelow;
+      if (panelSettingType === 'Insert Drawings Below') {
+         let rowAbove = panelType.cellProps.rowData;
+         newRows = idsArr.map((id, i) => {
+            return ({
+               id,
+               _rowLevel: 1,
+               _parentRow: rowAbove._parentRow,
+               _preRow: i === 0 ? rowAbove.id : idsArr[i - 1]
             });
+         });
 
-            let rowBelow = stateRow.rowsAll.find(r => r._preRow === rowAbove.id);
-            if (rowBelow) {
-                rowBelow._preRow = idsArr[idsArr.length - 1];
-                rowsUpdate = [...newRows, rowAbove];
-            } else {
-                rowsUpdate = [...newRows];
-            };
-
-        } else if (panelSettingType === 'Insert Drawings Above') {
-            let rowBelow = stateRow.rowsAll.find(r => r.id === panelType.cellProps.rowData.id);
-
-            newRows = idsArr.map((id, i) => {
-                return ({
-                    id,
-                    _rowLevel: 1,
-                    _parentRow: rowBelow._parentRow,
-                    _preRow: i === 0 ? rowBelow._preRow : idsArr[i - 1]
-                });
-            });
+         rowBelow = rowsAll.find(r => r._preRow === rowAbove.id);
+         if (rowBelow) {
             rowBelow._preRow = idsArr[idsArr.length - 1];
-            rowsUpdate = [...newRows, rowBelow];
-        };
-        rowsAllOutput = [...stateRow.rowsAll, ...newRows];
+         };
 
-        commandAction({
-            type: 'insert-drawings',
-            data: {
-                rowsAll: sortRowsReorder(rowsAllOutput),
-                rowsUpdateAndNews: rowsUpdate
-            }
-        });
-    };
-
-
-    const applyGroup = (data) => {
-        commandAction({ type: 'group-columns', data });
-    };
-
-
-    const applyDateAutomation = (dateAutomation) => {
-        let rowsAll = stateRow.rowsAll;
-
-        const rowId = panelType.cellProps.rowData.id;
-        let row = rowsAll.find(r => r.id === rowId);
-
-        Object.keys(dateAutomation).forEach(key => {
-            const cellTempId = `${rowId}-${key}`;
-            const dateConverted = moment(dateAutomation[key]).format('DD/MM/YY');
-            getCellModifiedTemp({ [cellTempId]: dateConverted });
-            row[key] = dateConverted;
-        });
-
-        commandAction({
-            type: 'drawing-data-automation',
-            data: {
-                rowsAll,
-                rowsUpdateAndNews: [...stateRow.rowsUpdateAndNews || [], row]
-            }
-        });
-    };
-
-    const createNewDrawingRevision = () => {
-        const arrHeadersGoBlank = [
-            'Model Start (T)',
-            'Model Start (A)',
-            'Model Finish (T)',
-            'Model Finish (A)',
-            'Drawing Start (T)',
-            'Drawing Start (A)',
-            'Drawing Finish (T)',
-            'Drawing Finish (A)',
-            'Drg To Consultant (T)',
-            'Drg To Consultant (A)',
-            'Consultant Reply (T)',
-            'Consultant Reply (A)',
-            'Get Approval (T)',
-            'Get Approval (A)',
-            'Construction Issuance Date',
-            'Construction Start',
-            'Rev',
-            'Status'
-        ];
-
-        let rowsAll = stateRow.rowsAll;
-
-        const rowId = panelType.cellProps.rowData.id;
-        let row = rowsAll.find(r => r.id === rowId);
-        let rowOldVersiontoSave = { ...row };
-
-        arrHeadersGoBlank.forEach(hd => {
-            const cellTempId = `${rowId}-${hd}`;
-            getCellModifiedTemp({ [cellTempId]: '' });
-            row[hd] = '';
-        });
-
-        commandAction({
-            type: 'create-new-drawing-revisions',
-            data: {
-                rowsAll,
-                rowsUpdateAndNews: [...stateRow.rowsUpdateAndNews || [], row],
-                rowsVersionsToSave: [...stateRow.rowsVersionsToSave || [], rowOldVersiontoSave]
-            }
-        });
-    };
-
-    const setCellHistoryArr = debounce((data) => {
-        commandAction({ type: 'highlight-cell-history', data });
-    }, 7);
-
-    const applyFolderOrganize = (folders) => {
-
-        const getRowschildren = (parentId) => {
-            let idsArr = [];
-            for (let i = 0; i < 5; i++) idsArr.push(mongoObjectId());
-
-            let newRows = [];
-            idsArr.forEach((id, i) => {
-                newRows.push({
-                    id,
-                    _rowLevel: 1,
-                    _parentRow: parentId,
-                    _preRow: i === 0 ? null : idsArr[i - 1]
-                });
+      } else if (panelSettingType === 'Insert Drawings Above') {
+         let rowBelow = panelType.cellProps.rowData;
+         newRows = idsArr.map((id, i) => {
+            return ({
+               id,
+               _rowLevel: 1,
+               _parentRow: rowBelow._parentRow,
+               _preRow: i === 0 ? rowBelow._preRow : idsArr[i - 1]
             });
-            return newRows;
-        };
+         });
+         rowBelow._preRow = idsArr[idsArr.length - 1];
+      };
 
-        let { rowsAll } = stateRow;
+      if (rowBelow) {
+         rowsUpdatePreRowOrParentRow[rowBelow.id] = { 
+            ...rowsUpdatePreRowOrParentRow[rowBelow.id] || {}, 
+            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow
+         };
+      };
+      newRows.forEach(r => {
+         rowsUpdatePreRowOrParentRow[r.id] = { 
+            ...rowsUpdatePreRowOrParentRow[r.id] || {}, 
+            _preRow: r._preRow, _parentRow: r._parentRow
+         };
+      });
 
-        let rowsFolderPrevious = rowsAll.filter(r => r._rowLevel === 0);
-        let rowsUpdate = [];
-        let unfoldIdsArrayNew = [];
-        let rowsNew = [];
+      rowsAll = [...rowsAll, ...newRows];
 
-        folders.forEach((fld, i) => {
-            let rowCheck = rowsFolderPrevious.find(r => r.id === fld.id);
-            if (rowCheck) {
-                let obj = {};
+      commandAction({
+         type: 'insert-drawings',
+         data: {
+            rowsAll: reorderRowsFnc(rowsAll),
+            rowsUpdatePreRowOrParentRow,
+            idRowsNew
+         }
+      });
+   };
 
-                if (i === 0 && rowCheck._preRow !== null) {
-                    obj._preRow = null;
-                    rowCheck._preRow = null;
-                };
+   const [nosOfRowsSub, setNosOfRowsSub] = useState(1);
+   const onClickFolderInsertSubRows = () => {
+      let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
 
-                if (i !== 0 && rowCheck._preRow !== folders[i - 1].id) {
-                    obj._preRow = folders[i - 1].id;
-                    rowCheck._preRow = folders[i - 1].id;
-                };
+      let idsArr = genId(nosOfRowsSub);
+      idRowsNew = [...idRowsNew, ...idsArr];
 
-                if (rowCheck['Drawing Number'] !== fld.header) {
-                    obj['Drawing Number'] = fld.header;
-                    rowCheck['Drawing Number'] = fld.header;
-                    getCellModifiedTemp({ [`${rowCheck['id']}-Drawing Number`]: fld.header });
-                };
+      let newRows = idsArr.map((id, i) => {
+         return ({
+            id,
+            _rowLevel: 1,
+            _parentRow: panelType.cellProps.rowData.id,
+            _preRow: i === 0 ? null : idsArr[i - 1]
+         });
+      });
+      newRows.forEach(r => {
+         rowsUpdatePreRowOrParentRow[r.id] = { 
+            ...rowsUpdatePreRowOrParentRow[r.id] || {}, 
+            _preRow: r._preRow, _parentRow: r._parentRow
+         };
+      });
+      let rowBelow = rowsAll.find(r => r._parentRow === panelType.cellProps.rowData.id && r._preRow === null);
+      if (rowBelow) {
+         rowBelow._preRow = idsArr[idsArr.length - 1];
+         rowsUpdatePreRowOrParentRow[rowBelow.id] = { 
+            ...rowsUpdatePreRowOrParentRow[rowBelow.id] || {}, 
+            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow
+         };
+      };
+      rowsAll = [...rowsAll, ...newRows];
 
-                if (!_.isEmpty(obj)) {
-                    rowsUpdate.push({ ...rowCheck });
-                };
+      commandAction({
+         type: 'insert-drawings-by-folder',
+         data: {
+            rowsAll: reorderRowsFnc(rowsAll),
+            rowsUpdatePreRowOrParentRow,
+            idRowsNew
+         }
+      });
+   };
 
-            } else { // new Row
-                let rowLevel0 = {
-                    id: fld.id,
-                    _parentRow: null,
-                    _preRow: i === 0 ? null : folders[i - 1].id,
-                    _rowLevel: 0,
-                    'Drawing Number': fld.header
-                };
-                const rowsChidlren = getRowschildren(fld.id);
+   const applyDateAutomation = (dateAutomation) => {
+      let { rowsAll } = stateRow;
+      const rowId = panelType.cellProps.rowData.id;
+      let row = rowsAll.find(r => r.id === rowId);
 
-                rowsNew = [...rowsNew, rowLevel0, ...rowsChidlren];
+      Object.keys(dateAutomation).forEach(key => {
+         const cellTempId = `${rowId}-${key}`;
+         const dateConverted = moment(dateAutomation[key]).format('DD/MM/YY');
+         getCellModifiedTemp({ [cellTempId]: dateConverted });
+         row[key] = dateConverted;
+      });
 
-                getCellModifiedTemp({ [`${fld.id}-Drawing Number`]: fld.header });
+      commandAction({
+         type: 'drawing-data-automation',
+         data: rowsAll
+      });
+   };
 
-                unfoldIdsArrayNew.push(fld.id);
+   const createNewDrawingRevision = () => {
+      const arrHeadersGoBlank = [
+         'Model Start (T)', 'Model Start (A)', 'Model Finish (T)', 'Model Finish (A)', 'Drawing Start (T)', 'Drawing Start (A)',
+         'Drawing Finish (T)', 'Drawing Finish (A)', 'Drg To Consultant (T)', 'Drg To Consultant (A)', 'Consultant Reply (T)',
+         'Consultant Reply (A)', 'Get Approval (T)', 'Get Approval (A)', 'Construction Issuance Date', 'Construction Start', 'Rev', 'Status'
+      ];
 
-                rowsUpdate = [...rowsUpdate, ...rowsChidlren, rowLevel0];
-            };
-        });
+      let { rowsAll } = stateRow;
+      const rowId = panelType.cellProps.rowData.id;
+      let row = rowsAll.find(r => r.id === rowId);
+      let rowOldVersiontoSave = { ...row };
 
-        let rowsUpdateAndNews = stateRow.rowsUpdateAndNews || [];
-        let output;
-        if (rowsUpdateAndNews.length === 0) {
-            output = [...rowsUpdate];
-        } else {
-            let rowsNewUpdate = [];
-            rowsUpdate.forEach(row => {
-                let found = rowsUpdateAndNews.find(r => r.id === row.id);
-                if (found) {
-                    found._preRow = row._preRow;
-                    found._parentRow = row._parentRow;
-                    found['Drawing Number'] = row['Drawing Number'];
-                } else {
-                    rowsNewUpdate.push(row);
-                };
+      arrHeadersGoBlank.forEach(hd => {
+         const cellTempId = `${rowId}-${hd}`;
+         getCellModifiedTemp({ [cellTempId]: '' });
+         row[hd] = '';
+      });
+
+      commandAction({
+         type: 'create-new-drawing-revisions',
+         data: {
+            rowsAll,
+            rowsVersionsToSave: [...stateRow.rowsVersionsToSave || [], rowOldVersiontoSave]
+         }
+      });
+   };
+
+   const setCellHistoryArr = debounce((data) => {
+      commandAction({ type: 'highlight-cell-history', data });
+   }, 7);
+
+   const deleteDrawing = () => {
+      let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow, rowsDeleted } = stateRow;
+      const { cellsModifiedTemp } = stateCell;
+      const rowId = panelType.cellProps.rowData.id;
+
+      let rowBelow = rowsAll.find(r => r._preRow === rowId);
+      if (rowBelow) {
+         rowBelow._preRow = panelType.cellProps.rowData._preRow;
+         rowsUpdatePreRowOrParentRow[rowBelow.id] = { 
+            ...rowsUpdatePreRowOrParentRow[rowBelow.id] || {}, 
+            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow
+         };
+      };
+
+      if (rowId in rowsUpdatePreRowOrParentRow) delete rowsUpdatePreRowOrParentRow[rowId];
+      rowsAll = rowsAll.filter(r => r.id !== rowId);
+
+      if (idRowsNew.indexOf(rowId) === -1) {
+         rowsDeleted = [...rowsDeleted, panelType.cellProps.rowData];
+      } else {
+         idRowsNew.splice(idRowsNew.indexOf(rowId), 1);
+      };
+      Object.keys(cellsModifiedTemp).forEach(key => {
+         if (key.slice(0, 24) === rowId) {  // deleted cells modified temporary...
+            delete cellsModifiedTemp[key];
+         };
+      });
+      OverwriteCellsModified({ ...cellsModifiedTemp });
+
+      commandAction({
+         type: 'delete-drawing',
+         data: {
+            rowsAll,
+            rowsUpdatePreRowOrParentRow,
+            rowsDeleted,
+            idRowsNew,
+         }
+      });
+   };
+
+   const applyFolderOrganize = (drawingTypeTreeNew) => {
+      let { drawingTypeTree, rowsAll, rowsDeleted, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
+
+      drawingTypeTree.forEach(r => { // find deleted folder
+         let folder = drawingTypeTreeNew.find(row => row.id === r.id);
+         if (!folder && r._rowLevel === 0) { // save to deleted rows
+            let rowsChildren = rowsAll.filter(row => row._parentRow === r.id);
+            rowsChildren.forEach(rrr => {
+               if (idRowsNew.indexOf(rrr.id) === -1) {
+                  rowsDeleted = [...rowsDeleted, rrr];
+               } else {
+                  idRowsNew.splice(idRowsNew.indexOf(rrr.id), 1);
+               };
+               if (rrr.id in rowsUpdatePreRowOrParentRow) delete rowsUpdatePreRowOrParentRow[rrr.id];
             });
-            output = [...rowsUpdateAndNews, ...rowsNewUpdate];
-        };
+            rowsAll = rowsAll.filter(r => r._parentRow !== r.id);
+         };
+      });
+
+      // new drawings
+      const drawingTypeL0New = drawingTypeTreeNew.filter(r => !drawingTypeTree.find(row => row.id === r.id));
+      
+      drawingTypeL0New.forEach(row => {
+         let idsArr = genId(5);
+         idRowsNew = [...idRowsNew, ...idsArr];
+         const newRows = idsArr.map((id, i) => {
+            return ({
+               id,
+               _rowLevel: 1,
+               _parentRow: row.id,
+               _preRow: i === 0 ? null : idsArr[i - 1]
+            });
+         });
+         newRows.forEach(r => {
+            rowsUpdatePreRowOrParentRow[r.id] = { 
+               ...rowsUpdatePreRowOrParentRow[r.id] || {}, 
+               _preRow: r._preRow, _parentRow: r._parentRow
+            };
+         });
+         rowsAll = [...rowsAll, ...newRows];
+      });
+
+      commandAction({
+         type: 'drawing-folder-organization',
+         data: {
+            rowsAll: reorderDrawingsByDrawingTypeTree(rowsAll, drawingTypeTreeNew),
+            rowsUpdatePreRowOrParentRow,
+            rowsDeleted,
+            idRowsNew,
+            drawingTypeTree: drawingTypeTreeNew,
+         }
+      });
+   };
 
 
 
-        commandAction({
-            type: 'drawing-folder-organization',
-            data: {
-                rowsAll: sortRowsReorder([...rowsAll, ...rowsNew]),
-                rowsUpdateAndNews: output,
-                unfoldIdsArrayNew
+   const saveDataToServer = async () => {
+
+      const { email, projectId } = stateProject.allDataOneSheet;
+      const { headers } = stateProject.allDataOneSheet.publicSettings;
+      let { cellsModifiedTemp } = stateCell;
+      let {
+         rowsVersionsToSave,
+         rowsUpdatePreRowOrParentRow,
+         rowsAll,
+         drawingTypeTreeInit,
+         drawingTypeTree,
+         rowsDeleted,
+         rowsAllInitToCompareBeforeSave
+      } = stateRow;
+
+      try {
+         setLoading(true);
+         commandAction({ type: 'confirm-save-data' });
+
+         // GET LATEST ROWS FROM DB
+         const resDB = await Axios.get(`${SERVER_URL}/sheet/${projectId}?userId=${email}`);
+         let {
+            publicSettings: publicSettingsFromDB,
+            rows: rowsFromDB,
+            userSettings: userSettingsFromDB
+         } = resDB.data;
+
+         let {
+            drawingTypeTree: drawingTypeTreeFromDB, 
+            activityRecorded: activityRecordedFromDB
+         } = publicSettingsFromDB;
+
+         // DELETE ROWS ------------------------------------->>>>> DONE
+         if (rowsDeleted.length > 0) {
+            rowsDeleted = rowsDeleted.filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing'));
+            await Axios.post(
+               `${SERVER_URL}/sheet/delete-rows/${projectId}?userId=${email}`,
+               rowsDeleted.map(r => r.id)
+            );
+         };
+
+         
+         // check if there are rows deleted previously by other users.
+         let rowsDeletedByOtherUsers = rowsAll.filter(r => activityRecordedFromDB.find(x => x.id === r.id && x.action === 'Delete Drawing'));
+         if (rowsDeletedByOtherUsers.length > 0) {
+            rowsDeletedByOtherUsers.forEach(row => {
+               let rowBelow = rowsAll.find(r => r._preRow === row.id);
+               if (rowBelow) {
+                  rowBelow._preRow = row._preRow;
+                  rowsUpdatePreRowOrParentRow[rowBelow.id] = { 
+                     ...rowsUpdatePreRowOrParentRow[rowBelow.id] || {}, 
+                     _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow
+                  };
+               };
+            });
+         };
+
+         // new rows added by other users
+         let newRowsByParents = {};
+         rowsFromDB.forEach(row => {
+            if (!rowsAllInitToCompareBeforeSave.find(r => r.id === row.id)) {
+               newRowsByParents[row._parentRow] = [...newRowsByParents[row._parentRow] || [], row];
+            };
+         });
+         Object.keys(newRowsByParents).forEach(keyParent => {
+            if (drawingTypeTree.find(r => r.id === keyParent)) {
+               let rows = newRowsByParents[keyParent];
+               let lastRowsSameCurrent = rowsAll.find(row => row._parentRow === keyParent && !rowsAll.find(x => x._preRow === row.id));
+
+               let idFirst = lastRowsSameCurrent ? lastRowsSameCurrent.id : null;
+               rows.forEach((r, i) => {
+                  r._preRow = i === 0 ? idFirst : rows[i - 1].id;
+
+                  rowsUpdatePreRowOrParentRow[r.id] = { 
+                     ...rowsUpdatePreRowOrParentRow[r.id] || {}, 
+                     _preRow: r._preRow, _parentRow: r._parentRow
+                  };
+                  rowsAll.push(r);
+               });
+            };
+         });
+
+
+
+         // SAVE CELL HISTORY
+         if (!_.isEmpty(cellsModifiedTemp)) {
+            Object.keys(cellsModifiedTemp).forEach(key => {
+               let rowId = key.slice(0, 24);
+               if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
+                  delete cellsModifiedTemp[key];
+               };
+            });
+            await Axios.post(`${SERVER_URL}/cell/history/${projectId}`,
+               convertCellTempToHistory(cellsModifiedTemp, stateProject)
+            );
+         };
+
+         // SAVE DRAWINGS NEW VERSION ------------------------------------->>>>> DONE
+         rowsVersionsToSave = rowsVersionsToSave.filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing'));
+         if (rowsVersionsToSave.length > 0) {
+            await Axios.post(`${SERVER_URL}/row/history/${projectId}?userId=${email}`,
+               convertDrawingVersionToHistory(rowsVersionsToSave, stateProject)
+            );
+         };
+
+         
+
+         const headerKeyDrawingNumber = headers.find(hd => hd.text === 'Drawing Number').key;
+         const headerKeyDrawingName = headers.find(hd => hd.text === 'Drawing Name').key;
+         // SAVE PUBLIC SETTINGS RECORDED
+         let activityRecordedArr = [];
+         drawingTypeTree.forEach(fd => {   //------------------------------------->>>>> DONE
+            if (!drawingTypeTreeInit.find(e => e.id === fd.id)) {
+               activityRecordedArr.push({
+                  id: fd.id, email, createdAt: new Date(), action: 'Create Drawing Type',
+                  [headerKeyDrawingNumber]: fd['Drawing Number'],
+               });
+            };
+         });
+         drawingTypeTreeInit.forEach(fd => { //------------------------------------->>>>> DONE
+            if (
+               !drawingTypeTree.find(e => e.id === fd.id) &&
+               !activityRecordedFromDB.find(e => e.id === fd.id && e.action === 'Delete Drawing Type')
+            ) {
+               activityRecordedArr.push({
+                  id: fd.id, email, createdAt: new Date(), action: 'Delete Drawing Type',
+                  [headerKeyDrawingNumber]: fd['Drawing Number'],
+               });
+            };
+         });
+         rowsDeleted.forEach(r => { //------------------------------------->>>>> DONE
+            activityRecordedArr.push({
+               id: r.id, email, createdAt: new Date(), action: 'Delete Drawing',
+               [headerKeyDrawingNumber]: r['Drawing Number'], 
+               [headerKeyDrawingName]: r['Drawing Name'],
+            });
+         });
+
+         // SAVE PUBLIC DRAWING TYPE //------------------------------------->>>>> DONE
+         drawingTypeTreeFromDB.forEach(fd => {
+            if (!drawingTypeTreeInit.find(e => e.id === fd.id)) {
+               drawingTypeTree.push(fd); // new from DB, added by other user ...
+            };
+         });
+         drawingTypeTree.forEach(fd => { // check in recorded if some folder deleted ...
+            if (activityRecordedFromDB.find(r => r.id === fd.id && r.action === 'Delete Drawing Type')) {
+               drawingTypeTree = drawingTypeTree.filter(e => e.id !== fd.id);
+            };
+         });
+         drawingTypeTree.forEach(tr => {
+            headers.forEach(hd => {
+               if (hd.text in tr) {
+                  tr[hd.key] = tr[hd.text];
+                  delete tr[hd.text];
+               };
+            });
+         });
+         await Axios.post(`${SERVER_URL}/sheet/update-setting-public/${projectId}?userId=${email}`,
+            {
+               drawingTypeTree,
+               activityRecorded: [...activityRecordedFromDB, ...activityRecordedArr]
             }
-        });
-    };
+         );
 
 
-    const saveDataToServer = async () => {
 
-        const { email, projectId, username } = stateProject.allDataOneSheet;
-        const { headers } = stateProject.allDataOneSheet.publicSettings;
-        const { cellsModifiedTemp } = stateCell;
-        const { rowsVersionsToSave, rowsUpdateAndNews, rowsAll } = stateRow;
-        try {
-            setLoading(true);
-            commandAction({ type: 'confirm-save-data' });
-
-            // SAVE CELL HISTORY
-            if (!_.isEmpty(stateCell.cellsModifiedTemp)) {
-                await Axios.post(
-                    `${SERVER_URL}/cell/history/${projectId}`,
-                    convertCellTempToHistory(cellsModifiedTemp, stateProject)
-                );
-            };
-
-            // SAVE DRAWINGS NEW VERSION
-            if (rowsVersionsToSave && rowsVersionsToSave.length > 0) {
-                await Axios.post(
-                    `${SERVER_URL}/row/history/${projectId}?username=${username}`,
-                    convertDrawingVersionToHistory(rowsVersionsToSave, stateProject)
-                );
-            };
-
-            // SAVE DRAWINGS DATA
-            if (rowsUpdateAndNews && rowsUpdateAndNews.length > 0) {
-
-                // DELETE ROWS FIRST
-
-                // // GET LATEST ROWS FROM DB
-                const res = await Axios.get(`${SERVER_URL}/sheet/${projectId}?userId=${email}`);
-                let rowsInDB = res.data.rows;
-
-                rowsUpdateAndNews.forEach(row => {
-                    let rowDB = rowsInDB.find(r => r.id === row.id);
-                    if (rowDB) {
-                        headers.forEach(hd => {
-                            row[hd.text] = rowDB[hd.text]; // update latest cell data.
-                        });
-                        Object.keys(cellsModifiedTemp).forEach(key => {
-                            const { rowId, headerName } = extractCellInfo(key);
-                            if (rowId === row.id) {
-                                row[headerName] = cellsModifiedTemp[key];
-                            };
-                        });
-                    } else {
-                        // Not found mean NEW or DELETE by other user
-                    }
-                });
-
-                let rowsUpdatePreRowParentRow = [];
-
-                let rowsCurrentLevel0 = rowsAll.filter(r => r._rowLevel === 0);
-                let rowsLevel0NewFromDB = [];
-                rowsInDB.filter(rw => rw._rowLevel === 0).forEach(r => {
-                    let row = rowsCurrentLevel0.find(row => row.id === r.id);
-                    if (row) {
-                        if (row._preRow !== r._preRow) rowsUpdatePreRowParentRow.push(row);
-                    } else {
-                        rowsLevel0NewFromDB.push(r);
-                    };
-                });
-                
-                let lastRowCurrentLevel0 = rowsCurrentLevel0.find(row => !rowsCurrentLevel0.find(r => r._preRow === row.id));
-                rowsLevel0NewFromDB.forEach((r, i) => {
-                    if (i === 0) {
-                        if (r._preRow !== lastRowCurrentLevel0.id) {
-                            r._preRow = lastRowCurrentLevel0.id;
-                            rowsUpdatePreRowParentRow.push(r);
-                        };
-                    } else {
-                        if (r._preRow !== rowsLevel0NewFromDB[i - 1].id) {
-                            r._preRow = rowsLevel0NewFromDB[i - 1].id;
-                            rowsUpdatePreRowParentRow.push(r);
-                        };
-                    };
-                });
-
-                let rowsCurrentLevel1 = rowsAll.filter(r => r._rowLevel === 1);
-                let rowsLevel1NewsFromDB = [];
-                rowsInDB.filter(rw => rw._rowLevel === 1).forEach(r => {
-                    let row = rowsCurrentLevel1.find(row => row.id === r.id);
-                    if (row) {
-                        if (row._preRow !== r._preRow) rowsUpdatePreRowParentRow.push(row);
-                    } else {
-                        rowsLevel1NewsFromDB.push(r);
-                    };
-                });
-                let objSameParent = {};
-                rowsLevel1NewsFromDB.forEach(r => {
-                    objSameParent[r._parentRow] = [...objSameParent[r._parentRow] || [], r];
-                });
-                Object.keys(objSameParent).forEach(key => {
-                    let rowsCurrentSameParent = rowsCurrentLevel1.filter(r => r._parentRow === key);
-
-                    if (rowsCurrentSameParent.length === 0) { // new parent from DB that can not find in current
-                        // CHECK AGAIN ...
-                        // do nothing ...
-                    } else {
-                        let lastRowL1ThisParent = rowsCurrentSameParent.find(row => !rowsCurrentSameParent.find(r => r._preRow === row.id));
-                        console.log('LEVEL 1', rowsCurrentSameParent, lastRowL1ThisParent);
-                        let rowsNewL1ThisParentFromDB = objSameParent[key];
-                        rowsNewL1ThisParentFromDB.forEach((r, i) => {
-                            if (i === 0) {
-                                if (r._preRow !== lastRowL1ThisParent.id) {
-                                    r._preRow = lastRowL1ThisParent.id;
-                                    rowsUpdatePreRowParentRow.push(r);
-                                };
-                            } else {
-                                if (r._preRow !== rowsNewL1ThisParentFromDB[i - 1].id) {
-                                    r._preRow = rowsNewL1ThisParentFromDB[i - 1].id;
-                                    rowsUpdatePreRowParentRow.push(r);
-                                };
-                            };
-                        });
-                    };
-                });
+         
+         // SAVE DRAWINGS DATA
+         if (!_.isEmpty(rowsUpdatePreRowOrParentRow) || !_.isEmpty(cellsModifiedTemp)) {
 
 
-                // rowsInDB.forEach(rowDB => {
-                //     let rowCheck = rowsAll.find(r => r.id === rowDB.id);
-                //     if (!rowCheck) { // found new row from DB ...
-                //         const rowsSameParent = rowsAll.filter(r => r._parentRow === rowDB._parentRow);
-                //         if (rowsSameParent.length > 0) {
-                //             rowsSameParent.forEach(row => {
-                //                 let rowBelow = rowsSameParent.find(r => r._preRow === row.id);
-                //                 if (!rowBelow) {
-                //                     rowDB._preRow = row.id;
-                //                     rowDB._parentRow = row._parentRow;
-                //                     rowsAll.push(rowDB);
-                //                     rowsUpdateAndNews.push(rowDB);
-                //                 };
-                //             });
-                //         };
-                //     } else {
-                //         if (rowCheck._preRow !== rowDB._preRow ||
-                //             (rowCheck._preRow === rowDB._preRow && rowCheck._parentRow !== rowDB._parentRow)
-                //         ) {
-                //             let checkInRowsUpdate = rowsUpdateAndNews.find(r => r.id === rowCheck.id);
-                //             if (checkInRowsUpdate) {
-                //                 checkInRowsUpdate._preRow = rowCheck._preRow;
-                //                 checkInRowsUpdate._parentRow = rowCheck._parentRow;
-                //             } else {
-                //                 rowsUpdateAndNews.push(rowCheck);
-                //             };
-                //         };
-                //     };
-                // });
-
-
-                let rowsUpdateNoChangePreRowParentRow = rowsUpdateAndNews.filter(row => !rowsUpdatePreRowParentRow.find(r => r.id === row.id));
-                let rowsUpdateChangePreRowParentRow = rowsUpdateAndNews.filter(row => rowsUpdatePreRowParentRow.find(r => r.id === row.id));
-                rowsUpdateChangePreRowParentRow.forEach(row => {
-                    let rowFound = rowsUpdatePreRowParentRow.find(r => r.id === row.id);
-                    row._preRow = rowFound._preRow;
-                    row._parentRow = rowFound._parentRow;
-                });
-                let rowsChangePreRowParentRow = rowsUpdatePreRowParentRow.filter(row => !rowsUpdateAndNews.find(r => r.id === row.id));
-                
-                let finalOutput = [
-                    ...rowsUpdateNoChangePreRowParentRow,
-                    ...rowsUpdateChangePreRowParentRow,
-                    ...rowsChangePreRowParentRow
-                ];
-                
-
-                let rowsToSaveFinal = finalOutput.map(row => {
-                    let rowDataObj = {};
-                    Object.keys(row).forEach(key => {
-                        if (key === 'id') rowDataObj._id = row[key];
-                        if (key === '_parentRow') rowDataObj.parentRow = row[key];
-                        if (key === '_preRow') rowDataObj.preRow = row[key];
-                        if (key === '_rowLevel') rowDataObj.level = row[key];
-                    });
-                    headers.forEach(hd => {
-                        if (row[hd.text]) rowDataObj.data = { ...rowDataObj.data || {}, [hd.key]: row[hd.text] };
-                    });
-                    return rowDataObj;
-                });
-
-                await Axios.post(
-                    `${SERVER_URL}/sheet/update-rows/${projectId}`,
-                    { rows: rowsToSaveFinal }
-                );
-            };
-
-
-            // SAVE SETTINGS 
+            let objRowsUpdate = {};
+            Object.keys(rowsUpdatePreRowOrParentRow).forEach(key => {
+               objRowsUpdate[key] = {
+                  ...objRowsUpdate[key] || {}, 
+                  preRow: rowsUpdatePreRowOrParentRow[key]._preRow,
+                  parentRow: rowsUpdatePreRowOrParentRow[key]._parentRow,
+                  level: 1
+               };
+            });
+            Object.keys(cellsModifiedTemp).forEach(key => {
+               const { rowId, headerName } = extractCellInfo(key);
+               let headerKey = headers.find(hd => hd.text === headerName).key;
+               objRowsUpdate[rowId] = {
+                  ...objRowsUpdate[rowId] || {}, 
+                  data: {
+                     ...(objRowsUpdate[rowId] ? objRowsUpdate[rowId].data : {}) || {}, 
+                     [headerKey]: cellsModifiedTemp[key]
+                  },
+                  level: 1
+               };
+            });
+            const finalOutput = Object.keys(objRowsUpdate).map(key => {
+               return {
+                  _id: key,
+                  ...objRowsUpdate[key]
+               };
+            });
 
             await Axios.post(
-                `${SERVER_URL}/sheet/update-setting/${projectId}?userId=${email}`,
-                {
-                    headersShown: stateProject.userData.headersShown.map(hd => headers.find(h => h.text === hd).key),
-                    headersHidden: stateProject.userData.headersHidden.map(hd => headers.find(h => h.text === hd).key),
-                    nosColumnFixed: stateProject.userData.nosColumnFixed,
-                    rowsFolded: stateProject.userData.rowsFolded,
-                    rowsHidden: stateProject.userData.rowsHidden,
-                    colorization: stateProject.userData.colorization,
-                }
+               `${SERVER_URL}/sheet/update-rows/${projectId}`,
+               { rows: finalOutput }
             );
+         };
+         
 
 
-            commandAction({ type: 'save-data-successfully' });
-
-            const res = await Axios.get(`${SERVER_URL}/sheet/${projectId}?userId=${email}`);
-
-            commandAction({
-                type: 'get-data-from-server',
-                data: res.data
-            });
-
-
-        } catch (err) {
-            console.log(err);
-        };
-    };
+         await Axios.post(             // SAVE SETTINGS ..........................
+            `${SERVER_URL}/sheet/update-setting-user/${projectId}?userId=${email}`,
+            {
+               headersShown: stateProject.userData.headersShown.map(hd => headers.find(h => h.text === hd).key),
+               headersHidden: stateProject.userData.headersHidden.map(hd => headers.find(h => h.text === hd).key),
+               nosColumnFixed: stateProject.userData.nosColumnFixed,
+               colorization: stateProject.userData.colorization,
+            }
+         );
 
 
+         commandAction({ type: 'save-data-successfully' });
 
-    const applyColorization = (colorized) => {
-        commandAction({
-            type: 'colorized',
-            colorized
-        });
-    };
+         const res = await Axios.get(`${SERVER_URL}/sheet/${projectId}?userId=${email}`);
 
+         commandAction({ type: 'reload-data-from-server', data: res.data });
 
-
-    return (
-        <>
-            {panelSettingType === 'save-ICON' && (
-                <PanelConfirm
-                    onClickCancel={onClickCancelModal}
-                    onClickApply={saveDataToServer}
-                />
-            )}
-
-            {panelSettingType === 'filter-ICON' && (
-                <FormFilter applyFilter={applyFilter} />
-            )}
-
-            {panelSettingType === 'rollback-ICON' && (
-                <PanelConfirm
-                    onClickCancel={onClickCancelModal}
-                    onClickApply={applyResetFilter}
-                />
-            )}
-
-            {panelSettingType === 'reorderColumn-ICON' && (
-                <ReorderColumnForm
-                    applyReorderColumns={applyReorderColumns}
-                    onClickCancelModal={onClickCancelModal}
-                />
-            )}
+      } catch (err) {
+         commandAction({ type: 'save-data-failure' });
+         console.log(err);
+      };
+   };
 
 
 
-            {panelSettingType === 'sort-ICON' && (
-                <FormSort applySort={applySort} onClickCancel={onClickCancelModal} />
-            )}
-
-            {panelSettingType === 'eye-ICON' && (
-                <div>
-                    <Button onClick={unhideAllRows}>Unhide All Rows</Button>
-                </div>
-            )}
-            {panelSettingType === 'group-ICON' && (
-                <FormGroup applyGroup={applyGroup} />
-            )}
+   const applyColorization = (data) => {
+      commandAction({ type: 'drawing-colorized', data });
+   };
 
 
-            {(panelSettingType === 'Insert Drawings Below' || panelSettingType === 'Insert Drawings Above') && (
-                <div>
-                    <Input
-                        placeholder='Enter Number Of Drawings...'
-                        type='number' min='1'
-                        value={nosOfRows}
-                        onChange={(e) => setNosOfRows(e.target.value)}
-                        style={{
-                            marginBottom: 20
-                        }}
-                    />
-                    <Button onClick={onClickInsertRow}>Apply</Button>
-                </div>
-            )}
 
-            {panelSettingType === 'history-ICON' && (
-                <TableActivityHistory />
-            )}
+   return (
+      <>
+         {panelSettingType === 'save-ICON' && (
+            <PanelConfirm
+               onClickCancel={onClickCancelModal}
+               onClickApply={saveDataToServer}
+            />
+         )}
+         {/* {panelSettingType === 'save-every-20min' && (
+            <PanelConfirm
+               onClickCancel={onClickCancelModal}
+               onClickApply={saveDataToServer}
+            />
+         )} */}
 
-            {panelSettingType === 'color-cell-history-ICON' && (
-                <FormCellColorizedCheck setCellHistoryArr={setCellHistoryArr} />
-            )}
+         {panelSettingType === 'filter-ICON' && (
+            <FormFilter applyFilter={applyFilter} onClickCancelModal={onClickCancelModal} />
+         )}
 
+         {panelSettingType === 'rollback-ICON' && (
+            <PanelConfirm
+               onClickCancel={onClickCancelModal}
+               onClickApply={applyResetFilter}
+            />
+         )}
 
-            {panelSettingType === 'Date Automation' && (
-                <FormDateAutomation applyDateAutomation={applyDateAutomation} />
-            )}
-
-            {panelSettingType === 'Create New Drawing Revision' && (
-                <PanelConfirm
-                    onClickCancel={onClickCancelModal}
-                    onClickApply={createNewDrawingRevision}
-                />
-            )}
-
-            {panelSettingType === 'View Drawing Revision' && (
-                <TableDrawingDetail {...panelType.cellProps} />
-            )}
-
-            {panelSettingType === 'addDrawingType-ICON' && (
-                <FormDrawingTypeOrder applyFolderOrganize={applyFolderOrganize} />
-            )}
-
-            {panelSettingType === 'View Cell History' && (
-                <TableCellHistory {...panelType.cellProps} />
-            )}
-
-            {panelSettingType === 'colorized-ICON' && (
-                <ColorizedForm applyColorization={applyColorization} />
-            )}
+         {panelSettingType === 'reorderColumn-ICON' && (
+            <ReorderColumnForm
+               applyReorderColumns={applyReorderColumns}
+               onClickCancelModal={onClickCancelModal}
+            />
+         )}
 
 
-        </>
-    );
+
+         {panelSettingType === 'sort-ICON' && (
+            <FormSort applySort={applySort} onClickCancel={onClickCancelModal} />
+         )}
+
+ 
+         {panelSettingType === 'group-ICON' && (
+            <FormGroup applyGroup={applyGroup} onClickCancelModal={onClickCancelModal} />
+         )}
+
+
+         {(panelSettingType === 'Insert Drawings Below' || panelSettingType === 'Insert Drawings Above') && (
+            <div>
+               <Input
+                  placeholder='Enter Number Of Drawings...'
+                  type='number' min='1'
+                  value={nosOfRows}
+                  onChange={(e) => setNosOfRows(e.target.value)}
+                  style={{
+                     marginBottom: 20
+                  }}
+               />
+               <Button onClick={onClickInsertRow}>Apply</Button>
+            </div>
+         )}
+
+         {panelSettingType === 'history-ICON' && (
+            <TableActivityHistory />
+         )}
+
+         {panelSettingType === 'color-cell-history-ICON' && (
+            <FormCellColorizedCheck setCellHistoryArr={setCellHistoryArr} />
+         )}
+
+
+         {panelSettingType === 'Date Automation' && (
+            <FormDateAutomation applyDateAutomation={applyDateAutomation} />
+         )}
+
+         {panelSettingType === 'Create New Drawing Revision' && (
+            <PanelConfirm
+               onClickCancel={onClickCancelModal}
+               onClickApply={createNewDrawingRevision}
+            />
+         )}
+
+         {panelSettingType === 'View Drawing Revision' && (
+            <TableDrawingDetail {...panelType.cellProps} />
+         )}
+
+         {panelSettingType === 'addDrawingType-ICON' && (
+            <FormDrawingTypeOrder applyFolderOrganize={applyFolderOrganize} onClickCancelModal={onClickCancelModal} />
+         )}
+
+         {panelSettingType === 'View Cell History' && (
+            <TableCellHistory {...panelType.cellProps} />
+         )}
+
+
+         {panelSettingType === 'Delete Drawing' && (
+            <PanelConfirm
+               onClickCancel={onClickCancelModal}
+               onClickApply={deleteDrawing}
+               content={`Are you sure to delete the: ${panelType.cellProps.rowData['Drawing Number'] || ' '}-${panelType.cellProps.rowData['Drawing Name'] || ' '} ?`}
+            />
+         )}
+
+         {panelSettingType === 'colorized-ICON' && (
+            <ColorizedForm applyColorization={applyColorization} onClickCancelModal={onClickCancelModal} />
+         )}
+
+         {panelSettingType === 'Insert Drawings By Type' && (
+            <div>
+               <Input
+                  placeholder='Enter Number Of Drawings...'
+                  type='number' min='1'
+                  value={nosOfRowsSub}
+                  onChange={(e) => setNosOfRowsSub(e.target.value)}
+                  style={{
+                     marginBottom: 20
+                  }}
+               />
+            <Button onClick={onClickFolderInsertSubRows}>Apply</Button>
+         </div>
+         )}
+
+
+      </>
+   );
 };
 
 export default PanelSetting;
 
 
-const columnSet_01 = {
-    fixedColumnCount: 5,
-    headers: [
-        'Index',
-        'Block/Zone',
-        'Drawing Name',
-        'Drawing Number',
-        'RFA Ref',
-        'Model Start (T)',
-        'Level',
-        'Unit/CJ',
-        'Drg Type',
-        'Use For',
-        'Coordinator In Charge',
-        'Modeller',
-        'Model Start (A)',
-        'Model Finish (T)',
-        'Model Finish (A)',
-        'Model Progress',
-        'Drawing Start (T)',
-        'Drawing Start (A)',
-        'Drawing Finish (T)',
-        'Drawing Finish (A)',
-        'Drawing Progress',
-        'Drg To Consultant (T)',
-        'Drg To Consultant (A)',
-        'Consultant Reply (T)',
-        'Consultant Reply (A)',
-        'Get Approval (T)',
-        'Get Approval (A)',
-        'Construction Issuance Date',
-        'Construction Start',
-        'Rev',
-        'Status',
-        'Remark',
-    ]
-};
-
-
-const columnSet_02 = {
-    fixedColumnCount: 4,
-    headers: [
-        'Index',
-        'Level',
-        'Drawing Name',
-        'Block/Zone',
-        'RFA Ref',
-        'Drawing Number',
-        'Model Start (T)',
-        'Unit/CJ',
-        'Drg Type',
-        'Use For',
-        'Coordinator In Charge',
-        'Modeller',
-        'Model Start (A)',
-        'Model Finish (T)',
-        'Model Finish (A)',
-        'Model Progress',
-        'Drawing Start (T)',
-        'Drawing Start (A)',
-        'Drawing Finish (T)',
-        'Drawing Finish (A)',
-        'Drawing Progress',
-        'Drg To Consultant (T)',
-        'Drg To Consultant (A)',
-        'Consultant Reply (T)',
-        'Consultant Reply (A)',
-        'Get Approval (T)',
-        'Get Approval (A)',
-        'Construction Issuance Date',
-        'Construction Start',
-        'Rev',
-        'Status',
-        'Remark',
-    ]
-};
 
 
 
 
-const newRevisionDrawingData = {
-    'Model Start (A)': '',
-    'Model Finish (T)': '',
-    'Model Finish (A)': '',
-    'Model Progress': '',
-    'Drawing Start (T)': '',
-    'Drawing Start (A)': '',
-    'Drawing Finish (T)': '',
-    'Drawing Finish (A)': '',
-    'Drawing Progress': '',
-    'Drg To Consultant (T)': '',
-    'Drg To Consultant (A)': '',
-    'Consultant Reply (T)': '',
-    'Consultant Reply (A)': '',
-    'Get Approval (T)': '',
-    'Get Approval (A)': '',
-    'Construction Issuance Date': '',
-    'Construction Start': '',
-    'Rev': '',
-    'Status': ''
-}
+
+
+
+
+
+
+
+

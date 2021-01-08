@@ -1,9 +1,7 @@
 import { Icon, Select } from 'antd';
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-import { Context as ProjectContext } from '../../contexts/projectContext';
-import { Context as RowContext } from '../../contexts/rowContext';
 import { mongoObjectId } from '../../utils';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
@@ -12,12 +10,7 @@ const { Option } = Select;
 
 
 
-const FormFilter = ({ applyFilter, onClickCancelModal }) => {
-
-
-    const { state: stateRow } = useContext(RowContext);
-
-    let { rowsAll } = stateRow;
+const FormFilterActivityHistory = ({ applyFilter, onClickCancelModal, rowsAll, headers }) => {
 
     const [filterColumn, setFilterColumn] = useState({});
 
@@ -77,6 +70,8 @@ const FormFilter = ({ applyFilter, onClickCancelModal }) => {
                         setFilterSelect={setFilterSelect}
                         filterColumn={filterColumn}
                         removeFilterTag={removeFilterTag}
+                        rows={rowsAll}
+                        headers={headers}
                     />
                 ))}
 
@@ -90,7 +85,7 @@ const FormFilter = ({ applyFilter, onClickCancelModal }) => {
         </div>
     );
 };
-export default FormFilter;
+export default FormFilterActivityHistory;
 
 
 const IconStyled = styled.div`
@@ -107,14 +102,10 @@ const IconStyled = styled.div`
 
 
 
-const SelectComp = ({ setFilterSelect, filterColumn, headerKey, id, removeFilterTag }) => {
+const SelectComp = ({ setFilterSelect, filterColumn, headerKey, id, removeFilterTag, headers, rows }) => {
 
-    const { state: stateProject } = useContext(ProjectContext);
-    const { state: stateRow } = useContext(RowContext);
-    const { rowsAll } = stateRow;
-    const { headersShown } = stateProject.userData;
 
-    let columnsValueArr = getColumnsValue(rowsAll, headersShown);
+    let columnsValueArr = getColumnsValue(rows, headers);
     const [column, setColumn] = useState(headerKey);
 
 
@@ -127,7 +118,7 @@ const SelectComp = ({ setFilterSelect, filterColumn, headerKey, id, removeFilter
                 onChange={(column) => setColumn(column)}
             >
                 {getHeadersFilterArr(
-                    headersShown,
+                    headers,
                     columnsValueArr,
                     Object.keys(filterColumn)
                 ).map(hd => (
@@ -170,7 +161,7 @@ const getColumnsValue = (rows, headers) => {
     let valueObj = {};
     headers.forEach(hd => {
         let valueArr = [];
-        rows.filter(r => r._rowLevel === 1).forEach(row => {
+        rows.forEach(row => {
             valueArr.push(row[hd] || '');
         });
         valueArr = [...new Set(valueArr)].filter(e => e);

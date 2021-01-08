@@ -1,4 +1,5 @@
 import { Select } from 'antd';
+import _ from 'lodash';
 import React, { useContext, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
@@ -7,7 +8,6 @@ import { Context as RowContext } from '../../contexts/rowContext';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
 
-
 const { Option } = Select;
 
 
@@ -15,7 +15,7 @@ const { Option } = Select;
 const FormSort = ({ applySort, onClickCancel }) => {
 
     const { state: stateRow } = useContext(RowContext);
-
+    
 
     const setSortSelect = (dataSort) => {
         setSortColumn(dataSort);
@@ -39,29 +39,20 @@ const FormSort = ({ applySort, onClickCancel }) => {
 
 
     const onClickApply = () => {
+        
+        if (_.isEmpty(sortColumn)) return;
 
         const headerSorted = Object.keys(sortColumn)[0];
-
         const typeSort = sortColumn[headerSorted].toLowerCase();
-
+        
         let rowsOutput = [];
         if (type === 'Sort Rows In Drawing Type') {
 
-            let rows = stateRow.rowsAll.filter(r => r._rowLevel === 0);
+            let rows = stateRow.drawingTypeTree.filter(r => r._rowLevel === 0);
 
-            if (rows.length === 0) {
-                let rowArr = stateRow.rowsAll.filter(r => r._rowLevel === 1);
-                if (typeSort === 'ascending') {
-                    rowsOutput = sortFnc(rowArr, headerSorted, true);
-                } else if (typeSort === 'descending') {
-                    rowsOutput = sortFnc(rowArr, headerSorted, false);
-                };
-            } else if (rows.length > 0) {
+            if (rows.length > 0) {
                 rows.forEach(r => {
-                    rowsOutput.push(r);
-
                     let subRows = stateRow.rowsAll.filter(subR => subR._parentRow === r.id);
-
                     if (typeSort === 'ascending') {
                         subRows = sortFnc(subRows, headerSorted, true);
                     } else if (typeSort === 'descending') {
@@ -70,7 +61,6 @@ const FormSort = ({ applySort, onClickCancel }) => {
                     rowsOutput = [...rowsOutput, ...subRows];
                 });
             };
-
         } else if (type === 'Sort Rows In Project') {
             let rowArr = stateRow.rowsAll.filter(r => r._rowLevel === 1);
             if (typeSort === 'ascending') {
@@ -79,7 +69,7 @@ const FormSort = ({ applySort, onClickCancel }) => {
                 rowsOutput = sortFnc(rowArr, headerSorted, false);
             };
         };
-        applySort(rowsOutput);
+        applySort({ type, rowsOutput });
     };
 
 
@@ -108,14 +98,14 @@ const FormSort = ({ applySort, onClickCancel }) => {
                 <div style={{ display: 'flex', marginBottom: 20 }}>
                     <ButtonStyle
                         onClick={selectTypeClick}
-                        marginright={15}
+                        marginRight={15}
                         background={backgroundSortDrawingType}
                         bordercolor={colorType.grey4}
                         name='Sort Rows In Drawing Type'
                     />
                     <ButtonStyle
                         onClick={selectTypeClick}
-                        marginright={15}
+                        marginRight={15}
                         background={backgroundSortInProject}
                         bordercolor={colorType.grey4}
                         name='Sort Rows In Project'

@@ -16,6 +16,7 @@ const InputSearch = ({ searchGlobal, closeSearchInput }) => {
 
     const onChange = debounce((e) => {
         let search = e.target.value;
+        if (!search) return;
         let rows = stateRow.rowsAll.filter(r => r._rowLevel === 1);
         let rowsFound = {};
         rows.forEach(row => {
@@ -49,11 +50,11 @@ const InputSearch = ({ searchGlobal, closeSearchInput }) => {
             };
         });
 
-        getSheetRows({ ...stateRow, rowsAll: arr });
+        getSheetRows({ ...stateRow, rowsAll: arr, showDrawingsOnly: true });
     };
 
     const showDrawingAll = () => {
-        getSheetRows({ ...stateRow, rowsAll: stateRow.rowsAllInit });
+        getSheetRows({ ...stateRow, rowsAll: stateRow.rowsAllInit, showDrawingsOnly: false });
     };
 
 

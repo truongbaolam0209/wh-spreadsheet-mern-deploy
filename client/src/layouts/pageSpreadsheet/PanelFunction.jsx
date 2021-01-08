@@ -1,35 +1,29 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-
+import { Context as RowContext } from '../../contexts/rowContext';
 
 const PanelFunction = (props) => {
 
     const { buttonPanelFunction, panelType } = props;
 
+    const { state: stateRow } = useContext(RowContext);
+
+    const { rowsToMoveId } = stateRow;
 
 
-    const listButton = panelType.type === 'column' ? [
-        'Insert Column Left',
-        'Insert Column Right',
-        'Delete Column',
-        'Filter',
-        'Sort Rows Drawing Type',
-        'Sort All Rows',
-        'Manage Column Value',
-        'Group This Column'
-
-    ] : [
-            'View Drawing Revision',
-            'Create New Drawing Revision',
-            'Date Automation',
-            'View Cell History',
-            'Insert Drawings Below',
-            'Insert Drawings Above',
-            'Move Drawing',
-            'Paste Drawing',
-            'Delete Drawing',
-        ];
+    const listButton = panelType.type === 'cell' && [
+        'View Drawing Revision',
+        'Create New Drawing Revision',
+        'Date Automation',
+        'View Cell History',
+        'Insert Drawings Below',
+        'Insert Drawings Above',
+        'Move Drawing',
+        'Paste Drawing',
+        'Delete Drawing',
+        'Insert Drawings By Type'
+    ];
 
     return (
         <div
@@ -42,7 +36,7 @@ const PanelFunction = (props) => {
                 <Container
                     key={btn}
                     onMouseDown={() => buttonPanelFunction(btn)}
-                    style={disabledBtn(props, btn)}
+                    style={disabledBtn(props, btn, rowsToMoveId)}
                 >
                     {btn}
                 </Container>
@@ -67,16 +61,22 @@ const Container = styled.div`
 `;
 
 
-const disabledBtn = ({ panelType }, btn) => {
-
-    if (panelType.type === 'cell') {
-        const { _rowLevel } = panelType.cellProps.rowData;
-
-        if (_rowLevel === 0 && btn !== 'View Cell History') return {
-            pointerEvents: 'none',
-            color: 'grey'
-        };
+const disabledBtn = ({ panelType }, btn, rowsToMoveId) => {
+    if (!rowsToMoveId && btn === 'Paste Drawing') {
+        return { pointerEvents: 'none', color: 'grey' };
     };
+
+    const { _rowLevel } = panelType.cellProps.rowData;
+
+    if (_rowLevel === 1 && btn === 'Insert Drawings By Type') return {
+        pointerEvents: 'none',
+        color: 'grey'
+    };
+    if (_rowLevel !== 1 && btn !== 'Insert Drawings By Type') return {
+        pointerEvents: 'none',
+        color: 'grey'
+    };
+    
 };
 
 

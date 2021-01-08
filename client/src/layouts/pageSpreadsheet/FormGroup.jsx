@@ -24,7 +24,6 @@ const FormGroup = ({ applyGroup, onClickCancelModal }) => {
         setGroup([...group, hd]);
     };
     const removeTag = (column, id) => {
-        console.log(id);
         idArr.splice(idArr.indexOf(id), 1);
         setIdArr([...idArr]);
 
@@ -33,6 +32,7 @@ const FormGroup = ({ applyGroup, onClickCancelModal }) => {
     };
 
     const onClickApply = () => {
+        if (group.length === 0) return;
         let output = groupByHeaders(stateRow.rowsAll.filter(r => r._rowLevel === 1), group);
         applyGroup(output);
     };
