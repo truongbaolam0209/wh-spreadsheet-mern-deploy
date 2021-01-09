@@ -39,13 +39,14 @@ async function findOneWithUserEmail(req, res, next) {
       ]);
 
       if (item) item.userSettings = userSettings;
-
+      
       return res.json(item);
 
    } catch (error) {
       next(error);
    };
 };
+
 
 
 const createRowsEmptyInit = (drawingTypeTree) => {
@@ -77,7 +78,20 @@ const createRowsEmptyInit = (drawingTypeTree) => {
 };
 
 
-
+async function findMany(req, res, next) {
+   try {
+     let sheetIdsData = req.body.sheetIds;
+ 
+     if (!(sheetIdsData instanceof Array)) throw new HTTP(400, 'Sheet ids must be array!');
+     let sheetIds = sheetIdsData.map(id => id).filter(Boolean);
+ 
+     let items = await Promise.all(sheetIds.map(findSheetIncludingRowsSortedFnc));
+ 
+     return res.json(items);
+   } catch (error) {
+     next(error);
+   };
+};
 async function findSheetIncludingRowsSortedFnc(sheetId) {
 
    let [publicSettings, dataRows] = await Promise.all([
@@ -107,7 +121,7 @@ async function findSheetIncludingRowsSortedFnc(sheetId) {
          if (row.level == 1) rows.push(row);
       };
    };
-
+   
    sheet.rows = _processRows(headers, rows);
 
    drawingTypeTree.forEach(row => {
@@ -356,6 +370,7 @@ const _formalRowData = (row, sheetHeaders) => {
       // _createdAt: createdAt,
       // _updatedAt: updatedAt,
    };
+   // console.log(sheetHeaders);
    if (data instanceof Object) {
       for (let header of sheetHeaders) {
          let { key, text } = header;
@@ -363,6 +378,8 @@ const _formalRowData = (row, sheetHeaders) => {
          if (key && text) rowFormal[text] = data[key];
       };
    };
+
+   // console.log(rowFormal);
    return rowFormal;
 };
 
@@ -392,7 +409,8 @@ module.exports = {
    updateSettingUser,
    findOneWithUserEmail,
    deleteAllRowsInOneProject,
-   deleteAllDataInCollection
+   deleteAllDataInCollection,
+   findMany
 };
 
 

@@ -103,7 +103,7 @@ const TableActivityHistory = (props) => {
                         'Drawing Name': r[dwgName],
                         'Column': undefined,
                         'Value': undefined,
-                        'User': r.userId || 'n/a',
+                        'User': r.email || 'n/a',
                         'Created At': moment(r.createdAt).format('DD/MM/YY - HH:mm'),
                         'Action': r.action,
                         id: mongoObjectId()

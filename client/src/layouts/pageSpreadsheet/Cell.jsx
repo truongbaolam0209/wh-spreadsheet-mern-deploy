@@ -118,7 +118,7 @@ const Cell = (props) => {
     };
     const onMouseDown = (e) => {
         if (e.button === 2) { // check mouse RIGHT CLICK ...
-            onRightClickCell(e, props);
+            // onRightClickCell(e, props);
         };
     };
     const pickDataSelect = (value) => {

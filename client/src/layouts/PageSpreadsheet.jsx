@@ -214,24 +214,21 @@ const PageSpreadsheet = (props) => {
          if (rowBelowPrevious) {
             rowBelowPrevious._preRow = rowToMove._preRow;
             rowsUpdatePreRowOrParentRow[rowBelowPrevious.id] = {
-               ...rowsUpdatePreRowOrParentRow[rowBelowPrevious.id] || {},
-               _preRow: rowBelowPrevious._preRow, _parentRow: rowBelowPrevious._parentRow
+               _preRow: rowBelowPrevious._preRow, _parentRow: rowBelowPrevious._parentRow, id: rowBelowPrevious.id
             };
          };
          const rowBelowNext = rowsAll.find(r => r._preRow === panelType.cellProps.rowData.id);
          if (rowBelowNext) {
             rowBelowNext._preRow = stateRow.rowsToMoveId;
             rowsUpdatePreRowOrParentRow[rowBelowNext.id] = {
-               ...rowsUpdatePreRowOrParentRow[rowBelowNext.id] || {},
-               _preRow: rowBelowNext._preRow, _parentRow: rowBelowNext._parentRow
+               _preRow: rowBelowNext._preRow, _parentRow: rowBelowNext._parentRow, id: rowBelowNext.id
             };
          };
 
          rowToMove._preRow = panelType.cellProps.rowData.id;
          rowToMove._parentRow = panelType.cellProps.rowData._parentRow;
          rowsUpdatePreRowOrParentRow[rowToMove.id] = {
-            ...rowsUpdatePreRowOrParentRow[rowToMove.id] || {},
-            _preRow: rowToMove._preRow, _parentRow: rowToMove._parentRow
+            _preRow: rowToMove._preRow, _parentRow: rowToMove._parentRow, id: rowToMove.id
          };
 
          getSheetRows({
@@ -375,7 +372,7 @@ const PageSpreadsheet = (props) => {
 
          setLoading(false);
       };
-      
+
       setPanelSettingVisible(false);
       setPanelSettingType(null);
       setPanelType(null);
@@ -434,14 +431,24 @@ const PageSpreadsheet = (props) => {
    };
    const deleteAllDataInAllCollections = async () => {
       try {
+
          await Axios.delete(`${SERVER_URL}/cell/history/delete-all`);
          await Axios.delete(`${SERVER_URL}/row/history/delete-all`);
          await Axios.delete(`${SERVER_URL}/sheet/delete-all`);
          await Axios.delete(`${SERVER_URL}/settings/delete-all`);
+
       } catch (err) {
          console.log(err);
       };
    };
+
+
+   
+
+
+
+
+
 
    const [loading, setLoading] = useState(true);
    useEffect(() => {
@@ -485,7 +492,7 @@ const PageSpreadsheet = (props) => {
 
    useEffect(() => {
       const interval = setInterval(() => {
-         
+
          setPanelFunctionVisible(false);
          setPanelSettingType('save-every-20min');
          setPanelSettingVisible(true);
@@ -567,7 +574,7 @@ const PageSpreadsheet = (props) => {
       const { colorization } = stateProject.userData;
 
       if (colorization !== null && colorization !== 'No Colorization') {
-         return `colorization-${rowData[colorization]}`;
+         return `colorization-${colorization}-${rowData[colorization]}-styled`;
       };
    };
 
@@ -628,7 +635,7 @@ const PageSpreadsheet = (props) => {
 
    return (
       <PageSpreadsheetStyled
-      onContextMenu={(e) => e.preventDefault()}
+         // onContextMenu={(e) => e.preventDefault()}
       >
          <ButtonBox>
             <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
@@ -665,6 +672,7 @@ const PageSpreadsheet = (props) => {
 
          {!loading ? (
             <TableStyled
+               dataForStyled={{stateRow, stateProject} }
                ref={tableRef}
                fixed
                columns={renderColumns(
@@ -738,7 +746,13 @@ export default PageSpreadsheet;
 
 
 
-
+const getColumnsValueForColorization = (rows, header) => {
+   let valueArr = [];
+   rows.forEach(row => {
+      valueArr.push(row[header] || '');
+   });
+   return valueArr;
+};
 const DividerRibbon = () => {
    return (
       <Divider type='vertical' style={{
@@ -760,7 +774,25 @@ const RowStyled = styled.a`
 const PageSpreadsheetStyled = styled.div`
     padding-top: ${dimension.navBarHeight};
 `;
+
+
 const TableStyled = styled(Table)`
+
+   
+   ${({dataForStyled}) => {
+      const { stateRow, stateProject } = dataForStyled;
+      const classArr = getColumnsValueForColorization(stateRow.rowsAll, stateProject.userData.colorization).map(n => {
+         return `.colorization-${stateProject.userData.colorization}-${n}-styled {
+            background-color: yellow;
+         }`;
+      });
+      const output = [...new Set(classArr)].join('\n');
+      return output;
+   }}
+
+
+
+
 
     .cell-found {
         background-color: #7bed9f;
@@ -774,6 +806,9 @@ const TableStyled = styled(Table)`
     .cell-current {
         background-color: ${colorType.cellHighlighted}
     };
+
+
+    
 
     .BaseTable__table .BaseTable__body {
         -webkit-touch-callout: none;
@@ -891,6 +926,7 @@ const getInputDataInitially = (data) => {
 
    const { drawingTypeTree } = data.publicSettings;
    const { rows } = data;
+   console.log('rows', rows);
    const rowsReordered = reorderDrawingsByDrawingTypeTree(rows, drawingTypeTree);
 
    const rowsAllInitToCompareBeforeSave = rows.map(r => ({ ...r }));

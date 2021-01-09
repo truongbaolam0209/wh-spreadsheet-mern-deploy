@@ -62,12 +62,12 @@ const PanelSetting = (props) => {
       commandAction({ type: 'reset-filter-sort' });
    }, 7);
 
-   
+
    const applyGroup = (data) => {
       commandAction({ type: 'group-columns', data });
    };
 
-   
+
 
    const [nosOfRows, setNosOfRows] = useState(1);
    const onClickInsertRow = () => {
@@ -109,15 +109,13 @@ const PanelSetting = (props) => {
       };
 
       if (rowBelow) {
-         rowsUpdatePreRowOrParentRow[rowBelow.id] = { 
-            ...rowsUpdatePreRowOrParentRow[rowBelow.id] || {}, 
-            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow
+         rowsUpdatePreRowOrParentRow[rowBelow.id] = {
+            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow, id: rowBelow.id
          };
       };
       newRows.forEach(r => {
-         rowsUpdatePreRowOrParentRow[r.id] = { 
-            ...rowsUpdatePreRowOrParentRow[r.id] || {}, 
-            _preRow: r._preRow, _parentRow: r._parentRow
+         rowsUpdatePreRowOrParentRow[r.id] = {
+            _preRow: r._preRow, _parentRow: r._parentRow, id: r.id
          };
       });
 
@@ -149,17 +147,15 @@ const PanelSetting = (props) => {
          });
       });
       newRows.forEach(r => {
-         rowsUpdatePreRowOrParentRow[r.id] = { 
-            ...rowsUpdatePreRowOrParentRow[r.id] || {}, 
-            _preRow: r._preRow, _parentRow: r._parentRow
+         rowsUpdatePreRowOrParentRow[r.id] = {
+            _preRow: r._preRow, _parentRow: r._parentRow, id: r.id
          };
       });
       let rowBelow = rowsAll.find(r => r._parentRow === panelType.cellProps.rowData.id && r._preRow === null);
       if (rowBelow) {
          rowBelow._preRow = idsArr[idsArr.length - 1];
-         rowsUpdatePreRowOrParentRow[rowBelow.id] = { 
-            ...rowsUpdatePreRowOrParentRow[rowBelow.id] || {}, 
-            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow
+         rowsUpdatePreRowOrParentRow[rowBelow.id] = {
+            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow, id: rowBelow.id
          };
       };
       rowsAll = [...rowsAll, ...newRows];
@@ -231,9 +227,8 @@ const PanelSetting = (props) => {
       let rowBelow = rowsAll.find(r => r._preRow === rowId);
       if (rowBelow) {
          rowBelow._preRow = panelType.cellProps.rowData._preRow;
-         rowsUpdatePreRowOrParentRow[rowBelow.id] = { 
-            ...rowsUpdatePreRowOrParentRow[rowBelow.id] || {}, 
-            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow
+         rowsUpdatePreRowOrParentRow[rowBelow.id] = {
+            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow, id: rowBelow.id
          };
       };
 
@@ -245,6 +240,7 @@ const PanelSetting = (props) => {
       } else {
          idRowsNew.splice(idRowsNew.indexOf(rowId), 1);
       };
+      
       Object.keys(cellsModifiedTemp).forEach(key => {
          if (key.slice(0, 24) === rowId) {  // deleted cells modified temporary...
             delete cellsModifiedTemp[key];
@@ -284,7 +280,7 @@ const PanelSetting = (props) => {
 
       // new drawings
       const drawingTypeL0New = drawingTypeTreeNew.filter(r => !drawingTypeTree.find(row => row.id === r.id));
-      
+
       drawingTypeL0New.forEach(row => {
          let idsArr = genId(5);
          idRowsNew = [...idRowsNew, ...idsArr];
@@ -297,9 +293,8 @@ const PanelSetting = (props) => {
             });
          });
          newRows.forEach(r => {
-            rowsUpdatePreRowOrParentRow[r.id] = { 
-               ...rowsUpdatePreRowOrParentRow[r.id] || {}, 
-               _preRow: r._preRow, _parentRow: r._parentRow
+            rowsUpdatePreRowOrParentRow[r.id] = {
+               _preRow: r._preRow, _parentRow: r._parentRow, id: r.id
             };
          });
          rowsAll = [...rowsAll, ...newRows];
@@ -347,60 +342,95 @@ const PanelSetting = (props) => {
          } = resDB.data;
 
          let {
-            drawingTypeTree: drawingTypeTreeFromDB, 
+            drawingTypeTree: drawingTypeTreeFromDB,
             activityRecorded: activityRecordedFromDB
          } = publicSettingsFromDB;
 
-         // DELETE ROWS ------------------------------------->>>>> DONE
-         if (rowsDeleted.length > 0) {
-            rowsDeleted = rowsDeleted.filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing'));
-            await Axios.post(
-               `${SERVER_URL}/sheet/delete-rows/${projectId}?userId=${email}`,
-               rowsDeleted.map(r => r.id)
-            );
-         };
+
+         console.log('rowsUpdatePreRowOrParentRow', rowsUpdatePreRowOrParentRow);
+
+         rowsFromDB = rowsFromDB.map(r => ({ id: r.id, _preRow: r._preRow, _parentRow: r._parentRow }));
+         console.log('rowsFromDB ..........', rowsFromDB);
+         // check if row deleted by other users
+         let rowsUpdatePreRowOrParentRowArray = Object.values(rowsUpdatePreRowOrParentRow)
+            .filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing') ||
+               !activityRecordedFromDB.find(r => r.id === row._parentRow && r.action === 'Delete Drawing Type'));
+         
+         let arrID = [];
+         rowsFromDB.forEach(r => {
+            if (rowsUpdatePreRowOrParentRowArray.find(row => row.id === r.id)) {
+               arrID.push(r.id);
+               let rowBelow = rowsFromDB.find(rrr => rrr._preRow === r.id);
+               if (rowBelow) rowBelow._preRow = r._preRow;
+            };
+         });
+         rowsFromDB = rowsFromDB.filter(r => arrID.indexOf(r.id) === -1);
 
          
-         // check if there are rows deleted previously by other users.
-         let rowsDeletedByOtherUsers = rowsAll.filter(r => activityRecordedFromDB.find(x => x.id === r.id && x.action === 'Delete Drawing'));
-         if (rowsDeletedByOtherUsers.length > 0) {
-            rowsDeletedByOtherUsers.forEach(row => {
-               let rowBelow = rowsAll.find(r => r._preRow === row.id);
-               if (rowBelow) {
-                  rowBelow._preRow = row._preRow;
-                  rowsUpdatePreRowOrParentRow[rowBelow.id] = { 
-                     ...rowsUpdatePreRowOrParentRow[rowBelow.id] || {}, 
-                     _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow
-                  };
+         let rowsInNewParent = rowsUpdatePreRowOrParentRowArray.filter(r => !drawingTypeTreeFromDB.find(tr => tr.id === r._parentRow && tr._rowLevel === 0));
+         let rowsInOldParent = rowsUpdatePreRowOrParentRowArray.filter(r => drawingTypeTreeFromDB.find(tr => tr.id === r._parentRow && tr._rowLevel === 0));
+         console.log('rowsInNewParent ..........rowsInOldParent', rowsInNewParent, rowsInOldParent);
+         let rowsInOldParentOutput = chainRow(rowsInOldParent);
+         console.log('rowsInOldParentOutput ..........', rowsInOldParentOutput);
+         rowsInOldParentOutput.forEach(arrChain => {
+            let rowFirst = arrChain[0];
+            let rowAbove = rowsFromDB.find(r => r.id === rowFirst._preRow);
+            let parentRowInDB = drawingTypeTreeFromDB.find(tr => tr.id === arrChain[0]._parentRow && tr._rowLevel === 0);
+
+            if (rowAbove) {
+               if (rowAbove._parentRow !== rowFirst._parentRow) {
+                  let lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
+                  rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
+                  rowsFromDB = [...rowsFromDB, ...arrChain];
+               } else {
+                  let rowBelowRowAbove = rowsFromDB.find(r => r._preRow === rowAbove.id);
+                  if (rowBelowRowAbove) rowBelowRowAbove._preRow = arrChain[arrChain.length - 1].id;
+                  rowFirst._preRow = rowAbove.id;
+                  rowsFromDB = [...rowsFromDB, ...arrChain];
                };
+            } else {
+               let lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
+               rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
+               rowsFromDB = [...rowsFromDB, ...arrChain];
+            };
+         });
+         console.log('rowsFromDBtgttgt ............', rowsFromDB, rowsInNewParent.map(r => r._parentRow));
+
+         let idsNewParentArray = [...new Set(rowsInNewParent.map(r => r._parentRow))];
+         console.log('idsNewParentArray', idsNewParentArray);
+
+         idsNewParentArray.forEach(idP => {
+            let ccc = rowsInNewParent.filter(r => r._parentRow === idP);
+            console.log(ccc);
+            let rowsChildren = _processRows1(ccc);
+            console.log('er', rowsChildren);
+            rowsChildren.forEach((r, i) => {
+               r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
             });
+            rowsFromDB = [...rowsFromDB, ...rowsChildren];
+         });
+
+         console.log('rowsFromDB333333 ............', rowsFromDB);
+
+         // DELETE ROWS ------------------------------------->>>>> DONE
+         let rowDeletedFinal = [];
+         rowsDeleted.forEach(row => {
+            let rowInDB = rowsFromDB.find(r => r.id === row.id);
+            if (rowInDB) {
+               let rowBelow = rowsFromDB.find(r => r._preRow === rowInDB.id);
+               if (rowBelow) rowBelow._preRow = rowInDB._preRow;
+               rowDeletedFinal.push(rowInDB);
+            };
+         });
+
+         rowsFromDB = rowsFromDB.filter(r => !rowDeletedFinal.find(x => x.id === r.id));
+
+         if (rowDeletedFinal.length > 0) {
+            await Axios.post(
+               `${SERVER_URL}/sheet/delete-rows/${projectId}?userId=${email}`,
+               rowDeletedFinal.map(r => r.id)
+            );
          };
-
-         // new rows added by other users
-         let newRowsByParents = {};
-         rowsFromDB.forEach(row => {
-            if (!rowsAllInitToCompareBeforeSave.find(r => r.id === row.id)) {
-               newRowsByParents[row._parentRow] = [...newRowsByParents[row._parentRow] || [], row];
-            };
-         });
-         Object.keys(newRowsByParents).forEach(keyParent => {
-            if (drawingTypeTree.find(r => r.id === keyParent)) {
-               let rows = newRowsByParents[keyParent];
-               let lastRowsSameCurrent = rowsAll.find(row => row._parentRow === keyParent && !rowsAll.find(x => x._preRow === row.id));
-
-               let idFirst = lastRowsSameCurrent ? lastRowsSameCurrent.id : null;
-               rows.forEach((r, i) => {
-                  r._preRow = i === 0 ? idFirst : rows[i - 1].id;
-
-                  rowsUpdatePreRowOrParentRow[r.id] = { 
-                     ...rowsUpdatePreRowOrParentRow[r.id] || {}, 
-                     _preRow: r._preRow, _parentRow: r._parentRow
-                  };
-                  rowsAll.push(r);
-               });
-            };
-         });
-
 
 
          // SAVE CELL HISTORY
@@ -424,7 +454,7 @@ const PanelSetting = (props) => {
             );
          };
 
-         
+
 
          const headerKeyDrawingNumber = headers.find(hd => hd.text === 'Drawing Number').key;
          const headerKeyDrawingName = headers.find(hd => hd.text === 'Drawing Name').key;
@@ -449,10 +479,10 @@ const PanelSetting = (props) => {
                });
             };
          });
-         rowsDeleted.forEach(r => { //------------------------------------->>>>> DONE
+         rowDeletedFinal.forEach(r => { //------------------------------------->>>>> DONE
             activityRecordedArr.push({
                id: r.id, email, createdAt: new Date(), action: 'Delete Drawing',
-               [headerKeyDrawingNumber]: r['Drawing Number'], 
+               [headerKeyDrawingNumber]: r['Drawing Number'],
                [headerKeyDrawingName]: r['Drawing Name'],
             });
          });
@@ -485,48 +515,36 @@ const PanelSetting = (props) => {
 
 
 
-         
+
          // SAVE DRAWINGS DATA
-         if (!_.isEmpty(rowsUpdatePreRowOrParentRow) || !_.isEmpty(cellsModifiedTemp)) {
+         console.log('rowsFromDB .........222.', rowsFromDB);
+         rowsFromDB.forEach(row => {
+            row.preRow = row._preRow;
+            delete row._preRow;
+            row.parentRow = row._parentRow;
+            delete row._parentRow;
+            row._id = row.id;
+            delete row.id;
 
-
-            let objRowsUpdate = {};
-            Object.keys(rowsUpdatePreRowOrParentRow).forEach(key => {
-               objRowsUpdate[key] = {
-                  ...objRowsUpdate[key] || {}, 
-                  preRow: rowsUpdatePreRowOrParentRow[key]._preRow,
-                  parentRow: rowsUpdatePreRowOrParentRow[key]._parentRow,
-                  level: 1
-               };
-            });
             Object.keys(cellsModifiedTemp).forEach(key => {
                const { rowId, headerName } = extractCellInfo(key);
                let headerKey = headers.find(hd => hd.text === headerName).key;
-               objRowsUpdate[rowId] = {
-                  ...objRowsUpdate[rowId] || {}, 
-                  data: {
-                     ...(objRowsUpdate[rowId] ? objRowsUpdate[rowId].data : {}) || {}, 
-                     [headerKey]: cellsModifiedTemp[key]
-                  },
-                  level: 1
+               if (rowId === row.id) {
+                  row.data = { ...row.data || {}, [headerKey]: cellsModifiedTemp[key] }
                };
             });
-            const finalOutput = Object.keys(objRowsUpdate).map(key => {
-               return {
-                  _id: key,
-                  ...objRowsUpdate[key]
-               };
-            });
+         });
 
-            await Axios.post(
-               `${SERVER_URL}/sheet/update-rows/${projectId}`,
-               { rows: finalOutput }
-            );
-         };
+      
+         console.log('before saveeee .........222.', rowsFromDB);
+         await Axios.post(
+            `${SERVER_URL}/sheet/update-rows/${projectId}`,
+            { rows: rowsFromDB }
+         );
          
 
 
-         await Axios.post(             // SAVE SETTINGS ..........................
+         await Axios.post( // SAVE SETTINGS ..........................
             `${SERVER_URL}/sheet/update-setting-user/${projectId}?userId=${email}`,
             {
                headersShown: stateProject.userData.headersShown.map(hd => headers.find(h => h.text === hd).key),
@@ -565,12 +583,6 @@ const PanelSetting = (props) => {
                onClickApply={saveDataToServer}
             />
          )}
-         {/* {panelSettingType === 'save-every-20min' && (
-            <PanelConfirm
-               onClickCancel={onClickCancelModal}
-               onClickApply={saveDataToServer}
-            />
-         )} */}
 
          {panelSettingType === 'filter-ICON' && (
             <FormFilter applyFilter={applyFilter} onClickCancelModal={onClickCancelModal} />
@@ -596,7 +608,7 @@ const PanelSetting = (props) => {
             <FormSort applySort={applySort} onClickCancel={onClickCancelModal} />
          )}
 
- 
+
          {panelSettingType === 'group-ICON' && (
             <FormGroup applyGroup={applyGroup} onClickCancelModal={onClickCancelModal} />
          )}
@@ -673,8 +685,8 @@ const PanelSetting = (props) => {
                      marginBottom: 20
                   }}
                />
-            <Button onClick={onClickFolderInsertSubRows}>Apply</Button>
-         </div>
+               <Button onClick={onClickFolderInsertSubRows}>Apply</Button>
+            </div>
          )}
 
 
@@ -685,15 +697,232 @@ const PanelSetting = (props) => {
 export default PanelSetting;
 
 
+function chainRow(rows) {
+   let chains = [];
+
+   rows.forEach(row => {
+      let newChain = [row];
+
+      chains.forEach((chain, index) => {
+         if (chain[0]._preRow == row.id) {
+            newChain = newChain.concat(chain);
+            chains.splice(index, 1);
+         };
+
+         if (chain[chain.length - 1].id === row._preRow) {
+            newChain = chain.concat(newChain);
+            chains.splice(index, 1);
+         };
+      });
+
+      chains.push(newChain);
+   });
+
+   return chains;
+};
+
+
+
+let exampleInputRows = [
+   { id: 'id6', _preRow: 'id3' },
+   { id: 'id1', _preRow: 'id9' },
+   { id: 'id7', _preRow: null },
+   { id: 'idrrrr7', _preRow: 'id344444444444' },
+   
+   
+   { id: 'id2', _preRow: 'id99' },
+   { id: 'id3', _preRow: 'id1' },
+   { id: 'id344444444444', _preRow: 'id4' },
+   
+   { id: 'id4', _preRow: 'id777' },
+   
+   { id: 'id8', _preRow: 'id2' },
+   { id: 'id10', _preRow: 'id5' },
+   { id: 'id10777777777', _preRow: 'id9' },
+   
+   
+   { id: 'id9', _preRow: null },
+   { id: 'id5', _preRow: 'id899' },
+   { id: 'id5555555', _preRow: 'id3' },
+   
+   { id: 'id777777777777777', _preRow: 'id10' },
+];
+let exampleInputRowsrrrrr = [
+   { id: 'uuuuuuuuuuuuuu', _preRow: 'tg9999' },
+   { id: 'id6', _preRow: 'id3' },
+   { id: 'id1', _preRow: 'id9' },
+   { id: 'id7', _preRow: null },
+   { id: 'idrrrr7', _preRow: 'id344444444444' },
+   { id: 'tg6777', _preRow: 'tttt' },
+
+
+   { id: 'lam111', _preRow: 'lam444' },
+
+   { id: 'lam111ggg', _preRow: 'lam444777' },
+   
+   { id: 'gggggggggg', _preRow: null },
+   { id: 'tg9999', _preRow: null },
+   { id: 'id2', _preRow: 'id99' },
+   { id: 'id3', _preRow: 'id1' },
+   { id: 'id344444444444', _preRow: 'id4' },
+   
+   { id: 'id4', _preRow: 'id777' },
+   
+   { id: 'id8', _preRow: 'id2' },
+   { id: 'id10', _preRow: 'id5' },
+   { id: 'id10777777777', _preRow: 'id9' },
+   
+   
+   { id: 'id9', _preRow: null },
+   { id: 'id5', _preRow: 'id899' },
+   { id: 'id5555555', _preRow: 'id3' },
+   
+   { id: 'id777777777777777', _preRow: 'id10' },
+
+   { id: 'tttt', _preRow: 'idrrrr7' },
+];
+
+let ttttttttttttttttt = [
+   { id: 'idrrrr7', _preRow: 'id7' },
+   { id: 'fgfg', _preRow: 'idrrrr7' },
+   { id: 'id1', _preRow: 'id6' },
+   { id: 'id7', _preRow: 'id1' },
+   { id: 'eeee', _preRow: '6666t' },
+   { id: '6666t', _preRow: 'ttt' },
+   { id: 'ttt', _preRow: 'fgfg' },
+   { id: 'id6', _preRow: 'id3' },
+];
+
+
+// console.log('XXXXXXXXXXXXXXXXX444444444', _processRows1([...exampleInputRows]), _processRows1([...ttttttttttttttttt]));
+// console.log('XXXXXXXXXXXXXXXXX444444444', _processChainRows2([...exampleInputRows]), _processChainRows2([...ttttttttttttttttt]));
+
+console.log('XXXXXXXXXXXXXXXXX444444444', _processRows1([...exampleInputRowsrrrrr]), _processChainRows2([...exampleInputRowsrrrrr]));
 
 
 
 
 
 
+function _processRows1(rows) {
+   let rowsProcessed = []
+ 
+   if (!(rows instanceof Array) || !rows.length) {
+     return rowsProcessed
+   };
+ 
+   // sort & format rows
+   let firstRowIndex = rows.findIndex((row) => !row._preRow)
+   while (firstRowIndex >= 0) {
+     let preRow = rows.splice(firstRowIndex, 1)[0]
+     while (preRow) {
+       rowsProcessed.push(preRow)
+ 
+       let nextRowIndex = rows.findIndex(
+         (row) => String(row._preRow) == String(preRow.id)
+       )
+       if (nextRowIndex >= 0) {
+         preRow = rows.splice(nextRowIndex, 1)[0]
+       } else {
+         preRow = null
+       }
+     }
+     firstRowIndex = rows.findIndex((row) => !row._preRow)
+   }
+   
+   _processRowsLossHead1(rows, rowsProcessed)
+ 
+   return rowsProcessed
+ }
+ function _processRowsLossHead1(rows, rowsProcessed) {
+   if (!rows.length) {
+     return
+   }
+ 
+   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow1(r, rows))
+   while (firstRowIndex >= 0) {
+     let preRow = rows.splice(firstRowIndex, 1)[0]
+     while (preRow) {
+       rowsProcessed.push(preRow)
+ 
+       let nextRowIndex = rows.findIndex(
+         (row) => String(row._preRow) == String(preRow.id)
+       )
+       if (nextRowIndex >= 0) {
+         preRow = rows.splice(nextRowIndex, 1)[0]
+       } else {
+         preRow = null
+       }
+     }
+     firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow1(r, rows))
+   }
+ }
+ function _filterRowLossPreRow1(row, rows) {
+   return rows.every(r => String(row._preRow) != String(r.id))
+ }
 
 
+ 
 
-
-
-
+function _processChainRows2(rows) {
+   let rowsProcessed = []
+ 
+   if (!(rows instanceof Array) || !rows.length) {
+     return rowsProcessed
+   }
+ 
+   // sort & format rows
+   let firstRowIndex = rows.findIndex((row) => !row._preRow)
+   while (firstRowIndex >= 0) {
+     let preRow = rows.splice(firstRowIndex, 1)[0]
+     let chain = []
+     while (preRow) {
+       chain.push(preRow)
+ 
+       let nextRowIndex = rows.findIndex(
+         (row) => String(row._preRow) == String(preRow.id)
+       )
+       if (nextRowIndex >= 0) {
+         preRow = rows.splice(nextRowIndex, 1)[0]
+       } else {
+         preRow = null
+       }
+     }
+     rowsProcessed.push(chain)
+     firstRowIndex = rows.findIndex((row) => !row._preRow)
+   }
+   
+   _processChainRowsLossHead2(rows, rowsProcessed)
+ 
+   return rowsProcessed
+ }
+ 
+ function _processChainRowsLossHead2(rows, rowsProcessed) {
+   if (!rows.length) {
+     return
+   }
+ 
+   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow2(r, rows))
+   while (firstRowIndex >= 0) {
+     let preRow = rows.splice(firstRowIndex, 1)[0]
+     let chain = []
+     while (preRow) {
+       chain.push(preRow)
+ 
+       let nextRowIndex = rows.findIndex(
+         (row) => String(row._preRow) == String(preRow.id)
+       )
+       if (nextRowIndex >= 0) {
+         preRow = rows.splice(nextRowIndex, 1)[0]
+       } else {
+         preRow = null
+       }
+     }
+     rowsProcessed.push(chain)
+     firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow2(r, rows))
+   }
+ }
+ 
+ function _filterRowLossPreRow2(row, rows) {
+   return rows.every(r => String(row._preRow) != String(r.id))
+ }

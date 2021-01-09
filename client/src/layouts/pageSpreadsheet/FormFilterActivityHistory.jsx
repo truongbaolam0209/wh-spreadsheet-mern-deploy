@@ -105,7 +105,7 @@ const IconStyled = styled.div`
 const SelectComp = ({ setFilterSelect, filterColumn, headerKey, id, removeFilterTag, headers, rows }) => {
 
 
-    let columnsValueArr = getColumnsValue(rows, headers);
+    let columnsValueArr = getColumnsValueExtract(rows, headers);
     const [column, setColumn] = useState(headerKey);
 
 
@@ -157,7 +157,7 @@ const SelectStyled = styled(Select)`
 `;
 
 
-const getColumnsValue = (rows, headers) => {
+const getColumnsValueExtract = (rows, headers) => {
     let valueObj = {};
     headers.forEach(hd => {
         let valueArr = [];

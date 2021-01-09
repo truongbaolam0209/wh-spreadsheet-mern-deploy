@@ -1,4 +1,3 @@
-import Axios from 'axios';
 import _ from 'lodash';
 
 
@@ -351,35 +350,6 @@ export const sortRowsReorder = (rowsData) => {
 
 
 
-
-
-
-
-
-
-
-
-const saveRandomRows = async () => {
-    try {
-        let arrrows = [];
-        for (let i = 0; i < 1; i++) {
-            // const data = newObj2(stateProject.allDataOneSheet.publicSettings.headers);
-            const row = {
-                // data,
-                parentRow: '5fe979ed94100ae8c49c4afc',
-                preRow: null,
-                level: 1
-            };
-            arrrows.push(row);
-        };
-        await Axios.post(
-            // `${SERVER_URL}/sheet/update-rows/${projectId}`,
-            { rows: arrrows }
-        );
-    } catch (err) {
-        console.log(err);
-    };
-};
 
 
 // WORKING WITH SMARTHSHEET ..................................................................
