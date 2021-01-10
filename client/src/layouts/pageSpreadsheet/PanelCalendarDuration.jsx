@@ -6,15 +6,15 @@ const { RangePicker } = DatePicker;
 
 
 
-const PanelCalendarDuration = () => {
+const PanelCalendarDuration = ({ pickRangeDate }) => {
 
 
    const onChange = (value, dateString) => {
-      
+      pickRangeDate(value);
    };
 
    const onOk = (value) => {
-      
+
    };
 
    return (

@@ -108,11 +108,18 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
       setInput([...input]);
    };
 
+
+   const findChildData = (node) => {
+      let rowsChild = stateRow.rowsAll.filter(r => r._parentRow === node.id);
+      return {
+         parentName: node.title,
+         rowsChild: rowsChild
+      }
+   };
+
    return (
       <Container>
-
          <PanelStyled>
-
             <SortableTree
                treeData={data}
                onChange={treeData => {
@@ -135,10 +142,6 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
                      buttons: parentNode === null ? [
                         // <IconBtn type='file-add' onClick={() => fileAdd()} />,
                         <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
-                     ] : node._rowLevel !== 0 ? [
-                        <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
-                        <IconBtn type='edit' onClick={() => editFolderName(node)} />,
-                        <IconBtn type='delete' onClick={() => deleteFolder(node)} />
                      ] : [
                               <IconBtn type='edit' onClick={() => editFolderName(node)} />,
                               <IconBtn type='delete' onClick={() => deleteFolder(node)} />
@@ -167,10 +170,20 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
                }}
                destroyOnClose={true}
                centered={true}
+               width={window.innerWidth * 0.6}
             >
-               <div style={{ padding: 20, width: '100%' }}>
+               <div style={{ padding: 20, width: '100%', maxHeight: window.innerHeight * 0.7 }}>
                   {modalTitle === 'Delete Drawing Type' ? (
-                     <div>Are you sure ???</div>
+                     <div style={{ height: '80%' }}>
+                        <div>{`Are you sure to delete the drawing type ${findChildData(item).parentName} ?`}</div>
+                        <div>All the following <span style={{ fontWeight: 'bold' }}>{findChildData(item).rowsChild.length}</span> drawings will be deleted:</div>
+                        <br/>
+                        <div style={{ overflowY: 'scroll' }}>
+                        {findChildData(item).rowsChild.map((dr, i) => (
+                           <div key={i}>({i + 1}) - {dr['Drawing Number']} - {dr['Drawing Name']}</div>
+                        ))}
+                        </div>
+                     </div>
                   ) : (
                         <Input
                            placeholder='Enter new name...'
@@ -180,7 +193,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
                         />
                      )}
 
-                  <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
+                  <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse'}}>
                      <ButtonGroupComp
                         onClickCancel={() => {
                            setModalShown(false);

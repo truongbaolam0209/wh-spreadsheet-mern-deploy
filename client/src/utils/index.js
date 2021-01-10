@@ -1,6 +1,52 @@
 import _ from 'lodash';
 
 
+export const colorTypeStatus = {
+    yellow: '#fff200',
+    dark: '#1e272e',
+    grey0: '#ecf0f1',
+    grey1: '#bdc3c7',
+    grey2: '#636e72',
+    grey3: '#dfe4ea',
+    grey4: '#f1f2f6',
+    red: '#FA8072',
+    green: '#009432',
+    blue: '#0984e3',
+    orange: '#cc8e35',
+    purple: '#303952',
+    rose: '#e84118',
+    black: 'black',
+    orange2: '#f1c40f',
+    pp: '#9b59b6',
+    pp2: '#10ac84',
+};
+
+
+
+export const randomColorRangeStatus = {
+    'Approved with comments, to Resubmit': colorTypeStatus.purple,
+    'Approved with Comment, no submission Required': colorTypeStatus.blue,
+    'Approved for Construction': colorTypeStatus.green,
+    'Consultant reviewing': colorTypeStatus.grey2,
+    'Not Started': colorTypeStatus.orange,
+    'Revise In-Progress': colorTypeStatus.yellow,
+    '1st cut of drawing in-progress': colorTypeStatus.pp2,
+    '1st cut of model in-progress': colorTypeStatus.pp,
+    'Pending design': colorTypeStatus.orange2,
+    'Reject and resubmit': colorTypeStatus.red,
+
+    'Consultant review and reply': colorTypeStatus.blue,
+    'Create update drawing': colorTypeStatus.orange,
+    'Create update model': colorTypeStatus.green,
+};
+export const randomColorRange = [
+    '#FFDEAD',
+    '#98FB98',
+    '#e74c3c',
+    '#9b59b6',
+    '#1abc9c',
+    '#95a5a6'
+];
 
 
 export const formatStringNameToId = (str) => {
@@ -98,7 +144,7 @@ export const groupByHeaders = (data, headers) => {
     for (let item of data) {
         let _prevLevelKey = '';
         let _prevLevelParent = null;
-        for (let i = 0, level = 2 - headers.length; i < headers.length; i++, level++) {
+        for (let i = 0, level = headers.length * (-1) + 1; i < headers.length; i++, level++) {
             let arrayParent = i == 0 ? res : _prevLevelParent.children;
 
             let header = headers[i];
@@ -133,6 +179,10 @@ export const groupByHeaders = (data, headers) => {
             };
         };
     };
+    console.log({
+        rows: res,
+        expandedRows: parentIdsArr
+    });
     return {
         rows: res,
         expandedRows: parentIdsArr
@@ -169,7 +219,7 @@ export const convertCellTempToHistory = (
             headerKey: getHeaderKey(publicSettings.headers, headerName),
             history: {
                 text: cellsModifiedTemp[key],
-                user: email,
+                email,
                 createdAt: new Date(),
             }
         };
@@ -182,7 +232,7 @@ export const convertDrawingVersionToHistory = (
     rowsHistory,
     stateProject
 ) => {
-    const { username, publicSettings } = stateProject.allDataOneSheet;
+    const { publicSettings } = stateProject.allDataOneSheet;
 
     const rowsHistoryOutput = rowsHistory.map(rowsH => {
         let obj = {};
@@ -192,7 +242,6 @@ export const convertDrawingVersionToHistory = (
         return {
             row: rowsH.id,
             history: obj,
-            username
         };
     });
     return rowsHistoryOutput;
@@ -441,7 +490,7 @@ export const getHeaderWidth = (header) => {
 
 
 
-    else if (header === 'Rev') return 50;
+    else if (header === 'Rev') return 60;
     else if (header === 'Status') return 280;
     else if (header === 'Remark') return 120;
     else if (header === 'Drawing Number') return 350;
@@ -453,25 +502,27 @@ export const getHeaderWidth = (header) => {
 export const rowClassNameGetColumnsValue = (rows, headers) => {
     let valueObj = {};
     headers.forEach(hd => {
-       let valueArr = rows.map(row => row[hd.text] || '');
-       valueArr = [...new Set(valueArr)].filter(e => e);
-       valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
-       if (valueArr.length > 0) valueObj[hd.text] = valueArr;
+        let valueArr = rows.map(row => row[hd.text] || '');
+        valueArr = [...new Set(valueArr)].filter(e => e);
+        valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
+        if (valueArr.length > 0) valueObj[hd.text] = valueArr;
     });
     return valueObj;
- };
+};
 export const getActionName = (type) => {
     if (type === 'filter-ICON') return 'Create New Filter';
     if (type === 'reorderColumn-ICON') return 'Columns Layout';
     if (type === 'group-ICON') return 'Group Data';
     if (type === 'sort-ICON') return 'Sort Data';
-    if (type === 'rollback-ICON') return 'Clear Filter/Sort/Group/Search';
+    if (type === 'swap-ICON') return 'Clear Filter/Sort/Group/Search';
     if (type === 'addDrawingType-ICON') return 'Drawing Type Organization';
     if (type === 'color-cell-history-ICON') return 'Check Data Changed';
     if (type === 'View Cell History') return 'Cell History';
     if (type === 'Delete Drawing') return 'Delete Drawing';
-    if (type === 'history-ICON') return 'Activity History';
+    // if (type === 'history-ICON') return 'Activity History';
     if (type === 'colorized-ICON') return 'Drawing Colorization';
+    if (type && type.includes('Insert Drawings')) return 'Nos Of Drawings';
+
     else return '';
 };
 export const getModalWidth = (type) => {
@@ -540,13 +591,13 @@ const getParent_IdHandy = (i) => {
     if (i >= 252 && i <= 259) return 12;
     if (i >= 261 && i <= 264) return 13;
     if (i >= 266 && i <= 269) return 14;
-    
+
     if (i >= 271 && i <= 274) return 15;
     if (i >= 276 && i <= 279) return 16;
     if (i >= 281 && i <= 283) return 17;
     if (i >= 285 && i <= 289) return 18;
     if (i >= 291 && i <= 292) return 19;
-    
+
     if (i >= 294 && i <= 296) return 20;
     if (i >= 298 && i <= 306) return 21;
 };
@@ -596,13 +647,13 @@ const getParent_IdSumang = (i) => {
     if (i >= 94 && i <= 100) return 12;
     if (i >= 102 && i <= 107) return 13;
     if (i >= 109 && i <= 114) return 14;
-    
+
     if (i >= 116 && i <= 121) return 15;
     if (i >= 123 && i <= 128) return 16;
     if (i >= 130 && i <= 135) return 17;
     if (i >= 137 && i <= 175) return 18;
     if (i >= 177 && i <= 211) return 19;
-    
+
     if (i >= 213 && i <= 213) return 20;
     if (i >= 216 && i <= 254) return 21;
 };
@@ -653,10 +704,10 @@ export const getCurrentAndHistoryDrawings = (allProjects, headers) => {
                         });
                         historyOutput = [...historyOutput, ...rowsHistoryOutput];
                     };
-            
+
                     let rowCurrent = arr[arr.length - 1];
                     let rowCurrentObj = {};
-            
+
                     headers.forEach(hd => {
                         if (rowCurrent[hd.text]) rowCurrentObj.data = { ...rowCurrentObj.data || {}, [hd.key]: rowCurrent[hd.text] };
                     });
@@ -768,23 +819,22 @@ const returnPreRowNullHandy = (i) => {
 
 
 
-export const reorderRowsFnc = (rows) => {
+export const reorderRowsFnc = (data) => {
+    let rows = [...data];
     let rowsProcessed = [];
- 
     let firstRowIndex = rows.findIndex(row => row._preRow === null);
- 
     while (firstRowIndex >= 0) {
-       let preRow = rows.splice(firstRowIndex, 1)[0];
-       while (preRow) {
-          rowsProcessed.push(preRow);
-          let nextRowIndex = rows.findIndex(row => String(row._preRow) == String(preRow.id));
-          if (nextRowIndex >= 0) {
-             preRow = rows.splice(nextRowIndex, 1)[0];
-          } else {
-             preRow = null;
-          };
-       };
-       firstRowIndex = rows.findIndex((row) => row._preRow === null);
+        let preRow = rows.splice(firstRowIndex, 1)[0];
+        while (preRow) {
+            rowsProcessed.push(preRow);
+            let nextRowIndex = rows.findIndex(row => String(row._preRow) == String(preRow.id));
+            if (nextRowIndex >= 0) {
+                preRow = rows.splice(nextRowIndex, 1)[0];
+            } else {
+                preRow = null;
+            };
+        };
+        firstRowIndex = rows.findIndex((row) => row._preRow === null);
     };
     return rowsProcessed;
- };
+};

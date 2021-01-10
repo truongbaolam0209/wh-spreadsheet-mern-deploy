@@ -24,7 +24,10 @@ export const colorType = {
     orange: '#cc8e35',
     purple: '#303952',
     rose: '#e84118',
-    black: 'black'
+    black: 'black',
+    orange2: '#f1c40f',
+    pp: '#9b59b6',
+    pp2: '#10ac84',
 };
 
 
@@ -36,14 +39,16 @@ export const pieChartColors2 = {
     'Consultant reviewing': colorType.grey2,
     'Not Started': colorType.orange,
     'Revise In-Progress': colorType.yellow,
-    '1st cut of drawing in-progress': colorType.red,
-
+    '1st cut of drawing in-progress': colorType.pp2,
+    '1st cut of model in-progress': colorType.pp,
+    'Pending design': colorType.orange2,
+    'Reject and resubmit': colorType.red,
 
     'Consultant review and reply': colorType.blue,
     'Create update drawing': colorType.orange,
     'Create update model': colorType.green,
 };
-
+        
 
 export const sizeType = {
     xs: 576,

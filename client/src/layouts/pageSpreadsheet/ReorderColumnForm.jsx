@@ -80,6 +80,7 @@ const ReorderColumnForm = ({ applyReorderColumns, onClickCancelModal }) => {
          height: '100%'
       }}>
          <PanelStyled>
+            <div style={{ fontSize: 11, paddingLeft: 20 }}>Click to freeze, unfreeze or hide headers tag, drag to change the order.</div>
             <div style={{ width: '100%', paddingTop: 20 }}>
                <DraggableArea
                   isList

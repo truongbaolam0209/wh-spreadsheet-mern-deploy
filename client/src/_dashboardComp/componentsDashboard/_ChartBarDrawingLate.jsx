@@ -22,8 +22,15 @@ const drawingLateInputChart = (data) => {
 
 const _ChartBarDrawingLate = ({ data, title }) => {
 
+    const checkProject = (title) => {
+
+    }
+
     const inputData = title === 'No Of Drawing Late Construction' ? data
         : title === 'No Of Drawing Late Approval' ? drawingLateInputChart(data) : null;
+
+    console.log(inputData);
+
 
     const LabelCustomStackedTotal = (props) => {
         const { x, y, value } = props;
@@ -74,19 +81,21 @@ const _ChartBarDrawingLate = ({ data, title }) => {
                             label={<LabelCustomStackedTotal />}
                         />
                     </BarChart>
+                   
+                        <div style={{ paddingLeft: 20, height: window.innerWidth >= sizeType.xl && (totalHeight - chartHeight) }}>
+                            {title !== 'No Of Drawing Late Construction' && inputData.map(item => (
+                                <div key={item.name} style={{ display: 'flex' }}>
+                                    <StyledBadge
+                                        size='small'
+                                        color={colorType.red}
+                                        text={item.name}
+                                    />
+                                    <span style={{ paddingLeft: 5 }}>{`- (${item.value})`}</span>
+                                </div>
+                            ))}
+                        </div>
+                   
 
-                    <div style={{ paddingLeft: 20, height: window.innerWidth >= sizeType.xl && (totalHeight - chartHeight) }}>
-                        {inputData.map(item => (
-                            <div key={item.name} style={{ display: 'flex' }}>
-                                <StyledBadge
-                                    size='small'
-                                    color={colorType.red}
-                                    text={item.name}
-                                />
-                                <span style={{ paddingLeft: 5 }}>{`- (${item.value})`}</span>
-                            </div>
-                        ))}
-                    </div>
 
                 </>
             ) : (

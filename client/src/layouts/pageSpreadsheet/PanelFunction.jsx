@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
+import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 
 const PanelFunction = (props) => {
@@ -8,6 +9,9 @@ const PanelFunction = (props) => {
     const { buttonPanelFunction, panelType } = props;
 
     const { state: stateRow } = useContext(RowContext);
+    const { state: stateProject } = useContext(ProjectContext);
+
+    const role = stateProject.allDataOneSheet && stateProject.allDataOneSheet.role;
 
     const { rowsToMoveId } = stateRow;
 
@@ -36,7 +40,7 @@ const PanelFunction = (props) => {
                 <Container
                     key={btn}
                     onMouseDown={() => buttonPanelFunction(btn)}
-                    style={disabledBtn(props, btn, rowsToMoveId)}
+                    style={disabledBtn(props, btn, rowsToMoveId, role)}
                 >
                     {btn}
                 </Container>
@@ -61,22 +65,21 @@ const Container = styled.div`
 `;
 
 
-const disabledBtn = ({ panelType }, btn, rowsToMoveId) => {
+const disabledBtn = ({ panelType }, btn, rowsToMoveId, role) => {
     if (!rowsToMoveId && btn === 'Paste Drawing') {
         return { pointerEvents: 'none', color: 'grey' };
     };
 
     const { _rowLevel } = panelType.cellProps.rowData;
 
-    if (_rowLevel === 1 && btn === 'Insert Drawings By Type') return {
+    if (
+        (_rowLevel === 1 && btn === 'Insert Drawings By Type') ||
+        (_rowLevel !== 1 && btn !== 'Insert Drawings By Type') ||
+        ((role === 'modeller' || role === 'viewer' || role === 'manager' || role === 'production') && (btn === 'Date Automation' || btn === 'Create New Drawing Revision'))
+    ) return {
         pointerEvents: 'none',
         color: 'grey'
     };
-    if (_rowLevel !== 1 && btn !== 'Insert Drawings By Type') return {
-        pointerEvents: 'none',
-        color: 'grey'
-    };
-    
 };
 
 

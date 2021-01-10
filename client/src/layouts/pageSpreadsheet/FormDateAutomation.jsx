@@ -1,6 +1,7 @@
 import { Button, DatePicker, Input } from 'antd';
 import moment from 'moment';
 import React, { useState } from 'react';
+import { colorType } from '../../constants';
 
 const FormDateAutomation = ({ applyDateAutomation }) => {
 
@@ -59,7 +60,8 @@ const FormDateAutomation = ({ applyDateAutomation }) => {
                     />
                 ))}
             </div>
-            <Button 
+            <Button
+                style={{ background: colorType.grey3 }}
                 onClick={() => applyDateAutomation(defaultDate)}
                 disabled={defaultDate === null ? true : false}
             >Assign Date</Button>
@@ -108,13 +110,14 @@ const DatePickerComp = ({
                     type='number'
                     min='1'
                     style={{
-                        width: 60
+                        width: 90
                     }}
                 />
             ) : (
                     <Button onClick={onClickCalculate} style={{
-                        width: 60
-                    }}>CAL</Button>
+                        width: 90,
+                        background: colorType.grey3
+                    }}>Calculate</Button>
                 )}
             <div style={{ marginLeft: 15 }}>
                 {header}

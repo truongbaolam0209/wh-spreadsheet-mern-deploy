@@ -370,7 +370,7 @@ const _formalRowData = (row, sheetHeaders) => {
       // _createdAt: createdAt,
       // _updatedAt: updatedAt,
    };
-   // console.log(sheetHeaders);
+
    if (data instanceof Object) {
       for (let header of sheetHeaders) {
          let { key, text } = header;
@@ -379,7 +379,6 @@ const _formalRowData = (row, sheetHeaders) => {
       };
    };
 
-   // console.log(rowFormal);
    return rowFormal;
 };
 

@@ -1,3 +1,4 @@
+import { message } from 'antd';
 import moment from 'moment';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
@@ -17,12 +18,12 @@ const Cell = (props) => {
     } = props;
 
     let cellData = props.cellData;
-    
-    if ((column.key.includes('(A)') || 
-        column.key.includes('(T)') || 
+
+    if ((column.key.includes('(A)') ||
+        column.key.includes('(T)') ||
         column.key === 'Construction Issuance Date' ||
         column.key === 'Construction Start') && cellData && cellData.length === 10 && cellData.includes('-')) {
-            cellData = moment(cellData, 'YYYY-MM-DD').format('DD/MM/YY');
+        cellData = moment(cellData, 'YYYY-MM-DD').format('DD/MM/YY');
     };
 
 
@@ -31,14 +32,15 @@ const Cell = (props) => {
     const { state: stateRow, getSheetRows } = useContext(RowContext);
     let { drawingTypeTree, rowsAll, showDrawingsOnly } = stateRow;
 
+    const role = stateProject.allDataOneSheet && stateProject.allDataOneSheet.role;
+    const isLockedCell = cellLocked(role, column.key, showDrawingsOnly);
+
 
     const inputRef = useRef();
     const cellRef = useRef();
     const panelRef = useRef();
     const buttonRef = useRef();
 
-
- 
 
     const [inputRender, setInputRender] = useState(false);
     const [initValue, setInitValue] = useState(cellData || '');
@@ -54,7 +56,7 @@ const Cell = (props) => {
             stateCell.cellActive &&
             stateCell.cellActive.rowIndex === rowIndex &&
             stateCell.cellActive.columnIndex === columnIndex &&
-            !cellLocked(stateProject.allDataOneSheet.role, column.key, showDrawingsOnly)
+            !isLockedCell
         ) {
             setInputRender(true);
         };
@@ -66,14 +68,23 @@ const Cell = (props) => {
     };
     const cellEditDone = (value) => {
         if (rowData._rowLevel === 1) {
-
+            if (checkCellDateFormat(column.key) && !(moment(value, 'DD/MM/YY').format('DD/MM/YY') === value)) {
+                message.info('Data input should be in date format', 1.5);
+                setValue(cellData);
+                return;
+            } else if (column.key === 'Status' && cellStatusFormat.indexOf(value) === -1) {
+                message.info('Data input should be in status format', 1.5);
+                setValue(cellData);
+                return;
+            };
             getCellModifiedTemp({ [getCellTempId()]: value });
             let row = rowsAll.find(r => r.id === rowData.id);
             row[column.key] = value;
-            getSheetRows({ ...stateRow, rowsAll });
+            getSheetRows({ 
+                ...stateRow, rowsAll // no need update rowsAllInit
+            });
 
         } else {
-
             let row = drawingTypeTree.find(x => x.id === rowData.id);
             row[column.key] = value;
             getSheetRows({ ...stateRow, drawingTypeTree });
@@ -82,10 +93,12 @@ const Cell = (props) => {
 
 
     const onDoubleClick = () => {
+        if (isLockedCell) return;
         setInputRender(true);
         getCurrentDOMCell();
     };
     const onClick = () => {
+        if (isLockedCell) return;
         setBtnShown(true);
         if (!inputRender) {
             setPosition({ cell: cellRef.current.parentElement, rowIndex, columnIndex });
@@ -104,8 +117,12 @@ const Cell = (props) => {
         return () => document.removeEventListener('click', EventClickToHidePanelAndInput);
     }, []);
     const EventClickToHidePanelAndInput = (e) => {
-        if (e.target !== cellRef.current && inputRef.current && e.target !== inputRef.current) {
-            setInputRender(false);
+        if (
+            inputRef.current &&
+            e.target !== cellRef.current && 
+            e.target !== inputRef.current
+        ) {
+            // setInputRender(false);
         } else if (e.target !== cellRef.current && e.target !== panelRef.current && e.target !== buttonRef.current) {
             setPanelData(false);
         };
@@ -118,7 +135,9 @@ const Cell = (props) => {
     };
     const onMouseDown = (e) => {
         if (e.button === 2) { // check mouse RIGHT CLICK ...
-            // onRightClickCell(e, props);
+            onRightClickCell(e, props);
+        } else {
+            if (isLockedCell) return;
         };
     };
     const pickDataSelect = (value) => {
@@ -161,7 +180,7 @@ const Cell = (props) => {
             stateCell.cellActive &&
             stateCell.cellActive.rowIndex === rowIndex &&
             stateCell.cellActive.columnIndex === columnIndex &&
-            !cellLocked(stateProject.allDataOneSheet.role, column.key, showDrawingsOnly)
+            !isLockedCell
         ) {
             inputRef.current.blur();
             setCellActive(null);
@@ -184,8 +203,8 @@ const Cell = (props) => {
                     padding: 5,
                     position: 'relative',
                     color: 'black',
-                    pointerEvents: cellLocked(stateProject.allDataOneSheet.role, column.key, showDrawingsOnly) && 'none',
-                    // background: cellBackground(stateProject.allDataOneSheet.role, column.key, rowData._rowLevel) ? '#fafafa' : 'transparent'
+                    // pointerEvents: isLockedCell && 'none',
+                    // background: cellBackground(role, column.key, rowData._rowLevel) ? '#fafafa' : 'transparent'
                 }}
             >
                 {inputRender ? (
@@ -228,7 +247,7 @@ const Cell = (props) => {
                         top: 5,
                         height: 17,
                         width: 17,
-                        backgroundImage: `url('./img/btn-${checkIconBtn(column.key) ? 'calendar2' : 'down2'}.png')`,
+                        backgroundImage: `url('./img/btn-${checkCellDateFormat(column.key) ? 'calendar2' : 'down2'}.png')`,
                         backgroundSize: 17
                     }}
                         onMouseDown={(e) => {
@@ -253,7 +272,7 @@ const Cell = (props) => {
                     }}
                         ref={panelRef}
                     >
-                        {checkIconBtn(column.key) ? (
+                        {checkCellDateFormat(column.key) ? (
                             <PanelCalendar pickDate={pickDate} />
                         ) : getColumnsValue(rowsAll, column.key).map(item => {
                             return (
@@ -285,9 +304,9 @@ const SelectStyled = styled.div`
     transition: 0.2s;
 `;
 
-const checkIconBtn = (header) => {
-    return header.includes('(A)') || 
-        header.includes('(T)') || 
+const checkCellDateFormat = (header) => {
+    return header.includes('(A)') ||
+        header.includes('(T)') ||
         header === 'Construction Issuance Date' ||
         header === 'Construction Start';
 };
@@ -297,7 +316,6 @@ const cellBtnDisabled = (headerId) => {
 };
 
 const getColumnsValue = (rows, headerKey) => {
-
     let valueArr = [];
     rows.filter(r => r._rowLevel === 1).forEach(row => {
         valueArr.push(row[headerKey]);
@@ -305,47 +323,23 @@ const getColumnsValue = (rows, headerKey) => {
     valueArr = [...new Set(valueArr)].filter(e => e);
     valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
 
-    if (headerKey === 'Status') return [
-        'Not Started',
-        '1st cut of model in-progress',
-        '1st cut of drawing in-progress',
-        'Pending design',
-        'Consultant reviewing',
-        'Reject and resubmit',
-        'Approved with comments, to Resubmit',
-        'Revise In-Progress',
-        'Approved with Comment, no submission Required',
-        'Approved for Construction'
-    ];
+    if (headerKey === 'Status') return cellStatusFormat;
     return valueArr;
 };
 
-const colors = {
-    red: '#FFDAB9',
-    blue: '#AFEEEE',
-    brown: '#F0E68C',
-    green: '#98FB98',
-    white: 'white'
-};
+const cellStatusFormat = [
+    'Not Started',
+    '1st cut of model in-progress',
+    '1st cut of drawing in-progress',
+    'Pending design',
+    'Consultant reviewing',
+    'Reject and resubmit',
+    'Approved with comments, to Resubmit',
+    'Revise In-Progress',
+    'Approved with Comment, no submission Required',
+    'Approved for Construction'
+];
 
-
-const colorizedRows = (colorized, rowData) => {
-    if (colorized === 'Rev') {
-        return rowData[colorized] === '0' ? colors.red :
-            rowData[colorized] === 'A' ? colors.blue :
-                rowData[colorized] === 'B' ? colors.brown : colors.white
-    } else if (colorized === 'Status') {
-        return rowData[colorized] === 'Reject And Resubmit' ? colors.red :
-            rowData[colorized] === 'Approved for Construction' ? colors.blue :
-                rowData[colorized] === 'Not Started' ? colors.white : colors.green
-    } else if (colorized === 'Modeller') {
-        return rowData[colorized] === 'Anne' ? colors.red :
-            rowData[colorized] === 'Judy' ? colors.blue :
-                rowData[colorized] === 'Thomas' ? colors.white : colors.green
-    } else if (colorized === 'Coordinator In Charge') {
-        return rowData[colorized] === 'Hannah' ? colors.red : colors.white
-    };
-};
 
 const ColumnsLockedModeller = [
     'Drg To Consultant (T)',
@@ -364,28 +358,4 @@ const cellLocked = (title, column, showDrawingsOnly) => {
     if (title === 'coordinator' || title === 'document controller') return false;
     if (title === 'manager' || title === 'viewer') return true;
     if (title === 'production' && column !== 'Construction Start') return true;
-};
-const cellBackground = (title, column, rowLevel) => {
-    if (rowLevel !== 1) return false;
-
-    if (title === 'modeller' && ColumnsLockedModeller.includes(column)) return true;
-    if (title === 'coordinator' || title === 'document controller') return false;
-    if (title === 'manager' || title === 'viewer') return true;
-    if (title === 'production' && column !== 'Construction Start') return true;
-};
-
-const checkIfCellsRangeContainsCell = (cellsRangeStart, cellsRangeEnd, rowIndex, columnIndex) => {
-
-    let rowMin = cellsRangeStart.rowIndex <= cellsRangeEnd.rowIndex ? cellsRangeStart.rowIndex : cellsRangeEnd.rowIndex;
-    let rowMax = cellsRangeStart.rowIndex > cellsRangeEnd.rowIndex ? cellsRangeStart.rowIndex : cellsRangeEnd.rowIndex;
-
-    let columnMin = cellsRangeStart.columnIndex <= cellsRangeEnd.columnIndex ? cellsRangeStart.columnIndex : cellsRangeEnd.columnIndex;
-    let columnMax = cellsRangeStart.columnIndex > cellsRangeEnd.columnIndex ? cellsRangeStart.columnIndex : cellsRangeEnd.columnIndex;
-
-    return (
-        rowIndex >= rowMin &&
-        rowIndex <= rowMax &&
-        columnIndex >= columnMin &&
-        columnIndex <= columnMax
-    );
 };

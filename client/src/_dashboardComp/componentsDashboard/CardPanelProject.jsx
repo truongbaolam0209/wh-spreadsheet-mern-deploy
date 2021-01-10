@@ -6,7 +6,7 @@ import { colorType } from '../assets/constantDashboard';
 
 const CardPanelProject = ({ children, title, projectsCount }) => {
 
-    console.log('noOfProject...', projectsCount);
+
     return (
         <Card
             title={title}

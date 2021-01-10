@@ -54,7 +54,7 @@ const TableCellHistory = (props) => {
                 renderItem={item => (
                     <List.Item>
                         <div>
-                            <div>{`${item.user}`}</div>
+                            <div>{`${item.email}`}</div>
                             <div style={{ fontSize: 12, color: 'grey' }}>{moment(item.createdAt).format('DD/MM/YY - HH:mm')}</div>
                             <div style={{ fontWeight: 'bold' }}>{item.text}</div>
                         </div>

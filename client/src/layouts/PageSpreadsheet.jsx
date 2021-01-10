@@ -9,7 +9,7 @@ import { colorType, dimension, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { getActionName, getCurrentAndHistoryDrawings, getDataConvertedSmartsheet, getHeaderWidth, getModalWidth, reorderRowsFnc } from '../utils';
+import { getActionName, getHeaderWidth, getModalWidth, randomColorRange, randomColorRangeStatus, reorderRowsFnc } from '../utils';
 import Cell from './pageSpreadsheet/Cell';
 import CellHeader from './pageSpreadsheet/CellHeader';
 import CellIndex from './pageSpreadsheet/CellIndex';
@@ -63,9 +63,7 @@ const PageSpreadsheet = (props) => {
    };
    useEffect(() => {
       window.addEventListener('keydown', EventKeyDown);
-      return () => {
-         window.removeEventListener('keydown', EventKeyDown);
-      };
+      return () => window.removeEventListener('keydown', EventKeyDown);
    }, []);
    const EventKeyDown = (e) => {
       if (e.key === 'ArrowUp') {
@@ -134,12 +132,10 @@ const PageSpreadsheet = (props) => {
 
          e.preventDefault();
          if (
-            cellTop < tableRef.current._scroll.scrollTop ||
-            cellTop > tableRef.current._scroll.scrollTop + 690
+            cellTop < tableRef.current._scroll.scrollTop || cellTop > tableRef.current._scroll.scrollTop + 490
          ) {
-            tableRef.current.scrollToTop(currentDOMCell.cell.parentElement.offsetTop - 720);
+            tableRef.current.scrollToTop(currentDOMCell.cell.parentElement.offsetTop - 520);
          };
-
       } else if (e.key === 'ArrowLeft') {
 
          if (isTyping) return;
@@ -189,8 +185,9 @@ const PageSpreadsheet = (props) => {
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
    useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
-   useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
-   useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
+   // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
+   // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
+   // console.log('ALL STATES...', stateCell, stateRow, stateProject);
 
    const [cursor, setCursor] = useState(null);
    const [panelType, setPanelType] = useState(null);
@@ -202,14 +199,11 @@ const PageSpreadsheet = (props) => {
       const { rowsAll, rowsUpdatePreRowOrParentRow } = stateRow;
       setPanelFunctionVisible(false);
 
-
       if (btn === 'Move Drawing') {
          getSheetRows({ ...stateRow, rowsToMoveId: panelType.cellProps.rowData.id });
-
       } else if (btn === 'Paste Drawing') {
 
          const rowToMove = rowsAll.find(r => r.id === stateRow.rowsToMoveId);
-
          const rowBelowPrevious = rowsAll.find(r => r._preRow === stateRow.rowsToMoveId);
          if (rowBelowPrevious) {
             rowBelowPrevious._preRow = rowToMove._preRow;
@@ -230,7 +224,6 @@ const PageSpreadsheet = (props) => {
          rowsUpdatePreRowOrParentRow[rowToMove.id] = {
             _preRow: rowToMove._preRow, _parentRow: rowToMove._parentRow, id: rowToMove.id
          };
-
          getSheetRows({
             ...stateRow,
             rowsAll: reorderRowsFnc(rowsAll),
@@ -238,8 +231,8 @@ const PageSpreadsheet = (props) => {
             rowsUpdatePreRowOrParentRow,
             rowsToMoveId: null
          });
-
       } else {
+         getSheetRows({ ...stateRow, rowsToMoveId: null });
          setPanelSettingType(btn);
          setPanelSettingVisible(true);
       };
@@ -287,7 +280,7 @@ const PageSpreadsheet = (props) => {
             nosColumnFixed: update.data.nosColumnFixed,
          });
 
-      } else if (update.type === 'insert-drawings') {
+      } else if (update.type === 'insert-drawings' || update.type === 'insert-drawings-by-folder') {
          getSheetRows({
             ...stateRow,
             rowsAll: update.data.rowsAll,
@@ -295,13 +288,6 @@ const PageSpreadsheet = (props) => {
             idRowsNew: update.data.idRowsNew
          });
 
-      } else if (update.type === 'insert-drawings-by-folder') {
-         getSheetRows({
-            ...stateRow,
-            rowsAll: update.data.rowsAll,
-            rowsAllInit: update.data.rowsAll,
-            idRowsNew: update.data.idRowsNew
-         });
       } else if (update.type === 'drawing-data-automation') {
          getSheetRows({
             ...stateRow,
@@ -377,7 +363,6 @@ const PageSpreadsheet = (props) => {
       setPanelSettingType(null);
       setPanelType(null);
    };
-
    const onScroll = () => {
       if (stateCell.cellActive) setCellActive(null);
    };
@@ -443,7 +428,7 @@ const PageSpreadsheet = (props) => {
    };
 
 
-   
+
 
 
 
@@ -461,8 +446,8 @@ const PageSpreadsheet = (props) => {
 
 
             const resultSmartsheet = await Axios.post( // SMART SHEETTTTTTTTTTTTTTTT
-                'https://bim.wohhup.com/api/smartsheet/get-sheets-dashboard',
-                { listSheetId: [4758181617395588, 8919906142971780] }
+               'https://bim.wohhup.com/api/smartsheet/get-sheets-dashboard',
+               { listSheetId: [4758181617395588, 8919906142971780] }
             );
             console.log('SMARTSHEET...', resultSmartsheet.data);
             const rowsAllSmartSheet = getDataConvertedSmartsheet(resultSmartsheet.data);
@@ -501,24 +486,9 @@ const PageSpreadsheet = (props) => {
       return () => clearInterval(interval);
    }, []);
 
-   const askBeforeClose = (e) => {
-      console.log('aaaaaaaaaaaaaaaaaa', e);
-      e.preventDefault();
-      setPanelFunctionVisible(false);
-      setPanelSettingType('save-ICON');
-      setPanelSettingVisible(true);
-   };
-
-   // useEffect(() => {
-   //    window.addEventListener('beforeunload', e => askBeforeClose(e));
-   //    return () => window.removeEventListener('beforeunload', e => askBeforeClose(e));
-   // }, []);
 
 
 
-
-
-   // const [columns, setColumns] = useState(null);
    const [expandedRows, setExpandedRows] = useState([]);
    const [expandColumnKey, setExpandColumnKey] = useState('Drawing Number');
    const [cellSearchFound, setCellSearchFound] = useState(null);
@@ -573,8 +543,18 @@ const PageSpreadsheet = (props) => {
       const { rowData } = props;
       const { colorization } = stateProject.userData;
 
-      if (colorization !== null && colorization !== 'No Colorization') {
-         return `colorization-${colorization}-${rowData[colorization]}-styled`;
+      const valueArr = colorization.value;
+      const value = rowData[colorization.header];
+
+      if (colorization !== null &&
+         colorization.header !== 'No Colorization' &&
+         valueArr &&
+         valueArr.length > 0 &&
+         valueArr.indexOf(value) !== -1
+      ) {
+         if (rowData[colorization.header]) {
+            return `colorization-${colorization.header}-${rowData[colorization.header].replace(/\s/g, '').replace(/,/g, '')}-styled`;
+         };
       };
    };
 
@@ -632,10 +612,14 @@ const PageSpreadsheet = (props) => {
       return headersObj;
    };
 
+   document.body.onbeforeunload = () => {
+      return 'Dialog text here...';
+   };
 
+   
    return (
       <PageSpreadsheetStyled
-         // onContextMenu={(e) => e.preventDefault()}
+      onContextMenu={(e) => e.preventDefault()}
       >
          <ButtonBox>
             <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
@@ -649,7 +633,7 @@ const PageSpreadsheet = (props) => {
                <InputSearch searchGlobal={searchGlobal} closeSearchInput={closeSearchInput} />
             ) : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
-            <IconTable type='rollback' onClick={() => buttonPanelFunction('rollback-ICON')} />
+            <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON')} />
             <DividerRibbon />
             <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
 
@@ -672,7 +656,7 @@ const PageSpreadsheet = (props) => {
 
          {!loading ? (
             <TableStyled
-               dataForStyled={{stateRow, stateProject} }
+               dataForStyled={{ stateRow, stateProject, randomColorRange, randomColorRangeStatus }}
                ref={tableRef}
                fixed
                columns={renderColumns(
@@ -725,6 +709,7 @@ const PageSpreadsheet = (props) => {
             destroyOnClose={true}
             centered={true}
             width={getModalWidth(panelSettingType)}
+            width={panelSettingType === 'addDrawingType-ICON' ? 700 : 520}
          >
             <PanelSetting
                panelType={panelType}
@@ -736,6 +721,7 @@ const PageSpreadsheet = (props) => {
                   setPanelType(null);
                }}
                setLoading={setLoading}
+               
             />
          </ModalStyledSetting>
 
@@ -751,6 +737,8 @@ const getColumnsValueForColorization = (rows, header) => {
    rows.forEach(row => {
       valueArr.push(row[header] || '');
    });
+   valueArr = valueArr.filter(x => x);
+   valueArr.sort();
    return valueArr;
 };
 const DividerRibbon = () => {
@@ -772,27 +760,35 @@ const RowStyled = styled.a`
     }
 `;
 const PageSpreadsheetStyled = styled.div`
-    padding-top: ${dimension.navBarHeight};
+    /* padding-top: ${dimension.navBarHeight}; */
 `;
 
 
 const TableStyled = styled(Table)`
 
-   
-   ${({dataForStyled}) => {
-      const { stateRow, stateProject } = dataForStyled;
-      const classArr = getColumnsValueForColorization(stateRow.rowsAll, stateProject.userData.colorization).map(n => {
-         return `.colorization-${stateProject.userData.colorization}-${n}-styled {
-            background-color: yellow;
-         }`;
+   ${({ dataForStyled }) => {
+      const { stateRow, stateProject, randomColorRange, randomColorRangeStatus } = dataForStyled;
+
+      let colorization = stateProject.userData.colorization;
+      const classArr = getColumnsValueForColorization(stateRow.rowsAll, colorization.header);
+      let valueArr = [...new Set(classArr)];
+
+      let res = [];
+      classArr.map(n => {
+         
+         let color = stateProject.userData.colorization.header === 'Status' ?
+            randomColorRangeStatus[n] :
+            randomColorRange[valueArr.indexOf(n)];
+         if (n) {
+            res.push(`.colorization-${stateProject.userData.colorization.header}-${n.replace(/\s/g, '').replace(/,/g, '')}-styled {
+               background-color: ${color};
+         }`)
+         };
       });
-      const output = [...new Set(classArr)].join('\n');
+      const output = [...new Set(res)].join('\n');
+      
       return output;
    }}
-
-
-
-
 
     .cell-found {
         background-color: #7bed9f;
@@ -800,15 +796,10 @@ const TableStyled = styled(Table)`
     .cell-history-highlight {
         background-color: #f6e58d;
     }
-    .row-color-categorized {
-        background-color: #9ACD32;
-    }
     .cell-current {
         background-color: ${colorType.cellHighlighted}
     };
 
-
-    
 
     .BaseTable__table .BaseTable__body {
         -webkit-touch-callout: none;
@@ -926,7 +917,6 @@ const getInputDataInitially = (data) => {
 
    const { drawingTypeTree } = data.publicSettings;
    const { rows } = data;
-   console.log('rows', rows);
    const rowsReordered = reorderDrawingsByDrawingTypeTree(rows, drawingTypeTree);
 
    const rowsAllInitToCompareBeforeSave = rows.map(r => ({ ...r }));
@@ -985,7 +975,7 @@ const getHeadersData = (projectData) => {
    if (!userSettings) {
       headersShown = headers.map(hd => hd.text);
       headersHidden = [];
-      colorization = null;
+      colorization = {};
       nosColumnFixed = 0;
    } else {
       headersShown = userSettings.headersShown.map(hd => headers.find(h => h.key === hd).text);

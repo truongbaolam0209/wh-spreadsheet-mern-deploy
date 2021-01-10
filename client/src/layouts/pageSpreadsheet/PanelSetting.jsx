@@ -1,14 +1,16 @@
-import { Button, Input } from 'antd';
+import { Input } from 'antd';
 import Axios from 'axios';
 import _, { debounce } from 'lodash';
 import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
+import styled from 'styled-components';
 import { SERVER_URL } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { convertCellTempToHistory, convertDrawingVersionToHistory, extractCellInfo, mongoObjectId, reorderRowsFnc } from '../../utils';
 import { reorderDrawingsByDrawingTypeTree } from '../PageSpreadsheet';
+import ButtonGroupComp from './ButtonGroupComp';
 import ColorizedForm from './ColorizedForm';
 import FormCellColorizedCheck from './FormCellColorizedCheck';
 import FormDateAutomation from './FormDateAutomation';
@@ -68,13 +70,11 @@ const PanelSetting = (props) => {
    };
 
 
-
-   const [nosOfRows, setNosOfRows] = useState(1);
-   const onClickInsertRow = () => {
+   const onClickInsertRow = (nosOfRows) => {
       let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
 
       let idsArr = genId(nosOfRows);
-
+      console.log(idsArr);
       idRowsNew = [...idRowsNew, ...idsArr];
 
       let newRows = [];
@@ -96,7 +96,8 @@ const PanelSetting = (props) => {
          };
 
       } else if (panelSettingType === 'Insert Drawings Above') {
-         let rowBelow = panelType.cellProps.rowData;
+         rowBelow = rowsAll.find(r => r.id === panelType.cellProps.rowData.id);
+         
          newRows = idsArr.map((id, i) => {
             return ({
                id,
@@ -105,6 +106,7 @@ const PanelSetting = (props) => {
                _preRow: i === 0 ? rowBelow._preRow : idsArr[i - 1]
             });
          });
+         
          rowBelow._preRow = idsArr[idsArr.length - 1];
       };
 
@@ -118,7 +120,6 @@ const PanelSetting = (props) => {
             _preRow: r._preRow, _parentRow: r._parentRow, id: r.id
          };
       });
-
       rowsAll = [...rowsAll, ...newRows];
 
       commandAction({
@@ -131,13 +132,11 @@ const PanelSetting = (props) => {
       });
    };
 
-   const [nosOfRowsSub, setNosOfRowsSub] = useState(1);
-   const onClickFolderInsertSubRows = () => {
+
+   const onClickFolderInsertSubRows = (nosOfRows) => {
       let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
-
-      let idsArr = genId(nosOfRowsSub);
+      let idsArr = genId(nosOfRows);
       idRowsNew = [...idRowsNew, ...idsArr];
-
       let newRows = idsArr.map((id, i) => {
          return ({
             id,
@@ -159,7 +158,6 @@ const PanelSetting = (props) => {
          };
       };
       rowsAll = [...rowsAll, ...newRows];
-
       commandAction({
          type: 'insert-drawings-by-folder',
          data: {
@@ -240,7 +238,7 @@ const PanelSetting = (props) => {
       } else {
          idRowsNew.splice(idRowsNew.indexOf(rowId), 1);
       };
-      
+
       Object.keys(cellsModifiedTemp).forEach(key => {
          if (key.slice(0, 24) === rowId) {  // deleted cells modified temporary...
             delete cellsModifiedTemp[key];
@@ -347,14 +345,15 @@ const PanelSetting = (props) => {
          } = publicSettingsFromDB;
 
 
-         console.log('rowsUpdatePreRowOrParentRow', rowsUpdatePreRowOrParentRow);
+         console.log('rowsUpdatePreRowOrParentRow', rowsUpdatePreRowOrParentRow, activityRecordedFromDB);
 
          rowsFromDB = rowsFromDB.map(r => ({ id: r.id, _preRow: r._preRow, _parentRow: r._parentRow }));
-         console.log('rowsFromDB ..........', rowsFromDB);
+
          // check if row deleted by other users
          let rowsUpdatePreRowOrParentRowArray = Object.values(rowsUpdatePreRowOrParentRow)
-            .filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing') ||
+            .filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing') &&
                !activityRecordedFromDB.find(r => r.id === row._parentRow && r.action === 'Delete Drawing Type'));
+         console.log('rowsUpdatePreRowOrParentRowArray FILTER', rowsUpdatePreRowOrParentRowArray);
          
          let arrID = [];
          rowsFromDB.forEach(r => {
@@ -366,12 +365,12 @@ const PanelSetting = (props) => {
          });
          rowsFromDB = rowsFromDB.filter(r => arrID.indexOf(r.id) === -1);
 
-         
+
          let rowsInNewParent = rowsUpdatePreRowOrParentRowArray.filter(r => !drawingTypeTreeFromDB.find(tr => tr.id === r._parentRow && tr._rowLevel === 0));
          let rowsInOldParent = rowsUpdatePreRowOrParentRowArray.filter(r => drawingTypeTreeFromDB.find(tr => tr.id === r._parentRow && tr._rowLevel === 0));
-         console.log('rowsInNewParent ..........rowsInOldParent', rowsInNewParent, rowsInOldParent);
-         let rowsInOldParentOutput = chainRow(rowsInOldParent);
-         console.log('rowsInOldParentOutput ..........', rowsInOldParentOutput);
+
+         let rowsInOldParentOutput = _processChainRows2([...rowsInOldParent]);
+
          rowsInOldParentOutput.forEach(arrChain => {
             let rowFirst = arrChain[0];
             let rowAbove = rowsFromDB.find(r => r.id === rowFirst._preRow);
@@ -379,38 +378,46 @@ const PanelSetting = (props) => {
 
             if (rowAbove) {
                if (rowAbove._parentRow !== rowFirst._parentRow) {
+                  console.log(rowAbove, '1111111111111111111111111111111');
                   let lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
                   rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
                   rowsFromDB = [...rowsFromDB, ...arrChain];
                } else {
+                  console.log('222222222222222222222222222222');
                   let rowBelowRowAbove = rowsFromDB.find(r => r._preRow === rowAbove.id);
                   if (rowBelowRowAbove) rowBelowRowAbove._preRow = arrChain[arrChain.length - 1].id;
                   rowFirst._preRow = rowAbove.id;
                   rowsFromDB = [...rowsFromDB, ...arrChain];
                };
             } else {
-               let lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
-               rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
-               rowsFromDB = [...rowsFromDB, ...arrChain];
+               if (rowFirst._preRow === null) {
+                  console.log('333333333333333333333333333333333333333');
+                  let firstRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && r._preRow === null);
+                  if (firstRowInParent) { // if firstRowInParent undefined means Drawing type has 0 drawing currently...
+                     firstRowInParent._preRow = arrChain[arrChain.length - 1].id;
+                  }; 
+                  rowsFromDB = [...rowsFromDB, ...arrChain];
+               } else {
+                  console.log('4444444444444444444444444444444444444444');
+                  let lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
+                  rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
+                  rowsFromDB = [...rowsFromDB, ...arrChain];
+               }
             };
          });
-         console.log('rowsFromDBtgttgt ............', rowsFromDB, rowsInNewParent.map(r => r._parentRow));
+
 
          let idsNewParentArray = [...new Set(rowsInNewParent.map(r => r._parentRow))];
-         console.log('idsNewParentArray', idsNewParentArray);
 
          idsNewParentArray.forEach(idP => {
-            let ccc = rowsInNewParent.filter(r => r._parentRow === idP);
-            console.log(ccc);
-            let rowsChildren = _processRows1(ccc);
-            console.log('er', rowsChildren);
+            let arrInput = rowsInNewParent.filter(r => r._parentRow === idP);
+            let rowsChildren = _processRows1([...arrInput]);
             rowsChildren.forEach((r, i) => {
                r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
             });
             rowsFromDB = [...rowsFromDB, ...rowsChildren];
          });
 
-         console.log('rowsFromDB333333 ............', rowsFromDB);
 
          // DELETE ROWS ------------------------------------->>>>> DONE
          let rowDeletedFinal = [];
@@ -419,10 +426,9 @@ const PanelSetting = (props) => {
             if (rowInDB) {
                let rowBelow = rowsFromDB.find(r => r._preRow === rowInDB.id);
                if (rowBelow) rowBelow._preRow = rowInDB._preRow;
-               rowDeletedFinal.push(rowInDB);
+               rowDeletedFinal.push(row);
             };
          });
-
          rowsFromDB = rowsFromDB.filter(r => !rowDeletedFinal.find(x => x.id === r.id));
 
          if (rowDeletedFinal.length > 0) {
@@ -517,7 +523,7 @@ const PanelSetting = (props) => {
 
 
          // SAVE DRAWINGS DATA
-         console.log('rowsFromDB .........222.', rowsFromDB);
+         console.log('rowsFromDB .........222.', rowsFromDB, cellsModifiedTemp);
          rowsFromDB.forEach(row => {
             row.preRow = row._preRow;
             delete row._preRow;
@@ -529,19 +535,18 @@ const PanelSetting = (props) => {
             Object.keys(cellsModifiedTemp).forEach(key => {
                const { rowId, headerName } = extractCellInfo(key);
                let headerKey = headers.find(hd => hd.text === headerName).key;
-               if (rowId === row.id) {
+               if (rowId === row._id) {
                   row.data = { ...row.data || {}, [headerKey]: cellsModifiedTemp[key] }
                };
             });
          });
 
-      
-         console.log('before saveeee .........222.', rowsFromDB);
+         console.log('rowsFromDB .........333.', rowsFromDB);
          await Axios.post(
             `${SERVER_URL}/sheet/update-rows/${projectId}`,
             { rows: rowsFromDB }
          );
-         
+
 
 
          await Axios.post( // SAVE SETTINGS ..........................
@@ -588,7 +593,7 @@ const PanelSetting = (props) => {
             <FormFilter applyFilter={applyFilter} onClickCancelModal={onClickCancelModal} />
          )}
 
-         {panelSettingType === 'rollback-ICON' && (
+         {panelSettingType === 'swap-ICON' && (
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={applyResetFilter}
@@ -615,18 +620,10 @@ const PanelSetting = (props) => {
 
 
          {(panelSettingType === 'Insert Drawings Below' || panelSettingType === 'Insert Drawings Above') && (
-            <div>
-               <Input
-                  placeholder='Enter Number Of Drawings...'
-                  type='number' min='1'
-                  value={nosOfRows}
-                  onChange={(e) => setNosOfRows(e.target.value)}
-                  style={{
-                     marginBottom: 20
-                  }}
-               />
-               <Button onClick={onClickInsertRow}>Apply</Button>
-            </div>
+            <PanelPickNumber 
+               onClickCancelModal={onClickCancelModal}
+               onClickApply={onClickInsertRow}
+            />
          )}
 
          {panelSettingType === 'history-ICON' && (
@@ -646,6 +643,7 @@ const PanelSetting = (props) => {
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={createNewDrawingRevision}
+               content={`Are you sure to create a new revision of this drawing: ${panelType.cellProps.rowData['Drawing Number'] || ' '} - ${panelType.cellProps.rowData['Drawing Name'] || ' '} ?`}
             />
          )}
 
@@ -666,7 +664,7 @@ const PanelSetting = (props) => {
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={deleteDrawing}
-               content={`Are you sure to delete the: ${panelType.cellProps.rowData['Drawing Number'] || ' '}-${panelType.cellProps.rowData['Drawing Name'] || ' '} ?`}
+               content={`Are you sure to delete the: ${panelType.cellProps.rowData['Drawing Number'] || ' '} - ${panelType.cellProps.rowData['Drawing Name'] || ' '} ?`}
             />
          )}
 
@@ -675,21 +673,11 @@ const PanelSetting = (props) => {
          )}
 
          {panelSettingType === 'Insert Drawings By Type' && (
-            <div>
-               <Input
-                  placeholder='Enter Number Of Drawings...'
-                  type='number' min='1'
-                  value={nosOfRowsSub}
-                  onChange={(e) => setNosOfRowsSub(e.target.value)}
-                  style={{
-                     marginBottom: 20
-                  }}
-               />
-               <Button onClick={onClickFolderInsertSubRows}>Apply</Button>
-            </div>
+            <PanelPickNumber 
+               onClickCancelModal={onClickCancelModal}
+               onClickApply={onClickFolderInsertSubRows}
+            />
          )}
-
-
       </>
    );
 };
@@ -697,57 +685,57 @@ const PanelSetting = (props) => {
 export default PanelSetting;
 
 
-function chainRow(rows) {
-   let chains = [];
-
-   rows.forEach(row => {
-      let newChain = [row];
-
-      chains.forEach((chain, index) => {
-         if (chain[0]._preRow == row.id) {
-            newChain = newChain.concat(chain);
-            chains.splice(index, 1);
-         };
-
-         if (chain[chain.length - 1].id === row._preRow) {
-            newChain = chain.concat(newChain);
-            chains.splice(index, 1);
-         };
-      });
-
-      chains.push(newChain);
-   });
-
-   return chains;
+const PanelPickNumber = ({ onClickCancelModal, onClickApply }) => {
+   const [nosOfRows, setNosOfRows] = useState(1);
+   return (
+      <div style={{ padding: 20 }}>
+         <InputStyled
+            placeholder='Enter Number Of Drawings...'
+            type='number' min='1'
+            value={nosOfRows}
+            onChange={(e) => setNosOfRows(e.target.value)}
+            style={{
+               marginBottom: 20
+            }}
+         />
+         <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
+            <ButtonGroupComp
+               onClickCancel={onClickCancelModal}
+               onClickApply={() => onClickApply(nosOfRows)}
+            />
+         </div>
+      </div>
+   );
 };
+const InputStyled = styled(Input)`
+    border-radius: 0;  
+`;
 
-
-
-let exampleInputRows = [
+let rowsTest01 = [
    { id: 'id6', _preRow: 'id3' },
    { id: 'id1', _preRow: 'id9' },
    { id: 'id7', _preRow: null },
    { id: 'idrrrr7', _preRow: 'id344444444444' },
-   
-   
+
+
    { id: 'id2', _preRow: 'id99' },
    { id: 'id3', _preRow: 'id1' },
    { id: 'id344444444444', _preRow: 'id4' },
-   
+
    { id: 'id4', _preRow: 'id777' },
-   
+
    { id: 'id8', _preRow: 'id2' },
    { id: 'id10', _preRow: 'id5' },
    { id: 'id10777777777', _preRow: 'id9' },
-   
-   
+
+
    { id: 'id9', _preRow: null },
    { id: 'id5', _preRow: 'id899' },
    { id: 'id5555555', _preRow: 'id3' },
-   
+
    { id: 'id777777777777777', _preRow: 'id10' },
 ];
-let exampleInputRowsrrrrr = [
+let rowsTest02 = [
    { id: 'uuuuuuuuuuuuuu', _preRow: 'tg9999' },
    { id: 'id6', _preRow: 'id3' },
    { id: 'id1', _preRow: 'id9' },
@@ -759,30 +747,29 @@ let exampleInputRowsrrrrr = [
    { id: 'lam111', _preRow: 'lam444' },
 
    { id: 'lam111ggg', _preRow: 'lam444777' },
-   
+
    { id: 'gggggggggg', _preRow: null },
    { id: 'tg9999', _preRow: null },
    { id: 'id2', _preRow: 'id99' },
    { id: 'id3', _preRow: 'id1' },
    { id: 'id344444444444', _preRow: 'id4' },
-   
+
    { id: 'id4', _preRow: 'id777' },
-   
+
    { id: 'id8', _preRow: 'id2' },
    { id: 'id10', _preRow: 'id5' },
    { id: 'id10777777777', _preRow: 'id9' },
-   
-   
+
+
    { id: 'id9', _preRow: null },
    { id: 'id5', _preRow: 'id899' },
    { id: 'id5555555', _preRow: 'id3' },
-   
+
    { id: 'id777777777777777', _preRow: 'id10' },
 
    { id: 'tttt', _preRow: 'idrrrr7' },
 ];
-
-let ttttttttttttttttt = [
+let rowsTest03 = [
    { id: 'idrrrr7', _preRow: 'id7' },
    { id: 'fgfg', _preRow: 'idrrrr7' },
    { id: 'id1', _preRow: 'id6' },
@@ -794,135 +781,117 @@ let ttttttttttttttttt = [
 ];
 
 
-// console.log('XXXXXXXXXXXXXXXXX444444444', _processRows1([...exampleInputRows]), _processRows1([...ttttttttttttttttt]));
-// console.log('XXXXXXXXXXXXXXXXX444444444', _processChainRows2([...exampleInputRows]), _processChainRows2([...ttttttttttttttttt]));
-
-console.log('XXXXXXXXXXXXXXXXX444444444', _processRows1([...exampleInputRowsrrrrr]), _processChainRows2([...exampleInputRowsrrrrr]));
-
-
-
-
-
 
 function _processRows1(rows) {
    let rowsProcessed = []
- 
+
    if (!(rows instanceof Array) || !rows.length) {
-     return rowsProcessed
+      return rowsProcessed
    };
- 
+
    // sort & format rows
    let firstRowIndex = rows.findIndex((row) => !row._preRow)
    while (firstRowIndex >= 0) {
-     let preRow = rows.splice(firstRowIndex, 1)[0]
-     while (preRow) {
-       rowsProcessed.push(preRow)
- 
-       let nextRowIndex = rows.findIndex(
-         (row) => String(row._preRow) == String(preRow.id)
-       )
-       if (nextRowIndex >= 0) {
-         preRow = rows.splice(nextRowIndex, 1)[0]
-       } else {
-         preRow = null
-       }
-     }
-     firstRowIndex = rows.findIndex((row) => !row._preRow)
+      let preRow = rows.splice(firstRowIndex, 1)[0]
+      while (preRow) {
+         rowsProcessed.push(preRow)
+
+         let nextRowIndex = rows.findIndex(
+            (row) => String(row._preRow) == String(preRow.id)
+         )
+         if (nextRowIndex >= 0) {
+            preRow = rows.splice(nextRowIndex, 1)[0]
+         } else {
+            preRow = null
+         }
+      }
+      firstRowIndex = rows.findIndex((row) => !row._preRow)
    }
-   
+
    _processRowsLossHead1(rows, rowsProcessed)
- 
+
    return rowsProcessed
- }
- function _processRowsLossHead1(rows, rowsProcessed) {
+};
+function _processRowsLossHead1(rows, rowsProcessed) {
    if (!rows.length) {
-     return
+      return
    }
- 
-   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow1(r, rows))
+
+   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
    while (firstRowIndex >= 0) {
-     let preRow = rows.splice(firstRowIndex, 1)[0]
-     while (preRow) {
-       rowsProcessed.push(preRow)
- 
-       let nextRowIndex = rows.findIndex(
-         (row) => String(row._preRow) == String(preRow.id)
-       )
-       if (nextRowIndex >= 0) {
-         preRow = rows.splice(nextRowIndex, 1)[0]
-       } else {
-         preRow = null
-       }
-     }
-     firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow1(r, rows))
+      let preRow = rows.splice(firstRowIndex, 1)[0]
+      while (preRow) {
+         rowsProcessed.push(preRow)
+
+         let nextRowIndex = rows.findIndex(
+            (row) => String(row._preRow) == String(preRow.id)
+         )
+         if (nextRowIndex >= 0) {
+            preRow = rows.splice(nextRowIndex, 1)[0]
+         } else {
+            preRow = null
+         }
+      }
+      firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
    }
- }
- function _filterRowLossPreRow1(row, rows) {
-   return rows.every(r => String(row._preRow) != String(r.id))
- }
-
-
- 
-
+};
 function _processChainRows2(rows) {
    let rowsProcessed = []
- 
+
    if (!(rows instanceof Array) || !rows.length) {
-     return rowsProcessed
+      return rowsProcessed
    }
- 
+
    // sort & format rows
    let firstRowIndex = rows.findIndex((row) => !row._preRow)
    while (firstRowIndex >= 0) {
-     let preRow = rows.splice(firstRowIndex, 1)[0]
-     let chain = []
-     while (preRow) {
-       chain.push(preRow)
- 
-       let nextRowIndex = rows.findIndex(
-         (row) => String(row._preRow) == String(preRow.id)
-       )
-       if (nextRowIndex >= 0) {
-         preRow = rows.splice(nextRowIndex, 1)[0]
-       } else {
-         preRow = null
-       }
-     }
-     rowsProcessed.push(chain)
-     firstRowIndex = rows.findIndex((row) => !row._preRow)
+      let preRow = rows.splice(firstRowIndex, 1)[0]
+      let chain = []
+      while (preRow) {
+         chain.push(preRow)
+
+         let nextRowIndex = rows.findIndex(
+            (row) => String(row._preRow) == String(preRow.id)
+         )
+         if (nextRowIndex >= 0) {
+            preRow = rows.splice(nextRowIndex, 1)[0]
+         } else {
+            preRow = null
+         }
+      }
+      rowsProcessed.push(chain)
+      firstRowIndex = rows.findIndex((row) => !row._preRow)
    }
-   
+
    _processChainRowsLossHead2(rows, rowsProcessed)
- 
+
    return rowsProcessed
- }
- 
- function _processChainRowsLossHead2(rows, rowsProcessed) {
+};
+function _processChainRowsLossHead2(rows, rowsProcessed) {
    if (!rows.length) {
-     return
+      return
    }
- 
-   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow2(r, rows))
+
+   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
    while (firstRowIndex >= 0) {
-     let preRow = rows.splice(firstRowIndex, 1)[0]
-     let chain = []
-     while (preRow) {
-       chain.push(preRow)
- 
-       let nextRowIndex = rows.findIndex(
-         (row) => String(row._preRow) == String(preRow.id)
-       )
-       if (nextRowIndex >= 0) {
-         preRow = rows.splice(nextRowIndex, 1)[0]
-       } else {
-         preRow = null
-       }
-     }
-     rowsProcessed.push(chain)
-     firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow2(r, rows))
-   }
- }
- 
- function _filterRowLossPreRow2(row, rows) {
-   return rows.every(r => String(row._preRow) != String(r.id))
- }
+      let preRow = rows.splice(firstRowIndex, 1)[0]
+      let chain = []
+      while (preRow) {
+         chain.push(preRow)
+
+         let nextRowIndex = rows.findIndex(
+            (row) => String(row._preRow) == String(preRow.id)
+         )
+         if (nextRowIndex >= 0) {
+            preRow = rows.splice(nextRowIndex, 1)[0]
+         } else {
+            preRow = null
+         }
+      }
+      rowsProcessed.push(chain)
+      firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
+   };
+};
+function _filterRowLossPreRow(row, rows) {
+   return rows.every(r => String(row._preRow) != String(r.id));
+};

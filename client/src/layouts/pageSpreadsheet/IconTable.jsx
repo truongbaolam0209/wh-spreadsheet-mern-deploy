@@ -17,9 +17,14 @@ const IconTable = (props) => {
     const role = stateProject.allDataOneSheet && stateProject.allDataOneSheet.role;
     const showDrawingsOnly = stateRow && stateRow.showDrawingsOnly;
 
-    let disabled;
-    disabled = showDrawingsOnly === 'group-columns' && type !== 'rollback';
-    disabled = (role === 'modeller' || role === 'manager' || role === 'viewer' || role === 'production') && type === 'folder-add';
+    let disabled = false;
+    if (
+        (showDrawingsOnly === 'group-columns' && type !== 'swap') ||
+        ((role === 'modeller' || role === 'manager' || role === 'viewer' || role === 'production') && type === 'folder-add')
+    ) {
+        disabled = true;
+    };
+
 
     return (
         <Tooltip placement={type === 'menu' ? 'topLeft' : 'top'} title={toolTipBtn(type)}>
@@ -47,7 +52,7 @@ const toolTipBtn = (type) => {
     type === 'highlight' ? 'Colorized Rows' :
     type === 'eye' ? 'Rows Hide/Unhide' :
     type === 'menu' ? 'Projects List' :
-    type === 'rollback' ? 'Clear Filter/Sort/Group/Search' :
+    type === 'swap' ? 'Clear Filter/Sort/Group/Search' :
     type === 'history' ? 'Activity History' :
     type === 'border-outer' ? 'PUBLIC' :
     type === 'radius-upright' ? 'USER' :

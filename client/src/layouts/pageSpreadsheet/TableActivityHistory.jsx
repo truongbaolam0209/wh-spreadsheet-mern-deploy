@@ -44,6 +44,7 @@ const TableActivityHistory = (props) => {
     const headers = stateProject.allDataOneSheet.publicSettings.headers;
 
     const [historyAll, setHistoryAll] = useState(null);
+    const [historyAllInit, setHistoryAllInit] = useState(null);
 
 
     const headersShown = [
@@ -90,7 +91,7 @@ const TableActivityHistory = (props) => {
                         'Drawing Name': row['Drawing Name'],
                         'Column': headers.find(hd => hd.key === cell.headerKey).text,
                         'Value': cell.text,
-                        'User': cell.userId || 'n/a',
+                        'User': cell.email || 'n/a',
                         'Created At': moment(cell.createdAt).format('DD/MM/YY - HH:mm'),
                         'Action': 'Edit Cell',
                         id: mongoObjectId()
@@ -109,9 +110,10 @@ const TableActivityHistory = (props) => {
                         id: mongoObjectId()
                     };
                 });
-                let outputArr = [...rowsOutput, ...cellsOutput, ...activityRecordedData].sort((b, a) => a['Created At'] > b['Created At'] ? 1 : b['Created At'] > a['Created At'] ? -1 : 0);
+                let outputArr = [...rowsOutput, ...cellsOutput, ...activityRecordedData];
 
-                setHistoryAll(outputArr);
+                setHistoryAll(sortDataBeforePrint(outputArr));
+                setHistoryAllInit(sortDataBeforePrint(outputArr));
 
             } catch (err) {
                 console.log(err);
@@ -121,7 +123,6 @@ const TableActivityHistory = (props) => {
     }, []);
 
 
-
     const [modalFilter, setModalFilter] = useState(false);
 
     const applyFilter = (data) => {
@@ -129,13 +130,45 @@ const TableActivityHistory = (props) => {
         setModalFilter(false);
     };
 
-
-    const onClick = () => {
-  
-
+    const sortDataBeforePrint = (data) => {
+        return data.sort((b, a) => {
+            let aa = moment(a['Created At'], 'DD/MM/YY - HH:mm').toDate();
+            let bb = moment(b['Created At'], 'DD/MM/YY - HH:mm').toDate();
+           return aa > bb ? 1 : bb > aa ? -1 : 0
+        });
     };
 
+    
+    const [dateRange, setDateRange] = useState(null);
+    const onClick = () => {
+        if (!dateRange) return;
+        let newData = historyAll.filter(r => {
+            let xxx = moment(r['Created At'], 'DD/MM/YY - HH:mm').toDate();
+            return xxx <= dateRange[1] && xxx >= dateRange[0];
+        });
+        setHistoryAll(sortDataBeforePrint(newData));
+    };
+    const resetDataFilter = () => {
+        setHistoryAll(sortDataBeforePrint(historyAllInit));
+    };
 
+    const checkDataWithinDays = (nos) => {
+        const addDays = (date, days) => {
+            let result = new Date(date);
+            result.setDate(result.getDate() + days);
+            return result;
+        };
+
+        let today = new Date();
+        let dateBefore = addDays(today, nos);
+        let newData = historyAllInit.filter(r => {
+            let xxx = moment(r['Created At'], 'DD/MM/YY - HH:mm').toDate();
+            return xxx <= today && xxx >= dateBefore;
+        });
+        setHistoryAll(sortDataBeforePrint(newData));
+    };
+
+    
 
     return (
         <>
@@ -148,8 +181,9 @@ const TableActivityHistory = (props) => {
                     justifyContent: 'center',
                     flexDirection: 'column',
                 }}>
+                    <div style={{ paddingBottom: 10, fontSize: 20, fontWeight: 'bold', textAlign: 'center' }}>ACTIVITY HISTORY</div>
                     <div style={{ display: 'flex', marginBottom: 10 }}>
-                        <PanelCalendarDuration />
+                        <PanelCalendarDuration pickRangeDate={(e) => setDateRange(e)} />
                         <ButtonStyle
                             onClick={onClick}
                             marginLeft={5}
@@ -159,23 +193,33 @@ const TableActivityHistory = (props) => {
                     <div style={{ display: 'flex', marginBottom: 10 }}>
                         <div style={{ marginRight: 10, display: 'flex' }}>
                             <IconTable type='filter' onClick={() => setModalFilter(true)} />
-                            <IconTable type='rollback' onClick={() => {}} />
+                            <IconTable type='swap' onClick={resetDataFilter} />
                         </div>
 
                         <ButtonStyle
                             onClick={() => { }}
                             marginRight={5}
+                            name='Last 3 Days'
+                            onClick={() => checkDataWithinDays(-3)}
+                        />
+
+                        <ButtonStyle
+                            onClick={() => { }}
+                            marginRight={5}
                             name='Last 7 Days'
+                            onClick={() => checkDataWithinDays(-7)}
                         />
                         <ButtonStyle
                             onClick={() => { }}
                             marginRight={5}
                             name='Last 14 Days'
+                            onClick={() => checkDataWithinDays(-14)}
                         />
                         <ButtonStyle
                             onClick={() => { }}
                             marginRight={5}
                             name='This Month'
+                            onClick={() => checkDataWithinDays(-31)}
                         />
                     </div>
 

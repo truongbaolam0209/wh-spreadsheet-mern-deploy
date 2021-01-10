@@ -15,12 +15,13 @@ import _TableDrawingList from './componentsDashboard/_TableDrawingList';
 
 
 const convertDataFromDB = (data, projectsArray) => {
-
+    
     let output = {};
 
     data.forEach(projectData => {
         const { publicSettings: { headers }, rows, _id } = projectData;
-
+        if (rows.length <= 20) return;
+        
         let projectName = projectsArray.find(dt => dt.id === _id).name;
 
         let headersArr = headers.map(hd => hd.text);
@@ -76,7 +77,7 @@ const convertDataFromDB = (data, projectsArray) => {
             projectsCount: data.length
         };
     });
-    
+    console.log(output);
     return output;
 };
 
@@ -129,6 +130,7 @@ const PageDashboard = ({ projectsArray }) => {
     return (
 
         <div style={{ marginTop: 60 }}>
+            
             <Row justify='space-around' style={{ margin: '25px 0 5px 0' }}>
                 {dataDB && Object.keys(dataDB).length > 1 && (
                     <>
@@ -262,22 +264,32 @@ const dummyData = {
     productivityDummy: {
         inputData: [
             {
-                'Consultant review and reply': 4,
-                'Create update drawing': 3,
-                'Create update model': 7,
-                'name': 'Sumang'
+                // 'Consultant review and reply': 4,
+                // 'Create update drawing': 3,
+                // 'Create update model': 7,
+                // 'name': 'Sumang',
+                'Consultant review and reply': 0,
+                'Create update drawing': 0,
+                'Create update model': 0,
+                'name': '..'
             },
             {
-                'Consultant review and reply': 5,
-                'Create update drawing': 4,
-                'Create update model': 6,
-                'name': 'Handy'
+                // 'Consultant review and reply': 5,
+                // 'Create update drawing': 4,
+                // 'Create update model': 6,
+                // 'name': 'Handy',
+                'Consultant review and reply': 0,
+                'Create update drawing': 0,
+                'Create update model': 0,
+                'name': '.',
             }
         ],
         inputStack: ['Consultant review and reply', 'Create update drawing', 'Create update model']
     },
     dummyLateConstruction: [
-        { name: 'Handy', value: 6 },
-        { name: 'Sumang', value: 15 },
+        // { name: 'Handy', value: 6 },
+        // { name: 'Sumang', value: 15 },
+        { name: '.', value: 0 },
+        { name: '..', value: 0 },
     ]
 };
