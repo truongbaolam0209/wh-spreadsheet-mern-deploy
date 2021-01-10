@@ -161,8 +161,8 @@ const createTemplatePublicSettings = (sheetId) => {
       ],
       drawingTypeTree: [
          { id: mongoObjectId(), [keyDrawingNumber]: 'COLUMN AND WALL SETTING OUT', _rowLevel: 0, expanded: true },
-         // { id: mongoObjectId(), [keyDrawingNumber]: 'UNIT TYPE LAYOUT TSO', _rowLevel: 0, expanded: true },
-         // { id: mongoObjectId(), [keyDrawingNumber]: 'STAIRCASES & LIFT LOBBIES', _rowLevel: 0, expanded: true },
+         { id: mongoObjectId(), [keyDrawingNumber]: 'UNIT TYPE LAYOUT TSO', _rowLevel: 0, expanded: true },
+         { id: mongoObjectId(), [keyDrawingNumber]: 'STAIRCASES & LIFT LOBBIES', _rowLevel: 0, expanded: true },
          // { id: mongoObjectId(), [keyDrawingNumber]: 'ANCILLARY STRUCTURES', _rowLevel: 0, expanded: true },
          // { id: mongoObjectId(), [keyDrawingNumber]: 'RCP', _rowLevel: 0, expanded: true },
       ],
