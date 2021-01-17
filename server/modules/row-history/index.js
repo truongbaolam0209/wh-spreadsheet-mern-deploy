@@ -6,10 +6,26 @@ const { toObjectId } = require('../utils');
 const HISTORY_LIMIT = 10;
 
 
+
+const saveRowHistory = async (req, res, next) => {
+   try {
+      const { projectId: sheetId, email: userId, rowsHistory } = req.body;
+      if (!(rowsHistory instanceof Array)) throw new HTTP(400, 'Body data must be array info of cell history!');
+      for (let d of rowsHistory) {
+         d.sheet = sheetId;
+         d.userId = userId;
+      };
+      let history = await model.create(rowsHistory);
+
+      return res.json(history);
+   } catch (error) {
+      next(error);
+   };
+};
+
 const findHistoriesForSheet = async (req, res, next) => {
    try {
-      let { sheetId } = req.params;
-
+      const { projectId: sheetId } = req.query;
       if (!sheetId) throw new HTTP(400, 'Missing sheet id!');
 
       let histories = await model.find({ sheet: sheetId })
@@ -23,44 +39,16 @@ const findHistoriesForSheet = async (req, res, next) => {
    };
 };
 
-
 const findHistoryForOneRow = async (req, res, next) => {
    try {
-      let { sheetId, rowId: qRowId } = req.params;
-
+      let { projectId: sheetId, rowId: qRowId } = req.query;
       let rowId = toObjectId(qRowId);
 
       if (!sheetId) throw new HTTP(400, 'Missing sheet id!');
       if (!rowId) throw new HTTP(400, 'Missing row id!');
 
       let histories = await model.find({ sheet: sheetId, row: rowId });
-
       return res.json(histories);
-   } catch (error) {
-
-      next(error);
-   };
-};
-
-
-const saveRowHistory = async (req, res, next) => {
-   try {
-      let userId = req.query.userId;
-      let qSheetId = req.params.sheetId;
-
-      let data = req.body;
-
-      if (!(data instanceof Array)) throw new HTTP(400, 'Body data must be array info of cell history!');
-
-      for (let d of data) {
-         d.sheet = qSheetId;
-         d.userId = userId;
-      };
-
-      let history = await model.create(data);
-
-      return res.json(history);
-
    } catch (error) {
       next(error);
    };
@@ -68,10 +56,10 @@ const saveRowHistory = async (req, res, next) => {
 
 const deleteAllDataInCollection = async (req, res, next) => {
    try {
-     let result = await model.deleteMany({});
-     return res.json(result);
-   } catch(err) {
-     next(err);
+      let result = await model.deleteMany({});
+      return res.json(result);
+   } catch (err) {
+      next(err);
    };
 };
 

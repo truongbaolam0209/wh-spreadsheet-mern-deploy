@@ -77,12 +77,11 @@ const convertDataFromDB = (data, projectsArray) => {
             projectsCount: data.length
         };
     });
-    console.log(output);
     return output;
 };
 
 
-const PageDashboard = ({ projectsArray }) => {
+const PageDashboard = ({ projectsArray, token }) => {
 
     const [dataDB, setDataDB] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -94,10 +93,9 @@ const PageDashboard = ({ projectsArray }) => {
         const loadData = async () => {
             setLoading(true);
             try {
-                // const result = await Axios.post('https://bim.wohhup.com/api/smartsheet/get-sheets-dashboard', { listSheetId: [] });
                 setDummy(dummyData);
 
-                const resDB = await Axios.post(`${SERVER_URL}/sheet/find-many`, { sheetIds: projectsArray.map(x => x.id) });
+                const resDB = await Axios.post(`${SERVER_URL}/sheet/find-many`, { token, sheetIds: projectsArray.map(x => x.id) });
                 setDataDB(convertDataFromDB(resDB.data, projectsArray));
 
                 setLoading(false);
@@ -108,8 +106,6 @@ const PageDashboard = ({ projectsArray }) => {
             };
         };
         loadData();
-        // loadRecords();
-
     }, []);
 
 
@@ -126,11 +122,8 @@ const PageDashboard = ({ projectsArray }) => {
     };
 
 
-
     return (
-
         <div style={{ marginTop: 60 }}>
-            
             <Row justify='space-around' style={{ margin: '25px 0 5px 0' }}>
                 {dataDB && Object.keys(dataDB).length > 1 && (
                     <>
@@ -224,15 +217,12 @@ const PageDashboard = ({ projectsArray }) => {
 
                 </Modal>
             )}
-
-
         </div>
 
     );
 };
 
 export default PageDashboard;
-
 
 
 

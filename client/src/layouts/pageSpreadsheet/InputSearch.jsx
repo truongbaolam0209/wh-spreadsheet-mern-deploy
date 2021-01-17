@@ -1,5 +1,5 @@
 import { Icon, Tooltip } from 'antd';
-import _, { debounce } from 'lodash';
+import _ from 'lodash';
 import React, { useContext, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
@@ -14,16 +14,18 @@ const InputSearch = ({ searchGlobal, closeSearchInput }) => {
     const [rowsFoundSearch, setRowsFoundSearch] = useState(false);
 
 
-    const onChange = debounce((e) => {
+    const onChange = (e) => {
+        if (!e.target) return;
         let search = e.target.value;
-        if (!search) return;
-        let rows = stateRow.rowsAll.filter(r => r._rowLevel === 1);
         let rowsFound = {};
-        rows.forEach(row => {
+        stateRow.rowsAll.forEach(row => {
             let obj = {};
             Object.keys(row).forEach(key => {
-
-                if (row[key] && row[key].toString().toLowerCase().includes(search.toLowerCase())) {
+                if (
+                    key !== 'id' && key !== '_preRow' && key !== '_parentRow' &&
+                    row[key] && 
+                    row[key].toString().toLowerCase().includes(search.toLowerCase())
+                ) {
                     obj[row.id] = [...obj[row.id] || [], key];
                 };
             });
@@ -31,25 +33,24 @@ const InputSearch = ({ searchGlobal, closeSearchInput }) => {
         });
         searchGlobal(rowsFound);
         setRowsFoundSearch(rowsFound);
-    }, 500);
+    };
 
 
     const showDrawingSearchOnly = (rowsFoundSearch) => {
         let arr = [];
         let parentObj = [];
         Object.keys(rowsFoundSearch).forEach(key => {
-            const row = stateRow.rowsAll.find(r => r.id === key && r._rowLevel === 1);
+            const row = stateRow.rowsAll.find(r => r.id === key);
             parentObj.push(row._parentRow);
         });
         stateRow.rowsAll.forEach(r => {
             if (
-                parentObj.indexOf(r.id) !== -1 ||
+                // parentObj.indexOf(r.id) !== -1 ||
                 (parentObj.indexOf(r._parentRow) !== -1 && rowsFoundSearch[r.id])
             ) {
                 arr.push(r);
             };
         });
-
         getSheetRows({ ...stateRow, rowsAll: arr, showDrawingsOnly: true });
     };
 

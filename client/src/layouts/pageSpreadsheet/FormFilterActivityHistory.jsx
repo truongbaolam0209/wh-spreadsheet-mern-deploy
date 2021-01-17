@@ -1,4 +1,4 @@
-import { Icon, Select } from 'antd';
+import { Icon, Select, Tooltip } from 'antd';
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
@@ -101,7 +101,6 @@ const IconStyled = styled.div`
 `;
 
 
-
 const SelectComp = ({ setFilterSelect, filterColumn, headerKey, id, removeFilterTag, headers, rows }) => {
 
 
@@ -137,14 +136,16 @@ const SelectComp = ({ setFilterSelect, filterColumn, headerKey, id, removeFilter
                     <Option key={hd} value={hd}>{hd}</Option>
                 ))}
             </SelectStyled>
-
-            <IconStyled>
-                <Icon
-                    type='close'
-                    style={{ transform: 'translate(0, -3px)', color: colorType.grey2, fontSize: 11 }}
-                    onClick={() => removeFilterTag(id, column)}
-                />
-            </IconStyled>
+            
+            <Tooltip title='Remove Field'>
+                <IconStyled>
+                    <Icon
+                        type='delete'
+                        style={{ transform: 'translate(0, -3px)', color: colorType.grey2, fontSize: 12 }}
+                        onClick={() => removeFilterTag(id, column)}
+                    />
+                </IconStyled>
+            </Tooltip>
         </div>
     );
 };

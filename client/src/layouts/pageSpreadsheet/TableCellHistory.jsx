@@ -10,7 +10,7 @@ import { Context as RowContext } from '../../contexts/rowContext';
 
 const TableCellHistory = (props) => {
 
-    const { rowData, column } = props;
+    const { rowData: { id: rowId }, column } = props;
 
     const {
         state: stateProject
@@ -20,7 +20,7 @@ const TableCellHistory = (props) => {
         state: stateRow
     } = useContext(RowContext);
 
-    const projectId = stateProject.allDataOneSheet.projectId;
+    const { projectId, token } = stateProject.allDataOneSheet;
     const headers = stateProject.allDataOneSheet.publicSettings.headers;
     const headerKey = headers.find(hd => hd.text === column.key).key;
 
@@ -31,7 +31,7 @@ const TableCellHistory = (props) => {
         const fetchCellHistory = async () => {
             try {
 
-                const res = await Axios.get(`${SERVER_URL}/cell/history/${projectId}/${rowData.id}/${headerKey}`);
+                const res = await Axios.get(`${SERVER_URL}/cell/history/one-cell/`, { params: { token, projectId, rowId, headerKey } });
 
                 setHistory(res.data.histories.reverse());
 

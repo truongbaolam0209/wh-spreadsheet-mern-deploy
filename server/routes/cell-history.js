@@ -4,10 +4,13 @@ const router = new Router();
 const CellHistory = require('../modules/cell-history');
 
 
-router.get('/:sheetId', CellHistory.findHistoriesForSheet);
-router.get('/:sheetId/:rowId/:headerKey', CellHistory.findHistoryForOneCell);
-router.post('/:sheetId', CellHistory.saveCellHistories);
-router.delete('/delete-all', CellHistory.deleteAllDataInCollectionCell);
+router.post('/', validateToken, CellHistory.saveCellHistories);
+
+router.get('/', validateToken, CellHistory.findHistoriesForSheet);
+
+router.get('/one-cell/', validateToken, CellHistory.findHistoryForOneCell);
+
+router.post('/delete-all/', validateToken, CellHistory.deleteAllDataInCollectionCell);
 
 
 module.exports = router;

@@ -1,4 +1,4 @@
-import { Icon, Select } from 'antd';
+import { Icon, Select, Tooltip } from 'antd';
 import React, { useContext, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
@@ -88,16 +88,15 @@ const FormGroup = ({ applyGroup, onClickCancelModal }) => {
 export default FormGroup;
 
 const IconStyled = styled.div`
-        margin-left: 7px;
-        width: 18px; 
-        height: 18px; 
-        border: 1px solid ${colorType.grey1};
-        text-align: center;
-        &:hover {
-            background-color: ${colorType.grey4};
-            cursor: pointer;
-        };
-
+    margin-left: 7px;
+    width: 18px; 
+    height: 18px; 
+    border: 1px solid ${colorType.grey1};
+    text-align: center;
+    &:hover {
+        background-color: ${colorType.grey4};
+        cursor: pointer;
+    };
 `;
 
 
@@ -111,7 +110,7 @@ const SelectComp = ({ setGroupHeader, group, removeTag, id }) => {
 
             <SelectStyled
                 defaultValue='Select Field...'
-                style={{ width: '100%', marginRight: 20 }}
+                style={{ width: '100%', marginRight: 10 }}
                 onChange={(column) => {
                     setGroupHeader(column);
                     setCl(column);
@@ -121,18 +120,20 @@ const SelectComp = ({ setGroupHeader, group, removeTag, id }) => {
                     <Option key={hd} value={hd}>{hd}</Option>
                 ))}
             </SelectStyled>
-            
-            <IconStyled>
-                <Icon
-                    type='close'
-                    style={{
-                        transform: 'translate(0, -3px)',
-                        color: colorType.grey2,
-                        fontSize: 11
-                    }}
-                    onClick={() => removeTag(cl, id)}
-                />
-            </IconStyled>
+
+            <Tooltip title='Remove Field'>
+                <IconStyled>
+                    <Icon
+                        type='delete'
+                        style={{
+                            transform: 'translate(0, -3px)',
+                            color: colorType.grey2,
+                            fontSize: 12
+                        }}
+                        onClick={() => removeTag(cl, id)}
+                    />
+                </IconStyled>
+            </Tooltip>
 
         </div>
     );

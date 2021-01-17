@@ -31,19 +31,18 @@ const FormDateAutomation = ({ applyDateAutomation }) => {
 
     return (
         <div style={{
-            width: '30vw',
-            height: '80vh',
+            // height: '80vh',
             background: 'white',
             padding: 10,
-            paddingLeft: 40,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
         }}>
-            <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 10 }}>Date Automation</div>
+            <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 20 }}>Date Automation</div>
             <div style={{
                 overflowY: 'auto',
-                overflowX: 'hidden'
+                overflowX: 'hidden',
+                marginBottom: 15
             }}>
                 {arrHeaders.map((hd, i) => (
                     <DatePickerComp
@@ -91,7 +90,7 @@ const DatePickerComp = ({
         <div style={{
             display: 'flex',
             marginBottom: 10,
-            width: '50vw'
+            // width: 300
         }}>
             <DatePicker
                 onChange={onChangePickdate}
@@ -99,7 +98,8 @@ const DatePickerComp = ({
                 disabled={disabled}
                 value={header === 'Construction Start' ? firstItemValue : defaultDate ? defaultDate[header] : moment()}
                 style={{
-                    marginRight: 10
+                    marginRight: 10,
+                    width: 100
                 }}
             />
 
@@ -129,19 +129,12 @@ const DatePickerComp = ({
 
 export const arrHeaders = [
     'Model Start (T)',
-    'Model Start (A)',
     'Model Finish (T)',
-    'Model Finish (A)',
     'Drawing Start (T)',
-    'Drawing Start (A)',
     'Drawing Finish (T)',
-    'Drawing Finish (A)',
     'Drg To Consultant (T)',
-    'Drg To Consultant (A)',
     'Consultant Reply (T)',
-    'Consultant Reply (A)',
     'Get Approval (T)',
-    'Get Approval (A)',
     'Construction Issuance Date',
     'Construction Start',
 ].reverse();

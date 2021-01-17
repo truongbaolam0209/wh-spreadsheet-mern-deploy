@@ -1,6 +1,5 @@
 import { Divider, Icon, message, Modal } from 'antd';
 import Axios from 'axios';
-import { debounce } from 'lodash';
 import React, { forwardRef, useContext, useEffect, useRef, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import 'react-base-table/styles.css';
@@ -9,7 +8,7 @@ import { colorType, dimension, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { getActionName, getHeaderWidth, getModalWidth, randomColorRange, randomColorRangeStatus, reorderRowsFnc } from '../utils';
+import { debounceFnc, getActionName, getCurrentAndHistoryDrawings, getDataConvertedSmartsheet, getHeaderWidth, getModalWidth, randomColorRange, randomColorRangeStatus, reorderRowsFnc } from '../utils';
 import Cell from './pageSpreadsheet/Cell';
 import CellHeader from './pageSpreadsheet/CellHeader';
 import CellIndex from './pageSpreadsheet/CellIndex';
@@ -33,16 +32,32 @@ const Table = forwardRef((props, ref) => {
       </AutoResizer>
    );
 });
+
 let previousDOMCell = null;
 let currentDOMCell = null;
 let isTyping = false;
-
-
+let addedEvent = false;
 
 const PageSpreadsheet = (props) => {
 
-   const { email, role, isAdmin, projectId, projectName } = props;
+   const { email, role, isAdmin, projectId, projectName, token } = props;
    const tableRef = useRef();
+   
+   const handlerBeforeUnload = (e) => {
+      if (window.location.pathname.startsWith('/sheet')) {
+         e.preventDefault();
+         e.returnValue = '';
+      };
+   };
+   useEffect(() => {
+      if (!addedEvent) {
+         window.onbeforeunload = handlerBeforeUnload;
+         addedEvent = true;
+      };
+   }, []);
+
+   
+
 
    const getCurrentDOMCell = () => {
       if (isTyping) {
@@ -184,7 +199,7 @@ const PageSpreadsheet = (props) => {
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
-   useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
+   // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
    // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
@@ -269,8 +284,6 @@ const PageSpreadsheet = (props) => {
          setSearchInputShown(false);
          setCellSearchFound(null);
          setCellHistoryFound(null);
-         setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
-         setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
 
       } else if (update.type === 'reorder-columns') {
          setUserData({
@@ -315,7 +328,7 @@ const PageSpreadsheet = (props) => {
 
       } else if (update.type === 'highlight-cell-history') {
          setCellHistoryFound(update.data);
-         setUserData({ ...stateProject.userData, nosColumnFixed: 1 });
+         setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
          setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
 
       } else if (update.type === 'drawing-folder-organization') {
@@ -348,7 +361,7 @@ const PageSpreadsheet = (props) => {
 
          fetchDataOneSheet({
             ...update.data,
-            email, projectId, projectName, role
+            email, projectId, projectName, role, token
          });
          setUserData(getHeadersData(update.data));
          getSheetRows(getInputDataInitially(update.data));
@@ -373,65 +386,38 @@ const PageSpreadsheet = (props) => {
 
    // SAVE DATA TO SMART SHEET
    const [state, setstate] = useState(null);
-   const saveSmartSheetDataSumang = async () => {
+   const [adminFncInitPanel, setAdminFncInitPanel] = useState(false);
+   const [adminFncBtn, setAdminFncBtn] = useState(null);
+   const adminFncServerInit = (btn) => {
+      setAdminFncInitPanel(true);
+      setAdminFncBtn(btn);
+   };
+   const adminFnc = async (btn) => {
       try {
-         await Axios.post(  // SAVE ROWS TO SERVER ...
-            `${SERVER_URL}/sheet/update-rows/${projectId}`,
-            { rows: state['Sumang'].rows }
-         );
-         await Axios.post(  // SAVE ROWS HISTORY TO SERVER ...
-            `${SERVER_URL}/row/history/${projectId}?userId=${email}`,
-            state['Sumang'].historyRows
-         );
-         await Axios.post(`${SERVER_URL}/sheet/update-setting-public/${projectId}?userId=${email}`,
-            { drawingTypeTree: state['Sumang'].drawingTypeTree }
-         );
+         if (btn === 'upload-sumang') {
+            await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: state['Sumang'].rows });
+            await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: state['Sumang'].historyRows });
+            await Axios.post(`${SERVER_URL}/sheet/update-setting-public/`, { token, projectId, email, publicSettings: { drawingTypeTree: state['Sumang'].drawingTypeTree } });
+            message.info('DONE...Save SMARTSHEET To Server SUMANG');
+         } else if (btn === 'upload-handy') {
+            await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: state['Handy'].rows });
+            await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: state['Handy'].historyRows });
+            await Axios.post(`${SERVER_URL}/sheet/update-setting-public/`, { token, projectId, email, publicSettings: { drawingTypeTree: state['Handy'].drawingTypeTree } });
+            message.info('DONE...Save SMARTSHEET To Server HANDY');
+         } else if (btn === 'delete-all-rows') {
+            await Axios.post(`${SERVER_URL}/sheet/delete-rows-project/`, { token, projectId });
+            message.info('DONE...Delete Rows In Current Project');
+         } else if (btn === 'delete-all-collections') {
+            await Axios.post(`${SERVER_URL}/cell/history/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/row/history/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/sheet/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/settings/delete-all/`, { token });
+            message.info('DONE...Delete All Data In Every DB Collections');
+         };
       } catch (err) {
          console.log(err);
       };
    };
-   const saveSmartSheetDataHandy = async () => {
-      try {
-         await Axios.post(  // SAVE ROWS TO SERVER ...
-            `${SERVER_URL}/sheet/update-rows/${projectId}`,
-            { rows: state['Handy'].rows }
-         );
-         await Axios.post(  // SAVE ROWS HISTORY TO SERVER ...
-            `${SERVER_URL}/row/history/${projectId}?userId=${email}`,
-            state['Handy'].historyRows
-         );
-         await Axios.post(`${SERVER_URL}/sheet/update-setting-public/${projectId}?userId=${email}`,
-            { drawingTypeTree: state['Handy'].drawingTypeTree }
-         );
-      } catch (err) {
-         console.log(err);
-      };
-   };
-   const deleteAllRowsInCurrentProject = async () => {
-      try {
-         await Axios.delete(`${SERVER_URL}/sheet/delete-rows-project/${projectId}`);
-      } catch (err) {
-         console.log(err);
-      };
-   };
-   const deleteAllDataInAllCollections = async () => {
-      try {
-
-         await Axios.delete(`${SERVER_URL}/cell/history/delete-all`);
-         await Axios.delete(`${SERVER_URL}/row/history/delete-all`);
-         await Axios.delete(`${SERVER_URL}/sheet/delete-all`);
-         await Axios.delete(`${SERVER_URL}/settings/delete-all`);
-
-      } catch (err) {
-         console.log(err);
-      };
-   };
-
-
-
-
-
-
 
 
 
@@ -441,26 +427,26 @@ const PageSpreadsheet = (props) => {
 
          try {
             setLoading(true);
-            const res = await Axios.get(`${SERVER_URL}/sheet/${projectId}?userId=${email}`);
-            console.log('MONGO ...', res.data);
+            const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+            // console.log('MONGO ...', res.data);
 
 
-            const resultSmartsheet = await Axios.post( // SMART SHEETTTTTTTTTTTTTTTT
+
+            const resultSmartsheet = await Axios.post(
                'https://bim.wohhup.com/api/smartsheet/get-sheets-dashboard',
                { listSheetId: [4758181617395588, 8919906142971780] }
             );
-            console.log('SMARTSHEET...', resultSmartsheet.data);
             const rowsAllSmartSheet = getDataConvertedSmartsheet(resultSmartsheet.data);
             const dataToSave = getCurrentAndHistoryDrawings(rowsAllSmartSheet, res.data.publicSettings.headers);
-            console.log('dataToSave', dataToSave);
             setstate(dataToSave);
+
 
 
 
 
             fetchDataOneSheet({
                ...res.data,
-               email, projectId, projectName, role
+               email, projectId, projectName, role, token
             });
             setUserData(getHeadersData(res.data));
             getSheetRows(getInputDataInitially(res.data));
@@ -477,12 +463,10 @@ const PageSpreadsheet = (props) => {
 
    useEffect(() => {
       const interval = setInterval(() => {
-
          setPanelFunctionVisible(false);
          setPanelSettingType('save-every-20min');
          setPanelSettingVisible(true);
-      }, 1000 * 60 * 15);
-
+      }, 1000 * 60 * 20);
       return () => clearInterval(interval);
    }, []);
 
@@ -527,9 +511,7 @@ const PageSpreadsheet = (props) => {
       );
    };
    const expandIconProps = (props) => {
-      return ({
-         expanding: !props.expanded,
-      });
+      return ({ expanding: !props.expanded });
    };
    const rowProps = (props) => {
       const { rowData } = props;
@@ -537,8 +519,8 @@ const PageSpreadsheet = (props) => {
          tagName: rowData._rowLevel < 1 ? RowStyled : undefined
       };
    };
-   const onColumnResize = () => {
-   };
+   const onColumnResize = () => {};
+   
    const rowClassName = (props) => {
       const { rowData } = props;
       const { colorization } = stateProject.userData;
@@ -553,24 +535,22 @@ const PageSpreadsheet = (props) => {
          valueArr.indexOf(value) !== -1
       ) {
          if (rowData[colorization.header]) {
-            return `colorization-${colorization.header}-${rowData[colorization.header].replace(/\s/g, '').replace(/,/g, '')}-styled`;
+            return `colorization-${colorization.header.replace(/\s/g, '').replace(/,/g, '')}-${rowData[colorization.header].replace(/\s/g, '').replace(/,/g, '')}-styled`;
          };
       };
    };
 
 
    const [searchInputShown, setSearchInputShown] = useState(false);
-   const searchGlobal = (found) => {
+   const searchGlobal = debounceFnc((found) => {
       setCellSearchFound(found);
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
-   };
-   const closeSearchInput = debounce(() => {
+   }, 500);
+   const closeSearchInput = () => {
       setSearchInputShown(false);
       setCellSearchFound(null);
-      setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
-      setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
-   }, 7);
+   };
 
 
    const renderColumns = (arr, nosColumnFixed) => {
@@ -612,135 +592,143 @@ const PageSpreadsheet = (props) => {
       return headersObj;
    };
 
-   document.body.onbeforeunload = () => {
-      return 'Dialog text here...';
-   };
 
-   
+
+
    return (
-      <PageSpreadsheetStyled
-      onContextMenu={(e) => e.preventDefault()}
-      >
-         <ButtonBox>
-            <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
-            <DividerRibbon />
-            <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
-            <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
-            <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
-            <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
+ 
+         <PageSpreadsheetStyled
+            onContextMenu={(e) => e.preventDefault()}
+         >
+            <ButtonBox>
+               <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
+               <DividerRibbon />
+               <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
+               <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
+               <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
+               <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
 
-            {searchInputShown ? (
-               <InputSearch searchGlobal={searchGlobal} closeSearchInput={closeSearchInput} />
-            ) : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
+               {searchInputShown ? (
+                  <InputSearch searchGlobal={searchGlobal} closeSearchInput={closeSearchInput} />
+               ) : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
-            <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON')} />
-            <DividerRibbon />
-            <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
+               <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON')} />
+               <DividerRibbon />
+               <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
 
-            <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
-            <DividerRibbon />
-            <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
-            <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
+               <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
+               <DividerRibbon />
+               <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
+               <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
 
-            <DividerRibbon />
-            {isAdmin && (
-               <div style={{ display: 'flex' }}>
-                  <IconTable type='fullscreen-exit' onClick={saveSmartSheetDataSumang} />
-                  <IconTable type='fall' onClick={saveSmartSheetDataHandy} />
-                  <IconTable type='delete' onClick={deleteAllRowsInCurrentProject} />
-                  <IconTable type='stock' onClick={deleteAllDataInAllCollections} />
-               </div>
-            )}
-         </ButtonBox>
-
-
-         {!loading ? (
-            <TableStyled
-               dataForStyled={{ stateRow, stateProject, randomColorRange, randomColorRangeStatus }}
-               ref={tableRef}
-               fixed
-               columns={renderColumns(
-                  stateProject.userData.headersShown,
-                  stateProject.userData.nosColumnFixed
+               <DividerRibbon />
+               {isAdmin && (
+                  <div style={{ display: 'flex' }}>
+                     <IconTable type='fullscreen-exit' onClick={() => adminFncServerInit('upload-sumang')} />
+                     <IconTable type='fall' onClick={() => adminFncServerInit('upload-handy')} />
+                     <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-rows')} />
+                     <IconTable type='stock' onClick={() => adminFncServerInit('delete-all-collections')} />
+                  </div>
                )}
-               data={arrangeDrawingTypeFinal(stateRow)}
-               expandedRowKeys={expandedRows}
-
-               expandColumnKey={expandColumnKey}
-
-               expandIconProps={expandIconProps}
-               components={{ ExpandIcon }}
-               rowHeight={30}
-               overscanRowCount={0}
-               onScroll={onScroll}
-               rowProps={rowProps}
-               rowClassName={rowClassName}
-               onColumnResize={onColumnResize}
-               onRowExpand={onRowExpand}
-            />
-         ) : <LoadingIcon />}
+            </ButtonBox>
 
 
-         <ModalStyleFunction
-            visible={panelFunctionVisible}
-            footer={null}
-            onCancel={() => setPanelFunctionVisible(false)}
-            destroyOnClose={true}
-            style={{ position: 'fixed', left: cursor && cursor.x, top: cursor && cursor.y }}
-            mask={false}
-            width={250}
-         >
-            <PanelFunction
-               panelType={panelType}
-               buttonPanelFunction={buttonPanelFunction}
-            />
-         </ModalStyleFunction>
+            {!loading ? (
+               <TableStyled
+                  dataForStyled={{
+                     stateProject,
+                     randomColorRange,
+                     randomColorRangeStatus,
+                     cellSearchFound,
+                     cellHistoryFound
+                  }}
+                  ref={tableRef}
+                  fixed
+                  columns={renderColumns(
+                     stateProject.userData.headersShown,
+                     stateProject.userData.nosColumnFixed
+                  )}
+                  data={arrangeDrawingTypeFinal(stateRow)}
+                  expandedRowKeys={expandedRows}
+
+                  expandColumnKey={expandColumnKey}
+
+                  expandIconProps={expandIconProps}
+                  components={{ ExpandIcon }}
+                  rowHeight={30}
+                  overscanRowCount={0}
+                  onScroll={onScroll}
+                  rowProps={rowProps}
+                  rowClassName={rowClassName}
+                  onColumnResize={onColumnResize}
+                  onRowExpand={onRowExpand}
+               />
+            ) : <LoadingIcon />}
 
 
-         <ModalStyledSetting
-            title={getActionName(panelSettingType)}
-            visible={panelSettingVisible}
-            footer={null}
-            onCancel={() => {
-               setPanelSettingVisible(false);
-               setPanelSettingType(null);
-               setPanelType(null);
-            }}
-            destroyOnClose={true}
-            centered={true}
-            width={getModalWidth(panelSettingType)}
-            width={panelSettingType === 'addDrawingType-ICON' ? 700 : 520}
-         >
-            <PanelSetting
-               panelType={panelType}
-               panelSettingType={panelSettingType}
-               commandAction={commandAction}
-               onClickCancelModal={() => {
+            <ModalStyleFunction
+               visible={panelFunctionVisible}
+               footer={null}
+               onCancel={() => setPanelFunctionVisible(false)}
+               destroyOnClose={true}
+               style={{ position: 'fixed', left: cursor && cursor.x, top: cursor && cursor.y }}
+               mask={false}
+               width={250}
+            >
+               <PanelFunction
+                  panelType={panelType}
+                  buttonPanelFunction={buttonPanelFunction}
+               />
+            </ModalStyleFunction>
+
+
+            <ModalStyledSetting
+               title={getActionName(panelSettingType)}
+               visible={panelSettingVisible}
+               footer={null}
+               onCancel={() => {
                   setPanelSettingVisible(false);
                   setPanelSettingType(null);
                   setPanelType(null);
                }}
-               setLoading={setLoading}
-               
-            />
-         </ModalStyledSetting>
+               destroyOnClose={true}
+               centered={true}
+               width={getModalWidth(panelSettingType)}
+               width={panelSettingType === 'addDrawingType-ICON' ? 700 : 520}
+            >
+               <PanelSetting
+                  panelType={panelType}
+                  panelSettingType={panelSettingType}
+                  commandAction={commandAction}
+                  onClickCancelModal={() => {
+                     setPanelSettingVisible(false);
+                     setPanelSettingType(null);
+                     setPanelType(null);
+                  }}
+                  setLoading={setLoading}
 
-      </PageSpreadsheetStyled>
+               />
+            </ModalStyledSetting>
+
+            {adminFncInitPanel && (
+               <Modal
+                  title={adminFncBtn + ' ... ... sure ???'}
+                  visible={adminFncInitPanel}
+                  onOk={() => {
+                     adminFnc(adminFncBtn);
+                     setAdminFncInitPanel(false)
+                  }}
+                  onCancel={() => setAdminFncInitPanel(false)}
+               ></Modal>
+            )}
+         </PageSpreadsheetStyled>
+
    );
 };
 export default PageSpreadsheet;
 
 
 
-const getColumnsValueForColorization = (rows, header) => {
-   let valueArr = [];
-   rows.forEach(row => {
-      valueArr.push(row[header] || '');
-   });
-   valueArr = valueArr.filter(x => x);
-   valueArr.sort();
-   return valueArr;
-};
 const DividerRibbon = () => {
    return (
       <Divider type='vertical' style={{
@@ -766,23 +754,22 @@ const PageSpreadsheetStyled = styled.div`
 
 const TableStyled = styled(Table)`
 
+   
    ${({ dataForStyled }) => {
-      const { stateRow, stateProject, randomColorRange, randomColorRangeStatus } = dataForStyled;
-
+      const { stateProject, randomColorRange, randomColorRangeStatus } = dataForStyled;
       let colorization = stateProject.userData.colorization;
-      const classArr = getColumnsValueForColorization(stateRow.rowsAll, colorization.header);
-      let valueArr = [...new Set(classArr)];
 
+      const value = colorization.value || [];
+      
       let res = [];
-      classArr.map(n => {
-         
+      value.map(n => {
          let color = stateProject.userData.colorization.header === 'Status' ?
             randomColorRangeStatus[n] :
-            randomColorRange[valueArr.indexOf(n)];
+            randomColorRange[value.indexOf(n)];
          if (n) {
-            res.push(`.colorization-${stateProject.userData.colorization.header}-${n.replace(/\s/g, '').replace(/,/g, '')}-styled {
+            res.push(`.colorization-${stateProject.userData.colorization.header.replace(/\s/g, '').replace(/,/g, '')}-${n.replace(/\s/g, '').replace(/,/g, '')}-styled {
                background-color: ${color};
-         }`)
+         }`);
          };
       });
       const output = [...new Set(res)].join('\n');
@@ -790,62 +777,43 @@ const TableStyled = styled(Table)`
       return output;
    }}
 
-    .cell-found {
-        background-color: #7bed9f;
-    }
-    .cell-history-highlight {
-        background-color: #f6e58d;
-    }
-    .cell-current {
-        background-color: ${colorType.cellHighlighted}
-    };
+   ${({ dataForStyled }) => {
+      const { cellSearchFound } = dataForStyled;
+      if (cellSearchFound) return `.cell-found { background-color: #7bed9f; }`;
+   }}
 
+   ${({ dataForStyled }) => {
+      const { cellHistoryFound } = dataForStyled;
+      if (cellHistoryFound) return `.cell-history-highlight { background-color: #f6e58d; }`;
+   }}
 
-    .BaseTable__table .BaseTable__body {
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
+   .cell-current {
+      background-color: ${colorType.cellHighlighted}
+   };
 
-        ::-webkit-scrollbar {
-            -webkit-appearance: none;
-            background-color: #e3e3e3;
-        }
-        ::-webkit-scrollbar:vertical {
-            width: 15px;
-        }
-        ::-webkit-scrollbar:horizontal {
-            height: 15px;
-        }
-        ::-webkit-scrollbar-thumb {
-            border-radius: 10px;
-            border: 2px solid #e3e3e3;
-            background-color: #999;
-            &:hover {
-                background-color: #666;
-            }
-        }
-        ::-webkit-resizer {
-            display: none;
-        }
-    }
-    .BaseTable__header-cell {
-        padding: 5px;
-        border-right: 1px solid #DCDCDC;
-        background: ${colorType.primary};
-        color: white
-    }
-    .BaseTable__row-cell {
-        padding: 0;
-        border-right: 1px solid #DCDCDC;
-        overflow: visible !important;
-    }
-    .BaseTable__table-frozen-left {
-        border-right: 4px solid #DCDCDC;
-        box-shadow: none;
-    }
+   .BaseTable__table .BaseTable__body {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+   }
+   .BaseTable__header-cell {
+      padding: 5px;
+      border-right: 1px solid #DCDCDC;
+      background: ${colorType.primary};
+      color: white
+   }
+   .BaseTable__row-cell {
+      padding: 0;
+      border-right: 1px solid #DCDCDC;
+      overflow: visible !important;
+   }
+   .BaseTable__table-frozen-left {
+      border-right: 4px solid #DCDCDC;
+      box-shadow: none;
+   }
 `;
 const ModalStyleFunction = styled(Modal)`
    .ant-modal-close, .ant-modal-header {

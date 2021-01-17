@@ -5,10 +5,22 @@ const { toObjectId } = require('../utils');
 const HISTORY_LIMIT = 10;
 
 
+const saveCellHistories = async (req, res, next) => {
+   try {
+      const { projectId: sheetId, cellsHistory } = req.body;
+      if (!(cellsHistory instanceof Array)) throw new HTTP(400, 'Body data must be array info of cell history!');
+
+      await _processSaveCellHistories(sheetId, cellsHistory);
+
+      return res.json({ 'message': 'success' })
+   } catch (error) {
+      next(error);
+   };
+};
+
 const findHistoriesForSheet = async (req, res, next) => {
    try {
-      let { sheetId } = req.params;
-
+      let { projectId: sheetId } = req.query;
       if (!sheetId) throw new HTTP(400, 'Missing sheet id!');
 
       let histories = await model.find({ sheet: sheetId })
@@ -21,10 +33,9 @@ const findHistoriesForSheet = async (req, res, next) => {
    };
 };
 
-
 const findHistoryForOneCell = async (req, res, next) => {
    try {
-      let { sheetId, rowId: qRowId, headerKey: qHeaderKey } = req.params;
+      let { projectId: sheetId, rowId: qRowId, headerKey: qHeaderKey } = req.query;
 
       let rowId = toObjectId(qRowId);
       let headerKey = String(qHeaderKey);
@@ -44,22 +55,8 @@ const findHistoryForOneCell = async (req, res, next) => {
 
 
 
-const saveCellHistories = async (req, res, next) => {
 
-   try {
-      let qSheetId = req.params.sheetId;
 
-      let data = req.body;
-
-      if (!(data instanceof Array)) throw new HTTP(400, 'Body data must be array info of cell history!');
-
-      await _processSaveCellHistories(qSheetId, data);
-
-      return res.json({ 'message': 'success' })
-   } catch (error) {
-      next(error);
-   };
-};
 
 
 
@@ -148,5 +145,7 @@ module.exports = {
    findHistoriesForSheet,
    findHistoryForOneCell,
    saveCellHistories,
-   deleteAllDataInCollectionCell
+   deleteAllDataInCollectionCell,
+
+
 };

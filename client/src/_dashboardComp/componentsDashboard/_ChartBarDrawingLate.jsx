@@ -22,14 +22,9 @@ const drawingLateInputChart = (data) => {
 
 const _ChartBarDrawingLate = ({ data, title }) => {
 
-    const checkProject = (title) => {
-
-    }
 
     const inputData = title === 'No Of Drawing Late Construction' ? data
         : title === 'No Of Drawing Late Approval' ? drawingLateInputChart(data) : null;
-
-    console.log(inputData);
 
 
     const LabelCustomStackedTotal = (props) => {

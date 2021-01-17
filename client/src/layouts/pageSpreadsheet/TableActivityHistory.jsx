@@ -40,8 +40,8 @@ const TableActivityHistory = (props) => {
 
 
 
-    const projectId = stateProject.allDataOneSheet.projectId;
-    const headers = stateProject.allDataOneSheet.publicSettings.headers;
+    const { projectId, token } = stateProject.allDataOneSheet;
+    const { headers } = stateProject.allDataOneSheet.publicSettings;
 
     const [historyAll, setHistoryAll] = useState(null);
     const [historyAllInit, setHistoryAllInit] = useState(null);
@@ -65,8 +65,8 @@ const TableActivityHistory = (props) => {
     useEffect(() => {
         const fetchRowsAndCellHistory = async () => {
             try {
-                const resRows = await Axios.get(`${SERVER_URL}/row/history/${projectId}`);
-                const resCells = await Axios.get(`${SERVER_URL}/cell/history/${projectId}`);
+                const resRows = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
+                const resCells = await Axios.get(`${SERVER_URL}/cell/history/`, { params: { token, projectId } });
 
                 let rowsOutput = [];
                 resRows.data.forEach(row => {
@@ -134,11 +134,11 @@ const TableActivityHistory = (props) => {
         return data.sort((b, a) => {
             let aa = moment(a['Created At'], 'DD/MM/YY - HH:mm').toDate();
             let bb = moment(b['Created At'], 'DD/MM/YY - HH:mm').toDate();
-           return aa > bb ? 1 : bb > aa ? -1 : 0
+            return aa > bb ? 1 : bb > aa ? -1 : 0
         });
     };
 
-    
+
     const [dateRange, setDateRange] = useState(null);
     const onClick = () => {
         if (!dateRange) return;
@@ -168,7 +168,7 @@ const TableActivityHistory = (props) => {
         setHistoryAll(sortDataBeforePrint(newData));
     };
 
-    
+
 
     return (
         <>
@@ -196,6 +196,12 @@ const TableActivityHistory = (props) => {
                             <IconTable type='swap' onClick={resetDataFilter} />
                         </div>
 
+                        <ButtonStyle
+                            onClick={() => { }}
+                            marginRight={5}
+                            name='Today'
+                            onClick={() => checkDataWithinDays(-1)}
+                        />
                         <ButtonStyle
                             onClick={() => { }}
                             marginRight={5}
@@ -282,23 +288,6 @@ const getHeaderWidth2 = (header) => {
     if (header === 'Created At') return 200;
     if (header === 'Action') return 200;
 };
-const getHeadersText = (headersData) => {
-    return headersData.map(hd => {
-        return hd.text;
-    });
-};
-
-const getDrawingName = (headers, rowsAll, rowId, headerId) => {
-
-    let row = rowsAll.find(r => r.id === rowId);
-    let headerText = headers.find(hd => hd.key === headerId)['text'];
-
-    return {
-        headerText,
-        drawingName: row['Drawing Name'],
-        drawingNumber: row['Drawing Number'],
-    }
-};
 
 const ModalStyledSetting = styled(Modal)`
     .ant-modal-content {
@@ -323,51 +312,23 @@ const ModalStyledSetting = styled(Modal)`
 `;
 const TableStyled = styled(Table)`
 
-    .BaseTable__table .BaseTable__body {
 
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-
-        ::-webkit-scrollbar {
-            -webkit-appearance: none;
-            background-color: #e3e3e3;
-        }
-
-        ::-webkit-scrollbar:vertical {
-            width: 15px;
-        }
-
-        ::-webkit-scrollbar:horizontal {
-            height: 15px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            border-radius: 10px;
-            border: 2px solid #e3e3e3;
-            background-color: #999;
-
-            &:hover {
-                background-color: #666;
-            }
-        }
-
-        ::-webkit-resizer {
-            display: none;
-        }
-
-        .BaseTable__row-cell-text {
-            color: black
-        }
+    .BaseTable__row-cell-text {
+        color: black
     }
+
+    .BaseTable__table .BaseTable__body {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+   }
 
     .BaseTable__header-cell {
         padding: 10px;
         border-right: 1px solid #DCDCDC;
-
         background: ${colorType.grey1};
         color: black
     }
@@ -375,13 +336,8 @@ const TableStyled = styled(Table)`
     .BaseTable__row-cell {
         padding: 10px;
         border-right: 1px solid #DCDCDC;
-
         overflow: visible !important;
     }
-
-
-
-
 `;
 
 

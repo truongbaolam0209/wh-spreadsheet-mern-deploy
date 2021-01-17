@@ -58,7 +58,25 @@ export const formatStringNameToId = (str) => {
     return mystring.charAt(0).toLowerCase() + mystring.slice(1);
 };
 
+export const genId = (xxx) => {
+    let arr = [];
+    for (let i = 0; i < xxx; i++) {
+        arr.push(mongoObjectId());
+    };
+    return arr;
+};
 
+export const debounceFnc = (func, delay) => {
+    let timeout;
+    return function (...args) {
+        const context = this;
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            timeout = null;
+            func.apply(context, args);
+        }, delay);
+    };
+};
 
 export const extractCellInfo = (key) => {
     return {
@@ -87,7 +105,6 @@ export const getHeadersText = (headers) => {
 
 export const getHeaderKey = (headers, headerText) => {
     if (!headers) return;
-
     return headers.find(hd => hd.text === headerText).key;
 };
 
@@ -179,10 +196,6 @@ export const groupByHeaders = (data, headers) => {
             };
         };
     };
-    console.log({
-        rows: res,
-        expandedRows: parentIdsArr
-    });
     return {
         rows: res,
         expandedRows: parentIdsArr
@@ -198,11 +211,6 @@ function _newParent(item, header, level, iddd) {
     };
 };
 
-const returnDate = (num) => {
-    let date = new Date();
-    date.setDate(date.getDate() + num);
-    return date;
-};
 
 
 export const convertCellTempToHistory = (
@@ -210,10 +218,8 @@ export const convertCellTempToHistory = (
     stateProject
 ) => {
     const { email, publicSettings } = stateProject.allDataOneSheet;
-
     const cellsHistoryData = Object.keys(cellsModifiedTemp).map(key => {
         const { rowId, headerName } = extractCellInfo(key);
-
         const dataOut = {
             rowId,
             headerKey: getHeaderKey(publicSettings.headers, headerName),

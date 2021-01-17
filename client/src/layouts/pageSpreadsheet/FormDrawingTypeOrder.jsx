@@ -1,5 +1,5 @@
 import { Icon, Input, Modal } from 'antd';
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import SortableTree from 'react-sortable-tree';
 import 'react-sortable-tree/style.css';
 import styled from 'styled-components';
@@ -120,7 +120,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
    return (
       <Container>
          <PanelStyled>
-            <SortableTree
+            <SortableTreeStyled
                treeData={data}
                onChange={treeData => {
                   // setData(treeData);
@@ -143,9 +143,9 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
                         // <IconBtn type='file-add' onClick={() => fileAdd()} />,
                         <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
                      ] : [
-                              <IconBtn type='edit' onClick={() => editFolderName(node)} />,
-                              <IconBtn type='delete' onClick={() => deleteFolder(node)} />
-                           ]
+                           <IconBtn type='edit' onClick={() => editFolderName(node)} />,
+                           <IconBtn type='delete' onClick={() => deleteFolder(node)} />
+                        ],
                   })
                }}
             />
@@ -174,14 +174,14 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
             >
                <div style={{ padding: 20, width: '100%', maxHeight: window.innerHeight * 0.7 }}>
                   {modalTitle === 'Delete Drawing Type' ? (
-                     <div style={{ height: '80%' }}>
+                     <div style={{  }}>
                         <div>{`Are you sure to delete the drawing type ${findChildData(item).parentName} ?`}</div>
                         <div>All the following <span style={{ fontWeight: 'bold' }}>{findChildData(item).rowsChild.length}</span> drawings will be deleted:</div>
-                        <br/>
-                        <div style={{ overflowY: 'scroll' }}>
-                        {findChildData(item).rowsChild.map((dr, i) => (
-                           <div key={i}>({i + 1}) - {dr['Drawing Number']} - {dr['Drawing Name']}</div>
-                        ))}
+                        <br />
+                        <div style={{ maxHeight: 300, overflowY: 'scroll' }}>
+                           {findChildData(item).rowsChild.map((dr, i) => (
+                              <div key={i}>({i + 1}) - {dr['Drawing Number']} - {dr['Drawing Name']}</div>
+                           ))}
                         </div>
                      </div>
                   ) : (
@@ -193,7 +193,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
                         />
                      )}
 
-                  <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse'}}>
+                  <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
                      <ButtonGroupComp
                         onClickCancel={() => {
                            setModalShown(false);
@@ -213,6 +213,33 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
 export default FormDrawingTypeOrder;
 
 
+
+const SortableTreeStyled = styled(SortableTree)`
+
+   .rst__node {
+      height: 50px !important;
+   }
+
+   .rst__rowWrapper {
+      /* padding: 10px; */
+   }
+
+   .rst__row {
+      /* height: 35px; */
+   }
+   .rst__rowWrapper {
+      /* height: 50px; */
+   }
+   .rst__nodeContent {
+      /* height: 50px; */
+   }
+
+   .rst__rowContents {
+      min-width: fit-content;
+   }
+
+`;
+
 const IconBtn = ({ type, onClick }) => {
    return (
       <IconStyle type={type} onClick={onClick} />
@@ -220,10 +247,9 @@ const IconBtn = ({ type, onClick }) => {
 };
 
 const IconStyle = styled(Icon)`
-   margin: 3px;
-   padding: 5px;
-   border-radius: 3px;
-   border: 1px solid ${colorType.grey0};
+   font-size: 14px;
+   margin: 2px;
+   padding: 4px;
    &:hover {
       background-color: ${colorType.grey0};
    };
@@ -266,9 +292,9 @@ const addProjectLevel = (drawingTypeTree, projectName) => {
    return data;
 };
 
-const arrangeDrawingType = (xxx) => {
+const arrangeDrawingType = (args) => {
 
-   let data = xxx.map(e => ({ ...e }));
+   let data = args.map(e => ({ ...e }));
    let levelArray = [...new Set(data.map(r => r._rowLevel))].sort((a, b) => b - a);
 
    levelArray.forEach(lvl => {
@@ -288,62 +314,6 @@ const arrangeDrawingType = (xxx) => {
 
 
 
-
-const InputComp = ({ tag, updateFolderName, index }) => {
-
-   const [value, setValue] = useState(tag.header);
-   const [isDoubleClick, setIsDoubleClick] = useState(false);
-
-   const inputReff = useRef();
-
-
-   useEffect(() => {
-      if (isDoubleClick) {
-         inputReff.current.focus();
-      };
-
-   }, [isDoubleClick]);
-
-   return (
-      <div
-         onDoubleClick={() => setIsDoubleClick(true)}
-         onBlur={() => {
-            setIsDoubleClick(false);
-            updateFolderName(tag, index, value);
-         }}
-         style={{
-            width: '75%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-         }}
-      >
-         {isDoubleClick ? (
-            <input
-               ref={inputReff}
-               value={value}
-               onChange={(e) => setValue(e.target.value)}
-               style={{
-                  width: '100%',
-                  border: 'none'
-               }}
-            />
-         ) : (
-               <div>{tag.header}</div>
-            )
-         }
-
-      </div>
-
-   );
-
-};
-
-const addZero = (num) => {
-   if (num < 10) return '0' + num;
-   return num;
-};
-
 const Container = styled.div`
    height: ${`${window.innerHeight * 0.8}` + 'px'};
    width: 100%;
@@ -351,34 +321,9 @@ const Container = styled.div`
    flex-direction: column;
 `;
 
-
 const PanelStyled = styled.div`
-
-    width: 100%;
-    float: right;
-    overflow-x: hidden;
-    border-bottom: 1px solid ${colorType.grey4};
-
-    ::-webkit-scrollbar {
-        -webkit-appearance: none;
-        background-color: #e3e3e3;
-    }
-
-    ::-webkit-scrollbar:vertical {
-        width: 15px;
-    }
-
-    ::-webkit-scrollbar:horizontal {
-        height: 15px;
-    }
-
-    ::-webkit-scrollbar-thumb {
-        border-radius: 10px;
-        border: 2px solid #e3e3e3;
-        background-color: #999;
-
-        &:hover {
-            background-color: #666;
-        }
-    }
+   width: 100%;
+   float: right;
+   overflow-x: hidden;
+   border-bottom: 1px solid ${colorType.grey4};
 `;

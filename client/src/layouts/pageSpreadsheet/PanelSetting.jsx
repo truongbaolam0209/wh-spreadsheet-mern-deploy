@@ -1,14 +1,12 @@
 import { Input } from 'antd';
 import Axios from 'axios';
-import _, { debounce } from 'lodash';
 import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
-import styled from 'styled-components';
 import { SERVER_URL } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { convertCellTempToHistory, convertDrawingVersionToHistory, extractCellInfo, mongoObjectId, reorderRowsFnc } from '../../utils';
+import { convertCellTempToHistory, convertDrawingVersionToHistory, debounceFnc, extractCellInfo, genId, reorderRowsFnc } from '../../utils';
 import { reorderDrawingsByDrawingTypeTree } from '../PageSpreadsheet';
 import ButtonGroupComp from './ButtonGroupComp';
 import ColorizedForm from './ColorizedForm';
@@ -24,18 +22,11 @@ import TableActivityHistory from './TableActivityHistory';
 import TableCellHistory from './TableCellHistory';
 import TableDrawingDetail from './TableDrawingDetail';
 
-const genId = (xxx) => {
-   let arr = [];
-   for (let i = 0; i < xxx; i++) {
-      arr.push(mongoObjectId());
-   };
-   return arr;
-};
 
 
 const PanelSetting = (props) => {
 
-   const { state: stateRow, getSheetRows } = useContext(RowContext);
+   const { state: stateRow } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateCell, getCellModifiedTemp, OverwriteCellsModified } = useContext(CellContext);
 
@@ -47,34 +38,32 @@ const PanelSetting = (props) => {
       };
    }, []);
 
+   const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
 
-   const applyReorderColumns = (data) => {
-      commandAction({ type: 'reorder-columns', data });
-   };
-   const applyFilter = (data) => {
-      commandAction({ type: 'filter-by-columns', data });
-   };
+   const applyFilter = (data) => commandAction({ type: 'filter-by-columns', data });
+
+   const applyResetFilter = () => commandAction({ type: 'reset-filter-sort' });
+
+   const applyGroup = (data) => commandAction({ type: 'group-columns', data });
+
+   const applyColorization = (data) => commandAction({ type: 'drawing-colorized', data });
+
+   const setCellHistoryArr = debounceFnc((data) => commandAction({ type: 'highlight-cell-history', data }), 1);
+
    const applySort = ({ type, rowsOutput: data }) => {
       commandAction({
          type: type === 'Sort Rows In Drawing Type' ? 'sort-data-drawing-type' : 'sort-data-project',
          data,
       });
    };
-   const applyResetFilter = debounce(() => {
-      commandAction({ type: 'reset-filter-sort' });
-   }, 7);
 
 
-   const applyGroup = (data) => {
-      commandAction({ type: 'group-columns', data });
-   };
 
 
    const onClickInsertRow = (nosOfRows) => {
       let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
 
       let idsArr = genId(nosOfRows);
-      console.log(idsArr);
       idRowsNew = [...idRowsNew, ...idsArr];
 
       let newRows = [];
@@ -97,7 +86,7 @@ const PanelSetting = (props) => {
 
       } else if (panelSettingType === 'Insert Drawings Above') {
          rowBelow = rowsAll.find(r => r.id === panelType.cellProps.rowData.id);
-         
+
          newRows = idsArr.map((id, i) => {
             return ({
                id,
@@ -106,7 +95,7 @@ const PanelSetting = (props) => {
                _preRow: i === 0 ? rowBelow._preRow : idsArr[i - 1]
             });
          });
-         
+
          rowBelow._preRow = idsArr[idsArr.length - 1];
       };
 
@@ -131,7 +120,6 @@ const PanelSetting = (props) => {
          }
       });
    };
-
 
    const onClickFolderInsertSubRows = (nosOfRows) => {
       let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
@@ -212,10 +200,6 @@ const PanelSetting = (props) => {
          }
       });
    };
-
-   const setCellHistoryArr = debounce((data) => {
-      commandAction({ type: 'highlight-cell-history', data });
-   }, 7);
 
    const deleteDrawing = () => {
       let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow, rowsDeleted } = stateRow;
@@ -310,51 +294,38 @@ const PanelSetting = (props) => {
       });
    };
 
-
-
    const saveDataToServer = async () => {
 
-      const { email, projectId } = stateProject.allDataOneSheet;
+      const { email, projectId, token, role } = stateProject.allDataOneSheet;
+      const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
       const { headers } = stateProject.allDataOneSheet.publicSettings;
       let { cellsModifiedTemp } = stateCell;
       let {
          rowsVersionsToSave,
          rowsUpdatePreRowOrParentRow,
-         rowsAll,
          drawingTypeTreeInit,
          drawingTypeTree,
          rowsDeleted,
-         rowsAllInitToCompareBeforeSave
       } = stateRow;
 
       try {
          setLoading(true);
          commandAction({ type: 'confirm-save-data' });
 
-         // GET LATEST ROWS FROM DB
-         const resDB = await Axios.get(`${SERVER_URL}/sheet/${projectId}?userId=${email}`);
-         let {
-            publicSettings: publicSettingsFromDB,
-            rows: rowsFromDB,
-            userSettings: userSettingsFromDB
-         } = resDB.data;
+         
 
-         let {
-            drawingTypeTree: drawingTypeTreeFromDB,
-            activityRecorded: activityRecordedFromDB
-         } = publicSettingsFromDB;
+         const resDB = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+         
+         let { publicSettings: publicSettingsFromDB, rows: rowsFromDBInit } = resDB.data;
+         let { drawingTypeTree: drawingTypeTreeFromDB, activityRecorded: activityRecordedFromDB } = publicSettingsFromDB;
 
-
-         console.log('rowsUpdatePreRowOrParentRow', rowsUpdatePreRowOrParentRow, activityRecordedFromDB);
-
-         rowsFromDB = rowsFromDB.map(r => ({ id: r.id, _preRow: r._preRow, _parentRow: r._parentRow }));
+         let rowsFromDB = rowsFromDBInit.map(r => ({ id: r.id, _preRow: r._preRow, _parentRow: r._parentRow }));
 
          // check if row deleted by other users
          let rowsUpdatePreRowOrParentRowArray = Object.values(rowsUpdatePreRowOrParentRow)
             .filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing') &&
                !activityRecordedFromDB.find(r => r.id === row._parentRow && r.action === 'Delete Drawing Type'));
-         console.log('rowsUpdatePreRowOrParentRowArray FILTER', rowsUpdatePreRowOrParentRowArray);
-         
+
          let arrID = [];
          rowsFromDB.forEach(r => {
             if (rowsUpdatePreRowOrParentRowArray.find(row => row.id === r.id)) {
@@ -378,12 +349,10 @@ const PanelSetting = (props) => {
 
             if (rowAbove) {
                if (rowAbove._parentRow !== rowFirst._parentRow) {
-                  console.log(rowAbove, '1111111111111111111111111111111');
                   let lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
                   rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
                   rowsFromDB = [...rowsFromDB, ...arrChain];
                } else {
-                  console.log('222222222222222222222222222222');
                   let rowBelowRowAbove = rowsFromDB.find(r => r._preRow === rowAbove.id);
                   if (rowBelowRowAbove) rowBelowRowAbove._preRow = arrChain[arrChain.length - 1].id;
                   rowFirst._preRow = rowAbove.id;
@@ -391,14 +360,12 @@ const PanelSetting = (props) => {
                };
             } else {
                if (rowFirst._preRow === null) {
-                  console.log('333333333333333333333333333333333333333');
                   let firstRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && r._preRow === null);
                   if (firstRowInParent) { // if firstRowInParent undefined means Drawing type has 0 drawing currently...
                      firstRowInParent._preRow = arrChain[arrChain.length - 1].id;
-                  }; 
+                  };
                   rowsFromDB = [...rowsFromDB, ...arrChain];
                } else {
-                  console.log('4444444444444444444444444444444444444444');
                   let lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
                   rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
                   rowsFromDB = [...rowsFromDB, ...arrChain];
@@ -419,7 +386,7 @@ const PanelSetting = (props) => {
          });
 
 
-         // DELETE ROWS ------------------------------------->>>>> DONE
+         // DELETE ROWS
          let rowDeletedFinal = [];
          rowsDeleted.forEach(row => {
             let rowInDB = rowsFromDB.find(r => r.id === row.id);
@@ -429,35 +396,24 @@ const PanelSetting = (props) => {
                rowDeletedFinal.push(row);
             };
          });
-         rowsFromDB = rowsFromDB.filter(r => !rowDeletedFinal.find(x => x.id === r.id));
+         
 
-         if (rowDeletedFinal.length > 0) {
-            await Axios.post(
-               `${SERVER_URL}/sheet/delete-rows/${projectId}?userId=${email}`,
-               rowDeletedFinal.map(r => r.id)
-            );
-         };
-
-
+      
          // SAVE CELL HISTORY
-         if (!_.isEmpty(cellsModifiedTemp)) {
+         if (Object.keys(cellsModifiedTemp).length > 0) {
             Object.keys(cellsModifiedTemp).forEach(key => {
                let rowId = key.slice(0, 24);
                if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
                   delete cellsModifiedTemp[key];
                };
             });
-            await Axios.post(`${SERVER_URL}/cell/history/${projectId}`,
-               convertCellTempToHistory(cellsModifiedTemp, stateProject)
-            );
+            await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject) });
          };
 
-         // SAVE DRAWINGS NEW VERSION ------------------------------------->>>>> DONE
+         // SAVE DRAWINGS NEW VERSION
          rowsVersionsToSave = rowsVersionsToSave.filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing'));
          if (rowsVersionsToSave.length > 0) {
-            await Axios.post(`${SERVER_URL}/row/history/${projectId}?userId=${email}`,
-               convertDrawingVersionToHistory(rowsVersionsToSave, stateProject)
-            );
+            await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: convertDrawingVersionToHistory(rowsVersionsToSave, stateProject) });
          };
 
 
@@ -466,7 +422,7 @@ const PanelSetting = (props) => {
          const headerKeyDrawingName = headers.find(hd => hd.text === 'Drawing Name').key;
          // SAVE PUBLIC SETTINGS RECORDED
          let activityRecordedArr = [];
-         drawingTypeTree.forEach(fd => {   //------------------------------------->>>>> DONE
+         drawingTypeTree.forEach(fd => {
             if (!drawingTypeTreeInit.find(e => e.id === fd.id)) {
                activityRecordedArr.push({
                   id: fd.id, email, createdAt: new Date(), action: 'Create Drawing Type',
@@ -474,7 +430,7 @@ const PanelSetting = (props) => {
                });
             };
          });
-         drawingTypeTreeInit.forEach(fd => { //------------------------------------->>>>> DONE
+         drawingTypeTreeInit.forEach(fd => {
             if (
                !drawingTypeTree.find(e => e.id === fd.id) &&
                !activityRecordedFromDB.find(e => e.id === fd.id && e.action === 'Delete Drawing Type')
@@ -485,21 +441,24 @@ const PanelSetting = (props) => {
                });
             };
          });
-         rowDeletedFinal.forEach(r => { //------------------------------------->>>>> DONE
+         activityRecordedArr.forEach(rc => {
+            let newRowsAddedByPreviousUserButParentDeletedByCurrentUser = rowsFromDB.filter(e => e._parentRow === rc.id && rc.action === 'Delete Drawing Type');
+            rowDeletedFinal = [...rowDeletedFinal, ...newRowsAddedByPreviousUserButParentDeletedByCurrentUser];
+         });
+         rowDeletedFinal.forEach(r => {
             activityRecordedArr.push({
                id: r.id, email, createdAt: new Date(), action: 'Delete Drawing',
                [headerKeyDrawingNumber]: r['Drawing Number'],
                [headerKeyDrawingName]: r['Drawing Name'],
             });
          });
-
-         // SAVE PUBLIC DRAWING TYPE //------------------------------------->>>>> DONE
+         // SAVE PUBLIC DRAWING TYPE
          drawingTypeTreeFromDB.forEach(fd => {
             if (!drawingTypeTreeInit.find(e => e.id === fd.id)) {
-               drawingTypeTree.push(fd); // new from DB, added by other user ...
+               drawingTypeTree.push(fd); // new from DB, added by other user
             };
          });
-         drawingTypeTree.forEach(fd => { // check in recorded if some folder deleted ...
+         drawingTypeTree.forEach(fd => { // check in recorded if some folder deleted
             if (activityRecordedFromDB.find(r => r.id === fd.id && r.action === 'Delete Drawing Type')) {
                drawingTypeTree = drawingTypeTree.filter(e => e.id !== fd.id);
             };
@@ -512,26 +471,37 @@ const PanelSetting = (props) => {
                };
             });
          });
-         await Axios.post(`${SERVER_URL}/sheet/update-setting-public/${projectId}?userId=${email}`,
-            {
-               drawingTypeTree,
-               activityRecorded: [...activityRecordedFromDB, ...activityRecordedArr]
-            }
-         );
+         const publicSettingsUpdated = {
+            drawingTypeTree,
+            activityRecorded: [...activityRecordedFromDB, ...activityRecordedArr]
+         };
+         await Axios.post(`${SERVER_URL}/sheet/update-setting-public/`, { token, projectId, email, publicSettings: publicSettingsUpdated });
+         
+         const userSettingsUpdated = {
+            headersShown: headersShown.map(hd => headers.find(h => h.text === hd).key),
+            headersHidden: headersHidden.map(hd => headers.find(h => h.text === hd).key),
+            nosColumnFixed, colorization,
+         };
+         await Axios.post(`${SERVER_URL}/sheet/update-setting-user/`, { token, projectId, email, userSettings: userSettingsUpdated });
+
+
+         // ROWS FROM DB BEFORE SAVE ...
+         rowsFromDB = rowsFromDB.filter(r => !rowDeletedFinal.find(x => x.id === r.id));
+         // DELTE MOVE TO HERE...
+         if (rowDeletedFinal.length > 0) {
+            await Axios.post(`${SERVER_URL}/sheet/delete-rows/`, { token, projectId, email, rowIdsArray: rowDeletedFinal.map(r => r.id) });
+         };
 
 
 
 
-         // SAVE DRAWINGS DATA
-         console.log('rowsFromDB .........222.', rowsFromDB, cellsModifiedTemp);
-         rowsFromDB.forEach(row => {
-            row.preRow = row._preRow;
-            delete row._preRow;
-            row.parentRow = row._parentRow;
-            delete row._parentRow;
-            row._id = row.id;
-            delete row.id;
 
+         let rowsFromDBFinalToSave = rowsFromDB.map(r => {
+            let row = {
+               _id: r.id,
+               parentRow: r._parentRow,
+               preRow: r._preRow,
+            };
             Object.keys(cellsModifiedTemp).forEach(key => {
                const { rowId, headerName } = extractCellInfo(key);
                let headerKey = headers.find(hd => hd.text === headerName).key;
@@ -539,30 +509,15 @@ const PanelSetting = (props) => {
                   row.data = { ...row.data || {}, [headerKey]: cellsModifiedTemp[key] }
                };
             });
+            return row;
          });
-
-         console.log('rowsFromDB .........333.', rowsFromDB);
-         await Axios.post(
-            `${SERVER_URL}/sheet/update-rows/${projectId}`,
-            { rows: rowsFromDB }
-         );
-
-
-
-         await Axios.post( // SAVE SETTINGS ..........................
-            `${SERVER_URL}/sheet/update-setting-user/${projectId}?userId=${email}`,
-            {
-               headersShown: stateProject.userData.headersShown.map(hd => headers.find(h => h.text === hd).key),
-               headersHidden: stateProject.userData.headersHidden.map(hd => headers.find(h => h.text === hd).key),
-               nosColumnFixed: stateProject.userData.nosColumnFixed,
-               colorization: stateProject.userData.colorization,
-            }
-         );
-
+         if (role !== 'manager' || role !== 'viewer') {
+            await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsFromDBFinalToSave });
+         };
 
          commandAction({ type: 'save-data-successfully' });
 
-         const res = await Axios.get(`${SERVER_URL}/sheet/${projectId}?userId=${email}`);
+         const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
 
          commandAction({ type: 'reload-data-from-server', data: res.data });
 
@@ -574,9 +529,6 @@ const PanelSetting = (props) => {
 
 
 
-   const applyColorization = (data) => {
-      commandAction({ type: 'drawing-colorized', data });
-   };
 
 
 
@@ -620,7 +572,7 @@ const PanelSetting = (props) => {
 
 
          {(panelSettingType === 'Insert Drawings Below' || panelSettingType === 'Insert Drawings Above') && (
-            <PanelPickNumber 
+            <PanelPickNumber
                onClickCancelModal={onClickCancelModal}
                onClickApply={onClickInsertRow}
             />
@@ -673,7 +625,7 @@ const PanelSetting = (props) => {
          )}
 
          {panelSettingType === 'Insert Drawings By Type' && (
-            <PanelPickNumber 
+            <PanelPickNumber
                onClickCancelModal={onClickCancelModal}
                onClickApply={onClickFolderInsertSubRows}
             />
@@ -689,13 +641,14 @@ const PanelPickNumber = ({ onClickCancelModal, onClickApply }) => {
    const [nosOfRows, setNosOfRows] = useState(1);
    return (
       <div style={{ padding: 20 }}>
-         <InputStyled
+         <Input
             placeholder='Enter Number Of Drawings...'
             type='number' min='1'
             value={nosOfRows}
             onChange={(e) => setNosOfRows(e.target.value)}
             style={{
-               marginBottom: 20
+               marginBottom: 20,
+               borderRadius: 0
             }}
          />
          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
@@ -707,78 +660,8 @@ const PanelPickNumber = ({ onClickCancelModal, onClickApply }) => {
       </div>
    );
 };
-const InputStyled = styled(Input)`
-    border-radius: 0;  
-`;
-
-let rowsTest01 = [
-   { id: 'id6', _preRow: 'id3' },
-   { id: 'id1', _preRow: 'id9' },
-   { id: 'id7', _preRow: null },
-   { id: 'idrrrr7', _preRow: 'id344444444444' },
 
 
-   { id: 'id2', _preRow: 'id99' },
-   { id: 'id3', _preRow: 'id1' },
-   { id: 'id344444444444', _preRow: 'id4' },
-
-   { id: 'id4', _preRow: 'id777' },
-
-   { id: 'id8', _preRow: 'id2' },
-   { id: 'id10', _preRow: 'id5' },
-   { id: 'id10777777777', _preRow: 'id9' },
-
-
-   { id: 'id9', _preRow: null },
-   { id: 'id5', _preRow: 'id899' },
-   { id: 'id5555555', _preRow: 'id3' },
-
-   { id: 'id777777777777777', _preRow: 'id10' },
-];
-let rowsTest02 = [
-   { id: 'uuuuuuuuuuuuuu', _preRow: 'tg9999' },
-   { id: 'id6', _preRow: 'id3' },
-   { id: 'id1', _preRow: 'id9' },
-   { id: 'id7', _preRow: null },
-   { id: 'idrrrr7', _preRow: 'id344444444444' },
-   { id: 'tg6777', _preRow: 'tttt' },
-
-
-   { id: 'lam111', _preRow: 'lam444' },
-
-   { id: 'lam111ggg', _preRow: 'lam444777' },
-
-   { id: 'gggggggggg', _preRow: null },
-   { id: 'tg9999', _preRow: null },
-   { id: 'id2', _preRow: 'id99' },
-   { id: 'id3', _preRow: 'id1' },
-   { id: 'id344444444444', _preRow: 'id4' },
-
-   { id: 'id4', _preRow: 'id777' },
-
-   { id: 'id8', _preRow: 'id2' },
-   { id: 'id10', _preRow: 'id5' },
-   { id: 'id10777777777', _preRow: 'id9' },
-
-
-   { id: 'id9', _preRow: null },
-   { id: 'id5', _preRow: 'id899' },
-   { id: 'id5555555', _preRow: 'id3' },
-
-   { id: 'id777777777777777', _preRow: 'id10' },
-
-   { id: 'tttt', _preRow: 'idrrrr7' },
-];
-let rowsTest03 = [
-   { id: 'idrrrr7', _preRow: 'id7' },
-   { id: 'fgfg', _preRow: 'idrrrr7' },
-   { id: 'id1', _preRow: 'id6' },
-   { id: 'id7', _preRow: 'id1' },
-   { id: 'eeee', _preRow: '6666t' },
-   { id: '6666t', _preRow: 'ttt' },
-   { id: 'ttt', _preRow: 'fgfg' },
-   { id: 'id6', _preRow: 'id3' },
-];
 
 
 

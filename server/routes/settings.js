@@ -4,8 +4,6 @@ const router = new Router();
 const Settings = require('../modules/settings');
 
 
-router.post('/:sheetId/:userId', Settings.createUserSettings);
-
-router.delete('/delete-all', Settings.deleteAllDataInCollection);
+router.post('/delete-all', validateToken, Settings.deleteAllDataInCollection);
 
 module.exports = router;

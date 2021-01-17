@@ -3,13 +3,14 @@ import ButtonGroupComp from './ButtonGroupComp';
 
 
 
-const PanelConfirm = ({ onClickCancel, onClickApply, content }) => {
+const PanelConfirm = ({ onClickCancel, onClickApply, content, styleModal }) => {
 
 
     return (
         <div style={{
             width: '100%',
-            height: '100%'
+            height: '100%',
+            ...styleModal,
         }}>
             <div style={{ padding: 20 }}>
                 {content || 'Are you sure ?'}
