@@ -2,7 +2,7 @@ const express = require('express');
 const Router = express.Router;
 const router = new Router();
 const CellHistory = require('../modules/cell-history');
-
+const { validateToken } = require('../../custom/validate');
 
 router.post('/', validateToken, CellHistory.saveCellHistories);
 

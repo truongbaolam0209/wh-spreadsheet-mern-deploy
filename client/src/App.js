@@ -13,14 +13,13 @@ const App = () => {
 
    return (
       <BrowserRouter>
-         <ProjectProvider>
-            <RowProvider>
-               <CellProvider>
 
-                  <Switch>
+         <Switch>
 
-                     <Route path='/sheet'>
-                     
+            <Route path='/sheet'>
+               <ProjectProvider>
+                  <RowProvider>
+                     <CellProvider>
                         <PageSpreadsheet
                            email='truongbaolam3333@wohhup.com'
                            projectId='KKGwMzc6RGG5NDY1MS10FSUMANGGGG'
@@ -29,27 +28,28 @@ const App = () => {
                            role='coordinator'
                            token='XXXTTTYYYIIIKKKLLLFFF'
                            isAdmin={true}
-                           // modeller, coordinator, manager, viewer, production, document controller 
+                        // modeller, coordinator, manager, viewer, production, document controller 
                         />
-                     </Route>
+                     </CellProvider>
+                  </RowProvider>
+               </ProjectProvider>
+            </Route>
 
-                     <Route path='/dashboard'>
-                        <PageDashboard
-                           projectsArray={[
-                              { name: 'Sumang', id: 'KKGwMzc6RGG5NDY1MS10FSUMANGGGG' },
-                              { name: 'Handy', id: 'KKGwMzc6RGG5NDY1MS10FHANDYFFF' },
-                              { name: 'Handytgtg', id: 'KFFFFFFFDY1MS10FHANDY' },
-                              { name: 'rrrrrrrrtgtg', id: 'KFFfvfvfvHANDY' },
-                           ]}
-                           token='XXXTTTYYYIIIKKKLLLFFF'
-                        />
-                     </Route>
 
-                  </Switch>
+            <Route path='/dashboard'>
+               <PageDashboard
+                  projectsArray={[
+                     { name: 'Sumang', id: 'KKGwMzc6RGG5NDY1MS10FSUMANGGGG' },
+                     { name: 'Handy', id: 'KKGwMzc6RGG5NDY1MS10FHANDYFFF' },
+                     { name: 'Handytgtg', id: 'KFFFFFFFDY1MS10FHANDY' },
+                     { name: 'rrrrrrrrtgtg', id: 'KFFfvfvfvHANDY' },
+                  ]}
+                  token='XXXTTTYYYIIIKKKLLLFFF'
+               />
+            </Route>
 
-               </CellProvider>
-            </RowProvider>
-         </ProjectProvider>
+         </Switch>
+
       </BrowserRouter>
    );
 };

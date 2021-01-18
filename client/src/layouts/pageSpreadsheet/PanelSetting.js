@@ -1,7 +1,7 @@
 import { Input } from 'antd';
 import Axios from 'axios';
 import moment from 'moment';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { SERVER_URL } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
@@ -32,11 +32,6 @@ const PanelSetting = (props) => {
 
    const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading } = props;
 
-   useEffect(() => {
-      if (panelSettingType === 'save-every-20min') {
-         saveDataToServer();
-      };
-   }, []);
 
    const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
 
@@ -56,9 +51,6 @@ const PanelSetting = (props) => {
          data,
       });
    };
-
-
-
 
    const onClickInsertRow = (nosOfRows) => {
       let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
@@ -530,14 +522,13 @@ const PanelSetting = (props) => {
 
 
 
-
-
    return (
       <>
          {panelSettingType === 'save-ICON' && (
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={saveDataToServer}
+               content='Do you want to save ?'
             />
          )}
 

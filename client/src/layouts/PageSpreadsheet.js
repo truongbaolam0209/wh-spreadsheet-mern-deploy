@@ -19,7 +19,6 @@ import PanelSetting from './pageSpreadsheet/PanelSetting';
 
 
 
-
 const Table = forwardRef((props, ref) => {
    return (
       <AutoResizer>
@@ -38,13 +37,15 @@ let currentDOMCell = null;
 let isTyping = false;
 let addedEvent = false;
 
+
 const PageSpreadsheet = (props) => {
+
 
    const { email, role, isAdmin, projectId, projectName, token } = props;
    const tableRef = useRef();
-   
+
    const handlerBeforeUnload = (e) => {
-      if (window.location.pathname.startsWith('/sheet')) {
+      if (window.location.pathname === '/drawing-edit') {
          e.preventDefault();
          e.returnValue = '';
       };
@@ -56,7 +57,8 @@ const PageSpreadsheet = (props) => {
       };
    }, []);
 
-   
+
+
 
 
    const getCurrentDOMCell = () => {
@@ -248,6 +250,7 @@ const PageSpreadsheet = (props) => {
          });
       } else {
          getSheetRows({ ...stateRow, rowsToMoveId: null });
+
          setPanelSettingType(btn);
          setPanelSettingVisible(true);
       };
@@ -463,9 +466,11 @@ const PageSpreadsheet = (props) => {
 
    useEffect(() => {
       const interval = setInterval(() => {
+
          setPanelFunctionVisible(false);
-         setPanelSettingType('save-every-20min');
+         setPanelSettingType('save-ICON');
          setPanelSettingVisible(true);
+
       }, 1000 * 60 * 20);
       return () => clearInterval(interval);
    }, []);
@@ -519,8 +524,7 @@ const PageSpreadsheet = (props) => {
          tagName: rowData._rowLevel < 1 ? RowStyled : undefined
       };
    };
-   const onColumnResize = () => {};
-   
+
    const rowClassName = (props) => {
       const { rowData } = props;
       const { colorization } = stateProject.userData;
@@ -596,132 +600,133 @@ const PageSpreadsheet = (props) => {
 
 
    return (
- 
-         <PageSpreadsheetStyled
-            onContextMenu={(e) => e.preventDefault()}
-         >
-            <ButtonBox>
-               <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
-               <DividerRibbon />
-               <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
-               <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
-               <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
-               <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
 
-               {searchInputShown ? (
-                  <InputSearch searchGlobal={searchGlobal} closeSearchInput={closeSearchInput} />
-               ) : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
+      <PageSpreadsheetStyled
+         onContextMenu={(e) => e.preventDefault()}
+      >
+         <ButtonBox>
+            <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
+            <DividerRibbon />
+            <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
+            <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
+            <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
+            <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
 
-               <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON')} />
-               <DividerRibbon />
-               <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
+            {searchInputShown ? (
+               <InputSearch searchGlobal={searchGlobal} closeSearchInput={closeSearchInput} />
+            ) : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
-               <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
-               <DividerRibbon />
-               <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
-               <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
+            <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON')} />
+            <DividerRibbon />
+            <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
 
-               <DividerRibbon />
-               {isAdmin && (
-                  <div style={{ display: 'flex' }}>
-                     <IconTable type='fullscreen-exit' onClick={() => adminFncServerInit('upload-sumang')} />
-                     <IconTable type='fall' onClick={() => adminFncServerInit('upload-handy')} />
-                     <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-rows')} />
-                     <IconTable type='stock' onClick={() => adminFncServerInit('delete-all-collections')} />
-                  </div>
+            <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
+            <DividerRibbon />
+            <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
+            <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
+
+            <DividerRibbon />
+            {isAdmin && (
+               <div style={{ display: 'flex' }}>
+                  <IconTable type='fullscreen-exit' onClick={() => adminFncServerInit('upload-sumang')} />
+                  <IconTable type='fall' onClick={() => adminFncServerInit('upload-handy')} />
+                  <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-rows')} />
+                  <IconTable type='stock' onClick={() => adminFncServerInit('delete-all-collections')} />
+                  {/* <IconTable type='stock' onClick={() => history.push('/sheet')} />
+                  <IconTable type='stock' onClick={() => history.push('/dashboard')} /> */}
+               </div>
+            )}
+         </ButtonBox>
+
+
+         {!loading ? (
+            <TableStyled
+               dataForStyled={{
+                  stateProject,
+                  randomColorRange,
+                  randomColorRangeStatus,
+                  cellSearchFound,
+                  cellHistoryFound
+               }}
+               ref={tableRef}
+               fixed
+               columns={renderColumns(
+                  stateProject.userData.headersShown,
+                  stateProject.userData.nosColumnFixed
                )}
-            </ButtonBox>
+               data={arrangeDrawingTypeFinal(stateRow)}
+               expandedRowKeys={expandedRows}
+
+               expandColumnKey={expandColumnKey}
+
+               expandIconProps={expandIconProps}
+               components={{ ExpandIcon }}
+               rowHeight={30}
+               overscanRowCount={0}
+               onScroll={onScroll}
+               rowProps={rowProps}
+               rowClassName={rowClassName}
+               onRowExpand={onRowExpand}
+            />
+         ) : <LoadingIcon />}
 
 
-            {!loading ? (
-               <TableStyled
-                  dataForStyled={{
-                     stateProject,
-                     randomColorRange,
-                     randomColorRangeStatus,
-                     cellSearchFound,
-                     cellHistoryFound
-                  }}
-                  ref={tableRef}
-                  fixed
-                  columns={renderColumns(
-                     stateProject.userData.headersShown,
-                     stateProject.userData.nosColumnFixed
-                  )}
-                  data={arrangeDrawingTypeFinal(stateRow)}
-                  expandedRowKeys={expandedRows}
-
-                  expandColumnKey={expandColumnKey}
-
-                  expandIconProps={expandIconProps}
-                  components={{ ExpandIcon }}
-                  rowHeight={30}
-                  overscanRowCount={0}
-                  onScroll={onScroll}
-                  rowProps={rowProps}
-                  rowClassName={rowClassName}
-                  onColumnResize={onColumnResize}
-                  onRowExpand={onRowExpand}
-               />
-            ) : <LoadingIcon />}
+         <ModalStyleFunction
+            visible={panelFunctionVisible}
+            footer={null}
+            onCancel={() => setPanelFunctionVisible(false)}
+            destroyOnClose={true}
+            style={{ position: 'fixed', left: cursor && cursor.x, top: cursor && cursor.y }}
+            mask={false}
+            width={250}
+         >
+            <PanelFunction
+               panelType={panelType}
+               buttonPanelFunction={buttonPanelFunction}
+            />
+         </ModalStyleFunction>
 
 
-            <ModalStyleFunction
-               visible={panelFunctionVisible}
-               footer={null}
-               onCancel={() => setPanelFunctionVisible(false)}
-               destroyOnClose={true}
-               style={{ position: 'fixed', left: cursor && cursor.x, top: cursor && cursor.y }}
-               mask={false}
-               width={250}
-            >
-               <PanelFunction
-                  panelType={panelType}
-                  buttonPanelFunction={buttonPanelFunction}
-               />
-            </ModalStyleFunction>
-
-
-            <ModalStyledSetting
-               title={getActionName(panelSettingType)}
-               visible={panelSettingVisible}
-               footer={null}
-               onCancel={() => {
+         <ModalStyledSetting
+            title={getActionName(panelSettingType)}
+            visible={panelSettingVisible}
+            footer={null}
+            onCancel={() => {
+               setPanelSettingVisible(false);
+               setPanelSettingType(null);
+               setPanelType(null);
+            }}
+            destroyOnClose={true}
+            centered={true}
+            width={getModalWidth(panelSettingType)}
+            width={panelSettingType === 'addDrawingType-ICON' ? 700 : 520}
+         >
+            <PanelSetting
+               panelType={panelType}
+               panelSettingType={panelSettingType}
+               commandAction={commandAction}
+               onClickCancelModal={() => {
                   setPanelSettingVisible(false);
                   setPanelSettingType(null);
                   setPanelType(null);
                }}
-               destroyOnClose={true}
-               centered={true}
-               width={getModalWidth(panelSettingType)}
-               width={panelSettingType === 'addDrawingType-ICON' ? 700 : 520}
-            >
-               <PanelSetting
-                  panelType={panelType}
-                  panelSettingType={panelSettingType}
-                  commandAction={commandAction}
-                  onClickCancelModal={() => {
-                     setPanelSettingVisible(false);
-                     setPanelSettingType(null);
-                     setPanelType(null);
-                  }}
-                  setLoading={setLoading}
+               setLoading={setLoading}
 
-               />
-            </ModalStyledSetting>
+            />
+         </ModalStyledSetting>
 
-            {adminFncInitPanel && (
-               <Modal
-                  title={adminFncBtn + ' ... ... sure ???'}
-                  visible={adminFncInitPanel}
-                  onOk={() => {
-                     adminFnc(adminFncBtn);
-                     setAdminFncInitPanel(false)
-                  }}
-                  onCancel={() => setAdminFncInitPanel(false)}
-               ></Modal>
-            )}
-         </PageSpreadsheetStyled>
+         {adminFncInitPanel && (
+            <Modal
+               title={adminFncBtn + ' ... ... sure ???'}
+               visible={adminFncInitPanel}
+               onOk={() => {
+                  adminFnc(adminFncBtn);
+                  setAdminFncInitPanel(false)
+               }}
+               onCancel={() => setAdminFncInitPanel(false)}
+            ></Modal>
+         )}
+      </PageSpreadsheetStyled>
 
    );
 };
@@ -760,7 +765,7 @@ const TableStyled = styled(Table)`
       let colorization = stateProject.userData.colorization;
 
       const value = colorization.value || [];
-      
+
       let res = [];
       value.map(n => {
          let color = stateProject.userData.colorization.header === 'Status' ?
@@ -773,7 +778,7 @@ const TableStyled = styled(Table)`
          };
       });
       const output = [...new Set(res)].join('\n');
-      
+
       return output;
    }}
 

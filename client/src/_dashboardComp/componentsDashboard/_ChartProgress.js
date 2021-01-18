@@ -17,15 +17,15 @@ const _ChartProgress = ({ data, projectName, openDrawingTable }) => {
 
     const dataInput = [
         {
-            name: `Late for construction ${lateForConstruction}/${rowsAll.length}`,
+            name: `Late for construction ${lateForConstruction || 0}/${rowsAll.length}`,
             value: lateForConstruction
         },
         {
-            name: `Overdue date of submission ${drawingsLateSubmission.length}/${rowsAll.length}`,
+            name: `Overdue date of submission ${drawingsLateSubmission.length || 0}/${rowsAll.length}`,
             value: drawingsLateSubmission.length
         },
         {
-            name: `Overdue date of approval ${drawingsLateApproval.length}/${rowsAll.length}`,
+            name: `Overdue date of approval ${drawingsLateApproval.length || 0}/${rowsAll.length}`,
             value: drawingsLateApproval.length
         }
     ];
