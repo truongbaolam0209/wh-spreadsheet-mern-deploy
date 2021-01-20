@@ -3,7 +3,7 @@ import Axios from 'axios';
 import React, { useContext, useEffect, useState } from 'react';
 import BaseTable, { AutoResizer } from 'react-base-table';
 import styled from 'styled-components';
-import { colorType, SERVER_URL } from '../../constants';
+import { colorType, imgLink, SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { getHeaderWidth, mongoObjectId } from '../../utils';
@@ -130,7 +130,7 @@ const TableDrawingDetail = (props) => {
                   textAlign: 'center',
                   marginTop: 100
                }}>
-                  <img src='./img/timeline.JPG' alt='visualize' height={panelHeight - (100 + data.length * 30) - 100} />
+                  <img src={imgLink.timeline} alt='visualize' height={panelHeight - (100 + data.length * 30) - 100} />
                </div>
             </>
          )}

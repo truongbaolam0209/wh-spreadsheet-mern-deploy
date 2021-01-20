@@ -34,6 +34,13 @@ export const dimension = {
 };
 
 
+export const imgLink = {
+    timeline: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/timeline.JPG?fbclid=IwAR3BnkJWSQZMbxqLugNKGPc5ssPeu0aqBdvGZhdRLbIyYGSrpaQwYCioY94',
+    btnText: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/btn-down2.png?fbclid=IwAR0PFlzzsc85rk_98XnYx-3zuhJzvUS7Wen5kGUBxM6HGF2y1K1Gdn9eCAg',
+    btnDate: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/btn-calendar2.png?fbclid=IwAR23I7skpoZQ5of06o7ASoSbIUwaxgsmZczBOPFKTS0RiScaiH42_dCqRwg'
+};
+
+
 // export const SERVER_URL = 'http://localhost:9000/api';
 export const SERVER_URL =  window.location.origin.includes('https://bim.wohhup.com') ?'https://bim.wohhup.com/api' : 'http://localhost:8081/api'
 

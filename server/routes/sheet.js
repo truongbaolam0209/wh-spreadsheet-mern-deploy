@@ -6,7 +6,6 @@ const Sheet = require('../modules/sheet');
 const { validateToken } = require('../../custom/validate');
 
 
-
 router.get('/', validateToken, Sheet.findOneWithUserEmail);
 
 router.post('/update-rows/', validateToken, Sheet.updateOrCreateRows);

@@ -21,14 +21,14 @@ const App = () => {
                   <RowProvider>
                      <CellProvider>
                         <PageSpreadsheet
-                           email='truongbaolam3333@wohhup.com'
-                           projectId='KKGwMzc6RGG5NDY1MS10FSUMANGGGG'
-                           // projectId='KKGwMzc6RGG5NDY1MS10FHANDYFFF'
-                           projectName='SM'
+                           email='truongbaolam@gmail.com'
+                           // projectId='KKGwMzc6RGG5NDY1MS10FSUMANG'
+                           projectId='KKGwMzc6RGG5NDY1MS10FHANDY'
+                           projectName='HANDY'
                            role='coordinator'
                            token='XXXTTTYYYIIIKKKLLLFFF'
-                           isAdmin={true}
-                        // modeller, coordinator, manager, viewer, production, document controller 
+                           // isAdmin={true}
+                           // modeller, coordinator, manager, viewer, production, document controller 
                         />
                      </CellProvider>
                   </RowProvider>

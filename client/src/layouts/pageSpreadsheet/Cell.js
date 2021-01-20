@@ -2,7 +2,7 @@ import { message } from 'antd';
 import moment from 'moment';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { colorType } from '../../constants';
+import { colorType, imgLink } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
@@ -33,34 +33,31 @@ const Cell = (props) => {
       cellData = moment(cellData, 'YYYY-MM-DD').format('DD/MM/YY');
    };
 
-
    const { state: stateCell, getCellModifiedTemp, setCellActive } = useContext(CellContext);
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    let { drawingTypeTree, rowsAll, showDrawingsOnly } = stateRow;
 
 
-   
-
    const role = stateProject.allDataOneSheet && stateProject.allDataOneSheet.role;
    const isLockedCell = cellLocked(role, column.key, showDrawingsOnly);
-
 
    const inputRef = useRef();
    const cellRef = useRef();
    const panelRef = useRef();
    const buttonRef = useRef();
 
-
    const [inputRender, setInputRender] = useState(false);
-   const [initValue, setInitValue] = useState(cellData || '');
-   const [value, setValue] = useState(cellData || '');
+   const [valueInput, setValueInput] = useState({
+      current: cellData || '',
+      init: cellData || ''
+   });
+   let ff = 777;
    const [btnShown, setBtnShown] = useState(false);
    const [panelData, setPanelData] = useState(false);
 
 
-   // after keydown ENTER to show input ...
-   useEffect(() => {
+   useEffect(() => { // after keydown ENTER to show input ...
       if (
          !inputRender &&
          stateCell.cellActive &&
@@ -77,23 +74,25 @@ const Cell = (props) => {
       return `${rowData['id']}-${column.key}`;
    };
    const cellEditDone = (value) => {
+      
       if (rowData._rowLevel === 1) {
-         if (checkCellDateFormat(column.key) && !(moment(value, 'DD/MM/YY').format('DD/MM/YY') === value)) {
-            message.info('Data input should be in date format', 1.5);
-            setValue(cellData);
-            return;
-         } else if (column.key === 'Status' && cellStatusFormat.indexOf(value) === -1) {
-            message.info('Data input should be in status format', 1.5);
-            setValue(cellData);
-            return;
+         if (
+            (checkCellDateFormat(column.key) && !(moment(value, 'DD/MM/YY').format('DD/MM/YY') === value) && value !== '') ||
+            (column.key === 'Status' && cellStatusFormat.indexOf(value) === -1 && value !== '')
+         ) {
+            setValueInput({ ...valueInput, current: valueInput.init });
+            message.info('Data input should be in correct format', 1);
+         } else {
+            
+            setValueInput({ ...valueInput, current: value });
+            getCellModifiedTemp({ [getCellTempId()]: value });
+            
+            let row = rowsAll.find(r => r.id === rowData.id);
+            row[column.key] = value;
+            getSheetRows({
+               ...stateRow, rowsAll // no need update rowsAllInit
+            });
          };
-         getCellModifiedTemp({ [getCellTempId()]: value });
-         let row = rowsAll.find(r => r.id === rowData.id);
-         row[column.key] = value;
-         getSheetRows({
-            ...stateRow, rowsAll // no need update rowsAllInit
-         });
-
       } else {
          let row = drawingTypeTree.find(x => x.id === rowData.id);
          row[column.key] = value;
@@ -114,8 +113,7 @@ const Cell = (props) => {
          setPosition({ cell: cellRef.current.parentElement, rowIndex, columnIndex });
       };
    };
-   useEffect(() => {
-      // FOCUS right after press ENTER...
+   useEffect(() => { // FOCUS right after press ENTER...
       if (inputRender) {
          inputRef.current.focus();
       };
@@ -150,38 +148,27 @@ const Cell = (props) => {
          if (isLockedCell) return;
       };
    };
-   const pickDataSelect = (value) => {
+   const pickDataSelect = (type, value) => {
       setBtnShown(false);
       setPanelData(false);
-      setValue(value);
-      if (initValue !== value) {
+      if (type === 'text') {
          cellEditDone(value);
-      } else {
-         setInputRender(false);
-      };
-   };
-   const pickDate = (value) => {
-      setBtnShown(false);
-      setPanelData(false);
-      setValue(moment(value).format('DD/MM/YY'));
-      if (initValue !== value) {
+      } else if (type === 'date') {
          cellEditDone(moment(value).format('DD/MM/YY'));
-      } else {
-         setInputRender(false);
-      };
-   };
-
-
-
-   const onChange = (e) => {
-      setValue(e.target.value);
-   };
-   const onBlur = () => {
-      if (initValue !== value) {
-         cellEditDone(value);
       };
       setInputRender(false);
    };
+   const onBlur = () => {
+      setBtnShown(false);
+      setPanelData(false);
+      cellEditDone(valueInput.current);
+      setInputRender(false);
+   };
+   const onChange = (e) => {
+      setValueInput({ ...valueInput, current: e.target.value });
+   };
+   
+   
    // ENTER to hide input after finishing typing ...
    const onKeyPress = (e) => {
       if (
@@ -221,7 +208,7 @@ const Cell = (props) => {
          >
             {inputRender ? (
                <input
-                  value={value}
+                  value={valueInput.current}
                   onChange={onChange}
                   onBlur={onBlur}
                   onKeyPress={onKeyPress}
@@ -259,7 +246,7 @@ const Cell = (props) => {
                   top: 5,
                   height: 17,
                   width: 17,
-                  backgroundImage: `url('./img/btn-${checkCellDateFormat(column.key) ? 'calendar2' : 'down2'}.png')`,
+                  backgroundImage: checkCellDateFormat(column.key) ? `url(${imgLink.btnDate})` : `url(${imgLink.btnText})`,
                   backgroundSize: 17
                }}
                   onMouseDown={(e) => {
@@ -285,21 +272,20 @@ const Cell = (props) => {
                   ref={panelRef}
                >
                   {checkCellDateFormat(column.key) ? (
-                     <PanelCalendar pickDate={pickDate} />
+                     <PanelCalendar pickDate={(item) => pickDataSelect('date', item)} />
                   ) : getColumnsValue(rowsAll, column.key).map(item => {
                      return (
                         <SelectStyled
                            key={item}
                            onMouseDown={(e) => {
                               e.stopPropagation();
-                              pickDataSelect(item);
+                              pickDataSelect('text', item);
                            }}
                         >{item}</SelectStyled>
                      );
                   })}
                </div>
             )}
-
          </div>
       </>
    );

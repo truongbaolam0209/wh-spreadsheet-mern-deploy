@@ -8,7 +8,7 @@ import { colorType, dimension, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { debounceFnc, getActionName, getCurrentAndHistoryDrawings, getDataConvertedSmartsheet, getHeaderWidth, getModalWidth, randomColorRange, randomColorRangeStatus, reorderRowsFnc } from '../utils';
+import { debounceFnc, getActionName, getHeaderWidth, getModalWidth, randomColorRange, randomColorRangeStatus, reorderRowsFnc } from '../utils';
 import Cell from './pageSpreadsheet/Cell';
 import CellHeader from './pageSpreadsheet/CellHeader';
 import CellIndex from './pageSpreadsheet/CellIndex';
@@ -201,7 +201,7 @@ const PageSpreadsheet = (props) => {
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
-   // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
+   useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
    // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
@@ -434,15 +434,13 @@ const PageSpreadsheet = (props) => {
             // console.log('MONGO ...', res.data);
 
 
-
-            const resultSmartsheet = await Axios.post(
-               'https://bim.wohhup.com/api/smartsheet/get-sheets-dashboard',
-               { listSheetId: [4758181617395588, 8919906142971780] }
-            );
-            const rowsAllSmartSheet = getDataConvertedSmartsheet(resultSmartsheet.data);
-            const dataToSave = getCurrentAndHistoryDrawings(rowsAllSmartSheet, res.data.publicSettings.headers);
-            setstate(dataToSave);
-
+            // const resultSmartsheet = await Axios.post(
+            //    'https://bim.wohhup.com/api/smartsheet/get-sheets-dashboard',
+            //    { listSheetId: [4758181617395588, 8919906142971780] }
+            // );
+            // const rowsAllSmartSheet = getDataConvertedSmartsheet(resultSmartsheet.data);
+            // const dataToSave = getCurrentAndHistoryDrawings(rowsAllSmartSheet, res.data.publicSettings.headers);
+            // setstate(dataToSave);
 
 
 
@@ -518,19 +516,16 @@ const PageSpreadsheet = (props) => {
    const expandIconProps = (props) => {
       return ({ expanding: !props.expanded });
    };
-   const rowProps = (props) => {
-      const { rowData } = props;
-      return {
-         tagName: rowData._rowLevel < 1 ? RowStyled : undefined
-      };
-   };
-
    const rowClassName = (props) => {
       const { rowData } = props;
       const { colorization } = stateProject.userData;
 
       const valueArr = colorization.value;
       const value = rowData[colorization.header];
+
+      if (rowData._rowLevel !== 1) {
+         return 'row-drawing-type';
+      };
 
       if (colorization !== null &&
          colorization.header !== 'No Colorization' &&
@@ -636,7 +631,11 @@ const PageSpreadsheet = (props) => {
                   <IconTable type='stock' onClick={() => history.push('/dashboard')} /> */}
                </div>
             )}
+
+            <div style={{ position: 'absolute', top: 3, right: 30, fontSize: 25, color: 'white' }}>{projectName}</div>
          </ButtonBox>
+
+         
 
 
          {!loading ? (
@@ -664,7 +663,6 @@ const PageSpreadsheet = (props) => {
                rowHeight={30}
                overscanRowCount={0}
                onScroll={onScroll}
-               rowProps={rowProps}
                rowClassName={rowClassName}
                onRowExpand={onRowExpand}
             />
@@ -744,20 +742,22 @@ const DividerRibbon = () => {
       }} />
    );
 };
-const RowStyled = styled.a`
-    background-color: ${colorType.grey3};
-    font-weight: bold;
-    cursor: default;
-    &:hover {
-        background-color: ${colorType.grey3};
-    }
-`;
+
 const PageSpreadsheetStyled = styled.div`
     /* padding-top: ${dimension.navBarHeight}; */
 `;
 
 
 const TableStyled = styled(Table)`
+
+   .row-drawing-type {
+      background-color: ${colorType.grey3};
+      font-weight: bold;
+      cursor: default;
+      &:hover {
+         background-color: ${colorType.grey3};
+      }
+   };
 
    
    ${({ dataForStyled }) => {
@@ -851,6 +851,7 @@ const ModalStyledSetting = styled(Modal)`
 `;
 const ButtonBox = styled.div`
     width: ${`${window.innerWidth}px`};
+    position: relative;
     display: flex;
     padding-top: 7px;
     padding-bottom: 7px;

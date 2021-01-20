@@ -307,6 +307,8 @@ const PanelSetting = (props) => {
          
 
          const resDB = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+         const resCellsHistory = await Axios.get(`${SERVER_URL}/cell/history/`, { params: { token, projectId } });
+
          
          let { publicSettings: publicSettingsFromDB, rows: rowsFromDBInit } = resDB.data;
          let { drawingTypeTree: drawingTypeTreeFromDB, activityRecorded: activityRecordedFromDB } = publicSettingsFromDB;
@@ -390,15 +392,26 @@ const PanelSetting = (props) => {
          });
          
 
-      
          // SAVE CELL HISTORY
          if (Object.keys(cellsModifiedTemp).length > 0) {
+            let objCellHistory = {};
+            resCellsHistory.data.map(cell => {
+               const headerText = headers.find(hd => hd.key === cell.headerKey).text;
+               let latestHistoryText = cell.histories[cell.histories.length - 1].text;
+               objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
+            });
+
             Object.keys(cellsModifiedTemp).forEach(key => {
-               let rowId = key.slice(0, 24);
-               if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
+               if (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) {
                   delete cellsModifiedTemp[key];
+               } else {
+                  let rowId = key.slice(0, 24);
+                  if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
+                     delete cellsModifiedTemp[key];
+                  };
                };
             });
+
             await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject) });
          };
 

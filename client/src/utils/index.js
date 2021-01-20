@@ -157,7 +157,6 @@ export const groupByHeaders = (data, headers) => {
     // push all rowIds have children in here
     let parentIdsArr = [];
     let _mapParentIds = {};
-
     for (let item of data) {
         let _prevLevelKey = '';
         let _prevLevelParent = null;
@@ -165,7 +164,7 @@ export const groupByHeaders = (data, headers) => {
             let arrayParent = i == 0 ? res : _prevLevelParent.children;
 
             let header = headers[i];
-            let value = String(item[header]).trim() || '';
+            let value = (item[header] || '').trim();
 
             let levelKey = `${_prevLevelKey}_._${value}`;
             let levelParentIndex = _map[levelKey];
@@ -180,8 +179,8 @@ export const groupByHeaders = (data, headers) => {
             };
 
             levelParent.count++;
-            // levelParent[header] = `${item[header]}: (${levelParent.count} nos)`;
-            levelParent['Drawing Number'] = `${String(item[header]).toUpperCase()}: (${levelParent.count} nos)`;
+
+            levelParent['Drawing Number'] = `${item[header] || 'No Data'}: (${levelParent.count} nos)`;
 
             if (!_mapParentIds[levelParent.id]) { // levelParent id not yet been push to parentIdsArr
                 parentIdsArr.push(levelParent.id);
@@ -205,7 +204,6 @@ function _newParent(item, header, level, iddd) {
     return {
         id: iddd,
         _rowLevel: level,
-        _src_header: item[header],
         count: 0,
         children: []
     };
