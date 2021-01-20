@@ -52,7 +52,7 @@ const Cell = (props) => {
       current: cellData || '',
       init: cellData || ''
    });
-   let ff = 777;
+
    const [btnShown, setBtnShown] = useState(false);
    const [panelData, setPanelData] = useState(false);
 

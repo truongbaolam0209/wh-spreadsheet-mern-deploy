@@ -34,7 +34,6 @@ const FormGroup = ({ applyGroup, onClickCancelModal }) => {
     const onClickApply = () => {
         if (group.length === 0) return;
         let output = groupByHeaders(stateRow.rowsAll.filter(r => r._rowLevel === 1), group);
-        console.log(output);
         applyGroup(output);
     };
 

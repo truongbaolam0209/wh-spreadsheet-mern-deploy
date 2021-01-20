@@ -8,7 +8,7 @@ import { colorType, dimension, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { debounceFnc, getActionName, getHeaderWidth, getModalWidth, randomColorRange, randomColorRangeStatus, reorderRowsFnc } from '../utils';
+import { debounceFnc, getActionName, getCurrentAndHistoryDrawings, getDataConvertedSmartsheet, getHeaderWidth, getModalWidth, randomColorRange, randomColorRangeStatus, reorderRowsFnc } from '../utils';
 import Cell from './pageSpreadsheet/Cell';
 import CellHeader from './pageSpreadsheet/CellHeader';
 import CellIndex from './pageSpreadsheet/CellIndex';
@@ -201,7 +201,7 @@ const PageSpreadsheet = (props) => {
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
-   useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
+   // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
    // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
@@ -434,13 +434,13 @@ const PageSpreadsheet = (props) => {
             // console.log('MONGO ...', res.data);
 
 
-            // const resultSmartsheet = await Axios.post(
-            //    'https://bim.wohhup.com/api/smartsheet/get-sheets-dashboard',
-            //    { listSheetId: [4758181617395588, 8919906142971780] }
-            // );
-            // const rowsAllSmartSheet = getDataConvertedSmartsheet(resultSmartsheet.data);
-            // const dataToSave = getCurrentAndHistoryDrawings(rowsAllSmartSheet, res.data.publicSettings.headers);
-            // setstate(dataToSave);
+            const resultSmartsheet = await Axios.post(
+               'https://bim.wohhup.com/api/smartsheet/get-sheets-dashboard',
+               { listSheetId: [4758181617395588, 8919906142971780] }
+            );
+            const rowsAllSmartSheet = getDataConvertedSmartsheet(resultSmartsheet.data);
+            const dataToSave = getCurrentAndHistoryDrawings(rowsAllSmartSheet, res.data.publicSettings.headers);
+            setstate(dataToSave);
 
 
 
