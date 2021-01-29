@@ -393,6 +393,7 @@ const PanelSetting = (props) => {
          
 
          // SAVE CELL HISTORY
+         console.log('cellsModifiedTemp', cellsModifiedTemp);
          if (Object.keys(cellsModifiedTemp).length > 0) {
             let objCellHistory = {};
             resCellsHistory.data.map(cell => {
@@ -416,6 +417,7 @@ const PanelSetting = (props) => {
          };
 
          // SAVE DRAWINGS NEW VERSION
+         console.log('rowsVersionsToSave', rowsVersionsToSave);
          rowsVersionsToSave = rowsVersionsToSave.filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing'));
          if (rowsVersionsToSave.length > 0) {
             await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: convertDrawingVersionToHistory(rowsVersionsToSave, stateProject) });
@@ -480,6 +482,7 @@ const PanelSetting = (props) => {
             drawingTypeTree,
             activityRecorded: [...activityRecordedFromDB, ...activityRecordedArr]
          };
+         console.log('publicSettingsUpdated', publicSettingsUpdated);
          await Axios.post(`${SERVER_URL}/sheet/update-setting-public/`, { token, projectId, email, publicSettings: publicSettingsUpdated });
          
          const userSettingsUpdated = {
@@ -487,12 +490,14 @@ const PanelSetting = (props) => {
             headersHidden: headersHidden.map(hd => headers.find(h => h.text === hd).key),
             nosColumnFixed, colorization,
          };
+         console.log('userSettingsUpdated', userSettingsUpdated);
          await Axios.post(`${SERVER_URL}/sheet/update-setting-user/`, { token, projectId, email, userSettings: userSettingsUpdated });
 
 
          // ROWS FROM DB BEFORE SAVE ...
          rowsFromDB = rowsFromDB.filter(r => !rowDeletedFinal.find(x => x.id === r.id));
          // DELTE MOVE TO HERE...
+         console.log('rowDeletedFinal', rowDeletedFinal);
          if (rowDeletedFinal.length > 0) {
             await Axios.post(`${SERVER_URL}/sheet/delete-rows/`, { token, projectId, email, rowIdsArray: rowDeletedFinal.map(r => r.id) });
          };
@@ -516,6 +521,7 @@ const PanelSetting = (props) => {
             });
             return row;
          });
+         console.log('rowsFromDBFinalToSave', rowsFromDBFinalToSave);
          if (role !== 'manager' || role !== 'viewer') {
             await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsFromDBFinalToSave });
          };

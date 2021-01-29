@@ -23,11 +23,11 @@ const App = () => {
                         <PageSpreadsheet
                            email='truongbaolam@gmail.com'
                            // projectId='KKGwMzc6RGG5NDY1MS10FSUMANG'
-                           projectId='KKGwMzc6RGG5NDY1MS10FHANDY'
+                           projectId='KKGwMzc6RGG5NDY1MS10FHANDYg'
                            projectName='HANDY'
                            role='coordinator'
                            token='XXXTTTYYYIIIKKKLLLFFF'
-                           // isAdmin={true}
+                           isAdmin={true}
                            // modeller, coordinator, manager, viewer, production, document controller 
                         />
                      </CellProvider>

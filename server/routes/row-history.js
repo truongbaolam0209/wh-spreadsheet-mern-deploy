@@ -2,14 +2,14 @@ const express = require('express');
 const Router = express.Router;
 const router = new Router();
 const RowHistory = require('../modules/row-history');
-const { validateToken } = require('../../custom/validate');
 
-router.post('/', validateToken, RowHistory.saveRowHistory);
 
-router.get('/', validateToken, RowHistory.findHistoriesForSheet);
+router.post('/', RowHistory.saveRowHistory);
 
-router.get('/one-row/', validateToken, RowHistory.findHistoryForOneRow);
+router.get('/', RowHistory.findHistoriesForSheet);
 
-router.post('/delete-all/', validateToken, RowHistory.deleteAllDataInCollection);
+router.get('/one-row/', RowHistory.findHistoryForOneRow);
+
+router.post('/delete-all/', RowHistory.deleteAllDataInCollection);
 
 module.exports = router;

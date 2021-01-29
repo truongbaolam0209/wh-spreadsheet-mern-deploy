@@ -2,15 +2,15 @@ const express = require('express');
 const Router = express.Router;
 const router = new Router();
 const CellHistory = require('../modules/cell-history');
-const { validateToken } = require('../../custom/validate');
 
-router.post('/', validateToken, CellHistory.saveCellHistories);
 
-router.get('/', validateToken, CellHistory.findHistoriesForSheet);
+router.post('/', CellHistory.saveCellHistories);
 
-router.get('/one-cell/', validateToken, CellHistory.findHistoryForOneCell);
+router.get('/', CellHistory.findHistoriesForSheet);
 
-router.post('/delete-all/', validateToken, CellHistory.deleteAllDataInCollectionCell);
+router.get('/one-cell/', CellHistory.findHistoryForOneCell);
+
+router.post('/delete-all/', CellHistory.deleteAllDataInCollectionCell);
 
 
 module.exports = router;

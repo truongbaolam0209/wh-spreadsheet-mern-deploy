@@ -67,7 +67,8 @@ const TableActivityHistory = (props) => {
             try {
                 const resRows = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
                 const resCells = await Axios.get(`${SERVER_URL}/cell/history/`, { params: { token, projectId } });
-
+                console.log(resCells.data);
+                
                 let rowsOutput = [];
                 resRows.data.forEach(row => {
                     const { history } = row;

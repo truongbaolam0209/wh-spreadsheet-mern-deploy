@@ -3,24 +3,24 @@ const Router = express.Router;
 const router = new Router();
 
 const Sheet = require('../modules/sheet');
-const { validateToken } = require('../../custom/validate');
 
 
-router.get('/', validateToken, Sheet.findOneWithUserEmail);
 
-router.post('/update-rows/', validateToken, Sheet.updateOrCreateRows);
+router.get('/', Sheet.findOneWithUserEmail);
 
-router.post('/delete-rows/', validateToken, Sheet.deleteRows);
+router.post('/update-rows/', Sheet.updateOrCreateRows);
 
-router.post('/delete-all/', validateToken, Sheet.deleteAllDataInCollection);
+router.post('/delete-rows/', Sheet.deleteRows);
 
-router.post('/update-setting-public/', validateToken, Sheet.updateSettingPublic);
+router.post('/delete-all/', Sheet.deleteAllDataInCollection);
 
-router.post('/update-setting-user/', validateToken, Sheet.updateSettingUser);
+router.post('/update-setting-public/', Sheet.updateSettingPublic);
 
-router.post('/delete-rows-project/', validateToken, Sheet.deleteAllRowsInOneProject);
+router.post('/update-setting-user/', Sheet.updateSettingUser);
 
-router.post('/find-many/', validateToken, Sheet.findMany);
+router.post('/delete-rows-project/', Sheet.deleteAllRowsInOneProject);
+
+router.post('/find-many/', Sheet.findMany);
 
 
 
