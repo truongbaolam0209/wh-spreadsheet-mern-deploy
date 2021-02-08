@@ -66,7 +66,6 @@ const _processSaveCellHistories = async (sheetId, data) => {
    for (let d of data) {
       if (!(d instanceof Object)) throw new HTTP(400, 'Invalid data cell history!');
 
-
       let { rowId: qRowId, headerKey: qHeaderKey, history: qHistory } = d;
 
       let rowId = toObjectId(qRowId, null);
@@ -95,6 +94,7 @@ const _processSaveCellHistories = async (sheetId, data) => {
    };
 
    let cellHistoryData = Object.values(_map);
+
    await Promise.all(cellHistoryData.map(_updateCellHistories));
 };
 

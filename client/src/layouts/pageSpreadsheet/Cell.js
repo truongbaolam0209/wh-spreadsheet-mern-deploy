@@ -8,6 +8,7 @@ import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import PanelCalendar from './PanelCalendar';
 
+
 const getRowParentLevelMin = (drawingTypeTree) => {
    let result = 0;
    drawingTypeTree.forEach(x => {
@@ -26,10 +27,9 @@ const Cell = (props) => {
 
    let cellData = props.cellData;
 
-   if ((column.key.includes('(A)') ||
-      column.key.includes('(T)') ||
-      column.key === 'Construction Issuance Date' ||
-      column.key === 'Construction Start') && cellData && cellData.length === 10 && cellData.includes('-')) {
+   if ((column.key.includes('(A)') || column.key.includes('(T)') ||
+      column.key === 'Construction Issuance Date' || column.key === 'Construction Start') &&
+      cellData && cellData.length === 10 && cellData.includes('-')) {
       cellData = moment(cellData, 'YYYY-MM-DD').format('DD/MM/YY');
    };
 
@@ -40,7 +40,7 @@ const Cell = (props) => {
 
 
    const role = stateProject.allDataOneSheet && stateProject.allDataOneSheet.role;
-   const isLockedCell = cellLocked(role, column.key, showDrawingsOnly);
+   const isLockedCell = cellLocked(role, column.key, showDrawingsOnly, rowData);
 
    const inputRef = useRef();
    const cellRef = useRef();
@@ -48,33 +48,16 @@ const Cell = (props) => {
    const buttonRef = useRef();
 
    const [inputRender, setInputRender] = useState(false);
-   const [valueInput, setValueInput] = useState({
-      current: cellData || '',
-      init: cellData || ''
-   });
+   const [valueInput, setValueInput] = useState({ current: cellData || '', init: cellData || '' });
 
    const [btnShown, setBtnShown] = useState(false);
    const [panelData, setPanelData] = useState(false);
 
 
-   useEffect(() => { // after keydown ENTER to show input ...
-      if (
-         !inputRender &&
-         stateCell.cellActive &&
-         stateCell.cellActive.rowIndex === rowIndex &&
-         stateCell.cellActive.columnIndex === columnIndex &&
-         !isLockedCell
-      ) {
-         setInputRender(true);
-      };
-   }, [stateCell.cellActive]);
 
+   const getCellTempId = () => `${rowData['id']}-${column.key}`;
 
-   const getCellTempId = () => {
-      return `${rowData['id']}-${column.key}`;
-   };
    const cellEditDone = (value) => {
-      
       if (rowData._rowLevel === 1) {
          if (
             (checkCellDateFormat(column.key) && !(moment(value, 'DD/MM/YY').format('DD/MM/YY') === value) && value !== '') ||
@@ -83,20 +66,16 @@ const Cell = (props) => {
             setValueInput({ ...valueInput, current: valueInput.init });
             message.info('Data input should be in correct format', 1);
          } else {
-            
             setValueInput({ ...valueInput, current: value });
+
             getCellModifiedTemp({ [getCellTempId()]: value });
-            
             let row = rowsAll.find(r => r.id === rowData.id);
             row[column.key] = value;
+
             getSheetRows({
                ...stateRow, rowsAll // no need update rowsAllInit
             });
          };
-      } else {
-         let row = drawingTypeTree.find(x => x.id === rowData.id);
-         row[column.key] = value;
-         getSheetRows({ ...stateRow, drawingTypeTree });
       };
    };
 
@@ -104,20 +83,17 @@ const Cell = (props) => {
    const onDoubleClick = () => {
       if (isLockedCell) return;
       setInputRender(true);
-      getCurrentDOMCell();
+      setBtnShown(false);
+      getCurrentDOMCell(); // double click to activate cell
    };
    const onClick = () => {
       if (isLockedCell) return;
       setBtnShown(true);
-      if (!inputRender) {
+      if (!inputRender) { // single click just highlight cell, not activate
          setPosition({ cell: cellRef.current.parentElement, rowIndex, columnIndex });
       };
    };
-   useEffect(() => { // FOCUS right after press ENTER...
-      if (inputRender) {
-         inputRef.current.focus();
-      };
-   }, [inputRender]);
+
 
 
    useEffect(() => {
@@ -125,17 +101,10 @@ const Cell = (props) => {
       return () => document.removeEventListener('click', EventClickToHidePanelAndInput);
    }, []);
    const EventClickToHidePanelAndInput = (e) => {
-      if (
-         inputRef.current &&
-         e.target !== cellRef.current &&
-         e.target !== inputRef.current
-      ) {
-         // setInputRender(false);
-      } else if (e.target !== cellRef.current && e.target !== panelRef.current && e.target !== buttonRef.current) {
+      if (!buttonRef.current && panelRef.current) {
          setPanelData(false);
       };
    };
-
 
 
    const onMouseLeave = () => {
@@ -151,26 +120,62 @@ const Cell = (props) => {
    const pickDataSelect = (type, value) => {
       setBtnShown(false);
       setPanelData(false);
+      setInputRender(false);
       if (type === 'text') {
          cellEditDone(value);
       } else if (type === 'date') {
          cellEditDone(moment(value).format('DD/MM/YY'));
       };
-      setInputRender(false);
    };
    const onBlur = () => {
+      cellEditDone(valueInput.current);
       setBtnShown(false);
       setPanelData(false);
-      cellEditDone(valueInput.current);
       setInputRender(false);
    };
    const onChange = (e) => {
       setValueInput({ ...valueInput, current: e.target.value });
    };
-   
-   
-   // ENTER to hide input after finishing typing ...
-   const onKeyPress = (e) => {
+
+   useEffect(() => { // after keydown ENTER to show input ...
+      if (
+         !inputRender &&
+         stateCell.cellActive &&
+         stateCell.cellActive.rowIndex === rowIndex &&
+         stateCell.cellActive.columnIndex === columnIndex &&
+         !isLockedCell
+      ) {
+         setInputRender(true);
+      };
+   }, [stateCell.cellActive]);
+
+
+   useEffect(() => {
+      if (
+         !inputRender &&
+         stateCell.cellAppliedAction &&
+         stateCell.cellAppliedAction.currentDOMCell.rowIndex === rowIndex &&
+         stateCell.cellAppliedAction.currentDOMCell.columnIndex === columnIndex &&
+         !isLockedCell
+      ) {
+         const { e } = stateCell.cellAppliedAction;
+         if (e.key === 'Delete') {
+            cellEditDone('');
+         } else if (e.key === 'v' && e.ctrlKey) {
+            cellEditDone(stateCell.tempCopiedText);
+         };
+      };
+   }, [stateCell.cellAppliedAction]);
+
+   useEffect(() => { // FOCUS right after press ENTER...
+      if (inputRender) inputRef.current.focus();
+   }, [inputRender]);
+
+   useEffect(() => { // Hide Button after pick on PANEL (setBtnShown fasle in pickDataSelect doesn't work)
+      setBtnShown(false);
+   }, [valueInput]);
+
+   const onKeyDown = (e) => { // ENTER to hide input after finishing typing ...
       if (
          e.key === 'Enter' &&
          inputRender &&
@@ -183,7 +188,6 @@ const Cell = (props) => {
          setCellActive(null);
       };
    };
-
 
 
    return (
@@ -199,9 +203,10 @@ const Cell = (props) => {
                height: '100%',
                padding: 5,
                paddingLeft: (column.key === 'Drawing Number' && rowData._rowLevel === 1 && showDrawingsOnly === 'group-columns') ? ((Math.abs(stateRow.rowsAll[0]._rowLevel) + 2) * 15) :
-               (column.key === 'Drawing Number' && rowData._rowLevel === 1 && showDrawingsOnly !== 'group-columns') ? ((Math.abs(getRowParentLevelMin(drawingTypeTree)) + 2) * 15) : 5,
+                  (column.key === 'Drawing Number' && rowData._rowLevel === 1 && showDrawingsOnly !== 'group-columns') ? ((Math.abs(getRowParentLevelMin(drawingTypeTree)) + 2) * 15) : 5,
                position: 'relative',
                color: 'black',
+               background: 'transparent'
                // pointerEvents: isLockedCell && 'none',
                // background: cellBackground(role, column.key, rowData._rowLevel) ? '#fafafa' : 'transparent'
             }}
@@ -211,7 +216,7 @@ const Cell = (props) => {
                   value={valueInput.current}
                   onChange={onChange}
                   onBlur={onBlur}
-                  onKeyPress={onKeyPress}
+                  onKeyDown={onKeyDown}
                   ref={inputRef}
                   style={{
                      outline: 'none',
@@ -230,7 +235,7 @@ const Cell = (props) => {
                   }}>
                      {
                         stateCell.cellsModifiedTemp[getCellTempId()] ||  // there is modified data
-                        (getCellTempId() in stateCell.cellsModifiedTemp && ' ') || // there is modified data === empty
+                        (getCellTempId() in stateCell.cellsModifiedTemp && ' ') || // there is modified data === empty, MUST BE ' ', not ''
                         cellData // there is no modification
                      }
                   </div>
@@ -303,16 +308,12 @@ const SelectStyled = styled.div`
 `;
 
 const checkCellDateFormat = (header) => {
-   return header.includes('(A)') ||
-      header.includes('(T)') ||
-      header === 'Construction Issuance Date' ||
-      header === 'Construction Start';
+   return header.includes('(A)') || header.includes('(T)') ||
+      header === 'Construction Issuance Date' || header === 'Construction Start';
 };
-
 const cellBtnDisabled = (headerId) => {
    if (headerId === 'Index' || headerId === 'Drawing Number' || headerId === 'Drawing Name') return true;
 };
-
 const getColumnsValue = (rows, headerKey) => {
    let valueArr = [];
    rows.filter(r => r._rowLevel === 1).forEach(row => {
@@ -348,11 +349,18 @@ const ColumnsLockedModeller = [
    'Construction Issuance Date',
    'Construction Start',
 ];
-const cellLocked = (title, column, showDrawingsOnly) => {
-   // lock in groups columns mode;
-   if (showDrawingsOnly === 'group-columns') return true;
-   if (title === 'modeller' && ColumnsLockedModeller.includes(column)) return true;
-   if (title === 'coordinator' || title === 'document controller') return false;
-   if (title === 'manager' || title === 'viewer') return true;
-   if (title === 'production' && column !== 'Construction Start') return true;
+const cellLocked = (title, column, showDrawingsOnly, rowData) => {
+   if (
+      !rowData._rowLevel ||
+      showDrawingsOnly === 'group-columns' ||
+      (title === 'modeller' && ColumnsLockedModeller.includes(column)) ||
+      (title === 'manager' || title === 'viewer') ||
+      (title === 'production' && column !== 'Construction Start')
+   ) {
+      return true;
+   } else if (
+      (title === 'coordinator' || title === 'document controller')
+   ) {
+      return false;
+   };
 };

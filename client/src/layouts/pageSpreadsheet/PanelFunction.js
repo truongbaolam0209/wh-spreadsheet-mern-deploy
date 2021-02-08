@@ -21,6 +21,7 @@ const PanelFunction = (props) => {
       'Create New Drawing Revision',
       'Date Automation',
       'View Cell History',
+      'Duplicate Drawings',
       'Insert Drawings Below',
       'Insert Drawings Above',
       'Move Drawing',
@@ -92,6 +93,7 @@ const btnLocked_1 = [
 const btnLocked_2 = [
    'Create New Drawing Revision',
    'Date Automation',
+   'Duplicate Drawings',
    'Insert Drawings Below',
    'Insert Drawings Above',
    'Move Drawing',

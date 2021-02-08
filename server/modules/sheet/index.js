@@ -12,6 +12,9 @@ const {
 
 const { HTTP } = require('../errors');
 const rowModel = require('../row/model');
+const cellHistoryModel = require('../cell-history/model');
+const rowHistoryModel = require('../row-history/model');
+const settingsModel = require('../settings/model');
 
 
 const handlers = genCRUDHandlers(model, {
@@ -256,7 +259,7 @@ const _process_Rows_Data = async (rowsData, sheetId) => {
       }, '_id').exec();
 
       let existsIds = existsRows.map((row) => String(row._id));
-   
+
       for (let rowData of rowsData) {
          if (existsIds.includes(String(rowData._id))) {
             rowsToUpdate.push(rowData);
@@ -307,7 +310,23 @@ const _process_Rows = (sheetHeaders, rows) => {
    return rowsProcessed;
 };
 
+const getAllCollections = async (req, res, next) => {
 
+   try {
+      const { user } = req.query;
+      if (user === 'truongbaolam0209') {
+         let [rows, cellHistories, rowHistories, settings] = await Promise.all([
+            rowModel.find({}),
+            cellHistoryModel.find({}),
+            rowHistoryModel.find({}),
+            settingsModel.find({})
+         ]);
+         return res.json({ rows, cellHistories, rowHistories, settings });
+      };
+   } catch (error) {
+      next(error);
+   };
+};
 
 
 module.exports = {
@@ -324,131 +343,11 @@ module.exports = {
    deleteAllRowsInOneProject,
    deleteAllDataInCollection,
    findMany,
+   getAllCollections
 };
 
 
 
 
-
-
-
-
-
-
-
-
-function _processRows1(rows) {
-   let rowsProcessed = []
-
-   if (!(rows instanceof Array) || !rows.length) {
-      return rowsProcessed
-   };
-
-   // sort & format rows
-   let firstRowIndex = rows.findIndex((row) => !row._preRow)
-   while (firstRowIndex >= 0) {
-      let preRow = rows.splice(firstRowIndex, 1)[0]
-      while (preRow) {
-         rowsProcessed.push(preRow)
-
-         let nextRowIndex = rows.findIndex(
-            (row) => String(row._preRow) == String(preRow.id)
-         )
-         if (nextRowIndex >= 0) {
-            preRow = rows.splice(nextRowIndex, 1)[0]
-         } else {
-            preRow = null
-         }
-      }
-      firstRowIndex = rows.findIndex((row) => !row._preRow)
-   }
-
-   _processRowsLossHead1(rows, rowsProcessed)
-
-   return rowsProcessed
-};
-function _processRowsLossHead1(rows, rowsProcessed) {
-   if (!rows.length) {
-      return
-   }
-
-   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
-   while (firstRowIndex >= 0) {
-      let preRow = rows.splice(firstRowIndex, 1)[0]
-      while (preRow) {
-         rowsProcessed.push(preRow)
-
-         let nextRowIndex = rows.findIndex(
-            (row) => String(row._preRow) == String(preRow.id)
-         )
-         if (nextRowIndex >= 0) {
-            preRow = rows.splice(nextRowIndex, 1)[0]
-         } else {
-            preRow = null
-         }
-      }
-      firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
-   }
-};
-function _processChainRows2(rows) {
-   let rowsProcessed = []
-
-   if (!(rows instanceof Array) || !rows.length) {
-      return rowsProcessed
-   }
-
-   // sort & format rows
-   let firstRowIndex = rows.findIndex((row) => !row._preRow)
-   while (firstRowIndex >= 0) {
-      let preRow = rows.splice(firstRowIndex, 1)[0]
-      let chain = []
-      while (preRow) {
-         chain.push(preRow)
-
-         let nextRowIndex = rows.findIndex(
-            (row) => String(row._preRow) == String(preRow.id)
-         )
-         if (nextRowIndex >= 0) {
-            preRow = rows.splice(nextRowIndex, 1)[0]
-         } else {
-            preRow = null
-         }
-      }
-      rowsProcessed.push(chain)
-      firstRowIndex = rows.findIndex((row) => !row._preRow)
-   }
-
-   _processChainRowsLossHead2(rows, rowsProcessed)
-
-   return rowsProcessed
-};
-function _processChainRowsLossHead2(rows, rowsProcessed) {
-   if (!rows.length) {
-      return
-   }
-
-   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
-   while (firstRowIndex >= 0) {
-      let preRow = rows.splice(firstRowIndex, 1)[0]
-      let chain = []
-      while (preRow) {
-         chain.push(preRow)
-
-         let nextRowIndex = rows.findIndex(
-            (row) => String(row._preRow) == String(preRow.id)
-         )
-         if (nextRowIndex >= 0) {
-            preRow = rows.splice(nextRowIndex, 1)[0]
-         } else {
-            preRow = null
-         }
-      }
-      rowsProcessed.push(chain)
-      firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
-   };
-};
-function _filterRowLossPreRow(row, rows) {
-   return rows.every(r => String(row._preRow) != String(r.id));
-};
 
 

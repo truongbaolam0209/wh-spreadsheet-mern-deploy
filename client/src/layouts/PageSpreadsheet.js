@@ -15,7 +15,7 @@ import CellIndex from './pageSpreadsheet/CellIndex';
 import IconTable from './pageSpreadsheet/IconTable';
 import InputSearch from './pageSpreadsheet/InputSearch';
 import PanelFunction from './pageSpreadsheet/PanelFunction';
-import PanelSetting from './pageSpreadsheet/PanelSetting';
+import PanelSetting, { updatePreRowParentRowToState } from './pageSpreadsheet/PanelSetting';
 
 
 
@@ -62,14 +62,10 @@ const PageSpreadsheet = (props) => {
 
 
    const getCurrentDOMCell = () => {
-      if (isTyping) {
-         isTyping = false;
-      } else {
-         isTyping = true;
-         setCellActive(currentDOMCell);
-      };
+      isTyping = true;
+      setCellActive(currentDOMCell);
    };
-   const setPosition = (e) => {
+   const setPosition = (e) => { // just set position => highlight cell, not active
       if (previousDOMCell) {
          previousDOMCell.cell.classList.remove('cell-current');
       };
@@ -84,7 +80,7 @@ const PageSpreadsheet = (props) => {
    }, []);
    const EventKeyDown = (e) => {
       if (e.key === 'ArrowUp') {
-         if (isTyping) return;
+         if (isTyping || !currentDOMCell) return;
          let cellTop = currentDOMCell.cell.parentElement.offsetTop;
          if (currentDOMCell.rowIndex === 0) return;
 
@@ -104,7 +100,7 @@ const PageSpreadsheet = (props) => {
          };
 
       } else if (e.key === 'ArrowRight') {
-         if (isTyping) return;
+         if (isTyping || !currentDOMCell) return;
 
          if (currentDOMCell.columnIndex < tableRef.current.leftTable.props.columns.length - 1) {
             currentDOMCell.cell.classList.remove('cell-current');
@@ -132,7 +128,7 @@ const PageSpreadsheet = (props) => {
 
       } else if (e.key === 'ArrowDown') {
 
-         if (isTyping) return;
+         if (isTyping || !currentDOMCell) return;
 
          if (currentDOMCell.rowIndex >= Object.keys(tableRef.current._depthMap).length - 1) return;
          let cellTop = currentDOMCell.cell.parentElement.offsetTop;
@@ -154,8 +150,7 @@ const PageSpreadsheet = (props) => {
             tableRef.current.scrollToTop(currentDOMCell.cell.parentElement.offsetTop - 520);
          };
       } else if (e.key === 'ArrowLeft') {
-
-         if (isTyping) return;
+         if (isTyping || !currentDOMCell) return;
 
          if (currentDOMCell.columnIndex > 1 &&
             currentDOMCell.columnIndex < tableRef.current.leftTable.props.columns.length
@@ -185,24 +180,30 @@ const PageSpreadsheet = (props) => {
          };
 
       } else if (e.key === 'Enter') {
-         if (isTyping) {
-            isTyping = false;
-         } else {
+         if (!currentDOMCell) return;
+         if (isTyping) isTyping = false;
+         else {
             isTyping = true;
             setCellActive(currentDOMCell);
          };
+      } else if (e.key === 'c' && e.ctrlKey) {
+         if (isTyping || !currentDOMCell) return;
+         copyTempData(currentDOMCell.cell.innerText);
+      } else {
+         if (isTyping || !currentDOMCell) return;
+         applyActionOnCell({ currentDOMCell, e });
       };
    };
 
 
 
 
-   const { state: stateCell, setCellActive, OverwriteCellsModified } = useContext(CellContext);
+   const { state: stateCell, setCellActive, OverwriteCellsModified, copyTempData, pasteTempData, applyActionOnCell } = useContext(CellContext);
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
-   // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
-   // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
+   useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
+   useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
 
@@ -224,23 +225,18 @@ const PageSpreadsheet = (props) => {
          const rowBelowPrevious = rowsAll.find(r => r._preRow === stateRow.rowsToMoveId);
          if (rowBelowPrevious) {
             rowBelowPrevious._preRow = rowToMove._preRow;
-            rowsUpdatePreRowOrParentRow[rowBelowPrevious.id] = {
-               _preRow: rowBelowPrevious._preRow, _parentRow: rowBelowPrevious._parentRow, id: rowBelowPrevious.id
-            };
+            updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelowPrevious);
          };
          const rowBelowNext = rowsAll.find(r => r._preRow === panelType.cellProps.rowData.id);
          if (rowBelowNext) {
             rowBelowNext._preRow = stateRow.rowsToMoveId;
-            rowsUpdatePreRowOrParentRow[rowBelowNext.id] = {
-               _preRow: rowBelowNext._preRow, _parentRow: rowBelowNext._parentRow, id: rowBelowNext.id
-            };
+            updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelowNext);
          };
 
          rowToMove._preRow = panelType.cellProps.rowData.id;
          rowToMove._parentRow = panelType.cellProps.rowData._parentRow;
-         rowsUpdatePreRowOrParentRow[rowToMove.id] = {
-            _preRow: rowToMove._preRow, _parentRow: rowToMove._parentRow, id: rowToMove.id
-         };
+         updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowToMove);
+
          getSheetRows({
             ...stateRow,
             rowsAll: reorderRowsFnc(rowsAll),
@@ -250,15 +246,21 @@ const PageSpreadsheet = (props) => {
          });
       } else {
          getSheetRows({ ...stateRow, rowsToMoveId: null });
+         setCellActive(null);
+         copyTempData(null);
+         applyActionOnCell(null);
 
          setPanelSettingType(btn);
          setPanelSettingVisible(true);
       };
+      setCellActive(null);
+      if (currentDOMCell) currentDOMCell.cell.classList.remove('cell-current');
+      currentDOMCell = null;
    };
    const onMouseDownColumnHeader = (e, header) => {
-      setCursor({ x: e.clientX, y: e.clientY });
-      setPanelType({ type: 'column', header });
-      setPanelFunctionVisible(true);
+      // setCursor({ x: e.clientX, y: e.clientY });
+      // setPanelType({ type: 'column', header });
+      // setPanelFunctionVisible(true);
    };
    const onRightClickCell = (e, cellProps) => {
       setCursor({ x: e.clientX, y: e.clientY });
@@ -296,7 +298,7 @@ const PageSpreadsheet = (props) => {
             nosColumnFixed: update.data.nosColumnFixed,
          });
 
-      } else if (update.type === 'insert-drawings' || update.type === 'insert-drawings-by-folder') {
+      } else if (update.type === 'insert-drawings' || update.type === 'insert-drawings-by-folder' || update.type === 'duplicate-drawings') {
          getSheetRows({
             ...stateRow,
             rowsAll: update.data.rowsAll,
@@ -427,7 +429,6 @@ const PageSpreadsheet = (props) => {
    const [loading, setLoading] = useState(true);
    useEffect(() => {
       const fetchOneProject = async () => {
-
          try {
             setLoading(true);
             const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
@@ -438,12 +439,9 @@ const PageSpreadsheet = (props) => {
             //    'https://bim.wohhup.com/api/smartsheet/get-sheets-dashboard',
             //    { listSheetId: [4758181617395588, 8919906142971780] }
             // );
-            // console.log('MONGO ...', resultSmartsheet.data);
             // const rowsAllSmartSheet = getDataConvertedSmartsheet(resultSmartsheet.data);
             // const dataToSave = getCurrentAndHistoryDrawings(rowsAllSmartSheet, res.data.publicSettings.headers);
             // setstate(dataToSave);
-
-
 
 
             fetchDataOneSheet({
@@ -465,11 +463,9 @@ const PageSpreadsheet = (props) => {
 
    useEffect(() => {
       const interval = setInterval(() => {
-
          setPanelFunctionVisible(false);
          setPanelSettingType('save-ICON');
          setPanelSettingVisible(true);
-
       }, 1000 * 60 * 20);
       return () => clearInterval(interval);
    }, []);
@@ -528,11 +524,8 @@ const PageSpreadsheet = (props) => {
          return 'row-drawing-type';
       };
 
-      if (colorization !== null &&
-         colorization.header !== 'No Colorization' &&
-         valueArr &&
-         valueArr.length > 0 &&
-         valueArr.indexOf(value) !== -1
+      if (colorization !== null && colorization.header !== 'No Colorization' &&
+         valueArr && valueArr.length > 0 && valueArr.indexOf(value) !== -1
       ) {
          if (rowData[colorization.header]) {
             return `colorization-${colorization.header.replace(/\s/g, '').replace(/,/g, '')}-${rowData[colorization.header].replace(/\s/g, '').replace(/,/g, '')}-styled`;
@@ -547,10 +540,6 @@ const PageSpreadsheet = (props) => {
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
    }, 500);
-   const closeSearchInput = () => {
-      setSearchInputShown(false);
-      setCellSearchFound(null);
-   };
 
 
    const renderColumns = (arr, nosColumnFixed) => {
@@ -608,9 +597,9 @@ const PageSpreadsheet = (props) => {
             <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
             <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
 
-            {searchInputShown ? (
-               <InputSearch searchGlobal={searchGlobal} closeSearchInput={closeSearchInput} />
-            ) : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
+            {searchInputShown 
+               ? <InputSearch searchGlobal={searchGlobal} />
+               : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
             <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON')} />
             <DividerRibbon />
@@ -624,19 +613,19 @@ const PageSpreadsheet = (props) => {
             <DividerRibbon />
             {isAdmin && (
                <div style={{ display: 'flex' }}>
-                  <IconTable type='fullscreen-exit' onClick={() => adminFncServerInit('upload-sumang')} />
+                  {/* <IconTable type='fullscreen-exit' onClick={() => adminFncServerInit('upload-sumang')} />
                   <IconTable type='fall' onClick={() => adminFncServerInit('upload-handy')} />
                   <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-rows')} />
-                  <IconTable type='stock' onClick={() => adminFncServerInit('delete-all-collections')} />
+                  <IconTable type='stock' onClick={() => adminFncServerInit('delete-all-collections')} /> */}
                   {/* <IconTable type='stock' onClick={() => history.push('/sheet')} />
                   <IconTable type='stock' onClick={() => history.push('/dashboard')} /> */}
                </div>
             )}
 
-            <div style={{ position: 'absolute', top: 3, right: 30, fontSize: 25, color: 'white' }}>{projectName}</div>
+            <div style={{ position: 'absolute', top: 3, right: 30, fontSize: 25, color: colorType.primary }}>{projectName}</div>
          </ButtonBox>
 
-         
+
 
 
          {!loading ? (
@@ -745,7 +734,7 @@ const DividerRibbon = () => {
 };
 
 const PageSpreadsheetStyled = styled.div`
-    padding-top: ${dimension.navBarHeight};
+    /* padding-top: ${dimension.navBarHeight}; */
 `;
 
 

@@ -18,7 +18,8 @@ const SHEET_PUBLIC_FIELDS_MAP = {
    colSettings: Object,
    cellSettings: Object,
    rowSettings: Object,
-   cellEditRestriction: Object
+   cellEditRestriction: Object,
+   projectName: String,
 };
 const SHEET_PUBLIC_FIELDS = Object.keys(SHEET_PUBLIC_FIELDS_MAP);
 
@@ -181,6 +182,7 @@ const SHEET_USER_FIELDS_MAP = {
    headersHidden: Array,
    nosColumnFixed: Number,
    colorization: Object,
+   role: String
 };
 
 const SHEET_USER_FIELDS = Object.keys(SHEET_USER_FIELDS_MAP);

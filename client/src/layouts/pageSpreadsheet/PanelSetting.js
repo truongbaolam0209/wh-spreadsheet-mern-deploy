@@ -92,19 +92,61 @@ const PanelSetting = (props) => {
       };
 
       if (rowBelow) {
-         rowsUpdatePreRowOrParentRow[rowBelow.id] = {
-            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow, id: rowBelow.id
-         };
+         updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelow);
       };
-      newRows.forEach(r => {
-         rowsUpdatePreRowOrParentRow[r.id] = {
-            _preRow: r._preRow, _parentRow: r._parentRow, id: r.id
-         };
+      newRows.forEach(row => {
+         updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
       });
       rowsAll = [...rowsAll, ...newRows];
 
       commandAction({
          type: 'insert-drawings',
+         data: {
+            rowsAll: reorderRowsFnc(rowsAll),
+            rowsUpdatePreRowOrParentRow,
+            idRowsNew
+         }
+      });
+   };
+
+   const onClickDuplicateRows = (nosOfRows) => {
+      let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
+
+      const { headers } = stateProject.allDataOneSheet.publicSettings;
+
+      let idsArr = genId(nosOfRows);
+      idRowsNew = [...idRowsNew, ...idsArr];
+
+      const rowAbove = panelType.cellProps.rowData;
+
+      const newRows = idsArr.map((id, i) => ({
+         ...rowAbove,
+         id,
+         _rowLevel: 1,
+         _parentRow: rowAbove._parentRow,
+         _preRow: i === 0 ? rowAbove.id : idsArr[i - 1]
+      }));
+
+      const rowBelow = rowsAll.find(r => r._preRow === rowAbove.id);
+      if (rowBelow) {
+         rowBelow._preRow = idsArr[idsArr.length - 1];
+         updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelow);
+      };
+
+      let cellsModifiedTempObj = {};
+      newRows.forEach(row => {
+         headers.forEach(hd => {
+            if (row[hd.text]) {
+               cellsModifiedTempObj[`${row.id}-${hd.text}`] = row[hd.text];
+            };
+         });
+         updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
+      });
+      OverwriteCellsModified({ ...stateCell.cellsModifiedTemp, ...cellsModifiedTempObj });
+      rowsAll = [...rowsAll, ...newRows];
+
+      commandAction({
+         type: 'duplicate-drawings',
          data: {
             rowsAll: reorderRowsFnc(rowsAll),
             rowsUpdatePreRowOrParentRow,
@@ -125,17 +167,13 @@ const PanelSetting = (props) => {
             _preRow: i === 0 ? null : idsArr[i - 1]
          });
       });
-      newRows.forEach(r => {
-         rowsUpdatePreRowOrParentRow[r.id] = {
-            _preRow: r._preRow, _parentRow: r._parentRow, id: r.id
-         };
+      newRows.forEach(row => {
+         updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
       });
       let rowBelow = rowsAll.find(r => r._parentRow === panelType.cellProps.rowData.id && r._preRow === null);
       if (rowBelow) {
          rowBelow._preRow = idsArr[idsArr.length - 1];
-         rowsUpdatePreRowOrParentRow[rowBelow.id] = {
-            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow, id: rowBelow.id
-         };
+         updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelow);
       };
       rowsAll = [...rowsAll, ...newRows];
       commandAction({
@@ -201,9 +239,7 @@ const PanelSetting = (props) => {
       let rowBelow = rowsAll.find(r => r._preRow === rowId);
       if (rowBelow) {
          rowBelow._preRow = panelType.cellProps.rowData._preRow;
-         rowsUpdatePreRowOrParentRow[rowBelow.id] = {
-            _preRow: rowBelow._preRow, _parentRow: rowBelow._parentRow, id: rowBelow.id
-         };
+         updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelow);
       };
 
       if (rowId in rowsUpdatePreRowOrParentRow) delete rowsUpdatePreRowOrParentRow[rowId];
@@ -267,9 +303,7 @@ const PanelSetting = (props) => {
             });
          });
          newRows.forEach(r => {
-            rowsUpdatePreRowOrParentRow[r.id] = {
-               _preRow: r._preRow, _parentRow: r._parentRow, id: r.id
-            };
+            updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, r);
          });
          rowsAll = [...rowsAll, ...newRows];
       });
@@ -288,7 +322,7 @@ const PanelSetting = (props) => {
 
    const saveDataToServer = async () => {
 
-      const { email, projectId, token, role } = stateProject.allDataOneSheet;
+      const { email, projectId, token, role, projectName } = stateProject.allDataOneSheet;
       const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
       const { headers } = stateProject.allDataOneSheet.publicSettings;
       let { cellsModifiedTemp } = stateCell;
@@ -302,14 +336,13 @@ const PanelSetting = (props) => {
 
       try {
          setLoading(true);
-         commandAction({ type: 'confirm-save-data' });
+         commandAction({ type: '' });
 
-         
 
          const resDB = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
          const resCellsHistory = await Axios.get(`${SERVER_URL}/cell/history/`, { params: { token, projectId } });
 
-         
+
          let { publicSettings: publicSettingsFromDB, rows: rowsFromDBInit } = resDB.data;
          let { drawingTypeTree: drawingTypeTreeFromDB, activityRecorded: activityRecordedFromDB } = publicSettingsFromDB;
 
@@ -390,20 +423,25 @@ const PanelSetting = (props) => {
                rowDeletedFinal.push(row);
             };
          });
-         
+
 
          // SAVE CELL HISTORY
-         console.log('cellsModifiedTemp', cellsModifiedTemp);
          if (Object.keys(cellsModifiedTemp).length > 0) {
             let objCellHistory = {};
+
             resCellsHistory.data.map(cell => {
                const headerText = headers.find(hd => hd.key === cell.headerKey).text;
-               let latestHistoryText = cell.histories[cell.histories.length - 1].text;
-               objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
+               if (cell.histories.length > 0) {
+                  const latestHistoryText = cell.histories[cell.histories.length - 1].text;
+                  objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
+               };
             });
 
             Object.keys(cellsModifiedTemp).forEach(key => {
-               if (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) {
+               if (
+                  (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) ||
+                  (cellsModifiedTemp[key] === '' && objCellHistory[key] === '')
+               ) {
                   delete cellsModifiedTemp[key];
                } else {
                   let rowId = key.slice(0, 24);
@@ -412,12 +450,10 @@ const PanelSetting = (props) => {
                   };
                };
             });
-
             await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject) });
          };
 
          // SAVE DRAWINGS NEW VERSION
-         console.log('rowsVersionsToSave', rowsVersionsToSave);
          rowsVersionsToSave = rowsVersionsToSave.filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing'));
          if (rowsVersionsToSave.length > 0) {
             await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: convertDrawingVersionToHistory(rowsVersionsToSave, stateProject) });
@@ -480,24 +516,22 @@ const PanelSetting = (props) => {
          });
          const publicSettingsUpdated = {
             drawingTypeTree,
+            projectName,
             activityRecorded: [...activityRecordedFromDB, ...activityRecordedArr]
          };
-         console.log('publicSettingsUpdated', publicSettingsUpdated);
          await Axios.post(`${SERVER_URL}/sheet/update-setting-public/`, { token, projectId, email, publicSettings: publicSettingsUpdated });
-         
+
          const userSettingsUpdated = {
             headersShown: headersShown.map(hd => headers.find(h => h.text === hd).key),
             headersHidden: headersHidden.map(hd => headers.find(h => h.text === hd).key),
-            nosColumnFixed, colorization,
+            nosColumnFixed, colorization, role
          };
-         console.log('userSettingsUpdated', userSettingsUpdated);
          await Axios.post(`${SERVER_URL}/sheet/update-setting-user/`, { token, projectId, email, userSettings: userSettingsUpdated });
 
 
          // ROWS FROM DB BEFORE SAVE ...
          rowsFromDB = rowsFromDB.filter(r => !rowDeletedFinal.find(x => x.id === r.id));
          // DELTE MOVE TO HERE...
-         console.log('rowDeletedFinal', rowDeletedFinal);
          if (rowDeletedFinal.length > 0) {
             await Axios.post(`${SERVER_URL}/sheet/delete-rows/`, { token, projectId, email, rowIdsArray: rowDeletedFinal.map(r => r.id) });
          };
@@ -521,7 +555,6 @@ const PanelSetting = (props) => {
             });
             return row;
          });
-         console.log('rowsFromDBFinalToSave', rowsFromDBFinalToSave);
          if (role !== 'manager' || role !== 'viewer') {
             await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsFromDBFinalToSave });
          };
@@ -585,6 +618,13 @@ const PanelSetting = (props) => {
             <PanelPickNumber
                onClickCancelModal={onClickCancelModal}
                onClickApply={onClickInsertRow}
+            />
+         )}
+
+         {panelSettingType === 'Duplicate Drawings' && (
+            <PanelPickNumber
+               onClickCancelModal={onClickCancelModal}
+               onClickApply={onClickDuplicateRows}
             />
          )}
 
@@ -676,115 +716,106 @@ const PanelPickNumber = ({ onClickCancelModal, onClickApply }) => {
 
 
 function _processRows1(rows) {
-   let rowsProcessed = []
-
-   if (!(rows instanceof Array) || !rows.length) {
-      return rowsProcessed
-   };
+   let rowsProcessed = [];
+   if (!(rows instanceof Array) || !rows.length) return rowsProcessed;
 
    // sort & format rows
-   let firstRowIndex = rows.findIndex((row) => !row._preRow)
+   let firstRowIndex = rows.findIndex((row) => !row._preRow);
    while (firstRowIndex >= 0) {
-      let preRow = rows.splice(firstRowIndex, 1)[0]
+      let preRow = rows.splice(firstRowIndex, 1)[0];
       while (preRow) {
-         rowsProcessed.push(preRow)
+         rowsProcessed.push(preRow);
 
-         let nextRowIndex = rows.findIndex(
-            (row) => String(row._preRow) == String(preRow.id)
-         )
+         let nextRowIndex = rows.findIndex(row => String(row._preRow) == String(preRow.id));
          if (nextRowIndex >= 0) {
-            preRow = rows.splice(nextRowIndex, 1)[0]
+            preRow = rows.splice(nextRowIndex, 1)[0];
          } else {
-            preRow = null
-         }
-      }
-      firstRowIndex = rows.findIndex((row) => !row._preRow)
-   }
+            preRow = null;
+         };
+      };
+      firstRowIndex = rows.findIndex((row) => !row._preRow);
+   };
+   _processRowsLossHead1(rows, rowsProcessed);
 
-   _processRowsLossHead1(rows, rowsProcessed)
-
-   return rowsProcessed
+   return rowsProcessed;
 };
 function _processRowsLossHead1(rows, rowsProcessed) {
-   if (!rows.length) {
-      return
-   }
+   if (!rows.length) return;
 
-   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
+   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows));
    while (firstRowIndex >= 0) {
-      let preRow = rows.splice(firstRowIndex, 1)[0]
+      let preRow = rows.splice(firstRowIndex, 1)[0];
       while (preRow) {
-         rowsProcessed.push(preRow)
+         rowsProcessed.push(preRow);
 
-         let nextRowIndex = rows.findIndex(
-            (row) => String(row._preRow) == String(preRow.id)
-         )
+         let nextRowIndex = rows.findIndex(row => String(row._preRow) == String(preRow.id));
          if (nextRowIndex >= 0) {
-            preRow = rows.splice(nextRowIndex, 1)[0]
+            preRow = rows.splice(nextRowIndex, 1)[0];
          } else {
-            preRow = null
-         }
-      }
-      firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
-   }
+            preRow = null;
+         };
+      };
+      firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows));
+   };
 };
 function _processChainRows2(rows) {
-   let rowsProcessed = []
+   let rowsProcessed = [];
 
-   if (!(rows instanceof Array) || !rows.length) {
-      return rowsProcessed
-   }
+   if (!(rows instanceof Array) || !rows.length) return rowsProcessed;
+
 
    // sort & format rows
-   let firstRowIndex = rows.findIndex((row) => !row._preRow)
+   let firstRowIndex = rows.findIndex((row) => !row._preRow);
    while (firstRowIndex >= 0) {
-      let preRow = rows.splice(firstRowIndex, 1)[0]
-      let chain = []
+      let preRow = rows.splice(firstRowIndex, 1)[0];
+      let chain = [];
       while (preRow) {
-         chain.push(preRow)
+         chain.push(preRow);
 
-         let nextRowIndex = rows.findIndex(
-            (row) => String(row._preRow) == String(preRow.id)
-         )
+         let nextRowIndex = rows.findIndex(row => String(row._preRow) == String(preRow.id));
          if (nextRowIndex >= 0) {
-            preRow = rows.splice(nextRowIndex, 1)[0]
+            preRow = rows.splice(nextRowIndex, 1)[0];
          } else {
-            preRow = null
-         }
-      }
-      rowsProcessed.push(chain)
-      firstRowIndex = rows.findIndex((row) => !row._preRow)
-   }
+            preRow = null;
+         };
+      };
+      rowsProcessed.push(chain);
+      firstRowIndex = rows.findIndex((row) => !row._preRow);
+   };
 
-   _processChainRowsLossHead2(rows, rowsProcessed)
+   _processChainRowsLossHead2(rows, rowsProcessed);
 
-   return rowsProcessed
+   return rowsProcessed;
 };
 function _processChainRowsLossHead2(rows, rowsProcessed) {
-   if (!rows.length) {
-      return
-   }
+   if (!rows.length) return;
 
-   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
+   let firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows));
    while (firstRowIndex >= 0) {
-      let preRow = rows.splice(firstRowIndex, 1)[0]
-      let chain = []
+      let preRow = rows.splice(firstRowIndex, 1)[0];
+      let chain = [];
       while (preRow) {
-         chain.push(preRow)
+         chain.push(preRow);
 
-         let nextRowIndex = rows.findIndex(
-            (row) => String(row._preRow) == String(preRow.id)
-         )
+         let nextRowIndex = rows.findIndex(row => String(row._preRow) == String(preRow.id));
+
          if (nextRowIndex >= 0) {
-            preRow = rows.splice(nextRowIndex, 1)[0]
+            preRow = rows.splice(nextRowIndex, 1)[0];
          } else {
-            preRow = null
-         }
-      }
-      rowsProcessed.push(chain)
-      firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows))
+            preRow = null;
+         };
+      };
+      rowsProcessed.push(chain);
+      firstRowIndex = rows.findIndex((r) => _filterRowLossPreRow(r, rows));
    };
 };
 function _filterRowLossPreRow(row, rows) {
    return rows.every(r => String(row._preRow) != String(r.id));
+};
+export const updatePreRowParentRowToState = (objState, row) => {
+   objState[row.id] = {
+      id: row.id,
+      _preRow: row._preRow,
+      _parentRow: row._parentRow,
+   };
 };

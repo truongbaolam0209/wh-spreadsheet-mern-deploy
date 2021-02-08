@@ -525,7 +525,7 @@ export const getActionName = (type) => {
     if (type === 'Delete Drawing') return 'Delete Drawing';
     // if (type === 'history-ICON') return 'Activity History';
     if (type === 'colorized-ICON') return 'Drawing Colorization';
-    if (type && type.includes('Insert Drawings')) return 'Nos Of Drawings';
+    if (type && (type.includes('Insert Drawings') || type === 'Duplicate Drawings')) return 'Nos Of Drawings';
 
     else return '';
 };

@@ -6,7 +6,7 @@ import { colorType } from '../../constants';
 import { Context as RowContext } from '../../contexts/rowContext';
 
 
-const InputSearch = ({ searchGlobal, closeSearchInput }) => {
+const InputSearch = ({ searchGlobal }) => {
 
    const { state: stateRow, getSheetRows } = useContext(RowContext);
 
@@ -98,15 +98,7 @@ const InputSearch = ({ searchGlobal, closeSearchInput }) => {
                   </Tooltip>
                )}
 
-            <Tooltip title='Quit Search'>
-               <IconStyled
-                  type='close-circle'
-                  onClick={closeSearchInput}
-               />
-            </Tooltip>
-
          </div>
-
       </InputStyled>
    );
 };
