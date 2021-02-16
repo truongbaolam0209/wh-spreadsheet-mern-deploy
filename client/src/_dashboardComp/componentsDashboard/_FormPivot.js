@@ -1,17 +1,22 @@
 import { Button, Divider, Modal, Select } from 'antd';
 import React, { useState } from 'react';
 import { colorType } from '../assets/constantDashboard';
-import { createDummyRecords } from '../utils/functionDashboard';
 import ChartBarRecordPanel from './ChartBarRecordPanel';
 
 
 
-const _FormPivot = ({ projectName, data, openDrawingTable }) => {
+const _FormPivot = ({ projectName, data, openDrawingTable, dataRecordedDummy }) => {
 
     const { headers, rowsAll } = data;
 
     const [columnsHeaderSorted, setColumnsHeaderSorted] = useState(null);
-    const [titleLeft, setTitleLeft] = useState(headers);
+
+
+    const [titleLeft, setTitleLeft] = useState(headers.filter(x => {
+        return !x.includes('(A)') && !x.includes('(T)') && x !== 'Model Progress' && x !== 'Drawing Progress';
+    }));
+
+
     const [value, setValue] = useState('Select an option...');
     const [chartRecord, setChartRecord] = useState(false);
     const [modalConfirm, setModalConfirm] = useState(false);
@@ -66,7 +71,6 @@ const _FormPivot = ({ projectName, data, openDrawingTable }) => {
 
 
     return (
-
         <div style={{ marginTop: '10px', padding: '20px' }}>
             {columnsHeaderSorted && columnsHeaderSorted.map(cl => (
                 <div key={cl} style={{ display: 'flex', width: '100%', margin: '10px auto', padding: 5, border: `1px solid ${colorType.grey1}`, borderRadius: 3 }}>
@@ -129,7 +133,7 @@ const _FormPivot = ({ projectName, data, openDrawingTable }) => {
                 bodyStyle={{ padding: 15 }}
             >
                 <ChartBarRecordPanel
-                    data={createDummyRecords()}
+                    data={dataRecordedDummy}
                 />
             </Modal>
 

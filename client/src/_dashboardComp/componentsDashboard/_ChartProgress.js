@@ -13,13 +13,9 @@ const _ChartProgress = ({ data, projectName, openDrawingTable }) => {
     const drawingsLateApproval = getDrawingLateNow1(rowsAll, 'Get Approval');
 
 
-    const lateForConstruction = projectName === 'Handy' ? 6 : projectName === 'Sumang' ? 15 : null;
+    const lateForConstruction = projectName === 'Handy' ? 8 : projectName === 'Sumang' ? 13 : null;
 
     const dataInput = [
-        {
-            name: `Late for construction ${lateForConstruction || 0}/${rowsAll.length}`,
-            value: lateForConstruction
-        },
         {
             name: `Overdue date of submission ${drawingsLateSubmission.length || 0}/${rowsAll.length}`,
             value: drawingsLateSubmission.length
@@ -27,6 +23,10 @@ const _ChartProgress = ({ data, projectName, openDrawingTable }) => {
         {
             name: `Overdue date of approval ${drawingsLateApproval.length || 0}/${rowsAll.length}`,
             value: drawingsLateApproval.length
+        },
+        {
+            name: `Late for construction ${lateForConstruction || 0}/${rowsAll.length}`,
+            value: lateForConstruction
         }
     ];
 

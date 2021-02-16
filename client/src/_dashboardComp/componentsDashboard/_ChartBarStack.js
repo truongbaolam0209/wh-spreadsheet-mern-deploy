@@ -23,7 +23,6 @@ const getInputData = (data) => {
 
 const _ChartBarStack = ({ data, title }) => {
 
-
     let inputData = title === 'Drawing Status' ? getInputData(data).inputData :
         title === 'Productivity - (days per drawing)' ? data && data.inputData : null;
 
@@ -31,27 +30,30 @@ const _ChartBarStack = ({ data, title }) => {
         title === 'Productivity - (days per drawing)' ? data && data.inputStack : null;
 
 
-
-
     const LabelCustomStacked = (props) => {
-        const { x, y, value, height } = props;
+
+        const { x, y, value, height, title } = props;
         const fontSize = 13;
         return (
             <text
-                style={{ fontSize: fontSize, boxShadow: '5px 15px 24px 5px black' }}
-                x={x + 32}
-                y={y + height / 2}
+                style={{ 
+                    fontSize, 
+                    boxShadow: '5px 15px 24px 5px black',
+                    fontWeight: title === 'Drawing Status' ? 'normal' : 'bold'
+                }}
+                x={title === 'Drawing Status' ? (x + 32) : x + 4}
+                y={title === 'Drawing Status' ? (y + height / 2) : (y - 8)}
                 fill='#2c3e50'
                 dominantBaseline='central'
             >
-                {height + 3 < fontSize ? null : value}
+                {title === 'Drawing Status' ? (height + 3 < fontSize ? null : value) : value}
             </text>
         );
     };
 
     const LabelCustomStackedTotal = (props) => {
-        const { x, y, value, topBar } = props;
-
+        const { x, y, value, topBar, title } = props;
+ 
         return (
             <text
                 style={{ fontSize: 16, fontWeight: 'bold' }}
@@ -60,7 +62,7 @@ const _ChartBarStack = ({ data, title }) => {
                 fill='black'
                 dominantBaseline='central'
             >
-                {topBar ? value : null}
+                {title !== 'Drawing Status' ? null : (topBar ? value : null)}
             </text>
         );
     };
@@ -110,7 +112,7 @@ const _ChartBarStack = ({ data, title }) => {
                         height={chartHeight}
                         margin={{ top: 35, right: 20, left: 15, bottom: 30 }}
                         padding={{ top: 10 }}
-                        barSize={30}
+                        barSize={title === 'Drawing Status' ? 30 : 20}
                     >
                         <CartesianGrid strokeDasharray='3 3' />
                         <XAxis tickSize={3} dataKey='name' textAnchor='end' angle={-20} interval={0} scale='point' padding={{ left: 50, right: 50 }} />
@@ -122,13 +124,13 @@ const _ChartBarStack = ({ data, title }) => {
                             <Bar
                                 key={item}
                                 dataKey={item}
-                                stackId='a'
+                                stackId={title === 'Drawing Status' ? 'a' : null}
                                 fill={pieChartColors2[item]}
                                 isAnimationActive={false}
                                 onMouseOver={() => setTooltip(item)}
-                                label={<LabelCustomStackedTotal topBar={i === inputStack.length - 1} />}
+                                label={<LabelCustomStackedTotal topBar={i === inputStack.length - 1} title={title} />}
                             >
-                                <LabelList dataKey={item} position='left' content={<LabelCustomStacked item={item} />} />
+                                <LabelList dataKey={item} position='left' content={<LabelCustomStacked item={item} title={title} />} />
                             </Bar>
                         )})}
 

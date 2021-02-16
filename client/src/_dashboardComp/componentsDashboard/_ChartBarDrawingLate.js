@@ -22,7 +22,6 @@ const drawingLateInputChart = (data) => {
 
 const _ChartBarDrawingLate = ({ data, title }) => {
 
-
     const inputData = title === 'No Of Drawing Late Construction' ? data
         : title === 'No Of Drawing Late Approval' ? drawingLateInputChart(data) : null;
 
@@ -78,7 +77,8 @@ const _ChartBarDrawingLate = ({ data, title }) => {
                     </BarChart>
                    
                         <div style={{ paddingLeft: 20, height: window.innerWidth >= sizeType.xl && (totalHeight - chartHeight) }}>
-                            {title !== 'No Of Drawing Late Construction' && inputData.map(item => (
+                            {/* {title !== 'No Of Drawing Late Construction' && inputData.map(item => ( */}
+                            {inputData.map(item => (
                                 <div key={item.name} style={{ display: 'flex' }}>
                                     <StyledBadge
                                         size='small'

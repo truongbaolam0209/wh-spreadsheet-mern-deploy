@@ -10,6 +10,7 @@ import _ChartPieDrawing from './componentsDashboard/_ChartPieDrawing';
 import _ChartProgress from './componentsDashboard/_ChartProgress';
 import _FormPivot from './componentsDashboard/_FormPivot';
 import _TableDrawingList from './componentsDashboard/_TableDrawingList';
+import { createDummyRecords } from './utils/functionDashboard';
 
 
 
@@ -17,7 +18,6 @@ import _TableDrawingList from './componentsDashboard/_TableDrawingList';
 const convertDataFromDB = (data, projectsArray) => {
     
     let output = {};
-
     data.forEach(projectData => {
         const { publicSettings: { headers }, rows, _id } = projectData;
         if (rows.length <= 20) return;
@@ -174,6 +174,7 @@ const PageDashboard = ({ projectsArray, token }) => {
                                         data={dataDB[projectName]}
                                         openDrawingTable={_openDrawingTable}
                                         projectName={projectName}
+                                        dataRecordedDummy={createDummyRecords()}
                                     />
                                 </ChartPanel>
 
@@ -258,20 +259,20 @@ const dummyData = {
                 // 'Create update drawing': 3,
                 // 'Create update model': 7,
                 // 'name': 'Sumang',
-                'Consultant review and reply': 0,
-                'Create update drawing': 0,
-                'Create update model': 0,
-                'name': '..'
+                'Consultant review and reply': 4,
+                'Create update drawing': 3,
+                'Create update model': 7,
+                'name': 'Sumang'
             },
             {
                 // 'Consultant review and reply': 5,
                 // 'Create update drawing': 4,
                 // 'Create update model': 6,
                 // 'name': 'Handy',
-                'Consultant review and reply': 0,
-                'Create update drawing': 0,
-                'Create update model': 0,
-                'name': '.',
+                'Consultant review and reply': 5,
+                'Create update drawing': 4,
+                'Create update model': 6,
+                'name': 'Handy',
             }
         ],
         inputStack: ['Consultant review and reply', 'Create update drawing', 'Create update model']
@@ -279,7 +280,7 @@ const dummyData = {
     dummyLateConstruction: [
         // { name: 'Handy', value: 6 },
         // { name: 'Sumang', value: 15 },
-        { name: '.', value: 0 },
-        { name: '..', value: 0 },
+        { name: 'Handy', value: 8 },
+        { name: 'Sumang', value: 13 },
     ]
 };
