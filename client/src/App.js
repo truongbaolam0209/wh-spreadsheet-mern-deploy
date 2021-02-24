@@ -21,14 +21,26 @@ const App = () => {
                   <RowProvider>
                      <CellProvider>
                         <PageSpreadsheet
-                           email='truongbaolam@gmail.com'
-                           // projectId='KKGwMzc6RGG5NDY1MS10FSUMANG'
-                           projectId='KKGwMzc6RGG5NDY1MS10FHANDY'
-                           projectName='HANDY'
-                           role='coordinator'
-                           token='XXXTTTYYYIIIKKKLLLFFF'
+
+                           email='admin@wohhup.com'
+
+                           // projectId='MTYxMDMzOTYwMjQyNS1TdW1hbmc'
+                           // projectName='Sumang'
+                           
+                           projectId='MTU5MTY3NDI0ODUyMy1IYW5keQ'
+                           projectName='Handy'
+                           
+                           token='xxx-xxxxx-xxx-x-xxxxx'
                            isAdmin={true}
-                           // modeller, coordinator, manager, viewer, production, document controller 
+
+                           role='Document Controller'
+                           companies={[
+                              'Woh Hup Private Ltd',
+                              'Jianho',
+                              'Ultracon'
+                           ]}
+                           company='Woh Hup Private Ltd'
+
                         />
                      </CellProvider>
                   </RowProvider>
@@ -39,8 +51,8 @@ const App = () => {
             <Route path='/dashboard'>
                <PageDashboard
                   projectsArray={[
-                     { name: 'Sumang', id: 'KKGwMzc6RGG5NDY1MS10FSUMANGGGG' },
-                     { name: 'Handy', id: 'KKGwMzc6RGG5NDY1MS10FHANDYFFF' },
+                     { name: 'Sumang', id: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc' },
+                     { name: 'Handy', id: 'MTU5MTY3NDI0ODUyMy1IYW5keQ' },
                      { name: 'Handytgtg', id: 'KFFFFFFFDY1MS10FHANDY' },
                      { name: 'rrrrrrrrtgtg', id: 'KFFfvfvfvHANDY' },
                   ]}

@@ -329,6 +329,29 @@ const getAllCollections = async (req, res, next) => {
 };
 
 
+
+
+const saveAllDataSettingsToServer = async (req, res, next) => {
+   try {
+      const { dataToSave } = req.body;
+      const data = await settingsModel.insertMany(dataToSave);
+      return res.json(data);
+   } catch (error) {
+      next(error);
+   };
+};
+const saveAllDataRowsToServer = async (req, res, next) => {
+   try {
+      const { dataToSave } = req.body;
+      const data = await rowModel.insertMany(dataToSave);
+      return res.json(data);
+   } catch (error) {
+      next(error);
+   };
+};
+
+
+
 module.exports = {
    schema,
    model,
@@ -343,7 +366,11 @@ module.exports = {
    deleteAllRowsInOneProject,
    deleteAllDataInCollection,
    findMany,
-   getAllCollections
+   getAllCollections,
+
+
+   saveAllDataSettingsToServer,
+   saveAllDataRowsToServer
 };
 
 

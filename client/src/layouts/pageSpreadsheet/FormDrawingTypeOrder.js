@@ -1,5 +1,6 @@
-import { Icon, Input, Modal } from 'antd';
-import React, { useContext, useEffect, useState } from 'react';
+import { Icon, Input, Modal, Tooltip } from 'antd';
+import React, { useContext, useState } from 'react';
+import { DraggableArea } from 'react-draggable-tags';
 import SortableTree from 'react-sortable-tree';
 import 'react-sortable-tree/style.css';
 import styled from 'styled-components';
@@ -7,146 +8,248 @@ import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { mongoObjectId } from '../../utils';
+import ButtonColumnTag from './ButtonColumnTag';
 import ButtonGroupComp from './ButtonGroupComp';
-
-
 
 
 
 const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
 
-   const { state: stateRow } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
+   const { state: stateRow } = useContext(RowContext);
 
-   const [input, setInput] = useState(addProjectLevel(stateRow.drawingTypeTree, stateProject.allDataOneSheet.projectName));
-   const [data, setData] = useState(arrangeDrawingType(input));
+   const { rowsAllInit } = stateRow;
 
-
-
-   useEffect(() => {
-      setData(arrangeDrawingType(input));
-   }, [input]);
-
-   const onClickApply = () => {
-      input.splice(0, 1); // remove projectName Row
-      applyFolderOrganize(input);
-   };
+   const { companies, projectName, roleTradeCompany } = stateProject.allDataOneSheet;
+   const { drawingTypeTree } = stateRow;
 
 
-   const addFolderBelow = (node) => {
-      let nodeIndex;
-      input.forEach((nd, i) => {
-         if (nd.id === node.id) nodeIndex = i;
-      });
+   const [input, setInput] = useState(addProjectHeaderToTree(drawingTypeTree, projectName));
 
-      let newNodeIndex;
-      for (let i = 0; i < input.length; i++) {
-         if (input[i]._rowLevel - 1 === node._rowLevel && i > nodeIndex) {
-            if (!newNodeIndex) newNodeIndex = i;
-         };
-      };
-      for (let i = 0; i < Math.abs(node._rowLevel); i++) {
-         input.splice(newNodeIndex + i, 0, {
-            id: mongoObjectId(),
-            'Drawing Number': 'NEW DRAWING TYPE...',
-            _rowLevel: node._rowLevel + i + 1,
-            expanded: true,
-         });
-      };
-      setInput([...input]);
-   };
-
-   const [modalShown, setModalShown] = useState(false);
+   const [tradeAndCompanyAndType, setTradeAndCompanyAndType] = useState(null);
    const [modalTitle, setModalTitle] = useState(null);
-   const [value, setValue] = useState(null);
-   const [item, setItem] = useState(null);
-
+   const [itemNode, setItemNode] = useState(null);
+   const [mergeList, setMergeList] = useState([]);
+   
+   const onClickApplyTradeOrCompany = ({ node, itemsAdded }) => {
+      itemsAdded.forEach(item => {
+         node.children.push({
+            title: item,
+            id: mongoObjectId(),
+            parentId: node.id,
+            treeLevel: node.treeLevel + 1,
+            expanded: true,
+            children: [],
+         });
+      });
+      setInput(addProjectHeaderToTree(flattenAllTreeChildNode1(input[0].children), projectName));
+      setTradeAndCompanyAndType(null);
+   };
+   const addFolderBelow = (node) => {
+      if (node.treeLevel === 0) {
+         setTradeAndCompanyAndType({ node, dataTreeArray: companies });
+      } else if (node.treeLevel === 1 && node.title === 'Woh Hup Private Ltd') {
+         setTradeAndCompanyAndType({ node, dataTreeArray: ['ARCHI', 'C&S', 'M&E', 'PRECAST'] });
+      } else if ((node.treeLevel >= 1 && node.title !== 'Woh Hup Private Ltd') || (node.treeLevel >= 2 && node.title === 'Woh Hup Private Ltd')) {
+         node.children.push({
+            title: 'New Drawing Type',
+            id: mongoObjectId(),
+            parentId: node.id,
+            treeLevel: node.treeLevel + 1,
+            expanded: true,
+            children: []
+         });
+         setInput(addProjectHeaderToTree(flattenAllTreeChildNode1(input[0].children), projectName));
+         setTradeAndCompanyAndType(null);
+      };
+   };
    const deleteFolder = (node) => {
-      setItem(node);
+      setItemNode(node);
       setModalTitle('Delete Drawing Type');
-      setModalShown(true);
    };
    const editFolderName = (node) => {
-      setValue(node.title);
-      setItem(node);
+      setItemNode(node);
       setModalTitle('Edit Drawing Type Name');
-      setModalShown(true);
    };
-   const onClickApplyModal = () => {
-
+   const mergeChildDrawings = (node) => {
+      setItemNode(node);
+      setModalTitle('Merge All Child Drawings');
+   };
+   const confirmAction = (modalTitle, text) => {
       if (modalTitle === 'Delete Drawing Type') {
+         let idsToDelete = flattenAllTreeChildNode1(itemNode.children).map(x => x.id);
+         idsToDelete.push(itemNode.id);
 
-         let removeArr = [...item.children || [], item];
-         const removeIdsArr = removeArr.map(e => e.id);
-         let arr = input.filter(e => removeIdsArr.indexOf(e.id) === -1);
-         setInput([...arr]);
+         let currentNodeFlatten = flattenAllTreeChildNode1(input[0].children);
+         let outputArray = currentNodeFlatten.filter(x => idsToDelete.indexOf(x.id) === -1);
 
-         setModalShown(false);
-         setModalTitle(null);
-         setValue(null);
-         setItem(null);
-      } else {
-         input.find(e => e.id === item.id)['Drawing Number'] = value;
-         setInput([...input]);
+         setInput(addProjectHeaderToTree(outputArray, projectName));
 
-         setModalShown(false);
-         setModalTitle(null);
-         setValue(null);
-         setItem(null);
+      } else if (modalTitle === 'Merge All Child Drawings') {
+         let idsToMerge = flattenAllTreeChildNode1(itemNode.children).map(x => x.id);
+         let mergeListUpdate = [...mergeList];
+         idsToMerge.forEach(id => {
+            if (mergeList.indexOf(id) !== -1) {
+               mergeListUpdate = mergeListUpdate.filter(x => x !== id);
+            };
+         });
+         // setMergeList({ ...mergeList, [itemNode.id]: idsToMerge });
+         setMergeList([ ...mergeListUpdate, itemNode.id ]);
+
+         let currentNodeFlatten = flattenAllTreeChildNode1(input[0].children);
+         let outputArray = currentNodeFlatten.filter(x => idsToMerge.indexOf(x.id) === -1);
+
+         setInput(addProjectHeaderToTree(outputArray, projectName));
+
+      } else if (modalTitle === 'Edit Drawing Type Name') {
+         itemNode.title = text;
+         setInput(addProjectHeaderToTree(flattenAllTreeChildNode1(input[0].children), projectName));
       };
+      setTradeAndCompanyAndType(null);
+      setModalTitle(null);
    };
 
-   const fileAdd = () => {
-      let projectLevel = input[0]._rowLevel;
-      input[0]._rowLevel = projectLevel - 1;
-      input.splice(1, 0, {
-         id: mongoObjectId(),
-         'Drawing Number': 'NEW DRAWING TYPE...',
-         _rowLevel: projectLevel,
-         expanded: true,
-      });
-      setInput([...input]);
-   };
-
-
-   const findChildData = (node) => {
-      let rowsChild = stateRow.rowsAll.filter(r => r._parentRow === node.id);
-      return {
-         parentName: node.title,
-         rowsChild: rowsChild
-      }
-   };
+   const isDocumentController = roleTradeCompany.role === 'Document Controller' && roleTradeCompany.company === 'Woh Hup Private Ltd';
+   const treeFlatten = flattenAllTreeChildNode1(input);
 
    return (
       <Container>
          <PanelStyled>
             <SortableTreeStyled
-               treeData={data}
-               onChange={treeData => {
-                  // setData(treeData);
+               treeData={input}
+               onChange={treeData => setInput(treeData)}
+               canDrag={({ node }) => {
+                  let companyNode;
+                  if (node.treeLevel >= 1) {
+                     const treeNode = treeFlatten.find(x => x.id === node.id);
+                     companyNode = getCompanyNameFnc(treeNode, treeFlatten);
+                  };
+                  let tradeNode;
+                  if (node.treeLevel >= 2) {
+                     const treeNode = treeFlatten.find(x => x.id === node.id);
+                     tradeNode = getTradeNameFnc(treeNode, treeFlatten);
+                  };
+
+                  if (node.treeLevel !== 0 && isDocumentController) return true;
+                  if (
+                     (node.treeLevel === 0) ||
+                     (node.treeLevel === 1 && !isDocumentController) ||
+                     (node.treeLevel >= 2 && companyNode !== roleTradeCompany.company) ||
+
+                     (roleTradeCompany.company === 'Woh Hup Private Ltd' && companyNode === roleTradeCompany.company && node.treeLevel === 2 && !isDocumentController) ||
+                     (roleTradeCompany.company === 'Woh Hup Private Ltd' && companyNode === roleTradeCompany.company && node.treeLevel >= 3 && tradeNode !== roleTradeCompany.trade && !isDocumentController) ||
+                     (roleTradeCompany.company === 'Woh Hup Private Ltd' && companyNode === roleTradeCompany.company && node.treeLevel >= 3 && roleTradeCompany.role !== 'Coordinator' && !isDocumentController)
+
+                  ) {
+                     return false;
+                  };
+
+                  return true;
                }}
                canDrop={(props) => {
-                  const { nextParent, node } = props;
-                  return nextParent && nextParent._rowLevel === node._rowLevel - 1;
+                  const { prevParent, nextParent, node } = props;
+                  
+                  let nodePrevParentInTree, nodeNextParentInTree;
+                  let companyNodePrevParent, companyNodeNextParent;
+
+                  if (prevParent && nextParent) {
+                     nodePrevParentInTree = treeFlatten.find(x => x.id === prevParent.id);
+                     nodeNextParentInTree = treeFlatten.find(x => x.id === nextParent.id);
+                  };
+
+                  if (nodePrevParentInTree && nodeNextParentInTree && 
+                     nodePrevParentInTree.treeLevel === nodeNextParentInTree.treeLevel && 
+                     nodePrevParentInTree.treeLevel >= 1
+                  ) {
+                     companyNodePrevParent = getCompanyNameFnc(nodePrevParentInTree, treeFlatten);
+                     companyNodeNextParent = getCompanyNameFnc(nodeNextParentInTree, treeFlatten);
+                  };
+
+                  if (node.treeLevel === 0 || !nextParent || !prevParent ||
+                     (nextParent && nextParent.treeLevel !== node.treeLevel - 1) ||
+                     (companyNodePrevParent !== companyNodeNextParent)
+                  ) {
+                     return false;
+                  };
+                  return true;
                }}
-               onMoveNode={({ prevTreeIndex, nextTreeIndex }) => {
-                  let item = input[prevTreeIndex];
-                  input.splice(prevTreeIndex, 1);
-                  input.splice(nextTreeIndex, 0, item);
-                  setInput([...input]);
+
+               onMoveNode={({ nextParentNode, node }) => {
+                  updateChildrenNode([node], nextParentNode.treeLevel + 1 - node.treeLevel);
                }}
+
                isVirtualized={false}
+
                generateNodeProps={(props) => {
-                  const { node, parentNode } = props;
+
+                  const { node } = props;
+                  const treeNode = treeFlatten.find(x => x.id === node.id);
+                  
+                  let companyNode;
+                  if (node.treeLevel >= 1) {
+                     companyNode = getCompanyNameFnc(treeNode, treeFlatten);
+                  };
+
+                  let tradeNode;
+                  if (node.treeLevel >= 2) {
+                     tradeNode = getTradeNameFnc(treeNode, treeFlatten);
+                  };
+
                   return ({
-                     buttons: parentNode === null ? [
-                        // <IconBtn type='file-add' onClick={() => fileAdd()} />,
-                        <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
-                     ] : [
+                     className: 'xxx-xxx-xxx',
+                     buttons:
+                        (node.treeLevel === 0 && isDocumentController) ? [
+                           <IconBtn type='plus' onClick={() => addFolderBelow(node)} />
+
+
+
+                        ] : (isDocumentController && companyNode === 'Woh Hup Private Ltd' && node.treeLevel === 1) ? [
+                           <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
+                           <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
+                        ] : (isDocumentController && companyNode !== 'Woh Hup Private Ltd' && node.treeLevel === 1) ? [
+                           <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
+                           <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />,
+                        ] : (isDocumentController && companyNode === 'Woh Hup Private Ltd' && node.treeLevel === 2) ? [
+                           <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
+                           <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+                        ] : (isDocumentController && (
+                           (companyNode === 'Woh Hup Private Ltd' && node.treeLevel >= 3) || (companyNode !== 'Woh Hup Private Ltd' && node.treeLevel >= 2)
+                        )) ? [
+                           <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
                            <IconBtn type='edit' onClick={() => editFolderName(node)} />,
-                           <IconBtn type='delete' onClick={() => deleteFolder(node)} />
-                        ],
-                  })
+                           <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+
+
+
+
+                        ] : (roleTradeCompany.role === 'Coordinator' && companyNode === 'Woh Hup Private Ltd' && companyNode === roleTradeCompany.company && node.treeLevel === 2 && tradeNode === roleTradeCompany.trade) ? [
+                           <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+                        ] : (roleTradeCompany.role === 'Coordinator' && companyNode === 'Woh Hup Private Ltd' && companyNode === roleTradeCompany.company && node.treeLevel >= 3 && tradeNode === roleTradeCompany.trade) ? [
+                           <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
+                           <IconBtn type='edit' onClick={() => editFolderName(node)} />,
+                           <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+
+
+                           
+
+                        ] : (companyNode !== 'Woh Hup Private Ltd' && companyNode === roleTradeCompany.company && node.treeLevel === 1) ? [
+                           <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+                        ] : (companyNode !== 'Woh Hup Private Ltd' && companyNode === roleTradeCompany.company && node.treeLevel >= 2) ? [
+                           <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
+                           <IconBtn type='edit' onClick={() => editFolderName(node)} />,
+                           <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+
+
+                           
+                        ] : []
+                  });
                }}
             />
          </PanelStyled>
@@ -154,56 +257,48 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
             <ButtonGroupComp
                onClickCancel={onClickCancelModal}
-               onClickApply={onClickApply}
+               onClickApply={() => applyFolderOrganize(input[0].children, mergeList)} // remove projectName item before apply...
             />
          </div>
 
-         {modalShown && (
+
+
+         {modalTitle && (
             <ModalStyledSetting
                title={modalTitle}
-               visible={modalShown}
+               visible={modalTitle !== null ? true : false}
                footer={null}
-               onCancel={() => {
-                  setModalShown(false);
-                  setValue(null);
-                  setModalTitle(null);
-               }}
+               onCancel={() => setModalTitle(null)}
                destroyOnClose={true}
                centered={true}
                width={window.innerWidth * 0.6}
             >
-               <div style={{ padding: 20, width: '100%', maxHeight: window.innerHeight * 0.7 }}>
-                  {modalTitle === 'Delete Drawing Type' ? (
-                     <div style={{  }}>
-                        <div>{`Are you sure to delete the drawing type ${findChildData(item).parentName} ?`}</div>
-                        <div>All the following <span style={{ fontWeight: 'bold' }}>{findChildData(item).rowsChild.length}</span> drawings will be deleted:</div>
-                        <br />
-                        <div style={{ maxHeight: 300, overflowY: 'scroll' }}>
-                           {findChildData(item).rowsChild.map((dr, i) => (
-                              <div key={i}>({i + 1}) - {dr['Drawing Number']} - {dr['Drawing Name']}</div>
-                           ))}
-                        </div>
-                     </div>
-                  ) : (
-                        <Input
-                           placeholder='Enter new name...'
-                           style={{ width: '100%' }}
-                           value={value}
-                           onChange={(e) => setValue(e.target.value)}
-                        />
-                     )}
+               <ConfirmOrEditNameModal
+                  modalTitle={modalTitle}
+                  confirmAction={confirmAction}
+                  itemNode={itemNode}
+                  input={input}
+                  rowsAllInit={rowsAllInit}
+               />
+            </ModalStyledSetting>
+         )}
 
-                  <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
-                     <ButtonGroupComp
-                        onClickCancel={() => {
-                           setModalShown(false);
-                           setValue(null);
-                           setModalTitle(null);
-                        }}
-                        onClickApply={onClickApplyModal}
-                     />
-                  </div>
-               </div>
+
+         {tradeAndCompanyAndType && (
+            <ModalStyledSetting
+               title={modalTitle}
+               visible={tradeAndCompanyAndType !== null ? true : false}
+               footer={null}
+               onCancel={() => setTradeAndCompanyAndType(null)}
+               destroyOnClose={true}
+               centered={true}
+               width={window.innerWidth * 0.6}
+            >
+               <RearrangeItemsForm
+                  tradeAndCompanyAndType={tradeAndCompanyAndType}
+                  onClickApplyTradeOrCompany={onClickApplyTradeOrCompany}
+                  onClickCancel={() => setTradeAndCompanyAndType(null)}
+               />
             </ModalStyledSetting>
          )}
       </Container>
@@ -213,39 +308,18 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
 export default FormDrawingTypeOrder;
 
 
-
 const SortableTreeStyled = styled(SortableTree)`
-
+   .dddddd {
+      /* background-color: grey !important; */
+   }
    .rst__node {
-      height: 50px !important;
+      height: 45px !important;
    }
-
-   .rst__rowWrapper {
-      /* padding: 10px; */
-   }
-
-   .rst__row {
-      /* height: 35px; */
-   }
-   .rst__rowWrapper {
-      /* height: 50px; */
-   }
-   .rst__nodeContent {
-      /* height: 50px; */
-   }
-
    .rst__rowContents {
       min-width: fit-content;
+      background-color: transparent !important;
    }
-
 `;
-
-const IconBtn = ({ type, onClick }) => {
-   return (
-      <IconStyle type={type} onClick={onClick} />
-   );
-};
-
 const IconStyle = styled(Icon)`
    font-size: 14px;
    margin: 2px;
@@ -275,55 +349,459 @@ const ModalStyledSetting = styled(Modal)`
       justify-content: center;
    }
 `;
-
-const addProjectLevel = (drawingTypeTree, projectName) => {
-
-   let data = drawingTypeTree.map(e => ({ ...e }));
-   let levelArray = [...new Set(data.map(r => r._rowLevel))].sort((a, b) => b - a);
-
-   let projectLevel = levelArray[levelArray.length - 1] - 1;
-
-   data.unshift({
-      'Drawing Number': projectName,
-      id: mongoObjectId(),
-      _rowLevel: projectLevel,
-      expanded: true
-   });
-   return data;
-};
-
-const arrangeDrawingType = (args) => {
-
-   let data = args.map(e => ({ ...e }));
-   let levelArray = [...new Set(data.map(r => r._rowLevel))].sort((a, b) => b - a);
-
-   levelArray.forEach(lvl => {
-      data.forEach((row, index) => {
-         if (row._rowLevel === lvl) {
-            row.title = row['Drawing Number'];
-            delete row['Drawing Number'];
-
-            let arr = data.filter((r, i) => r._rowLevel === lvl - 1 && i < index);
-            let parentRow = arr[arr.length - 1];
-            if (parentRow) parentRow.children = [...parentRow.children || [], row];
-         };
-      });
-   });
-   return data.filter(r => r._rowLevel === levelArray[levelArray.length - 1]);
-};
-
-
-
 const Container = styled.div`
    height: ${`${window.innerHeight * 0.8}` + 'px'};
    width: 100%;
    display: flex;
    flex-direction: column;
 `;
-
 const PanelStyled = styled.div`
    width: 100%;
    float: right;
    overflow-x: hidden;
    border-bottom: 1px solid ${colorType.grey4};
 `;
+const IconBtn = ({ type, onClick }) => {
+
+   const text = type === 'plus' ? 'Add Sub Drawing Type'
+      : type === 'delete' ? 'Delete Drawing Type'
+         : type === 'edit' ? 'Edit Name'
+            : 'Merge All Sub Drawing Type'
+
+   return (
+      <Tooltip title={text}>
+         <IconStyle type={type} onClick={onClick} />
+      </Tooltip>
+   );
+};
+const RearrangeItemsForm = ({ tradeAndCompanyAndType, onClickApplyTradeOrCompany, onClickCancel }) => {
+
+   const { dataTreeArray, node } = tradeAndCompanyAndType;
+
+   const onClickApply = () => {
+      let itemsAdded = tags.filter(x => x.mode === 'shown').map(x => x.header);
+      onClickApplyTradeOrCompany({ node, itemsAdded });
+   };
+
+   const setMode = (obj) => {
+      tags.forEach(tg => {
+         if (tg.header === obj.header) tg.mode = obj.mode;
+      });
+   };
+
+   const getTags = () => {
+      const arrItem = node.children.map(x => x.title);
+      const items = dataTreeArray.filter(x => arrItem.indexOf(x) === -1);
+
+      let arr = [];
+      items.forEach((header, index) => {
+         arr.push({ id: index, header, mode: 'hidden' });
+      });
+      return arr;
+   };
+
+   const [tags, setTags] = useState(getTags());
+
+   return (
+      <div style={{ width: '100%', height: '100%' }}>
+         <PanelItemsStyled>
+            <div style={{ fontSize: 11, paddingLeft: 20 }}>Click to add items</div>
+            <div style={{ width: '100%', paddingTop: 20 }}>
+               <DraggableArea
+                  isList
+                  tags={tags}
+                  render={({ tag }) => <ButtonColumnTag tag={tag} setMode={setMode} actionType='rearrange-drawing-type-tree-action' />}
+                  onChange={(tags) => setTags(tags)}
+               />
+            </div>
+         </PanelItemsStyled>
+         <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
+            <ButtonGroupComp
+               onClickCancel={onClickCancel}
+               onClickApply={onClickApply}
+            />
+         </div>
+      </div>
+   );
+};
+const PanelItemsStyled = styled.div`
+   height: 60vh;
+   width: 100%;
+   overflow-y: scroll;
+   overflow-x: hidden;
+   border-bottom: 1px solid ${colorType.grey4};
+`;
+const ConfirmOrEditNameModal = ({ modalTitle, confirmAction, itemNode, input, rowsAllInit }) => {
+
+   let dwgsToWarn = [];
+   if (modalTitle === 'Delete Drawing Type') {
+      const currentTree = flattenAllTreeChildNode1(input[0].children);
+      const currentTreeNode = currentTree.find(x => x.id === itemNode.id);
+      const nodeArray = getTreeFlattenOfNodeInArray(currentTree, currentTreeNode);
+      nodeArray.forEach(nd => {
+         dwgsToWarn = [...dwgsToWarn, ...rowsAllInit.filter(x => x._parentRow === nd.id)];
+      });
+   };
+
+
+   const [value, setValue] = useState(null);
+   const onClickApplyModal = () => {
+      if (modalTitle === 'Delete Drawing Type') {
+         confirmAction(modalTitle);
+      } else if (modalTitle === 'Edit Drawing Type Name') {
+         confirmAction(modalTitle, value);
+      } else if (modalTitle === 'Merge All Child Drawings') {
+         confirmAction(modalTitle);
+      };
+   };
+   return (
+      <div style={{ padding: 20, width: '100%', maxHeight: window.innerHeight * 0.7 }}>
+         {modalTitle === 'Delete Drawing Type' ? (
+            <div>
+               <div>Are you sure to delete the drawing type <span style={{ fontWeight: 'bold' }}>{itemNode.title}</span>?</div>
+                  <div>All the following <span style={{ fontWeight: 'bold' }}>{dwgsToWarn.length}</span> drawings will be deleted accordingly:</div>
+                  <br />
+                  <div style={{ maxHeight: 300, overflowY: 'scroll' }}>
+                     {dwgsToWarn.map((dr, i) => (
+                        <div key={i}>({i + 1}) - {dr['Drawing Number']} - {dr['Drawing Name']}</div>
+                     ))}
+                  </div>
+            </div>
+         ) : modalTitle === 'Merge All Child Drawings' ? (
+            <div>Are you sure to delete all sub folders and retains all drawings</div>
+         ) : (
+                  <Input
+                     placeholder='Enter new name...'
+                     style={{ width: '100%' }}
+                     value={value || itemNode.title}
+                     onChange={(e) => setValue(e.target.value)}
+                  />
+               )}
+
+         <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
+            <ButtonGroupComp
+               onClickCancel={() => { }}
+               onClickApply={onClickApplyModal}
+            />
+         </div>
+      </div>
+   );
+};
+const getCompanyNameFnc = (dwgType, drawingTypeTreeClone) => {
+   if (dwgType.treeLevel === 1) return dwgType.title;
+   let result;
+   const getCompanyFnc = (dwgType, drawingTypeTreeClone) => {
+      const parent = drawingTypeTreeClone.find(x => x.id === dwgType.parentId);
+      if (parent.treeLevel === 1) {
+         result = parent.title;
+      } else {
+         getCompanyFnc(parent, drawingTypeTreeClone);
+      };
+      return result;
+   };
+   getCompanyFnc(dwgType, drawingTypeTreeClone);
+   return result;
+};
+const getTradeNameFnc = (dwgType, drawingTypeTreeClone) => {
+   const tree = drawingTypeTreeClone.filter(x => x.treeLevel !== 1);
+   if (dwgType.treeLevel === 2) return dwgType.title;
+   let result;
+   const getTradeFnc = (dwgType, dwgTypeTree) => {
+      const parent = dwgTypeTree.find(x => x.id === dwgType.parentId);
+      if (parent.treeLevel === 2) {
+         result = parent.title;
+      } else {
+         getTradeFnc(parent, dwgTypeTree);
+      };
+      return result;
+   };
+   getTradeFnc(dwgType, tree);
+   return result;
+};
+
+
+
+export const flattenAllTreeChildNode1 = (root) => {
+   let temp = [];
+   let queue = [...root];
+   while (queue.length > 0) {
+      let node = queue.shift();
+      if (node.children) {
+         let childNode = [];
+         node.children.forEach(nd => {
+            childNode.push({ ...nd, parentId: node.id });
+         });
+         queue = [...queue, ...childNode];
+         let nodeObj = { ...node };
+         delete nodeObj.children;
+         temp.push(nodeObj);
+      } else {
+         let nodeObj = { ...node };
+         delete nodeObj.children;
+         temp.push(nodeObj);
+      };
+   };
+   return temp;
+};
+export const convertFlattenArraytoTree1 = (list) => {
+   let map = {}, node, roots = [], i;
+   for (i = 0; i < list.length; i += 1) {
+      map[list[i].id] = i;
+      if (list[i]._rowLevel !== 1) {
+         list[i].children = list[i].children || [];
+      };
+   };
+
+
+   let arrayOfTreeLevel = [];
+   list.forEach(tr => {
+      arrayOfTreeLevel.push(tr.treeLevel);
+   });
+   const treeLevelOfTopTree = Math.min(...arrayOfTreeLevel);
+
+   for (i = 0; i < list.length; i++) {
+      node = list[i];
+      if (node.treeLevel > treeLevelOfTopTree) {
+         list[map[node.parentId]].children.push(node);
+      } else {
+         roots.push(node);
+      };
+   };
+   return roots;
+};
+const addProjectHeaderToTree = (tree, projectName) => {
+   const treeOutput = tree.map(item => {
+      let itemOutput = { ...item };
+      if (itemOutput['Drawing Number']) {
+         itemOutput.title = itemOutput['Drawing Number'];
+         delete itemOutput['Drawing Number'];
+      };
+      return itemOutput;
+   });
+   return [{
+      title: projectName,
+      id: projectName,
+      treeLevel: 0,
+      expanded: true,
+      children: convertFlattenArraytoTree1(treeOutput)
+   }];
+};
+const updateChildrenNode = (arr, n) => {
+   arr.forEach(i => {
+      i.treeLevel = i.treeLevel + n;
+      if (i.children.length > 0) {
+         updateChildrenNode(i.children, n);
+      };
+   });
+};
+const updateChildrenNodeTreeLevel = (arr) => {
+   arr.forEach(i => {
+      let childrenArr = i.children;
+      if (childrenArr && childrenArr.length > 0) {
+         childrenArr.forEach(ch => {
+            ch.treeLevel = i.treeLevel + 1;
+         });
+         updateChildrenNodeTreeLevel(childrenArr);
+      };
+   });
+};
+const getListOfBranchesTree = (inputArr) => {
+   const arr = inputArr.map(x => ({ ...x }));
+   arr.sort((a, b) => { return b.treeLevel - a.treeLevel });
+
+   const parentArrIds = [];
+   arr.forEach(x => {
+      let item = arr.find(fld => fld.id === x.parentId);
+      if (item) {
+         item.children = [...item.children || [], x];
+      } else {
+         parentArrIds.push(x.id);
+      };
+   });
+   return arr.filter(x => parentArrIds.indexOf(x.id) !== -1);
+};
+export const getTreeFlattenOfNodeInArray = (treeArray, node) => {
+   let obj = { ...node };
+   let arrayTree = treeArray.map(x => ({ ...x })).filter(x => x.treeLevel > obj.treeLevel);
+   arrayTree = [...arrayTree, obj];
+   const treeOfFound = getListOfBranchesTree(arrayTree).find(x => x.id === obj.id);
+   return flattenAllTreeChildNode1([treeOfFound]);
+};
+export const compareCurrentTreeAndTreeFromDB = (treeFromCurrentInit, treeFromCurrentInput, treeDeletedFromCurrent, treeFromDBInput, treeDeletedFromDB) => {
+
+   let treeFromCurrent = treeFromCurrentInput.map(i => ({ ...i }));
+   let treeFromDB = treeFromDBInput.map(i => ({ ...i }));
+
+   // check if need to save tree or not
+   if (treeFromCurrent.length === treeFromCurrentInit.length) {
+      const stringTreeCurrent = treeFromCurrent.reduce((acc, current) => acc + `${current.id}-${current.parentId}-${current['Drawing Number']}-`, '');
+      const stringTreeInit = treeFromCurrentInit.reduce((acc, current) => acc + `${current.id}-${current.parentId}-${current['Drawing Number']}-`, '');
+      if (stringTreeCurrent === stringTreeInit) {
+         return {
+            needToSaveTree: false,
+            treeDBModifiedToSave: treeFromDB,
+            nodesToAddToDB: [],
+            nodesToRemoveFromDB: [],
+         };
+      };
+   };
+
+   let treeCurrentModified = removeNodesDeletedByOtherUsersFromTreeCurrent(treeFromCurrent, treeDeletedFromDB);
+
+   let { nodesToRemoveFromDB, treeFromDB: treeFromDBModified, nodesIdNoNeedToAddNew } = removeNodesDeletedByCurrentUserFromTreeDB(treeFromDB, treeDeletedFromCurrent, treeCurrentModified);
+
+   let { nodesToAddToDB, treeDBModifiedToSave: treeDBModified } = haveChangedNodesInDBAndNewNodesInCurrentBackToDB(treeFromDBModified, treeCurrentModified, treeFromCurrentInit, nodesIdNoNeedToAddNew);
+
+
+   // reorder item follow new order...
+   let treeDBModifiedToSave = [];
+   treeFromCurrentInput.forEach(item => {
+      const found = treeDBModified.find(x => x.id === item.id);
+      if (found) {
+         treeDBModifiedToSave.push(found);
+         treeDBModified = treeDBModified.filter(x => x.id !== found.id);
+      };
+   });
+   treeDBModifiedToSave = [...treeDBModifiedToSave, ...treeDBModified].sort((a, b) => { return a.treeLevel - b.treeLevel });
+
+   return {
+      needToSaveTree: true,
+      treeDBModifiedToSave,
+      nodesToAddToDB,
+      nodesToRemoveFromDB,
+   };
+};
+const removeNodesDeletedByOtherUsersFromTreeCurrent = (treeCurrent, treeDeletedFromDB) => {
+   let idsToCheckCurrent = [];
+   treeDeletedFromDB.forEach(item => {
+      const found = treeCurrent.find(x => x.id === item.id);
+      if (found) {
+         idsToCheckCurrent = [
+            ...idsToCheckCurrent,
+            ...getTreeFlattenOfNodeInArray(treeCurrent, found).map(x => x.id)
+         ];
+      };
+   });
+   idsToCheckCurrent = [...new Set(idsToCheckCurrent)];
+
+   const nodesArray = treeCurrent.filter(x => idsToCheckCurrent.indexOf(x.id) !== -1);
+
+   const branchTrees = getListOfBranchesTree(nodesArray);
+
+   const newIdObj = {};
+   treeDeletedFromDB.forEach(item => {
+      newIdObj[item.id] = mongoObjectId();
+   });
+
+   branchTrees.forEach(tree => {
+      let flattenArray = flattenAllTreeChildNode1([tree]);
+      let isAbleToDelete = true;
+
+      flattenArray.forEach(item => {
+         if (!treeDeletedFromDB.find(x => x.id === item.id)) isAbleToDelete = false;
+      });
+
+      if (isAbleToDelete) {
+         treeCurrent = treeCurrent.filter(x => !flattenArray.find(item => item.id === x.id));
+      } else {
+         const arrayToModify = treeCurrent.filter(item => flattenArray.find(x => x.id === item.id));
+         treeDeletedFromDB.forEach(item => {
+            const found = arrayToModify.find(x => x.id === item.id);
+            if (found) {
+               found.id = newIdObj[item.id];
+            };
+            const childrenFound = arrayToModify.filter(x => x.parentId === item.id);
+            if (childrenFound.length > 0) {
+               childrenFound.forEach(child => {
+                  child.parentId = newIdObj[item.id];
+               });
+            };
+         });
+      };
+   });
+   return treeCurrent;
+};
+const removeNodesDeletedByCurrentUserFromTreeDB = (treeFromDB, treeDeletedFromCurrent, treeCurrent) => {
+   let listIdToRemoveFromDB = [];
+   treeDeletedFromCurrent.forEach(item => {
+      const found = treeFromDB.find(x => x.id === item.id);
+      if (found) {
+         listIdToRemoveFromDB = [
+            ...listIdToRemoveFromDB,
+            ...getTreeFlattenOfNodeInArray(treeFromDB, found).map(x => x.id)
+         ];
+      };
+   });
+
+   const nodesToRemoveFromDB = treeFromDB.filter(x => {
+      return listIdToRemoveFromDB.indexOf(x.id) !== -1 && !treeCurrent.find(item => item.id === x.id);
+   });
+   const nodesIdNoNeedToAddNew = listIdToRemoveFromDB.filter(id => treeCurrent.find(item => item.id === id))
+
+   treeFromDB = treeFromDB.filter(x => listIdToRemoveFromDB.indexOf(x.id) === -1);
+
+   return {
+      nodesToRemoveFromDB,
+      nodesIdNoNeedToAddNew,
+      treeFromDB
+   };
+};
+const haveChangedNodesInDBAndNewNodesInCurrentBackToDB = (treeFromDB, treeCurrent, treeCurrentInit, nodesIdNoNeedToAddNew) => {
+   let nodesToAddToDB = [];
+   treeCurrent.forEach(item => {
+      if (!treeFromDB.find(x => x.id === item.id)) {
+         nodesToAddToDB.push(item);
+      };
+   });
+
+   let dwgTypeExistedInDBButLevelOrParentChangesArr = [];
+   let childrenIdsToWithdrawFromDB = [];
+   treeFromDB.forEach(item => {
+      const found = treeCurrent.find(r => r.id === item.id);
+      const foundInit = treeCurrentInit.find(r => r.id === item.id);
+      if (found && foundInit) {
+         if (found['Drawing Number'] !== foundInit['Drawing Number']) item['Drawing Number'] = found['Drawing Number'];
+
+         if (found.parentId !== item.parentId && found.parentId !== foundInit.parentId) {
+            dwgTypeExistedInDBButLevelOrParentChangesArr.push({ ...found, ['Drawing Number']: item['Drawing Number'] });
+
+            const arrIdsChildrenInDB = getTreeFlattenOfNodeInArray(treeFromDB, item).filter((x, i) => i !== 0).map(x => x.id);
+
+            childrenIdsToWithdrawFromDB = [...childrenIdsToWithdrawFromDB, ...arrIdsChildrenInDB];
+         };
+      };
+   });
+   childrenIdsToWithdrawFromDB = [...new Set(childrenIdsToWithdrawFromDB)];
+
+   const dwgTypeToWithdrawFromDB = treeFromDB.filter(x => childrenIdsToWithdrawFromDB.indexOf(x.id) !== -1);
+
+   treeFromDB = treeFromDB.filter(item => {
+      return childrenIdsToWithdrawFromDB.indexOf(item.id) === -1 && !dwgTypeExistedInDBButLevelOrParentChangesArr.find(x => x.id === item.id)
+   });
+
+
+   const listBranchesTreeToPushToDB = getListOfBranchesTree([
+      ...nodesToAddToDB,
+      ...dwgTypeExistedInDBButLevelOrParentChangesArr,
+      ...dwgTypeToWithdrawFromDB
+   ]);
+
+   listBranchesTreeToPushToDB.forEach(itemTree => {
+      treeFromDB = [...treeFromDB, ...flattenAllTreeChildNode1([itemTree])];
+   });
+
+   const treeDBModifiedToSave = convertFlattenArraytoTree1(treeFromDB);
+   updateChildrenNodeTreeLevel(treeDBModifiedToSave);
+
+   return {
+      nodesToAddToDB: nodesToAddToDB.filter(item => nodesIdNoNeedToAddNew.indexOf(item.id) === -1),
+      treeDBModifiedToSave: flattenAllTreeChildNode1(treeDBModifiedToSave)
+   };
+};
+
+
+
+
+
+
+

@@ -15,7 +15,7 @@ const { Option } = Select;
 const FormSort = ({ applySort, onClickCancel }) => {
 
     const { state: stateRow } = useContext(RowContext);
-    
+    const { rowsAll, drawingTypeTree } = stateRow;
 
     const setSortSelect = (dataSort) => {
         setSortColumn(dataSort);
@@ -48,21 +48,18 @@ const FormSort = ({ applySort, onClickCancel }) => {
         let rowsOutput = [];
         if (type === 'Sort Rows In Drawing Type') {
 
-            let rows = stateRow.drawingTypeTree.filter(r => r._rowLevel === 0);
+            drawingTypeTree.forEach(tr => {
+                let subRows = rowsAll.filter(x => x._parentRow === tr.id);
+                if (typeSort === 'ascending') {
+                    subRows = sortFnc(subRows, headerSorted, true);
+                } else if (typeSort === 'descending') {
+                    subRows = sortFnc(subRows, headerSorted, false);
+                };
+                rowsOutput = [...rowsOutput, ...subRows];
+            });
 
-            if (rows.length > 0) {
-                rows.forEach(r => {
-                    let subRows = stateRow.rowsAll.filter(subR => subR._parentRow === r.id);
-                    if (typeSort === 'ascending') {
-                        subRows = sortFnc(subRows, headerSorted, true);
-                    } else if (typeSort === 'descending') {
-                        subRows = sortFnc(subRows, headerSorted, false);
-                    };
-                    rowsOutput = [...rowsOutput, ...subRows];
-                });
-            };
         } else if (type === 'Sort Rows In Project') {
-            let rowArr = stateRow.rowsAll.filter(r => r._rowLevel === 1);
+            let rowArr = rowsAll.filter(r => r._rowLevel === 1);
             if (typeSort === 'ascending') {
                 rowsOutput = sortFnc(rowArr, headerSorted, true);
             } else if (typeSort === 'descending') {
@@ -100,13 +97,15 @@ const FormSort = ({ applySort, onClickCancel }) => {
                         onClick={selectTypeClick}
                         marginRight={15}
                         background={backgroundSortDrawingType}
-                        bordercolor={colorType.grey4}
+                        borderOverwritten={true}
+                        bordercolor='red'
                         name='Sort Rows In Drawing Type'
                     />
                     <ButtonStyle
                         onClick={selectTypeClick}
                         marginRight={15}
                         background={backgroundSortInProject}
+                        borderOverwritten={true}
                         bordercolor={colorType.grey4}
                         name='Sort Rows In Project'
                     />

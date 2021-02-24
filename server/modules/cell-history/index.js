@@ -138,6 +138,17 @@ const deleteAllDataInCollectionCell = async (req, res, next) => {
    };
 };
 
+
+const saveAllDataCellHistoryToServer = async (req, res, next) => {
+   try {
+      const { dataToSave } = req.body;
+      const data = await model.insertMany(dataToSave);
+      return res.json(data);
+   } catch (error) {
+      next(error);
+   };
+};
+
 module.exports = {
    schema,
    model,
@@ -147,5 +158,5 @@ module.exports = {
    saveCellHistories,
    deleteAllDataInCollectionCell,
 
-
+   saveAllDataCellHistoryToServer
 };

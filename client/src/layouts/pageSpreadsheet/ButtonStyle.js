@@ -6,6 +6,7 @@ const ButtonStyle = ({
     marginRight,
     marginLeft,
     borderColor,
+    borderOverwritten,
     marginBottom,
     background,
     name,
@@ -22,7 +23,7 @@ const ButtonStyle = ({
                 marginRight,
                 marginBottom,
                 marginLeft,
-                border: `1px solid ${borderColor || background}`
+                border: `1px solid ${borderOverwritten ? borderColor : (borderColor || background)}`
             }}
             onClick={onClick}
         >

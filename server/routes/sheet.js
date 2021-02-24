@@ -5,9 +5,14 @@ const router = new Router();
 const Sheet = require('../modules/sheet');
 const { validateToken } = require('../../custom/validate');
 
+
+router.post('/save-all-data-settings', validateToken, Sheet.saveAllDataSettingsToServer);
+router.post('/save-all-data-rows', validateToken, Sheet.saveAllDataRowsToServer);
+
+
 router.get('/', validateToken, Sheet.findOneWithUserEmail);
 
-router.get('/get-all-collections', Sheet.getAllCollections);
+router.get('/get-all-collections', validateToken, Sheet.getAllCollections);
 
 router.post('/update-rows/', validateToken, Sheet.updateOrCreateRows);
 

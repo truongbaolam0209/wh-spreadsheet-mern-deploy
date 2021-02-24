@@ -1,5 +1,4 @@
 const uuidv1 = require('uuid').v1;
-const { mongoObjectId } = require('../utils');
 
 const SHEET_PUBLIC_FIELDS_MAP = {
    headers: {
@@ -25,14 +24,11 @@ const SHEET_PUBLIC_FIELDS = Object.keys(SHEET_PUBLIC_FIELDS_MAP);
 
 
 const createTemplatePublicSettings = (sheetId) => {
-
-   const keyDrawingNumber = uuidv1();
-
    return {
       sheet: sheetId,
       headers: [
          {
-            key: keyDrawingNumber,
+            key: uuidv1(),
             text: 'Drawing Number',
          },
          {
@@ -160,13 +156,7 @@ const createTemplatePublicSettings = (sheetId) => {
             text: 'Drawing',
          },
       ],
-      drawingTypeTree: [
-         { id: mongoObjectId(), [keyDrawingNumber]: 'COLUMN AND WALL SETTING OUT', _rowLevel: 0, expanded: true },
-         { id: mongoObjectId(), [keyDrawingNumber]: 'UNIT TYPE LAYOUT TSO', _rowLevel: 0, expanded: true },
-         { id: mongoObjectId(), [keyDrawingNumber]: 'STAIRCASES & LIFT LOBBIES', _rowLevel: 0, expanded: true },
-         { id: mongoObjectId(), [keyDrawingNumber]: 'ANCILLARY STRUCTURES', _rowLevel: 0, expanded: true },
-         // { id: mongoObjectId(), [keyDrawingNumber]: 'RCP', _rowLevel: 0, expanded: true },
-      ],
+      drawingTypeTree: [],
       sheetSettings: {},
       rowSettings: {},
       colSettings: {},
@@ -176,13 +166,25 @@ const createTemplatePublicSettings = (sheetId) => {
 };
 
 
+
 const SHEET_USER_FIELDS_MAP = {
    user: String,
-   headersShown: Array,
-   headersHidden: Array,
+   headersShown: {
+      type: Array,
+      default: undefined, // prevent mongoose create empty array
+   },
+   headersHidden: {
+      type: Array,
+      default: undefined, // prevent mongoose create empty array
+   },
+   viewTemplates: {
+      type: Array,
+      default: undefined, // prevent mongoose create empty array
+   },
    nosColumnFixed: Number,
    colorization: Object,
-   role: String
+   role: String,
+   viewTemplateNodeId: String
 };
 
 const SHEET_USER_FIELDS = Object.keys(SHEET_USER_FIELDS_MAP);

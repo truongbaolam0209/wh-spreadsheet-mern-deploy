@@ -4,18 +4,24 @@ import React, { forwardRef, useContext, useEffect, useRef, useState } from 'reac
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import 'react-base-table/styles.css';
 import styled from 'styled-components';
-import { colorType, dimension, SERVER_URL } from '../constants';
+import { colorType, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { debounceFnc, getActionName, getHeaderWidth, getModalWidth, randomColorRange, randomColorRangeStatus, reorderRowsFnc } from '../utils';
-import Cell from './pageSpreadsheet/Cell';
+import { debounceFnc, getActionName, getHeaderWidth, getModalWidth, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
+import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
+import Cell, { columnLocked, rowLocked } from './pageSpreadsheet/Cell';
 import CellHeader from './pageSpreadsheet/CellHeader';
 import CellIndex from './pageSpreadsheet/CellIndex';
+import ExportCSV from './pageSpreadsheet/ExportCSV';
+import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from './pageSpreadsheet/FormDrawingTypeOrder';
 import IconTable from './pageSpreadsheet/IconTable';
 import InputSearch from './pageSpreadsheet/InputSearch';
-import PanelFunction from './pageSpreadsheet/PanelFunction';
-import PanelSetting, { updatePreRowParentRowToState } from './pageSpreadsheet/PanelSetting';
+import PanelFunction, { getPanelPosition } from './pageSpreadsheet/PanelFunction';
+import PanelSetting, { updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from './pageSpreadsheet/PanelSetting';
+import ViewTemplateSelect from './pageSpreadsheet/ViewTemplateSelect';
+
+
 
 
 
@@ -41,7 +47,9 @@ let addedEvent = false;
 const PageSpreadsheet = (props) => {
 
 
-   const { email, role, isAdmin, projectId, projectName, token } = props;
+   let { email, role, isAdmin, projectId, projectName, token, company, companies } = props;
+   const roleTradeCompany = getUserRoleTradeCompany(role, company);
+
    const tableRef = useRef();
 
    const handlerBeforeUnload = (e) => {
@@ -56,7 +64,6 @@ const PageSpreadsheet = (props) => {
          addedEvent = true;
       };
    }, []);
-
 
 
 
@@ -207,6 +214,7 @@ const PageSpreadsheet = (props) => {
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
 
+
    const [cursor, setCursor] = useState(null);
    const [panelType, setPanelType] = useState(null);
    const [panelSettingType, setPanelSettingType] = useState(null);
@@ -214,38 +222,67 @@ const PageSpreadsheet = (props) => {
    const [panelSettingVisible, setPanelSettingVisible] = useState(false);
 
    const buttonPanelFunction = (btn) => {
-      const { rowsAll, rowsUpdatePreRowOrParentRow } = stateRow;
+      let { rowsAllInit, rowsUpdatePreRowOrParentRow, rowsSelected, rowsSelectedToMove } = stateRow;
       setPanelFunctionVisible(false);
 
-      if (btn === 'Move Drawing') {
-         getSheetRows({ ...stateRow, rowsToMoveId: panelType.cellProps.rowData.id });
-      } else if (btn === 'Paste Drawing') {
-
-         const rowToMove = rowsAll.find(r => r.id === stateRow.rowsToMoveId);
-         const rowBelowPrevious = rowsAll.find(r => r._preRow === stateRow.rowsToMoveId);
-         if (rowBelowPrevious) {
-            rowBelowPrevious._preRow = rowToMove._preRow;
-            updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelowPrevious);
+      if (btn === 'Move Drawings') {
+         if (stateRow.rowsSelected.length > 0) {
+            getSheetRows({ ...stateRow, rowsSelectedToMove: [...rowsSelected] });
+         } else {
+            const row = rowsAllInit.find(x => x.id === panelType.cellProps.rowData.id);
+            getSheetRows({ ...stateRow, rowsSelectedToMove: [row] });
          };
-         const rowBelowNext = rowsAll.find(r => r._preRow === panelType.cellProps.rowData.id);
-         if (rowBelowNext) {
-            rowBelowNext._preRow = stateRow.rowsToMoveId;
-            updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelowNext);
+      } else if (btn === 'Paste Drawings') {
+         const { rowData } = panelType.cellProps;
+         if (
+            rowsSelectedToMove.find(x => x.id === rowData.id) ||
+            (rowData.treeLevel && rowsSelectedToMove.find(x => x._parentRow === rowData.id))
+         ) {
+            getSheetRows({ ...stateRow, rowsSelectedToMove: [], rowsSelected: [] });
+         } else {
+            rowsSelectedToMove.forEach(row => {
+               const rowBelowPrevious = rowsAllInit.find(r => r._preRow === row.id);
+               if (rowBelowPrevious) {
+                  rowBelowPrevious._preRow = row._preRow;
+                  updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelowPrevious);
+               };
+            });
+            if (rowData.treeLevel) {
+               const lastRowOfBranch = rowsAllInit.find(r => r._parentRow === rowData.id && !rowsAllInit.find(x => x._preRow === r.id));
+               rowsSelectedToMove.forEach((row, i) => {
+                  row._preRow = i === 0 ? (lastRowOfBranch ? lastRowOfBranch.id : null) : rowsSelectedToMove[i - 1].id;
+                  row._parentRow = rowData.id;
+                  updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
+               });
+            } else {
+               const rowBelowNext = rowsAllInit.find(r => r._preRow === rowData.id);
+               if (rowBelowNext) {
+                  rowBelowNext._preRow = stateRow.rowsSelectedToMove[stateRow.rowsSelectedToMove.length - 1];
+                  updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelowNext);
+               };
+               rowsSelectedToMove.forEach((row, i) => {
+                  row._preRow = i === 0 ? rowData.id : rowsSelectedToMove[i - 1].id;
+                  row._parentRow = rowData._parentRow;
+                  updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
+               });
+            };
+            const rowsOutput = _processRowsChainNoGroupFnc1([...rowsAllInit]);
+            getSheetRows({
+               ...stateRow,
+               rowsAll: rowsOutput,
+               rowsAllInit: rowsOutput,
+               rowsUpdatePreRowOrParentRow,
+               rowsSelectedToMove: [],
+               rowsSelected: []
+            });
          };
 
-         rowToMove._preRow = panelType.cellProps.rowData.id;
-         rowToMove._parentRow = panelType.cellProps.rowData._parentRow;
-         updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowToMove);
-
+      } else {
          getSheetRows({
             ...stateRow,
-            rowsAll: reorderRowsFnc(rowsAll),
-            rowsAllInit: reorderRowsFnc(rowsAll),
-            rowsUpdatePreRowOrParentRow,
-            rowsToMoveId: null
+            rowsSelected: [],
+            rowsSelectedToMove: []
          });
-      } else {
-         getSheetRows({ ...stateRow, rowsToMoveId: null });
          setCellActive(null);
          copyTempData(null);
          applyActionOnCell(null);
@@ -267,95 +304,46 @@ const PageSpreadsheet = (props) => {
       setPanelType({ type: 'cell', cellProps });
       setPanelFunctionVisible(true);
    };
-   const commandAction = (update) => {
 
-      if (update.type === 'sort-data-drawing-type') {
-         getSheetRows({ ...stateRow, rowsAll: update.data });
-      } else if (update.type === 'sort-data-project') {
-         getSheetRows({ ...stateRow, rowsAll: update.data, showDrawingsOnly: 'sort-data-project' });
+   const commandAction = (update) => {
+      if (
+         update.type === 'insert-drawings' || update.type === 'insert-drawings-by-folder' || update.type === 'duplicate-drawings' ||
+         update.type === 'delete-drawing' || update.type === 'add-view-templates' || update.type === 'sort-data-drawing-type' ||
+         update.type === 'sort-data-project' || update.type === 'drawing-data-automation' || update.type === 'create-new-drawing-revisions'
+      ) {
+         getSheetRows({ ...stateRow, ...update.data });
 
       } else if (update.type === 'filter-by-columns') {
-         if (update.data.length > 0) {
-            getSheetRows({ ...stateRow, rowsAll: update.data });
-         } else message.info('There is no drawing found', 1.5);
+         const { rowsAll, modeFilter } = update.data;
+         if (rowsAll.length > 0 && Object.keys(modeFilter).length > 0) {
+            getSheetRows({ ...stateRow, ...update.data });
+
+         } else if (rowsAll.length === 0 && Object.keys(modeFilter).length > 0) {
+            message.info('There is no drawing found', 1.5);
+         };
 
       } else if (update.type === 'reset-filter-sort') {
-         getSheetRows({
-            ...stateRow,
-            rowsAll: stateRow.rowsAllInit,
-            showDrawingsOnly: false
-         });
-         setExpandedRows(getRowsKeyExpanded(stateRow.drawingTypeTree));
+         getSheetRows({ ...stateRow, ...update.data });
+         setExpandedRows(getRowsKeyExpanded(stateRow.drawingTypeTree, stateRow.viewTemplateNodeId));
          setSearchInputShown(false);
          setCellSearchFound(null);
          setCellHistoryFound(null);
 
-      } else if (update.type === 'reorder-columns') {
-         setUserData({
-            ...stateProject.userData,
-            headersHidden: update.data.headersHidden,
-            headersShown: update.data.headersShown,
-            nosColumnFixed: update.data.nosColumnFixed,
-         });
+      } else if (update.type === 'reorder-columns' || update.type === 'drawing-colorized') {
+         setUserData({ ...stateProject.userData, ...update.data });
 
-      } else if (update.type === 'insert-drawings' || update.type === 'insert-drawings-by-folder' || update.type === 'duplicate-drawings') {
-         getSheetRows({
-            ...stateRow,
-            rowsAll: update.data.rowsAll,
-            rowsAllInit: update.data.rowsAll,
-            idRowsNew: update.data.idRowsNew
-         });
-
-      } else if (update.type === 'drawing-data-automation') {
-         getSheetRows({
-            ...stateRow,
-            rowsAll: update.data,
-            rowsAllInit: update.data
-         });
-
-      } else if (update.type === 'create-new-drawing-revisions') {
-         getSheetRows({
-            ...stateRow,
-            rowsAll: update.data.rowsAll,
-            rowsAllInit: update.data.rowsAll,
-            rowsVersionsToSave: update.data.rowsVersionsToSave
-         });
+      } else if (update.type === 'drawing-folder-organization') {
+         getSheetRows({ ...stateRow, ...update.data });
+         setExpandedRows(getRowsKeyExpanded(update.data.drawingTypeTree, stateRow.viewTemplateNodeId));
 
       } else if (update.type === 'group-columns') {
          getSheetRows({ ...stateRow, rowsAll: update.data.rows, showDrawingsOnly: 'group-columns' });
          setExpandedRows(update.data.expandedRows);
 
-      } else if (update.type === 'drawing-colorized') {
-         setUserData({
-            ...stateProject.userData,
-            colorization: update.data
-         });
-
       } else if (update.type === 'highlight-cell-history') {
          setCellHistoryFound(update.data);
          setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
          setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
-
-      } else if (update.type === 'drawing-folder-organization') {
-         getSheetRows({
-            ...stateRow,
-            rowsAll: update.data.rowsAll,
-            rowsAllInit: update.data.rowsAll,
-            drawingTypeTree: update.data.drawingTypeTree,
-            rowsDeleted: update.data.rowsDeleted,
-            idRowsNew: update.data.idRowsNew
-         });
-         setExpandedRows(getRowsKeyExpanded(update.data.drawingTypeTree));
-
-      } else if (update.type === 'delete-drawing') {
-
-         getSheetRows({
-            ...stateRow,
-            rowsAll: update.data.rowsAll,
-            rowsAllInit: update.data.rowsAll,
-            rowsDeleted: update.data.rowsDeleted,
-            idRowsNew: update.data.idRowsNew
-         });
 
       } else if (update.type === 'save-data-successfully') {
          message.success('Save Data Successfully', 1.5);
@@ -366,17 +354,15 @@ const PageSpreadsheet = (props) => {
 
          fetchDataOneSheet({
             ...update.data,
-            email, projectId, projectName, role, token
+            email, projectId, projectName, role, token, company, companies, roleTradeCompany
          });
          setUserData(getHeadersData(update.data));
          getSheetRows(getInputDataInitially(update.data));
-         setExpandedRows(getRowsKeyExpanded(update.data.publicSettings.drawingTypeTree));
+         setExpandedRows(getRowsKeyExpanded(update.data.publicSettings.drawingTypeTree, update.data.userSettings.viewTemplateNodeId));
          OverwriteCellsModified({});
          setCellActive(null);
-
          setLoading(false);
       };
-
       setPanelSettingVisible(false);
       setPanelSettingType(null);
       setPanelType(null);
@@ -384,8 +370,6 @@ const PageSpreadsheet = (props) => {
    const onScroll = () => {
       if (stateCell.cellActive) setCellActive(null);
    };
-
-
 
 
 
@@ -399,20 +383,7 @@ const PageSpreadsheet = (props) => {
    };
    const adminFnc = async (btn) => {
       try {
-         if (btn === 'upload-sumang') {
-            await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: state['Sumang'].rows });
-            await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: state['Sumang'].historyRows });
-            await Axios.post(`${SERVER_URL}/sheet/update-setting-public/`, { token, projectId, email, publicSettings: { drawingTypeTree: state['Sumang'].drawingTypeTree } });
-            message.info('DONE...Save SMARTSHEET To Server SUMANG');
-         } else if (btn === 'upload-handy') {
-            await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: state['Handy'].rows });
-            await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: state['Handy'].historyRows });
-            await Axios.post(`${SERVER_URL}/sheet/update-setting-public/`, { token, projectId, email, publicSettings: { drawingTypeTree: state['Handy'].drawingTypeTree } });
-            message.info('DONE...Save SMARTSHEET To Server HANDY');
-         } else if (btn === 'delete-all-rows') {
-            await Axios.post(`${SERVER_URL}/sheet/delete-rows-project/`, { token, projectId });
-            message.info('DONE...Delete Rows In Current Project');
-         } else if (btn === 'delete-all-collections') {
+         if (btn === 'delete-all-collections') {
             await Axios.post(`${SERVER_URL}/cell/history/delete-all/`, { token });
             await Axios.post(`${SERVER_URL}/row/history/delete-all/`, { token });
             await Axios.post(`${SERVER_URL}/sheet/delete-all/`, { token });
@@ -426,31 +397,21 @@ const PageSpreadsheet = (props) => {
 
 
 
+
    const [loading, setLoading] = useState(true);
    useEffect(() => {
       const fetchOneProject = async () => {
          try {
             setLoading(true);
             const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
-            // console.log('MONGO ...', res.data);
-
-
-            // const resultSmartsheet = await Axios.post(
-            //    'https://bim.wohhup.com/api/smartsheet/get-sheets-dashboard',
-            //    { listSheetId: [4758181617395588, 8919906142971780] }
-            // );
-            // const rowsAllSmartSheet = getDataConvertedSmartsheet(resultSmartsheet.data);
-            // const dataToSave = getCurrentAndHistoryDrawings(rowsAllSmartSheet, res.data.publicSettings.headers);
-            // setstate(dataToSave);
-
 
             fetchDataOneSheet({
                ...res.data,
-               email, projectId, projectName, role, token
+               email, projectId, projectName, role, token, company, companies, roleTradeCompany
             });
             setUserData(getHeadersData(res.data));
             getSheetRows(getInputDataInitially(res.data));
-            setExpandedRows(getRowsKeyExpanded(res.data.publicSettings.drawingTypeTree));
+            setExpandedRows(getRowsKeyExpanded(res.data.publicSettings.drawingTypeTree, res.data.userSettings ? res.data.userSettings.viewTemplateNodeId : null));
 
 
             setLoading(false);
@@ -461,6 +422,7 @@ const PageSpreadsheet = (props) => {
       fetchOneProject();
    }, []);
 
+
    useEffect(() => {
       const interval = setInterval(() => {
          setPanelFunctionVisible(false);
@@ -470,7 +432,9 @@ const PageSpreadsheet = (props) => {
       return () => clearInterval(interval);
    }, []);
 
-
+   const updateExpandedRowIdsArray = (viewTemplateNodeId) => {
+      setExpandedRows(getRowsKeyExpanded(stateRow.drawingTypeTree, viewTemplateNodeId));
+   };
 
 
    const [expandedRows, setExpandedRows] = useState([]);
@@ -490,23 +454,21 @@ const PageSpreadsheet = (props) => {
    };
    const ExpandIcon = (props) => {
       const { expanding, expandable, onExpand, depth } = props;
-      const indent = (depth * 15).toString() + 'px';
-      if (!expandable) return null;
+      const indent = (depth * 17).toString() + 'px';
       return (
          <div style={{
             marginLeft: indent,
-            paddingLeft: 10,
-            paddingRight: 10,
+            paddingLeft: expandable ? 10 : 13 + 10,
+            paddingRight: 3,
             background: 'transparent'
          }}>
-            <Icon
-               type={expanding ? 'plus-square' : 'minus-square'}
-               onClick={() => onExpand(expanding)}
-               style={{
-                  color: 'black',
-                  transform: 'translate(0, -1px)'
-               }}
-            />
+            {expandable && (
+               <Icon
+                  type={expanding ? 'plus-square' : 'minus-square'}
+                  onClick={() => onExpand(expanding)}
+                  style={{ color: 'black', transform: 'translate(0, -1px)' }}
+               />
+            )}
          </div>
       );
    };
@@ -516,12 +478,21 @@ const PageSpreadsheet = (props) => {
    const rowClassName = (props) => {
       const { rowData } = props;
       const { colorization } = stateProject.userData;
+      const { rowsSelected, showDrawingsOnly, drawingTypeTree } = stateRow;
 
       const valueArr = colorization.value;
       const value = rowData[colorization.header];
 
-      if (rowData._rowLevel !== 1) {
+      const isRowLocked = rowLocked(roleTradeCompany, rowData, showDrawingsOnly, drawingTypeTree);
+
+      if (rowsSelected.find(x => x.id === rowData.id)) {
+         return 'row-selected';
+      };
+      if (!rowData._rowLevel || rowData._rowLevel < 1) {
          return 'row-drawing-type';
+      };
+      if (isRowLocked) {
+         return 'row-locked';
       };
 
       if (colorization !== null && colorization.header !== 'No Colorization' &&
@@ -534,13 +505,23 @@ const PageSpreadsheet = (props) => {
    };
 
 
+   // const rowProps = (props) => {
+   //    const { rowsSelected } = stateRow;
+   //    const { rowData } = props;
+   //    return {
+   //       className: 'className',
+   //       rowData: 'rowData'
+   //    };
+   // };
+
+
+
    const [searchInputShown, setSearchInputShown] = useState(false);
    const searchGlobal = debounceFnc((found) => {
       setCellSearchFound(found);
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
    }, 500);
-
 
    const renderColumns = (arr, nosColumnFixed) => {
 
@@ -569,12 +550,16 @@ const PageSpreadsheet = (props) => {
                />
             ),
             className: (props) => {
-               const { rowData: { id }, column: { key } } = props;
+               const { rowData, column: { key } } = props;
+               const { id } = rowData;
+
                return (cellSearchFound && id in cellSearchFound && cellSearchFound[id].indexOf(key) !== -1)
                   ? 'cell-found'
                   : (cellHistoryFound && cellHistoryFound.find(cell => cell.rowId === id && cell.header === key))
                      ? 'cell-history-highlight'
-                     : ''
+                     : (columnLocked(roleTradeCompany, rowData, stateRow.showDrawingsOnly, key) && rowData._rowLevel)
+                        ? 'cell-locked'
+                        : '';
             }
          });
       });
@@ -582,11 +567,9 @@ const PageSpreadsheet = (props) => {
    };
 
 
-
-
    return (
 
-      <PageSpreadsheetStyled
+      <div
          onContextMenu={(e) => e.preventDefault()}
       >
          <ButtonBox>
@@ -597,28 +580,26 @@ const PageSpreadsheet = (props) => {
             <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
             <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
 
-            {searchInputShown 
+            {searchInputShown
                ? <InputSearch searchGlobal={searchGlobal} />
                : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
             <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON')} />
             <DividerRibbon />
             <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
-
             <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
             <DividerRibbon />
             <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
             <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
-
+            <ExportCSV fileName={projectName} />
+            <DividerRibbon />
+            <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
+            <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
             <DividerRibbon />
             {isAdmin && (
                <div style={{ display: 'flex' }}>
-                  {/* <IconTable type='fullscreen-exit' onClick={() => adminFncServerInit('upload-sumang')} />
-                  <IconTable type='fall' onClick={() => adminFncServerInit('upload-handy')} />
-                  <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-rows')} />
-                  <IconTable type='stock' onClick={() => adminFncServerInit('delete-all-collections')} /> */}
-                  {/* <IconTable type='stock' onClick={() => history.push('/sheet')} />
-                  <IconTable type='stock' onClick={() => history.push('/dashboard')} /> */}
+                  <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
+                  <ButtonAdminUploadData />
                </div>
             )}
 
@@ -654,6 +635,7 @@ const PageSpreadsheet = (props) => {
                overscanRowCount={0}
                onScroll={onScroll}
                rowClassName={rowClassName}
+               // rowProps={rowProps}
                onRowExpand={onRowExpand}
             />
          ) : <LoadingIcon />}
@@ -664,7 +646,11 @@ const PageSpreadsheet = (props) => {
             footer={null}
             onCancel={() => setPanelFunctionVisible(false)}
             destroyOnClose={true}
-            style={{ position: 'fixed', left: cursor && cursor.x, top: cursor && cursor.y }}
+            style={{
+               position: 'fixed',
+               left: cursor && getPanelPosition(cursor).x,
+               top: cursor && getPanelPosition(cursor).y
+            }}
             mask={false}
             width={250}
          >
@@ -714,7 +700,7 @@ const PageSpreadsheet = (props) => {
                onCancel={() => setAdminFncInitPanel(false)}
             ></Modal>
          )}
-      </PageSpreadsheetStyled>
+      </div>
 
    );
 };
@@ -733,22 +719,23 @@ const DividerRibbon = () => {
    );
 };
 
-const PageSpreadsheetStyled = styled.div`
-    /* padding-top: ${dimension.navBarHeight}; */
-`;
-
 
 const TableStyled = styled(Table)`
-
+   .cell-locked {
+      background-color: #FAFAD2
+   };
+   .row-locked {
+      background-color: #FAFAD2
+   };
    .row-drawing-type {
       background-color: ${colorType.grey3};
       font-weight: bold;
-      cursor: default;
-      &:hover {
-         background-color: ${colorType.grey3};
-      }
    };
-
+   .row-selected {
+      background-color: ${colorType.cellHighlighted};
+   };
+   
+   
    
    ${({ dataForStyled }) => {
       const { stateProject, randomColorRange, randomColorRangeStatus } = dataForStyled;
@@ -782,6 +769,7 @@ const TableStyled = styled(Table)`
       if (cellHistoryFound) return `.cell-history-highlight { background-color: #f6e58d; }`;
    }}
 
+   
    .cell-current {
       background-color: ${colorType.cellHighlighted}
    };
@@ -868,64 +856,97 @@ const SpinStyled = styled.div`
     z-index: 1000;
 `;
 
-export const reorderDrawingsByDrawingTypeTree = (rows, drawingTypeTree) => {
-   let rowsReordered = [];
-   drawingTypeTree.forEach(tr => {
-      if (tr._rowLevel === 0) {
-         rowsReordered = [...rowsReordered, ...rows.filter(r => r._parentRow === tr.id)];
-      };
-   });
-   return rowsReordered;
-};
+
+
 const getInputDataInitially = (data) => {
+   const { rows, publicSettings, userSettings } = data;
+   const { drawingTypeTree } = publicSettings;
+   let viewTemplates = [];
+   let viewTemplateNodeId = null;
+   if (userSettings) {
+      viewTemplates = userSettings.viewTemplates || [];
+      viewTemplateNodeId = userSettings.viewTemplateNodeId || null;
+   };
 
-   const { drawingTypeTree } = data.publicSettings;
-   const { rows } = data;
-   const rowsReordered = reorderDrawingsByDrawingTypeTree(rows, drawingTypeTree);
+   let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);
 
-   const rowsAllInitToCompareBeforeSave = rows.map(r => ({ ...r }));
+   const { treeNodesToAdd, rowsToAdd, rowsUpdatePreOrParent } = rearrangeRowsNotMatchTreeNode(rows, rowsAllOutput, drawingTypeTree);
+
 
    return {
-      rowsAll: rowsReordered,
-      rowsAllInit: rowsReordered,
-      rowsAllInitToCompareBeforeSave,
+      rowsAll: [...rowsAllOutput, ...rowsToAdd], // CHECK
+      rowsAllInit: [...rowsAllOutput, ...rowsToAdd], // CHECK
       rowsVersionsToSave: [],
       showDrawingsOnly: false,
-      drawingTypeTree,
+
+      viewTemplates,
+      viewTemplateNodeId,
+      drawingTypeTree: [...drawingTypeTree, ...treeNodesToAdd], // CHECK
       drawingTypeTreeInit: drawingTypeTree,
+      drawingsTypeDeleted: [],
+      drawingsTypeNewIds: [...treeNodesToAdd.map(x => x.id)], // CHECK
+
       rowsDeleted: [],
       idRowsNew: [],
-      rowsUpdatePreRowOrParentRow: {},
-      rowsToMoveId: null
+      rowsUpdatePreRowOrParentRow: { ...rowsUpdatePreOrParent }, // CHECK
+
+      rowsSelected: [],
+      rowsSelectedToMove: [],
+
+      modeFilter: {},
+
+      isRfaView: false
    };
 };
 
 const arrangeDrawingTypeFinal = (stateRow) => {
+   const { rowsAll, showDrawingsOnly, drawingTypeTree, viewTemplateNodeId } = stateRow;
 
-   const { rowsAll, showDrawingsOnly, drawingTypeTree } = stateRow;
+   let drawingTypeTreeTemplate;
+   let rowsAllTemplate;
+   const templateNode = drawingTypeTree.find(x => x.id === viewTemplateNodeId);
 
-   if (showDrawingsOnly === 'sort-data-project') return rowsAll;
-   if (showDrawingsOnly === 'group-columns') return rowsAll;
-
-
-   let data = drawingTypeTree.map(e => {
-      let obj = { ...e };
-      if (obj._rowLevel === 0) {
-         let rowsChildren = rowsAll.filter(r => r._parentRow === e.id).map(x => ({ ...x }));
-         obj.children = rowsChildren;
+   if (templateNode) {
+      const nodeArray = getTreeFlattenOfNodeInArray(drawingTypeTree, templateNode);
+      if (nodeArray.length > 1) {
+         drawingTypeTreeTemplate = nodeArray.filter(x => x.id !== templateNode.id);
+         rowsAllTemplate = rowsAll.filter(x => drawingTypeTreeTemplate.find(tr => tr.id === x._parentRow));
+      } else {
+         const parent = nodeArray[0];
+         return rowsAll.filter(x => x._parentRow === parent.id);
       };
-      return { ...obj };
+   } else {
+      drawingTypeTreeTemplate = drawingTypeTree.map(x => ({ ...x }));
+      rowsAllTemplate = rowsAll.map(x => ({ ...x }));
+   };
+
+
+   if (showDrawingsOnly === 'sort-data-project') return rowsAllTemplate;
+   if (showDrawingsOnly === 'group-columns') return rowsAllTemplate;
+
+
+   let dataOutput = [];
+   drawingTypeTreeTemplate.forEach(item => {
+      let newItem = { ...item };
+      let rowsChildren = rowsAllTemplate.filter(r => r._parentRow === newItem.id);
+      if (rowsChildren.length > 0) {
+         newItem.children = rowsChildren;
+      };
+      dataOutput.push(newItem);
    });
-
-   // currently applied for level 0 only ...
-
-   return data;
+   const output = convertFlattenArraytoTree1(dataOutput);
+   return output;
 };
 
-const getRowsKeyExpanded = (drawingTypeTree) => {
-   return drawingTypeTree.map(x => {
-      if (x._rowLevel === 0) return x.id;
-   });
+const getRowsKeyExpanded = (drawingTypeTree, viewTemplateNodeId) => {
+
+   const templateNode = drawingTypeTree.find(x => x.id === viewTemplateNodeId);
+   if (templateNode) {
+      const drawingTypeTreeTemplate = getTreeFlattenOfNodeInArray(drawingTypeTree, templateNode).filter(x => x.id !== templateNode.id);
+      return drawingTypeTreeTemplate.map(x => x.id);
+   } else {
+      return drawingTypeTree.map(x => x.id);
+   };
 };
 
 
@@ -956,12 +977,123 @@ const getHeadersData = (projectData) => {
    };
 };
 
+export const getOutputRowsAllSorted = (drawingTypeTree, rowsAll) => {
+
+   const drawingTypeTreeClone = drawingTypeTree.map(x => ({ ...x }));
+   const treeTemp = convertFlattenArraytoTree1(drawingTypeTreeClone);
+
+   let rowsOutput = [];
+   const getIndex = (arr) => {
+      arr.forEach(i => {
+         if (i.children.length > 0) {
+            getIndex(i.children);
+         } else if (i.children.length === 0) {
+            const rows = rowsAll.filter(r => r._parentRow === i.id);
+            rowsOutput = [...rowsOutput, ...rows];
+         };
+      });
+   };
+   getIndex(treeTemp);
+   return rowsOutput;
+};
+
+
+const rearrangeRowsNotMatchTreeNode = (rows, rowsArranged, drawingTypeTree) => {
+   const rowsToArrange = rows.filter(x => !rowsArranged.find(r => r.id === x.id));
+   if (rowsToArrange.length === 0) {
+      return { treeNodesToAdd: [], rowsToAdd: [], rowsUpdatePreOrParent: {} };
+   };
+
+   const parentIdsArr = [...new Set(rowsToArrange.map(x => x._parentRow))];
+
+   let treeNodesToAdd = [];
+   let rowsToAdd = [];
+   let rowsUpdatePreOrParent = {}
+   parentIdsArr.map(id => {
+      const nodeInTree = drawingTypeTree.find(x => x.id === id);
+      if (nodeInTree) {
+         const newId = mongoObjectId();
+         treeNodesToAdd.push({
+            'Drawing Number': 'New Drawing Type',
+            id: newId,
+            parentId: nodeInTree.id,
+            treeLevel: nodeInTree.treeLevel + 1,
+            expanded: true,
+         });
+         const rowsFound = rowsToArrange.filter(x => x._parentRow === id);
+         rowsFound.forEach((r, i) => {
+            r._parentRow = newId;
+            r._preRow = i === 0 ? null : rowsFound[i - 1].id;
+            updatePreRowParentRowToState(rowsUpdatePreOrParent, r);
+         });
+         rowsToAdd = [...rowsToAdd, ...rowsFound];
+      };
+   });
+   return {
+      treeNodesToAdd,
+      rowsToAdd,
+      rowsUpdatePreOrParent
+   };
+};
 
 
 
+const getUserRoleTradeCompany = (role, company) => {
+
+   const roleArray = [
+      'Document Controller',
+
+      'WH Archi Coordinator',
+      'WH C&S Design Engineer',
+      'WH M&E Coordinator',
+      'WH PRECAST Coordinator',
+
+      'WH Archi Modeller',
+      'WH C&S Modeller',
+      'WH M&E Modeller',
+      'WH PRECAST Modeller',
+
+      'Production',
+
+      'WH Archi Manager',
+      'WH C&S Manager',
+      'WH M&E Manager',
+      'WH PRECAST Manager',
+
+      'Planning Engineer',
+      'QS',
+      'Project Manager',
+      'Corporate Manager',
+      'QAQC',
+      'Safety',
+      'Client',
+
+      'Sub-Con',
+      'Consultant',
+   ];
 
 
+   if (
+      !role || !company || roleArray.indexOf(role) === -1 ||
+      role === 'WH Archi Manager' || role === 'WH C&S Manager' || role === 'WH M&E Manager' || role === 'WH PRECAST Manager' ||
+      role === 'Planning Engineer' || role === 'QS' || role === 'Project Manager' || role === 'Corporate Manager' ||
+      role === 'Client' || role === 'QAQC' || role === 'Safety'
+   ) {
+      return { role: 'View-Only User', trade: null, company: null };
+   };
 
+   if (role === 'WH Archi Coordinator') return { role: 'Coordinator', trade: 'ARCHI', company };
+   if (role === 'WH C&S Design Engineer') return { role: 'Coordinator', trade: 'C&S', company };
+   if (role === 'WH M&E Coordinator') return { role: 'Coordinator', trade: 'M&E', company };
+   if (role === 'WH PRECAST Coordinator') return { role: 'Coordinator', trade: 'PRECAST', company };
+
+   if (role === 'WH Archi Modeller') return { role: 'Modeller', trade: 'ARCHI', company };
+   if (role === 'WH C&S Modeller') return { role: 'Modeller', trade: 'C&S', company };
+   if (role === 'WH M&E Modeller') return { role: 'Modeller', trade: 'M&E', company };
+   if (role === 'WH PRECAST Modeller') return { role: 'Modeller', trade: 'PRECAST', company };
+
+   return { role, trade: null, company };
+};
 
 
 

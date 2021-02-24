@@ -3,6 +3,9 @@ import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
+import { columnLocked, getCompanyNameTextFnc, getTradeNameTextFnc, rowLocked } from './Cell';
+
+
 
 const PanelFunction = (props) => {
 
@@ -11,12 +14,34 @@ const PanelFunction = (props) => {
    const { state: stateRow } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const role = stateProject.allDataOneSheet && stateProject.allDataOneSheet.role;
+   const { roleTradeCompany } = stateProject.allDataOneSheet;
 
-   const { rowsToMoveId } = stateRow;
+   const { rowsSelectedToMove, rowsSelected, drawingTypeTree, showDrawingsOnly } = stateRow;
+
+   const { rowData, column } = panelType.cellProps;
+
+   const isLockedColumn = columnLocked(roleTradeCompany, rowData, showDrawingsOnly, column.key);
+   const isLockedRow = rowLocked(roleTradeCompany, rowData, showDrawingsOnly, drawingTypeTree);
+
+   const dwgType = drawingTypeTree.find(x => x.id === rowData.id);
+
+   let company, trade;
+   if (rowData.treeLevel >= 1) {
+      company = getCompanyNameTextFnc(dwgType, drawingTypeTree);
+   };
+   if (rowData.treeLevel >= 2) {
+      trade = getTradeNameTextFnc(dwgType, drawingTypeTree);
+   };
+
+   const isLockedByCompanyOrTrade =
+      roleTradeCompany.role === 'Document Controller' && roleTradeCompany.company === 'Woh Hup Private Ltd'
+         ? false
+         : roleTradeCompany.company === 'Woh Hup Private Ltd'
+            ? (company !== roleTradeCompany.company || trade !== roleTradeCompany.trade)
+            : company !== roleTradeCompany.company;
 
 
-   const listButton = panelType.type === 'cell' && [
+   const listButton = (rowData._rowLevel && rowData._rowLevel === 1 && !isLockedColumn && !isLockedRow) ? [
       'View Drawing Revision',
       'Create New Drawing Revision',
       'Date Automation',
@@ -24,11 +49,25 @@ const PanelFunction = (props) => {
       'Duplicate Drawings',
       'Insert Drawings Below',
       'Insert Drawings Above',
-      'Move Drawing',
-      'Paste Drawing',
-      'Delete Drawing',
+      'Move Drawings',
+      'Paste Drawings',
+      'Delete Drawing'
+
+   ] : (rowData._rowLevel && rowData._rowLevel === 1 && (isLockedColumn || isLockedRow)) ? [
+      'View Drawing Revision',
+      'View Cell History',
+
+   ] : (rowData.treeLevel) ? [
+      'Paste Drawings',
       'Insert Drawings By Type'
-   ];
+
+   ] : [];
+
+
+   const onClickBtn = (btn) => {
+      buttonPanelFunction(btn);
+   };
+
 
    return (
       <div
@@ -40,8 +79,16 @@ const PanelFunction = (props) => {
          {listButton.map(btn => (
             <Container
                key={btn}
-               onMouseDown={() => buttonPanelFunction(btn)}
-               style={disabledBtn(props, btn, rowsToMoveId, role)}
+               onMouseDown={() => onClickBtn(btn)}
+               style={disabledBtn(
+                  props,
+                  btn,
+                  rowsSelectedToMove,
+                  roleTradeCompany,
+                  isLockedByCompanyOrTrade,
+                  rowsSelected,
+                  drawingTypeTree
+               )}
             >
                {btn}
             </Container>
@@ -66,18 +113,26 @@ const Container = styled.div`
 `;
 
 
-const disabledBtn = ({ panelType }, btn, rowsToMoveId, role) => {
-   if (!rowsToMoveId && btn === 'Paste Drawing') {
-      return { pointerEvents: 'none', color: 'grey' };
-   };
+const disabledBtn = ({ panelType }, btn, rowsSelectedToMove, roleTradeCompany, isLockedByCompanyOrTrade, rowsSelected, drawingTypeTree) => {
+   const { rowData } = panelType.cellProps;
+   const { _rowLevel, children, treeLevel, id } = rowData;
 
-   const { _rowLevel } = panelType.cellProps.rowData;
+
 
    if (
-      (_rowLevel === 1 && btn === 'Insert Drawings By Type') ||
-      (_rowLevel !== 1 && btn !== 'Insert Drawings By Type') ||
-      (role === 'modeller' && btnLocked_1.indexOf(btn) !== -1) ||
-      ((role === 'viewer' || role === 'manager' || role === 'production') && btnLocked_2.indexOf(btn) !== -1)
+      (rowsSelectedToMove.length === 0 && btn === 'Paste Drawings') ||
+      (_rowLevel === 1 && roleTradeCompany.role === 'Modeller' && btnLocked_1.indexOf(btn) !== -1) ||
+
+      (_rowLevel === 1 && rowsSelected.length > 0 && rowsSelectedToMove.length === 0 && btn !== 'Move Drawings') ||
+      (_rowLevel === 1 && rowsSelected.length > 0 && rowsSelectedToMove.length > 0 && btn !== 'Paste Drawings') ||
+      (_rowLevel === 1 && (roleTradeCompany.role === 'View-Only User' || roleTradeCompany.role === 'Production') && btnLocked_2.indexOf(btn) !== -1) ||
+
+      (treeLevel === 1 && rowData['Drawing Number'] === 'Woh Hup Private Ltd' && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
+      (treeLevel > 1 && drawingTypeTree.find(x => x.parentId === id) && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
+      (treeLevel > 1 && !drawingTypeTree.find(x => x.parentId === id) && rowsSelectedToMove.length === 0 && btn === 'Paste Drawings')
+      ||
+      (treeLevel >= 1 && isLockedByCompanyOrTrade)
+
    ) return {
       pointerEvents: 'none',
       color: 'grey'
@@ -96,9 +151,32 @@ const btnLocked_2 = [
    'Duplicate Drawings',
    'Insert Drawings Below',
    'Insert Drawings Above',
-   'Move Drawing',
-   'Paste Drawing',
+   'Move Drawings',
+   'Paste Drawings',
    'Delete Drawing',
    'Insert Drawings By Type'
 ];
 
+
+export const getPanelPosition = ({ x: clickX, y: clickY }) => {
+   const screenW = window.innerWidth;
+   const screenH = window.innerHeight;
+
+   const right = (screenW - clickX) < 200;
+   const left = clickX < 200;
+   const top = clickY < 200;
+   const bottom = (screenH - clickY) < 200;
+
+   return { 
+      x: right && top ? clickX - 250 :
+         right && bottom ? clickX - 250 :
+         left && bottom ? clickX :
+         left && top ? clickX :
+         right ? clickX - 250 : clickX,
+      y: right && top ? clickY :
+         right && bottom ? clickY - 300 :
+         left && bottom ? clickY - 300 :
+         left && top ? clickY :
+         bottom ? clickY - 300 : clickY
+   };
+};

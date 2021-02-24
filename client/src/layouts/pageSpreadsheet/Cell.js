@@ -9,21 +9,14 @@ import { Context as RowContext } from '../../contexts/rowContext';
 import PanelCalendar from './PanelCalendar';
 
 
-const getRowParentLevelMin = (drawingTypeTree) => {
-   let result = 0;
-   drawingTypeTree.forEach(x => {
-      if (x._rowLevel <= result) result = x._rowLevel;
-   });
-   return result;
-};
-
 
 const Cell = (props) => {
 
-   const {
-      rowData, column, rowIndex, columnIndex,
-      onRightClickCell, setPosition, getCurrentDOMCell
+   const { 
+      rowData, column, rowIndex, columnIndex, onRightClickCell, 
+      setPosition, getCurrentDOMCell 
    } = props;
+   
 
    let cellData = props.cellData;
 
@@ -33,14 +26,20 @@ const Cell = (props) => {
       cellData = moment(cellData, 'YYYY-MM-DD').format('DD/MM/YY');
    };
 
+
+  
+
    const { state: stateCell, getCellModifiedTemp, setCellActive } = useContext(CellContext);
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow, getSheetRows } = useContext(RowContext);
-   let { drawingTypeTree, rowsAll, showDrawingsOnly } = stateRow;
+   let { drawingTypeTree, rowsAll, showDrawingsOnly, rowsSelected, rowsSelectedToMove } = stateRow;
+
+   const { roleTradeCompany } = stateProject.allDataOneSheet;
 
 
-   const role = stateProject.allDataOneSheet && stateProject.allDataOneSheet.role;
-   const isLockedCell = cellLocked(role, column.key, showDrawingsOnly, rowData);
+   const isLockedColumn = columnLocked(roleTradeCompany, rowData, showDrawingsOnly, column.key);
+   const isLockedRow = rowLocked(roleTradeCompany, rowData, showDrawingsOnly, drawingTypeTree);
+   
 
    const inputRef = useRef();
    const cellRef = useRef();
@@ -52,7 +51,6 @@ const Cell = (props) => {
 
    const [btnShown, setBtnShown] = useState(false);
    const [panelData, setPanelData] = useState(false);
-
 
 
    const getCellTempId = () => `${rowData['id']}-${column.key}`;
@@ -81,16 +79,24 @@ const Cell = (props) => {
 
 
    const onDoubleClick = () => {
-      if (isLockedCell) return;
+      if (isLockedColumn || isLockedRow) return;
       setInputRender(true);
       setBtnShown(false);
       getCurrentDOMCell(); // double click to activate cell
    };
    const onClick = () => {
-      if (isLockedCell) return;
+      if (rowsSelected.length > 0 || rowsSelectedToMove.length > 0) {
+         getSheetRows({
+            ...stateRow, rowsSelected: [], rowsSelectedToMove: [] });
+      };
+      if (isLockedColumn || isLockedRow) return;
       setBtnShown(true);
       if (!inputRender) { // single click just highlight cell, not activate
          setPosition({ cell: cellRef.current.parentElement, rowIndex, columnIndex });
+      };
+
+      if (rowsSelected.length > 0) {
+         getSheetRows({ ...stateRow, rowsSelected: [] });
       };
    };
 
@@ -114,7 +120,7 @@ const Cell = (props) => {
       if (e.button === 2) { // check mouse RIGHT CLICK ...
          onRightClickCell(e, props);
       } else {
-         if (isLockedCell) return;
+         if (isLockedColumn || isLockedRow) return;
       };
    };
    const pickDataSelect = (type, value) => {
@@ -143,7 +149,7 @@ const Cell = (props) => {
          stateCell.cellActive &&
          stateCell.cellActive.rowIndex === rowIndex &&
          stateCell.cellActive.columnIndex === columnIndex &&
-         !isLockedCell
+         !isLockedColumn && !isLockedRow
       ) {
          setInputRender(true);
       };
@@ -156,7 +162,7 @@ const Cell = (props) => {
          stateCell.cellAppliedAction &&
          stateCell.cellAppliedAction.currentDOMCell.rowIndex === rowIndex &&
          stateCell.cellAppliedAction.currentDOMCell.columnIndex === columnIndex &&
-         !isLockedCell
+         !isLockedColumn && !isLockedRow
       ) {
          const { e } = stateCell.cellAppliedAction;
          if (e.key === 'Delete') {
@@ -182,7 +188,7 @@ const Cell = (props) => {
          stateCell.cellActive &&
          stateCell.cellActive.rowIndex === rowIndex &&
          stateCell.cellActive.columnIndex === columnIndex &&
-         !isLockedCell
+         !isLockedColumn && !isLockedRow
       ) {
          inputRef.current.blur();
          setCellActive(null);
@@ -202,13 +208,10 @@ const Cell = (props) => {
                width: '100%',
                height: '100%',
                padding: 5,
-               paddingLeft: (column.key === 'Drawing Number' && rowData._rowLevel === 1 && showDrawingsOnly === 'group-columns') ? ((Math.abs(stateRow.rowsAll[0]._rowLevel) + 2) * 15) :
-                  (column.key === 'Drawing Number' && rowData._rowLevel === 1 && showDrawingsOnly !== 'group-columns') ? ((Math.abs(getRowParentLevelMin(drawingTypeTree)) + 2) * 15) : 5,
                position: 'relative',
                color: 'black',
-               background: 'transparent'
-               // pointerEvents: isLockedCell && 'none',
-               // background: cellBackground(role, column.key, rowData._rowLevel) ? '#fafafa' : 'transparent'
+               background: 'transparent',
+               overflow: column.key === 'Drawing Number' ? 'hidden' : 'visible' // fix bug frozen panel move to the left
             }}
          >
             {inputRender ? (
@@ -299,12 +302,12 @@ const Cell = (props) => {
 export default Cell;
 
 const SelectStyled = styled.div`
-    padding: 4px;
-    &:hover {
-        background-color: ${colorType.grey4};
-        cursor: pointer;
-    };
-    transition: 0.2s;
+   padding: 4px;
+   &:hover {
+      background-color: ${colorType.grey4};
+      cursor: pointer;
+   };
+   transition: 0.2s;
 `;
 
 const checkCellDateFormat = (header) => {
@@ -339,28 +342,92 @@ const cellStatusFormat = [
    'Approved for Construction'
 ];
 
-const ColumnsLockedModeller = [
+const columnsLockedModeller = [
+   'Model Start (T)',
+   'Model Finish (T)',
+   'Drawing Start (T)',
+   'Drawing Finish (T)',
    'Drg To Consultant (T)',
-   'Drg To Consultant (A)',
    'Consultant Reply (T)',
-   'Consultant Reply (A)',
    'Get Approval (T)',
-   'Get Approval (A)',
    'Construction Issuance Date',
    'Construction Start',
 ];
-const cellLocked = (title, column, showDrawingsOnly, rowData) => {
+
+export const columnLocked = (roleTradeCompany, rowData, showDrawingsOnly, column) => {
    if (
-      !rowData._rowLevel ||
+      (rowData && !rowData._rowLevel) || // lock drawing type ...
       showDrawingsOnly === 'group-columns' ||
-      (title === 'modeller' && ColumnsLockedModeller.includes(column)) ||
-      (title === 'manager' || title === 'viewer') ||
-      (title === 'production' && column !== 'Construction Start')
+      (roleTradeCompany.role === 'Modeller' && columnsLockedModeller.includes(column)) ||
+      (roleTradeCompany.role === 'View-Only User') ||
+      (roleTradeCompany.role === 'Production' && column !== 'Construction Start')
    ) {
       return true;
-   } else if (
-      (title === 'coordinator' || title === 'document controller')
-   ) {
+   } else {
       return false;
    };
 };
+
+export const rowLocked = (roleTradeCompany, rowData, showDrawingsOnly, drawingTypeTree) => {
+
+   if (!rowData._rowLevel || rowData._rowLevel < 1) return true;
+   if (showDrawingsOnly === 'group-columns') return true;
+   if (roleTradeCompany.role === 'Document Controller') return false;
+   
+   
+   const drawingTypeTreeClone = drawingTypeTree.map(x => ({...x}));
+   const dwgType = drawingTypeTreeClone.find(x => x.id === rowData._parentRow);
+
+   let companyName;
+   if (dwgType.treeLevel >= 1) {
+      companyName = getCompanyNameTextFnc(dwgType, drawingTypeTreeClone);
+   };
+
+   if (roleTradeCompany.role === 'Production' && companyName === 'Woh Hup Private Ltd') return false;
+
+
+   let tradeName;
+   if (companyName === 'Woh Hup Private Ltd' && dwgType.treeLevel >= 2) {
+
+      tradeName = getTradeNameTextFnc(dwgType, drawingTypeTreeClone);
+      
+      return companyName !== roleTradeCompany.company || tradeName !== roleTradeCompany.trade;
+   } else {
+      return companyName !== roleTradeCompany.company;
+   };
+};
+
+
+export const getCompanyNameTextFnc = (dwgType, drawingTypeTreeClone) => {
+   if (dwgType.treeLevel === 1) return dwgType['Drawing Number'];
+   let result;
+   const getCompanyFnc = (dwgType, dwgTypeTree) => {
+      const parent = dwgTypeTree.find(x => x.id === dwgType.parentId);
+      if (parent.treeLevel === 1) {
+         result = parent['Drawing Number'];
+      } else {
+         getCompanyFnc(parent, dwgTypeTree);
+      };
+      return result;
+   };
+   getCompanyFnc(dwgType, drawingTypeTreeClone);
+   return result;
+};
+export const getTradeNameTextFnc = (dwgType, drawingTypeTreeClone) => {
+   const tree = drawingTypeTreeClone.filter(x => x.treeLevel !== 1);
+   if (dwgType.treeLevel === 2) return dwgType['Drawing Number'];
+   let result;
+   const getTradeFnc = (dwgType, dwgTypeTree) => {
+      const parent = dwgTypeTree.find(x => x.id === dwgType.parentId);
+      if (parent.treeLevel === 2) {
+         result = parent['Drawing Number'];
+      } else {
+         getTradeFnc(parent, dwgTypeTree);
+      };
+      return result;
+   };
+   getTradeFnc(dwgType, tree);
+   return result;
+};
+
+

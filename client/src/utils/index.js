@@ -496,8 +496,8 @@ export const getHeaderWidth = (header) => {
 
     else if (header === 'Rev') return 60;
     else if (header === 'Status') return 280;
-    else if (header === 'Remark') return 120;
-    else if (header === 'Drawing Number') return 350;
+    else if (header === 'Remark') return 700;
+    else if (header === 'Drawing Number') return 400;
     else if (header === 'Drawing Name') return 450;
     else return 300;
 
@@ -523,8 +523,8 @@ export const getActionName = (type) => {
     if (type === 'color-cell-history-ICON') return 'Check Data Changed';
     if (type === 'View Cell History') return 'Cell History';
     if (type === 'Delete Drawing') return 'Delete Drawing';
-    // if (type === 'history-ICON') return 'Activity History';
     if (type === 'colorized-ICON') return 'Drawing Colorization';
+    if (type === 'viewTemplate-ICON') return 'View Template';
     if (type && (type.includes('Insert Drawings') || type === 'Duplicate Drawings')) return 'Nos Of Drawings';
 
     else return '';

@@ -29,9 +29,9 @@ const ColorizedForm = ({ applyColorization, onClickCancelModal }) => {
             setArrData([...arrData, btn]);
         } else {
             setArrData(arrData.filter(r => r !== btn));
-        }; 
+        };
     };
-    
+
     const [item, setItem] = useState(null);
 
     return (
@@ -54,7 +54,7 @@ const ColorizedForm = ({ applyColorization, onClickCancelModal }) => {
                         <Option key={item} value={item}>{item}</Option>
                     ))}
                 </SelectStyled>
-                <div style={{  }}>
+                <div style={{}}>
                     {getColumnsValueColorization(stateRow.rowsAll, item).map((vl, i) => (
                         <TagBtn key={i} value={vl} onClickBtn={onClickBtn} arrData={arrData} />
                     ))}
@@ -64,8 +64,10 @@ const ColorizedForm = ({ applyColorization, onClickCancelModal }) => {
                 <ButtonGroupComp
                     onClickCancel={onClickCancelModal}
                     onClickApply={() => applyColorization({
-                        header: item,
-                        value: arrData
+                        colorization: {
+                            header: item,
+                            value: arrData
+                        }
                     })}
                 />
             </div>
