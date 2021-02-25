@@ -71,7 +71,7 @@ const getDataSumangAndHandy = ({ rows: rowsRaw, settings: settingsRaw, cellHisto
          const treeToSave = [
             {
                id: wohhupId,
-               parentId: projectName.toUpperCase(),
+               parentId: projectName,
                treeLevel: 1,
                expanded: true,
                [dwgNumberId]: 'Woh Hup Private Ltd'
@@ -130,7 +130,7 @@ const getDataSumangAndHandy = ({ rows: rowsRaw, settings: settingsRaw, cellHisto
          const treeToSave = [
             {
                id: wohhupId,
-               parentId: projectName.toUpperCase(),
+               parentId: projectName,
                treeLevel: 1,
                expanded: true,
                [dwgNumberId]: 'Woh Hup Private Ltd'

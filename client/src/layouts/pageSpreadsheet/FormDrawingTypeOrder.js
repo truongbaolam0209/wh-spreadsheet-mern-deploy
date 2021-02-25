@@ -47,7 +47,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
    };
    const addFolderBelow = (node) => {
       if (node.treeLevel === 0) {
-         setTradeAndCompanyAndType({ node, dataTreeArray: companies });
+         setTradeAndCompanyAndType({ node, dataTreeArray: companies.map(x => x.company) });
       } else if (node.treeLevel === 1 && node.title === 'Woh Hup Private Ltd') {
          setTradeAndCompanyAndType({ node, dataTreeArray: ['ARCHI', 'C&S', 'M&E', 'PRECAST'] });
       } else if ((node.treeLevel >= 1 && node.title !== 'Woh Hup Private Ltd') || (node.treeLevel >= 2 && node.title === 'Woh Hup Private Ltd')) {
