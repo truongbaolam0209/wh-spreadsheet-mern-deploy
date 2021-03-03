@@ -22,26 +22,26 @@ const App = () => {
                      <CellProvider>
                         <PageSpreadsheet
 
-                           email='admin@wohhup.com'
+                           // email='admin@wohhup.com'
 
-                           projectId='MTYxMDMzOTYwMjQyNS1TdW1hbmc'
-                           projectName='Sumang'
+                           // projectId='MTYxMDMzOTYwMjQyNS1TdW1hbmc'
+                           // projectName='Sumang'
                            
-                           // projectId='MTU5MTY3NDI0ODUyMy1IYW5keQ'
-                           // projectName='Handy'
+                           // // projectId='MTU5MTY3NDI0ODUyMy1IYW5keQ'
+                           // // projectName='Handy'
                            
-                           token='xxx-xxxxx-xxx-x-xxxxx'
-                           isAdmin={true}
+                           // token='xxx-xxxxx-xxx-x-xxxxx'
+                           // isAdmin={true}
 
-                           role='Document Controller'
-                           companies={[
-                              { company: 'Woh Hup Private Ltd', companyType: 'Main con' },
-                              { company: 'XXX', companyType: 'Sub-con' },
-                              { company: 'YYY', companyType: 'Consultant' },
-                              { company: 'ZZZ', companyType: 'Client' },
-                              { company: 'MMM', companyType: 'Client' },
-                           ]}
-                           company='Woh Hup Private Ltd'
+                           // role='Document Controller'
+                           // companies={[
+                           //    { company: 'Woh Hup Private Ltd', companyType: 'Main con' },
+                           //    { company: 'XXX', companyType: 'Sub-con' },
+                           //    { company: 'YYY', companyType: 'Consultant' },
+                           //    { company: 'ZZZ', companyType: 'Client' },
+                           //    { company: 'MMM', companyType: 'Client' },
+                           // ]}
+                           // company='Woh Hup Private Ltd'
 
                         />
                      </CellProvider>
@@ -52,13 +52,13 @@ const App = () => {
 
             <Route path='/dashboard'>
                <PageDashboard
-                  projectsArray={[
-                     { name: 'Sumang', id: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc' },
-                     { name: 'Handy', id: 'MTU5MTY3NDI0ODUyMy1IYW5keQ' },
-                     { name: 'Handytgtg', id: 'KFFFFFFFDY1MS10FHANDY' },
-                     { name: 'rrrrrrrrtgtg', id: 'KFFfvfvfvHANDY' },
-                  ]}
-                  token='XXXTTTYYYIIIKKKLLLFFF'
+                  // projectsArray={[
+                  //    { name: 'Sumang', id: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc' },
+                  //    { name: 'Handy', id: 'MTU5MTY3NDI0ODUyMy1IYW5keQ' },
+                  //    { name: 'Handytgtg', id: 'KFFFFFFFDY1MS10FHANDY' },
+                  //    { name: 'rrrrrrrrtgtg', id: 'KFFfvfvfvHANDY' },
+                  // ]}
+                  // token='XXXTTTYYYIIIKKKLLLFFF'
                />
             </Route>
 

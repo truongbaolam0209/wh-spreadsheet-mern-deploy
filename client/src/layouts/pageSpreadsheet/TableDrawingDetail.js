@@ -96,7 +96,6 @@ const TableDrawingDetail = (props) => {
    const panelWidth = window.innerWidth * 0.8;
    const panelHeight = window.innerHeight * 0.8;
 
-
    return (
       <div style={{
          height: panelHeight,

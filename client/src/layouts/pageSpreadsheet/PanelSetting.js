@@ -493,17 +493,7 @@ const PanelSetting = (props) => {
             });
             rowsFromDB = rowsFromDB.filter(r => arrID.indexOf(r.id) === -1);
 
-
-            // take out temporarily all rowsUpdatePreRowOrParentRowArray from DB - LOGIC 2 
-            // Object.keys(rowsUpdatePreRowOrParentRowArray).forEach(rowId => {
-            //    const rowFound = rowsFromDB.find(row => row.id === rowId);
-            //    if (rowFound) {
-            //       const rowBelow = rowsFromDB.find(rrr => rrr._preRow === rowFound.id);
-            //       if (rowBelow) rowBelow._preRow = rowBelow._preRow;
-            //       rowsFromDB = rowsFromDB.filter(r => r.id !== rowFound.id);
-            //    };
-            // });
-
+            
 
             const rowsInOldParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
                return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && !treeDBModifiedToSave.find(x => x.parentId === tr.id));

@@ -10,9 +10,8 @@ import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
 import { debounceFnc, getActionName, getHeaderWidth, getModalWidth, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
 import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
+import ButtonAdminUploadDataPDD from './pageSpreadsheet/ButtonAdminUploadDataPDD';
 import ButtonAdminUploadRows from './pageSpreadsheet/ButtonAdminUploadRows';
-import ButtonAdminUploadRowsHistory from './pageSpreadsheet/ButtonAdminUploadRowsHistory';
-import ButtonAdminUploadSettings from './pageSpreadsheet/ButtonAdminUploadSettings';
 import Cell, { columnLocked, rowLocked } from './pageSpreadsheet/Cell';
 import CellHeader from './pageSpreadsheet/CellHeader';
 import CellIndex from './pageSpreadsheet/CellIndex';
@@ -409,7 +408,6 @@ const PageSpreadsheet = (props) => {
             const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
 
 
-
             fetchDataOneSheet({
                ...res.data,
                email, projectId, projectName, role, token, company, companies, roleTradeCompany
@@ -606,8 +604,7 @@ const PageSpreadsheet = (props) => {
                   <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                   <ButtonAdminUploadData />
                   <ButtonAdminUploadRows />
-                  <ButtonAdminUploadSettings />
-                  <ButtonAdminUploadRowsHistory />
+                  <ButtonAdminUploadDataPDD />
                </div>
             )}
 

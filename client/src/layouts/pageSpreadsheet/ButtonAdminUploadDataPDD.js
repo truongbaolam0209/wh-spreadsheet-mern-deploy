@@ -5,11 +5,12 @@ import { SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 
 
-const ButtonAdminUploadRows = () => {
+const ButtonAdminUploadDataPDD = () => {
 
    const { state: stateProject } = useContext(ProjectContext);
    const token = stateProject.allDataOneSheet && stateProject.allDataOneSheet.token;
-   const projectId = stateProject.allDataOneSheet && stateProject.allDataOneSheet.projectId;
+   const email = stateProject.allDataOneSheet && stateProject.allDataOneSheet.email;
+
 
    const [file, setFile] = useState('');
 
@@ -27,7 +28,10 @@ const ButtonAdminUploadRows = () => {
    const uploadCurrentDataToServer = async () => {
       try {
          await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId: file.projectId, rows: file.rowsUpdate });
-         message.info('DONE...Save DATA ROWS');
+         await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId: file.projectId, email, rowsHistory: file.rowsHistory });
+         await Axios.post(`${SERVER_URL}/sheet/update-setting-public/`, { token, projectId: file.projectId, email, publicSettings: file.publicSettings });
+         
+         message.info('DONE...Save DATA PDD');
       } catch (err) {
          console.log(err);
       };
@@ -37,8 +41,8 @@ const ButtonAdminUploadRows = () => {
    return (
       <>
          {file ? (
-            <Tooltip title='Upload Data Rows'>
-               <Icon type='edit' onClick={uploadCurrentDataToServer} style={{ marginRight: 10 }} />
+            <Tooltip title='Upload DATA PDD'>
+               <Icon type='fund' onClick={uploadCurrentDataToServer} style={{ marginRight: 10 }} />
             </Tooltip>
          ) : (
                <input style={{ height: 25, fontSize: 8, marginRight: 3 }} type='file' onChange={handleChange} />
@@ -47,6 +51,6 @@ const ButtonAdminUploadRows = () => {
    );
 };
 
-export default ButtonAdminUploadRows;
+export default ButtonAdminUploadDataPDD;
 
 

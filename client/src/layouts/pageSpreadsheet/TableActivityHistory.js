@@ -75,7 +75,7 @@ const TableActivityHistory = (props) => {
                   'Drawing Number': history[dwgNumber],
                   'Drawing Name': history[dwgName],
                   'Column': 'Rev & Status',
-                  'Value': `${history[revKey]} - ${history[statusKey]}`,
+                  'Value': `${history[revKey] || ''} - ${history[statusKey] || ''}`,
                   'User': row.userId || 'n/a',
                   'Created At': moment(row.createdAt).format('DD/MM/YY - HH:mm'),
                   'Action': 'Save Drawing Version',
@@ -90,7 +90,7 @@ const TableActivityHistory = (props) => {
                   'Drawing Number': row['Drawing Number'],
                   'Drawing Name': row['Drawing Name'],
                   'Column': headers.find(hd => hd.key === cell.headerKey).text,
-                  'Value': cell.text,
+                  'Value': cell.text || '',
                   'User': cell.email || 'n/a',
                   'Created At': moment(cell.createdAt).format('DD/MM/YY - HH:mm'),
                   'Action': 'Edit Cell',
@@ -111,7 +111,6 @@ const TableActivityHistory = (props) => {
                };
             });
             let outputArr = [...rowsOutput, ...cellsOutput, ...activityRecordedData];
-
             setHistoryAll(sortDataBeforePrint(outputArr));
             setHistoryAllInit(sortDataBeforePrint(outputArr));
 
