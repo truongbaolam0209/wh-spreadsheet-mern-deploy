@@ -10,6 +10,9 @@ import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
 import { debounceFnc, getActionName, getHeaderWidth, getModalWidth, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
 import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
+import ButtonAdminUploadRows from './pageSpreadsheet/ButtonAdminUploadRows';
+import ButtonAdminUploadRowsHistory from './pageSpreadsheet/ButtonAdminUploadRowsHistory';
+import ButtonAdminUploadSettings from './pageSpreadsheet/ButtonAdminUploadSettings';
 import Cell, { columnLocked, rowLocked } from './pageSpreadsheet/Cell';
 import CellHeader from './pageSpreadsheet/CellHeader';
 import CellIndex from './pageSpreadsheet/CellIndex';
@@ -210,7 +213,7 @@ const PageSpreadsheet = (props) => {
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
    // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
-   // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
+   useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
 
@@ -404,6 +407,8 @@ const PageSpreadsheet = (props) => {
          try {
             setLoading(true);
             const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+
+
 
             fetchDataOneSheet({
                ...res.data,
@@ -600,6 +605,9 @@ const PageSpreadsheet = (props) => {
                <div style={{ display: 'flex' }}>
                   <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                   <ButtonAdminUploadData />
+                  <ButtonAdminUploadRows />
+                  <ButtonAdminUploadSettings />
+                  <ButtonAdminUploadRowsHistory />
                </div>
             )}
 

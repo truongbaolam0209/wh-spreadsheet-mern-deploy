@@ -5,10 +5,11 @@ import { SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 
 
-const ButtonAdminUploadData = () => {
+const ButtonAdminUploadRows = () => {
 
    const { state: stateProject } = useContext(ProjectContext);
    const token = stateProject.allDataOneSheet && stateProject.allDataOneSheet.token;
+   const projectId = stateProject.allDataOneSheet && stateProject.allDataOneSheet.projectId;
 
    const [file, setFile] = useState('');
 
@@ -16,6 +17,7 @@ const ButtonAdminUploadData = () => {
       const fileReader = new FileReader();
       fileReader.readAsText(e.target.files[0], 'UTF-8');
       fileReader.onload = e => {
+         console.log(JSON.parse(e.target.result));
          setFile(JSON.parse(e.target.result));
          // setFile(getDataSumangAndHandy(JSON.parse(e.target.result)));
       };
@@ -24,11 +26,8 @@ const ButtonAdminUploadData = () => {
 
    const uploadCurrentDataToServer = async () => {
       try {
-         await Axios.post(`${SERVER_URL}/row/history/save-all-data-row-history`, { token, dataToSave: file.rowHistories });
-         await Axios.post(`${SERVER_URL}/cell/history/save-all-data-cell-history`, { token, dataToSave: file.cellHistories });
-         await Axios.post(`${SERVER_URL}/sheet/save-all-data-settings`, { token, dataToSave: file.settings });
-         await Axios.post(`${SERVER_URL}/sheet/save-all-data-rows`, { token, dataToSave: file.rows });
-         message.info('DONE...Save DATA');
+         await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId: file.projectId, rows: file.rowsUpdate });
+         message.info('DONE...Save DATA ROWS');
       } catch (err) {
          console.log(err);
       };
@@ -38,18 +37,16 @@ const ButtonAdminUploadData = () => {
    return (
       <>
          {file ? (
-            <Tooltip title='Upload Data All'>
-               <Icon type='upload' onClick={uploadCurrentDataToServer} style={{ marginRight: 10 }} />
+            <Tooltip title='Upload Data Rows'>
+               <Icon type='fund' onClick={uploadCurrentDataToServer} style={{ marginRight: 10 }} />
             </Tooltip>
          ) : (
                <input style={{ height: 25, fontSize: 8, marginRight: 3 }} type='file' onChange={handleChange} />
             )}
-
-
       </>
    );
 };
 
-export default ButtonAdminUploadData;
+export default ButtonAdminUploadRows;
 
 

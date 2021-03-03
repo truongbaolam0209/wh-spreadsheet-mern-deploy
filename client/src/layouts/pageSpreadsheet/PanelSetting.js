@@ -494,6 +494,15 @@ const PanelSetting = (props) => {
             rowsFromDB = rowsFromDB.filter(r => arrID.indexOf(r.id) === -1);
 
 
+            // take out temporarily all rowsUpdatePreRowOrParentRowArray from DB - LOGIC 2 
+            // Object.keys(rowsUpdatePreRowOrParentRowArray).forEach(rowId => {
+            //    const rowFound = rowsFromDB.find(row => row.id === rowId);
+            //    if (rowFound) {
+            //       const rowBelow = rowsFromDB.find(rrr => rrr._preRow === rowFound.id);
+            //       if (rowBelow) rowBelow._preRow = rowBelow._preRow;
+            //       rowsFromDB = rowsFromDB.filter(r => r.id !== rowFound.id);
+            //    };
+            // });
 
 
             const rowsInOldParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
@@ -622,12 +631,13 @@ const PanelSetting = (props) => {
             const rowInDB = rowsFromDB.find(r => r.id === row.id);
             if (rowInDB) {
                const rowBelow = rowsFromDB.find(r => r._preRow === rowInDB.id);
-               if (rowBelow) rowBelow._preRow = rowInDB._preRow;
+               if (rowBelow) {
+                  rowBelow._preRow = rowInDB._preRow;
+               };
+               rowsFromDB = rowsFromDB.filter(r => r.id !== rowInDB.id); // FIXEDDDDDDDDDDDDDDDDDDD
                rowDeletedFinal.push(row);
             };
          });
-
-
 
 
 

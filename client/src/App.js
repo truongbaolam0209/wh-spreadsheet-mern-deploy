@@ -24,20 +24,22 @@ const App = () => {
 
                            email='admin@wohhup.com'
 
-                           // projectId='MTYxMDMzOTYwMjQyNS1TdW1hbmc'
-                           // projectName='Sumang'
+                           projectId='MTYxMDMzOTYwMjQyNS1TdW1hbmc'
+                           projectName='Sumang'
                            
-                           projectId='MTU5MTY3NDI0ODUyMy1IYW5keQ'
-                           projectName='Handy'
+                           // projectId='MTU5MTY3NDI0ODUyMy1IYW5keQ'
+                           // projectName='Handy'
                            
                            token='xxx-xxxxx-xxx-x-xxxxx'
                            isAdmin={true}
 
                            role='Document Controller'
                            companies={[
-                              'Woh Hup Private Ltd',
-                              'Jianho',
-                              'Ultracon'
+                              { company: 'Woh Hup Private Ltd', companyType: 'Main con' },
+                              { company: 'XXX', companyType: 'Sub-con' },
+                              { company: 'YYY', companyType: 'Consultant' },
+                              { company: 'ZZZ', companyType: 'Client' },
+                              { company: 'MMM', companyType: 'Client' },
                            ]}
                            company='Woh Hup Private Ltd'
 
