@@ -38,7 +38,7 @@ export default ExportCSV;
 
 const prepareDataToExport = (stateProject, stateRow) => {
    const { allDataOneSheet: { publicSettings: { headers } } } = stateProject;
-   const { drawingTypeTree, viewTemplateNodeId, rowsAllInit } = stateRow;
+   const { drawingTypeTree, viewTemplateNodeId, rowsAll } = stateRow;
    const nodeParent = drawingTypeTree.find(x => x.id === viewTemplateNodeId);
    let tree;
    if (nodeParent) {
@@ -57,7 +57,7 @@ const prepareDataToExport = (stateProject, stateRow) => {
          if (node.children && node.children.length > 0) {
             getAllChildren(node.children);
          } else if (node.children && node.children.length === 0) {
-            const rowsChildren = rowsAllInit.filter(x => x._parentRow === node.id);
+            const rowsChildren = rowsAll.filter(x => x._parentRow === node.id);
             const outputRows = rowsChildren.map(r => {
                let obj = {};
                headers.forEach(hd => {
