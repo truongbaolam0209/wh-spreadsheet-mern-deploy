@@ -13,10 +13,10 @@ const CellIndex = ({ rowData }) => {
    const { state: stateCell, setCellActive } = useContext(CellContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { drawingTypeTree, rowsAll, rowsAllInit, showDrawingsOnly, rowsSelected } = stateRow;
+   const { drawingTypeTree, rowsAll, modeGroup, rowsSelected } = stateRow;
    const { roleTradeCompany } = stateProject.allDataOneSheet;
 
-   const isLockedRow = rowLocked(roleTradeCompany, rowData, showDrawingsOnly, drawingTypeTree);
+   const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
 
 
    const onClickCellIndex = () => {
@@ -34,7 +34,7 @@ const CellIndex = ({ rowData }) => {
 
    return (
       <Styled onClick={onClickCellIndex}>
-         {rowData._rowLevel === 1 ? addZero(rowsAllInit.indexOf(rowsAllInit.find(r => r.id === rowData.id)) + 1) : ''}
+         {rowData._rowLevel === 1 ? addZero(rowsAll.indexOf(rowsAll.find(r => r.id === rowData.id)) + 1) : ''}
       </Styled>
    );
 };

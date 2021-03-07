@@ -169,9 +169,10 @@ export const groupByHeaders = (data, headers) => {
             let levelKey = `${_prevLevelKey}_._${value}`;
             let levelParentIndex = _map[levelKey];
             let levelParent = arrayParent[levelParentIndex];
-
+            
             if (!levelParent) {
-                let iddd = mongoObjectId();
+ 
+                let iddd = levelKey + value;
                 levelParent = _newParent(item, header, level, iddd);
 
                 _map[levelKey] = arrayParent.length;
@@ -470,17 +471,18 @@ const checkSpelling = (header) => {
 
 export const getHeaderWidth = (header) => {
 
-    if (header === 'RFA Ref') return 170;
+    if (header === 'RFA Ref') return 200;
     else if (
         header === 'Block/Zone' ||
         header === 'Level' || header === 'Unit/CJ' ||
-        header === 'Drg Type' || header === 'Use For' ||
+        header === 'Use For' ||
         header === 'Coordinator In Charge' || header === 'Modeller' ||
         header === 'Model Progress' || header === 'Drawing Progress' ||
         header === 'Construction Start'
-    ) return 100;
+    ) return 120;
+    else if (header === 'Drg Type') return 180;
     else if (header === 'Construction Issuance Date') return 120;
-    else if (header === 'Drawing') return 100;
+    else if (header === 'Drawing') return 300;
 
     else if (
         header === 'Drg To Consultant (A)' ||
@@ -491,14 +493,12 @@ export const getHeaderWidth = (header) => {
 
     else if (header.includes('(A)') || header.includes('(T)')) return 90;
 
-
-
-
     else if (header === 'Rev') return 60;
     else if (header === 'Status') return 280;
     else if (header === 'Remark') return 700;
     else if (header === 'Drawing Number') return 400;
     else if (header === 'Drawing Name') return 450;
+
     else return 300;
 
 };
@@ -518,22 +518,19 @@ export const getActionName = (type) => {
     if (type === 'reorderColumn-ICON') return 'Columns Layout';
     if (type === 'group-ICON') return 'Group Data';
     if (type === 'sort-ICON') return 'Sort Data';
-    if (type === 'swap-ICON') return 'Clear Filter/Sort/Group/Search';
+    if (type === 'swap-ICON-1') return 'Quit Grouping Mode';
+    if (type === 'swap-ICON-2') return 'Clear Filter/Sort/Search';
     if (type === 'addDrawingType-ICON') return 'Drawing Type Organization';
     if (type === 'color-cell-history-ICON') return 'Check Data Changed';
     if (type === 'View Cell History') return 'Cell History';
     if (type === 'Delete Drawing') return 'Delete Drawing';
     if (type === 'colorized-ICON') return 'Drawing Colorization';
     if (type === 'viewTemplate-ICON') return 'View Template';
+    if (type === 'addNewRFA-ICON') return 'Add New RFA';
     if (type && (type.includes('Insert Drawings') || type === 'Duplicate Drawings')) return 'Nos Of Drawings';
 
     else return '';
 };
-export const getModalWidth = (type) => {
-    if (type === 'history-ICON') return window.innerWidth * 0.8 + 20;
-    else return 520;
-};
-
 
 
 
@@ -842,3 +839,24 @@ export const reorderRowsFnc = (data) => {
     };
     return rowsProcessed;
 };
+
+
+
+export const ExcelDateToJSDate = (serial) => {
+    let utc_days  = Math.floor(serial - 25569);
+    let utc_value = utc_days * 86400;                                        
+    let date_info = new Date(utc_value * 1000);
+ 
+    let fractional_day = serial - Math.floor(serial) + 0.0000001;
+ 
+    let total_seconds = Math.floor(86400 * fractional_day);
+ 
+    let seconds = total_seconds % 60;
+ 
+    total_seconds -= seconds;
+ 
+    let hours = Math.floor(total_seconds / (60 * 60));
+    let minutes = Math.floor(total_seconds / 60) % 60;
+ 
+    return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
+ };

@@ -111,6 +111,8 @@ const TableActivityHistory = (props) => {
                };
             });
             let outputArr = [...rowsOutput, ...cellsOutput, ...activityRecordedData];
+
+
             setHistoryAll(sortDataBeforePrint(outputArr));
             setHistoryAllInit(sortDataBeforePrint(outputArr));
 
@@ -130,11 +132,17 @@ const TableActivityHistory = (props) => {
    };
 
    const sortDataBeforePrint = (data) => {
-      return data.sort((b, a) => {
+      data.sort((b, a) => {
          let aa = moment(a['Created At'], 'DD/MM/YY - HH:mm').toDate();
          let bb = moment(b['Created At'], 'DD/MM/YY - HH:mm').toDate();
          return aa > bb ? 1 : bb > aa ? -1 : 0
       });
+
+      data.forEach((dt, i) => {
+         dt.index = i + 1;
+      });
+
+      return data;
    };
 
 
@@ -166,7 +174,6 @@ const TableActivityHistory = (props) => {
       });
       setHistoryAll(sortDataBeforePrint(newData));
    };
-
 
 
    return (
@@ -270,14 +277,24 @@ const TableActivityHistory = (props) => {
 export default TableActivityHistory;
 
 
-const generateColumns = (headers) => headers.map((column, columnIndex) => ({
+const generateColumns = (headers) => {
 
-   key: column,
-   dataKey: column,
-   title: column,
-   resizable: true,
-   width: getHeaderWidth2(column),
-}));
+   return [
+      {
+         key: 'index',
+         dataKey: 'index',
+         title: '',
+         width: 70,
+      },
+      ...headers.map((column, columnIndex) => ({
+         key: column,
+         dataKey: column,
+         title: column,
+         resizable: true,
+         width: getHeaderWidth2(column),
+      }))
+   ];
+};
 const getHeaderWidth2 = (header) => {
    if (header === 'Drawing Number') return 300;
    if (header === 'Drawing Name') return 300;

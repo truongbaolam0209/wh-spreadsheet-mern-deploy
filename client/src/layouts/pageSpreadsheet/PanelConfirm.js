@@ -23,6 +23,10 @@ const PanelConfirm = ({ onClickCancel, onClickApply, content }) => {
                             style={{ width: '100%' }}
                             value={value}
                             onChange={(e) => setValue(e.target.value)}
+                            style={{
+                                marginBottom: 20,
+                                borderRadius: 0
+                             }}
                         />
                     </div>
 

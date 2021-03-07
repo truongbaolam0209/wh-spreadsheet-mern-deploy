@@ -15,12 +15,12 @@ import FormFilter from './FormFilter';
 import FormGroup from './FormGroup';
 import FormSort from './FormSort';
 import PanelConfirm from './PanelConfirm';
+import PanelConfirmResetMode from './PanelConfirmResetMode';
 import PanelPickNumber from './PanelPickNumber';
 import ReorderColumnForm from './ReorderColumnForm';
 import TableActivityHistory from './TableActivityHistory';
 import TableCellHistory from './TableCellHistory';
 import TableDrawingDetail from './TableDrawingDetail';
-
 
 
 
@@ -35,38 +35,42 @@ const PanelSetting = (props) => {
 
    const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
 
-   const applyFilter = (data) => commandAction({ type: 'filter-by-columns', data });
+   const applyFilter = (filter) => commandAction({ type: 'filter-by-columns', data: { modeFilter: filter } });
 
-   const applyResetFilter = () => commandAction({
-      type: 'reset-filter-sort',
-      data: {
-         rowsAll: stateRow.rowsAllInit,
-         showDrawingsOnly: false,
-         modeFilter: {}
-      }
-   });
+   const applyResetMode = (modeReset) => {
+      const modeResetObj = {};
+      modeReset.forEach(type => {
+         if (type.header === 'Filter' && type.mode === 'hidden') modeResetObj.modeFilter = [];
+         if (type.header === 'Sort' && type.mode === 'hidden') modeResetObj.modeSort = {};
+         if (type.header === 'Search' && type.mode === 'hidden') modeResetObj.modeSearch = {};
+      });
+      return commandAction({
+         type: 'reset-filter-sort',
+         data: {
+            rowsAll: stateRow.rowsAll,
+            ...modeResetObj
+         }
+      });
+   };
+   const applyQuitGroupingMode = () => {
+      return commandAction({
+         type: 'reset-filter-sort',
+         data: { modeGroup: [], modeSearch: {} }
+      });
+   };
 
-   const applyGroup = (data) => commandAction({ type: 'group-columns', data });
-   
+
+   const applyGroup = (data) => commandAction({ type: 'group-columns', data: { modeGroup: data } });
+
    const applyColorization = (data) => commandAction({ type: 'drawing-colorized', data });
 
    const setCellHistoryArr = debounceFnc((data) => commandAction({ type: 'highlight-cell-history', data }), 1);
 
-   const applySort = ({ type, rowsOutput }) => {
-      type === 'Sort Rows In Drawing Type'
-         ? commandAction({
-            type: 'sort-data-drawing-type',
-            data: { rowsAll: rowsOutput }
-         })
-         : commandAction({
-            type: 'sort-data-project',
-            data: { rowsAll: rowsOutput, showDrawingsOnly: 'sort-data-project' }
-         })
-   };
+   const applySort = (data) => commandAction({ type: 'sort-data', data: { modeSort: data } });
 
    const applyViewTemplate = (name) => {
       let { allDataOneSheet: { publicSettings: { headers } }, userData: { headersShown, headersHidden, nosColumnFixed, colorization } } = stateProject;
-      const { viewTemplateNodeId, viewTemplates } = stateRow;
+      const { viewTemplateNodeId, viewTemplates, modeFilter, modeSort } = stateRow;
 
       headersShown = headersShown.map(hd => headers.find(x => x.text === hd).key);
       headersHidden = headersHidden.map(hd => headers.find(x => x.text === hd).key);
@@ -81,16 +85,17 @@ const PanelSetting = (props) => {
                headersHidden,
                nosColumnFixed,
                colorization,
-               viewTemplateNodeId
+               viewTemplateNodeId,
+               modeFilter,
+               modeSort
             }]
          }
       });
    };
 
 
-
    const onClickInsertRow = (nosOfRows) => {
-      let { rowsAllInit, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
+      let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
 
       const idsArr = genId(nosOfRows);
       idRowsNew = [...idRowsNew, ...idsArr];
@@ -106,13 +111,13 @@ const PanelSetting = (props) => {
                _preRow: i === 0 ? rowAbove.id : idsArr[i - 1]
             });
          });
-         rowBelow = rowsAllInit.find(r => r._preRow === rowAbove.id);
+         rowBelow = rowsAll.find(r => r._preRow === rowAbove.id);
          if (rowBelow) {
             rowBelow._preRow = idsArr[idsArr.length - 1];
          };
 
       } else if (panelSettingType === 'Insert Drawings Above') {
-         rowBelow = rowsAllInit.find(r => r.id === panelType.cellProps.rowData.id);
+         rowBelow = rowsAll.find(r => r.id === panelType.cellProps.rowData.id);
 
          newRows = idsArr.map((id, i) => {
             return ({
@@ -130,13 +135,12 @@ const PanelSetting = (props) => {
       newRows.forEach(row => {
          updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
       });
-      rowsAllInit = [...rowsAllInit, ...newRows];
+      rowsAll = [...rowsAll, ...newRows];
 
-      const rowsOutput = _processRowsChainNoGroupFnc1([...rowsAllInit]);
+      const rowsOutput = _processRowsChainNoGroupFnc1([...rowsAll]);
       commandAction({
          type: 'insert-drawings',
          data: {
-            rowsAllInit: rowsOutput,
             rowsAll: rowsOutput,
             rowsUpdatePreRowOrParentRow,
             idRowsNew
@@ -144,7 +148,7 @@ const PanelSetting = (props) => {
       });
    };
    const onClickFolderInsertSubRows = (nosOfRows) => {
-      let { rowsAllInit, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
+      let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
 
       let idsArr = genId(nosOfRows);
       idRowsNew = [...idRowsNew, ...idsArr];
@@ -159,18 +163,17 @@ const PanelSetting = (props) => {
       newRows.forEach(row => {
          updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
       });
-      let rowBelow = rowsAllInit.find(r => r._parentRow === panelType.cellProps.rowData.id && r._preRow === null);
+      let rowBelow = rowsAll.find(r => r._parentRow === panelType.cellProps.rowData.id && r._preRow === null);
       if (rowBelow) {
          rowBelow._preRow = idsArr[idsArr.length - 1];
          updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelow);
       };
-      rowsAllInit = [...rowsAllInit, ...newRows];
+      rowsAll = [...rowsAll, ...newRows];
 
-      const rowsOutput = _processRowsChainNoGroupFnc1([...rowsAllInit]);
+      const rowsOutput = _processRowsChainNoGroupFnc1([...rowsAll]);
       commandAction({
          type: 'insert-drawings-by-folder',
          data: {
-            rowsAllInit: rowsOutput,
             rowsAll: rowsOutput,
             rowsUpdatePreRowOrParentRow,
             idRowsNew
@@ -178,7 +181,7 @@ const PanelSetting = (props) => {
       });
    };
    const onClickDuplicateRows = (nosOfRows) => {
-      let { rowsAllInit, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
+      let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
       const { headers } = stateProject.allDataOneSheet.publicSettings;
 
       let idsArr = genId(nosOfRows);
@@ -191,7 +194,7 @@ const PanelSetting = (props) => {
          _preRow: i === 0 ? rowAbove.id : idsArr[i - 1]
       }));
 
-      const rowBelow = rowsAllInit.find(r => r._preRow === rowAbove.id);
+      const rowBelow = rowsAll.find(r => r._preRow === rowAbove.id);
       if (rowBelow) {
          rowBelow._preRow = idsArr[idsArr.length - 1];
          updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelow);
@@ -207,13 +210,12 @@ const PanelSetting = (props) => {
          updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
       });
       OverwriteCellsModified({ ...stateCell.cellsModifiedTemp, ...cellsModifiedTempObj });
-      rowsAllInit = [...rowsAllInit, ...newRows];
+      rowsAll = [...rowsAll, ...newRows];
 
-      const rowsOutput = _processRowsChainNoGroupFnc1([...rowsAllInit]);
+      const rowsOutput = _processRowsChainNoGroupFnc1([...rowsAll]);
       commandAction({
          type: 'duplicate-drawings',
          data: {
-            rowsAllInit: rowsOutput,
             rowsAll: rowsOutput,
             rowsUpdatePreRowOrParentRow,
             idRowsNew
@@ -221,18 +223,18 @@ const PanelSetting = (props) => {
       });
    };
    const deleteDrawing = () => {
-      let { rowsAllInit, idRowsNew, rowsUpdatePreRowOrParentRow, rowsDeleted } = stateRow;
+      let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow, rowsDeleted } = stateRow;
       const { cellsModifiedTemp } = stateCell;
       const rowId = panelType.cellProps.rowData.id;
 
-      let rowBelow = rowsAllInit.find(r => r._preRow === rowId);
+      let rowBelow = rowsAll.find(r => r._preRow === rowId);
       if (rowBelow) {
          rowBelow._preRow = panelType.cellProps.rowData._preRow;
          updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelow);
       };
 
       if (rowId in rowsUpdatePreRowOrParentRow) delete rowsUpdatePreRowOrParentRow[rowId];
-      rowsAllInit = rowsAllInit.filter(r => r.id !== rowId);
+      rowsAll = rowsAll.filter(r => r.id !== rowId);
 
       if (idRowsNew.indexOf(rowId) === -1) {
          rowsDeleted = [...rowsDeleted, panelType.cellProps.rowData];
@@ -247,12 +249,11 @@ const PanelSetting = (props) => {
       });
       OverwriteCellsModified({ ...cellsModifiedTemp });
 
-      const rowsOutput = _processRowsChainNoGroupFnc1([...rowsAllInit]);
+      const rowsOutput = _processRowsChainNoGroupFnc1([...rowsAll]);
 
       commandAction({
          type: 'delete-drawing',
          data: {
-            rowsAllInit: rowsOutput,
             rowsAll: rowsOutput,
             rowsUpdatePreRowOrParentRow,
             rowsDeleted,
@@ -261,11 +262,11 @@ const PanelSetting = (props) => {
       });
    };
 
-   const applyFolderOrganize = (drawingTypeTreeNew, mergeList) => {
+   const applyFolderOrganize = (drawingTypeTreeNew, mergeList, nodeIsolated) => {
 
       let {
-         rowsAllInit, rowsDeleted, idRowsNew, rowsUpdatePreRowOrParentRow,
-         drawingsTypeDeleted, drawingsTypeNewIds, drawingTypeTree
+         rowsAll, rowsDeleted, idRowsNew, rowsUpdatePreRowOrParentRow,
+         drawingsTypeDeleted, drawingsTypeNewIds, drawingTypeTree, viewTemplateNodeId
       } = stateRow;
 
       const { cellsModifiedTemp } = stateCell;
@@ -277,7 +278,7 @@ const PanelSetting = (props) => {
          const treeBranchChildren = treeBranchToMerge.filter(x => x.id !== parentNodeId);
          let arr = [];
          treeBranchChildren.forEach(node => {
-            const rowsChildren = rowsAllInit.filter(r => r._parentRow === node.id);
+            const rowsChildren = rowsAll.filter(r => r._parentRow === node.id);
             arr = [...arr, ...rowsChildren];
          });
          arr.forEach((row, i) => {
@@ -312,9 +313,9 @@ const PanelSetting = (props) => {
       });
 
 
-      let allDrawingsParentId = [...new Set(rowsAllInit.map(x => x._parentRow))];
+      let allDrawingsParentId = [...new Set(rowsAll.map(x => x._parentRow))];
       allDrawingsParentId.forEach(drawingParentId => {
-         const rowsChildren = rowsAllInit.filter(row => row._parentRow === drawingParentId);
+         const rowsChildren = rowsAll.filter(row => row._parentRow === drawingParentId);
 
          if (!drawingTypeTreeUpdate.find(x => x.id === drawingParentId) && !mergeList.find(item => item.id === drawingParentId)) {
             rowsChildren.forEach(rrr => {
@@ -331,11 +332,11 @@ const PanelSetting = (props) => {
                });
                if (rrr.id in rowsUpdatePreRowOrParentRow) delete rowsUpdatePreRowOrParentRow[rrr.id];
             });
-            rowsAllInit = rowsAllInit.filter(r => r._parentRow !== drawingParentId);
+            rowsAll = rowsAll.filter(r => r._parentRow !== drawingParentId);
          } else if (!drawingTypeTreeUpdate.find(x => x.id === drawingParentId) && mergeList.find(item => item.id === drawingParentId)) {
 
-            
-            
+
+
          } else {
             if (drawingTypeTreeUpdate.find(x => x.parentId === drawingParentId)) {
                // some folders are added below drawing parent => add new type to contain
@@ -361,25 +362,27 @@ const PanelSetting = (props) => {
 
       OverwriteCellsModified({ ...cellsModifiedTemp });
 
-      const rowsOutput = getOutputRowsAllSorted(drawingTypeTreeUpdate, rowsAllInit);
+      const rowsOutput = getOutputRowsAllSorted(drawingTypeTreeUpdate, rowsAll);
+
+      let templateObj = {};
+      if (viewTemplateNodeId !== nodeIsolated) {
+         templateObj.viewTemplateNodeId = nodeIsolated;
+      };
 
       commandAction({
          type: 'drawing-folder-organization',
          data: {
             rowsAll: rowsOutput,
-            rowsAllInit: rowsOutput,
             rowsDeleted,
             drawingTypeTree: drawingTypeTreeUpdate,
             rowsUpdatePreRowOrParentRow,
             drawingsTypeDeleted,
             drawingsTypeNewIds,
             idRowsNew,
+            ...templateObj
          }
       });
    };
-
-
-
    const applyDateAutomation = (dateAutomation) => {
       let { rowsAll } = stateRow;
       const rowId = panelType.cellProps.rowData.id;
@@ -394,10 +397,7 @@ const PanelSetting = (props) => {
 
       commandAction({
          type: 'drawing-data-automation',
-         data: {
-            rowsAll,
-            rowsAllInit: rowsAll
-         }
+         data: { rowsAll }
       });
    };
    const createNewDrawingRevision = () => {
@@ -422,13 +422,12 @@ const PanelSetting = (props) => {
          type: 'create-new-drawing-revisions',
          data: {
             rowsAll,
-            rowsAllInit: rowsAll,
             rowsVersionsToSave: [...stateRow.rowsVersionsToSave || [], rowOldVersiontoSave]
          }
       });
    };
-   const saveDataToServer = async () => {
 
+   const saveDataToServer = async () => {
       const { email, projectId, token, role, projectName } = stateProject.allDataOneSheet;
       const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
       const { headers } = stateProject.allDataOneSheet.publicSettings;
@@ -442,7 +441,9 @@ const PanelSetting = (props) => {
          rowsDeleted,
 
          viewTemplateNodeId,
-         viewTemplates
+         viewTemplates,
+         modeFilter,
+         modeSort,
       } = stateRow;
 
       try {
@@ -479,7 +480,7 @@ const PanelSetting = (props) => {
          const rowsUpdatePreRowOrParentRowArray = Object.values(rowsUpdatePreRowOrParentRow)
             .filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing') &&
                !activityRecordedFromDB.find(r => r.id === row._parentRow && r.action === 'Delete Drawing Type'));
-               
+
 
          if (rowsUpdatePreRowOrParentRowArray.length > 0) {
 
@@ -493,7 +494,7 @@ const PanelSetting = (props) => {
             });
             rowsFromDB = rowsFromDB.filter(r => arrID.indexOf(r.id) === -1);
 
-            
+
 
             const rowsInOldParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
                return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && !treeDBModifiedToSave.find(x => x.parentId === tr.id));
@@ -567,7 +568,6 @@ const PanelSetting = (props) => {
 
 
 
-
             let idsNewParentArray = [...new Set(rowsInNewParent.map(r => r._parentRow))];
             idsNewParentArray.forEach(idP => {
                let arrInput = rowsInNewParent.filter(r => r._parentRow === idP);
@@ -577,10 +577,7 @@ const PanelSetting = (props) => {
                });
                rowsFromDB = [...rowsFromDB, ...rowsChildren];
             });
-
-            
          };
-
 
 
          // SAVE CELL HISTORY
@@ -602,6 +599,7 @@ const PanelSetting = (props) => {
                };
             };
          });
+
          if (Object.keys(cellsModifiedTemp).length > 0) {
             await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject) });
          };
@@ -674,7 +672,7 @@ const PanelSetting = (props) => {
             await Axios.post(`${SERVER_URL}/sheet/delete-rows/`, { token, projectId, email, rowIdsArray: rowDeletedFinal.map(r => r.id) });
          };
 
-         
+
          treeDBModifiedToSave.forEach(tr => {
             headers.forEach(hd => {
                if (hd.text in tr) {
@@ -696,13 +694,9 @@ const PanelSetting = (props) => {
          const userSettingsUpdated = {
             headersShown: headersShown.map(hd => headers.find(h => h.text === hd).key),
             headersHidden: headersHidden.map(hd => headers.find(h => h.text === hd).key),
-            nosColumnFixed, colorization, role, viewTemplateNodeId, viewTemplates
+            nosColumnFixed, colorization, role, viewTemplateNodeId, viewTemplates, modeFilter, modeSort
          };
          await Axios.post(`${SERVER_URL}/sheet/update-setting-user/`, { token, projectId, email, userSettings: userSettingsUpdated });
-
-
-
-
 
 
 
@@ -739,11 +733,21 @@ const PanelSetting = (props) => {
          if (rowsToUpdateFinal.length > 0) {
             await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdateFinal });
          };
-
-
          commandAction({ type: 'save-data-successfully' });
+
+      } catch (err) {
+         commandAction({ type: 'save-data-failure' });
+         console.log(err);
+      };
+   };
+
+   const saveDataToServerAndReloadData = async () => {
+      const { projectId, token, email } = stateProject.allDataOneSheet;
+      try {
+         await saveDataToServer();
          const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
          commandAction({ type: 'reload-data-from-server', data: res.data });
+
       } catch (err) {
          commandAction({ type: 'save-data-failure' });
          console.log(err);
@@ -757,7 +761,7 @@ const PanelSetting = (props) => {
          {panelSettingType === 'save-ICON' && (
             <PanelConfirm
                onClickCancel={onClickCancelModal}
-               onClickApply={saveDataToServer}
+               onClickApply={saveDataToServerAndReloadData}
                content='Do you want to save ?'
             />
          )}
@@ -766,12 +770,20 @@ const PanelSetting = (props) => {
             <FormFilter applyFilter={applyFilter} onClickCancelModal={onClickCancelModal} />
          )}
 
-         {panelSettingType === 'swap-ICON' && (
+         {panelSettingType === 'swap-ICON-1' && (
             <PanelConfirm
                onClickCancel={onClickCancelModal}
-               onClickApply={applyResetFilter}
+               onClickApply={applyQuitGroupingMode}
+               content='Do you want to quit grouping mode ?'
             />
          )}
+         {panelSettingType === 'swap-ICON-2' && (
+            <PanelConfirmResetMode
+               onClickCancel={onClickCancelModal}
+               applyResetMode={applyResetMode}
+            />
+         )}
+
 
          {panelSettingType === 'reorderColumn-ICON' && (
             <ReorderColumnForm applyReorderColumns={applyReorderColumns} onClickCancelModal={onClickCancelModal} />
@@ -783,7 +795,6 @@ const PanelSetting = (props) => {
                content='Do you want to save a new view template ?'
             />
          )}
-
 
 
          {panelSettingType === 'sort-ICON' && (
@@ -859,11 +870,15 @@ const PanelSetting = (props) => {
          {panelSettingType === 'Insert Drawings By Type' && (
             <PanelPickNumber onClickCancelModal={onClickCancelModal} onClickApply={onClickFolderInsertSubRows} />
          )}
+
+
+
       </>
    );
 };
 
 export default PanelSetting;
+
 
 
 
@@ -952,6 +967,9 @@ const _processChainRowsLossHeadFnc2 = (rows, rowsProcessed) => {
 const _filterRowLossPreRowFnc = (row, rows) => {
    return rows.every(r => String(row._preRow) != String(r.id));
 };
+
+
+
 export const updatePreRowParentRowToState = (objState, row) => {
    objState[row.id] = {
       id: row.id,
@@ -959,5 +977,8 @@ export const updatePreRowParentRowToState = (objState, row) => {
       _parentRow: row._parentRow,
    };
 };
+
+
+
 
 

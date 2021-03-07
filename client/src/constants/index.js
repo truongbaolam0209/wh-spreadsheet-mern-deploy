@@ -19,7 +19,8 @@ export const colorType = {
     tableBorderColor: '#A9A9A9',
     cellHighlighted: '#B0C4DE',
     primary: '#34495e',
-    secondary: '#46607a'
+    secondary: '#46607a',
+    lockedCell: '#FDFFE6'
 };
 
 
@@ -37,7 +38,13 @@ export const dimension = {
 export const imgLink = {
     timeline: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/timeline.JPG?fbclid=IwAR3BnkJWSQZMbxqLugNKGPc5ssPeu0aqBdvGZhdRLbIyYGSrpaQwYCioY94',
     btnText: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/btn-down2.png?fbclid=IwAR0PFlzzsc85rk_98XnYx-3zuhJzvUS7Wen5kGUBxM6HGF2y1K1Gdn9eCAg',
-    btnDate: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/btn-calendar2.png?fbclid=IwAR23I7skpoZQ5of06o7ASoSbIUwaxgsmZczBOPFKTS0RiScaiH42_dCqRwg'
+    btnDate: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/btn-calendar2.png?fbclid=IwAR23I7skpoZQ5of06o7ASoSbIUwaxgsmZczBOPFKTS0RiScaiH42_dCqRwg',
+    btnFileUpload: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/file.png?fbclid=IwAR1Qu9R2okGDvmauZzT97fMJkLALVunz4Vt2Ioqyx8CoQNzg_hnYvMEZyvY',
+    btnProgress0: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/none.png?fbclid=IwAR3p7WExSSO0kGI0w47R_0MAPNmTnkeqHYdQpXmYHrqc_sN9xpj34BwR09Q',
+    btnProgress1: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/quarter.png?fbclid=IwAR03L618oQ7R_Kl8M--1U3UHppxcO-haCmnly_P75YW8iNYutpQo_Tdz1Zw',
+    btnProgress2: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/half.png?fbclid=IwAR2XF9Kvv2InZFm1hVJJIBDJS6QsH7uzS7VrhaG3APao9cRKeRHZKS1OU-4',
+    btnProgress3: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/third.png?fbclid=IwAR1rhcGE7PF3xo6UuvquXaJCFo9XHnDJ87n8aVW6vwgxiY_PZJu4D67vspc',
+    btnProgress4: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/full.png?fbclid=IwAR2BvxI0PvgoY3_TO6RAbgBKEjEKO8AfYpdPI8Yyd9B7RwKIqI4NjFH0blY',
 };
 
 

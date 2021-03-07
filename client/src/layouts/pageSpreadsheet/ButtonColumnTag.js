@@ -18,7 +18,7 @@ const ButtonColumnTag = ({ tag, setMode, actionType }) => {
    const [type, setType] = useState(tag.mode);
 
    useEffect(() => {
-      if (actionType === 'view-templates-action') {
+      if (actionType === 'reset-mode-action') {
          setType(tag.mode);
          setBtnStyle(
             tag.mode === 'hidden' ? styleHidden :
@@ -28,7 +28,7 @@ const ButtonColumnTag = ({ tag, setMode, actionType }) => {
       };
    }, [tag.mode]);
 
-   
+
    const onClick = () => {
       if (actionType === 'reorder-columns-action') {
          if (type === 'shown') {
@@ -54,7 +54,7 @@ const ButtonColumnTag = ({ tag, setMode, actionType }) => {
             setMode({ header: tag.header, id: tag.id, mode: 'shown' });
             setType('shown');
          };
-      } else if (actionType === 'view-templates-action') {
+      } else if (actionType === 'reset-mode-action') {
          setMode({ id: tag.id });
       };
    };
@@ -64,7 +64,7 @@ const ButtonColumnTag = ({ tag, setMode, actionType }) => {
          style={{
             ...btnStyle,
             padding: 9,
-            cursor: actionType === 'view-templates-action' && 'pointer',
+            cursor: actionType === 'reset-mode-action' && 'pointer',
             textAlign: 'center',
             fontWeight: 'bold',
             width: '70%',

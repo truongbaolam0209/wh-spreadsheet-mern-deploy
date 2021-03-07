@@ -184,7 +184,15 @@ const SHEET_USER_FIELDS_MAP = {
    nosColumnFixed: Number,
    colorization: Object,
    role: String,
-   viewTemplateNodeId: String
+   viewTemplateNodeId: String,
+   modeFilter: {
+      type: Array,
+      // default: undefined,
+   },
+   modeSort: {
+      type: Object,
+      // default: undefined,
+   },
 };
 
 const SHEET_USER_FIELDS = Object.keys(SHEET_USER_FIELDS_MAP);
@@ -197,5 +205,4 @@ module.exports = {
    createTemplatePublicSettings,
    SHEET_USER_FIELDS_MAP,
    SHEET_USER_FIELDS,
-
 };

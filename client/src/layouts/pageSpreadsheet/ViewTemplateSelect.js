@@ -19,11 +19,14 @@ const ViewTemplateSelect = ({ updateExpandedRowIdsArray }) => {
       viewTemplates = stateRow.viewTemplates;
       listArrayStringFolder = getListOfStringFolder(drawingTypeTree, viewTemplates);
    };
+
    const selectViewTemplate = (value) => {
       const { allDataOneSheet: { publicSettings: { headers } } } = stateProject;
       const nodeId = listArrayStringFolder.find(x => x.text === value).treeNodeId;
       const templateSaved = viewTemplates.find(x => x.id === nodeId);
-      let viewTemplateNodeId;
+
+      let dataObj = {};
+
       if (templateSaved) {
          setUserData({
             ...stateProject.userData,
@@ -32,15 +35,17 @@ const ViewTemplateSelect = ({ updateExpandedRowIdsArray }) => {
             nosColumnFixed: templateSaved.nosColumnFixed,
             colorization: templateSaved.colorization,
          });
-         viewTemplateNodeId = templateSaved.viewTemplateNodeId;
+         dataObj.viewTemplateNodeId = templateSaved.viewTemplateNodeId;
+         dataObj.modeFilter = templateSaved.modeFilter;
+         dataObj.modeSort = templateSaved.modeSort;
       } else {
-         viewTemplateNodeId = nodeId
-      }
+         dataObj.viewTemplateNodeId = nodeId;
+      };
       getSheetRows({
          ...stateRow,
-         viewTemplateNodeId,
+         ...dataObj,
       });
-      updateExpandedRowIdsArray(viewTemplateNodeId);
+      updateExpandedRowIdsArray(dataObj.viewTemplateNodeId);
    };
 
 
@@ -53,7 +58,7 @@ const ViewTemplateSelect = ({ updateExpandedRowIdsArray }) => {
                defaultValue='Select View Template'
                style={{ width: 300, padding: 3, height: 25 }}
                onChange={(value) => selectViewTemplate(value)}
-               disabled={stateRow.showDrawingsOnly === 'group-columns'}
+               disabled={stateRow.modeGroup.length > 0}
 
                // dropdownMenuStyle={{
                //    width: 500,
@@ -94,7 +99,13 @@ const SelectStyled = styled(Select)`
 `;
 
 const getListOfStringFolder = (tree, viewTemplates) => {
-   const treeLevel2AndAbove = tree.filter(x => x.treeLevel <= 2);
+   
+   const wohhup = tree.find(x => x.treeLevel === 1 && x['Drawing Number'] === 'Woh Hup Private Ltd');
+   if (!wohhup) return [];
+
+   const wohhupId = wohhup.id;
+
+   const treeLevel2AndAbove = tree.filter(x => x.treeLevel === 1 || (x.treeLevel === 2 && x.parentId === wohhupId));
    let arr = [{
       text: 'Show All',
       treeNodeId: null,
@@ -106,15 +117,13 @@ const getListOfStringFolder = (tree, viewTemplates) => {
       });
    });
    arr = [...arr, ...treeLevel2AndAbove.map(treeNode => getStringFolder(treeLevel2AndAbove, treeNode))];
-
    return arr;
 };
 
-const getStringFolder = (drawingTypeTree, treeNode) => {
-   const dwgTypeTree = drawingTypeTree.filter(x => x.treeLevel <= 2).map(x => ({ ...x }));
+export const getStringFolder = (drawingTypeTree, treeNode) => {
+   const dwgTypeTree = drawingTypeTree.map(x => ({ ...x }));
    const node = { ...treeNode };
    let text = node['Drawing Number'];
-
    const findParent = (tree, node) => {
       const parent = tree.find(x => x.id === node.parentId);
       if (parent) {
@@ -122,9 +131,7 @@ const getStringFolder = (drawingTypeTree, treeNode) => {
          findParent(tree, parent);
       };
    };
-
    findParent(dwgTypeTree, node);
-
    return {
       text,
       treeNodeId: treeNode.id

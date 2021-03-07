@@ -1,4 +1,4 @@
-import { message } from 'antd';
+import { message, Tooltip, Upload } from 'antd';
 import moment from 'moment';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
@@ -6,17 +6,17 @@ import { colorType, imgLink } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
+import { getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
 import PanelCalendar from './PanelCalendar';
-
 
 
 const Cell = (props) => {
 
-   const { 
-      rowData, column, rowIndex, columnIndex, onRightClickCell, 
-      setPosition, getCurrentDOMCell 
+   const {
+      rowData, column, rowIndex, columnIndex, onRightClickCell,
+      setPosition, getCurrentDOMCell
    } = props;
-   
+
 
    let cellData = props.cellData;
 
@@ -27,19 +27,69 @@ const Cell = (props) => {
    };
 
 
-  
 
    const { state: stateCell, getCellModifiedTemp, setCellActive } = useContext(CellContext);
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow, getSheetRows } = useContext(RowContext);
-   let { drawingTypeTree, rowsAll, showDrawingsOnly, rowsSelected, rowsSelectedToMove } = stateRow;
+   let { drawingTypeTree, rowsAll, modeGroup, rowsSelected, rowsSelectedToMove, modeFilter } = stateRow;
 
    const { roleTradeCompany } = stateProject.allDataOneSheet;
 
 
-   const isLockedColumn = columnLocked(roleTradeCompany, rowData, showDrawingsOnly, column.key);
-   const isLockedRow = rowLocked(roleTradeCompany, rowData, showDrawingsOnly, drawingTypeTree);
-   
+   let info = ''
+   if (rowData.treeLevel && column.key === 'Drawing Number') {
+      const node = drawingTypeTree.find(x => x.id === rowData.id);
+      const branches = getTreeFlattenOfNodeInArray(drawingTypeTree, node);
+
+      const branchesWithDrawing = branches.filter(x => !branches.find(y => y.parentId === x.id));
+
+      let rowsArr = [];
+      branchesWithDrawing.forEach(brch => {
+         rowsArr = [...rowsArr, ...rowsAll.filter(r => r._parentRow === brch.id)];
+      });
+      modeFilter.forEach(filter => {
+         if (filter.id) {
+            rowsArr = rowsArr.filter(r => r[filter.header] === filter.value);
+         };
+      });
+      let obj = {};
+      rowsArr.forEach(row => {
+         if (!row['Status'] || row['Status'] === 'INFO') {
+            obj['Not Started'] = (obj['Not Started'] || 0) + 1;
+         } else {
+            obj[row['Status']] = (obj[row['Status']] || 0) + 1;
+         }
+
+      });
+
+      let str = '';
+      Object.keys(obj).forEach((stt, i) => {
+         let code;
+         let init = i === 0 ? '' : ' + ';
+
+         if (stt === 'Not Started') code = 'NS';
+         if (stt === '1st cut of model in-progress') code = 'MIP';
+         if (stt === '1st cut of drawing in-progress') code = 'DIP';
+         if (stt === 'Pending design') code = 'PD';
+         if (stt === 'Consultant reviewing') code = 'CR';
+         if (stt === 'Reject and resubmit') code = 'RR';
+         if (stt === 'Approved with comments, to Resubmit') code = 'AR';
+         if (stt === 'Revise In-Progress') code = 'RP';
+         if (stt === 'Approved with Comment, no submission Required') code = 'AC';
+         if (stt === 'Approved for Construction') code = 'AP';
+         if (stt === 'INFO') code = 'NS';
+
+         str += `${init}${obj[stt]} ${code}`;
+
+      });
+      let end = rowsArr.length === 0 ? '' : ' : ';
+      info = ` - (${rowsArr.length} Drawings${end}${str})`;
+   };
+
+
+   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key);
+   const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
+
 
    const inputRef = useRef();
    const cellRef = useRef();
@@ -52,14 +102,19 @@ const Cell = (props) => {
    const [btnShown, setBtnShown] = useState(false);
    const [panelData, setPanelData] = useState(false);
 
+   const cellDataTypeBtn = checkCellDateFormat(column.key);
+
 
    const getCellTempId = () => `${rowData['id']}-${column.key}`;
 
    const cellEditDone = (value) => {
       if (rowData._rowLevel === 1) {
          if (
-            (checkCellDateFormat(column.key) && !(moment(value, 'DD/MM/YY').format('DD/MM/YY') === value) && value !== '') ||
-            (column.key === 'Status' && cellStatusFormat.indexOf(value) === -1 && value !== '')
+            (cellDataTypeBtn === 'cell-type-date' && !(moment(value, 'DD/MM/YY').format('DD/MM/YY') === value) && value !== '') ||
+            (column.key === 'Status' && cellStatusFormat.indexOf(value) === -1 && value !== '') ||
+            (column.key === 'Use For' && cellUseForFormat.indexOf(value) === -1 && value !== '') ||
+            (column.key === 'Drg Type' && cellDrgTypeFormat.indexOf(value) === -1 && value !== '') ||
+            ((column.key === 'Model Progress' || column.key === 'Drawing Progress') && cellProgressFormatData.indexOf(value) === -1 && value !== '')
          ) {
             setValueInput({ ...valueInput, current: valueInput.init });
             message.info('Data input should be in correct format', 1);
@@ -71,7 +126,8 @@ const Cell = (props) => {
             row[column.key] = value;
 
             getSheetRows({
-               ...stateRow, rowsAll // no need update rowsAllInit
+               ...stateRow,
+               rowsAll
             });
          };
       };
@@ -87,7 +143,8 @@ const Cell = (props) => {
    const onClick = () => {
       if (rowsSelected.length > 0 || rowsSelectedToMove.length > 0) {
          getSheetRows({
-            ...stateRow, rowsSelected: [], rowsSelectedToMove: [] });
+            ...stateRow, rowsSelected: [], rowsSelectedToMove: []
+         });
       };
       if (isLockedColumn || isLockedRow) return;
       setBtnShown(true);
@@ -131,6 +188,8 @@ const Cell = (props) => {
          cellEditDone(value);
       } else if (type === 'date') {
          cellEditDone(moment(value).format('DD/MM/YY'));
+      } else if (type === 'div') {
+         cellEditDone(value.props.type);
       };
    };
    const onBlur = () => {
@@ -196,6 +255,14 @@ const Cell = (props) => {
    };
 
 
+
+   const [fileList, setFileList] = useState(null);
+
+   const onChangeUploadFile = (info) => {
+
+   };
+
+
    return (
       <>
          <div
@@ -208,10 +275,11 @@ const Cell = (props) => {
                width: '100%',
                height: '100%',
                padding: 5,
+               paddingLeft: cellDataTypeBtn === 'cell-type-upload' ? 30 : 5,
                position: 'relative',
                color: 'black',
                background: 'transparent',
-               overflow: column.key === 'Drawing Number' ? 'hidden' : 'visible' // fix bug frozen panel move to the left
+               overflow: !rowData.treeLevel && column.key === 'Drawing Number' ? 'hidden' : 'visible' // fix bug frozen panel move to the left
             }}
          >
             {inputRender ? (
@@ -230,40 +298,79 @@ const Cell = (props) => {
                />
 
             ) : (
-                  <div style={{
-                     textOverflow: 'ellipsis',
-                     overflow: 'hidden',
-                     whiteSpace: 'nowrap',
-                     width: column.width - 30
-                  }}>
-                     {
-                        stateCell.cellsModifiedTemp[getCellTempId()] ||  // there is modified data
-                        (getCellTempId() in stateCell.cellsModifiedTemp && ' ') || // there is modified data === empty, MUST BE ' ', not ''
-                        cellData // there is no modification
-                     }
-                  </div>
-               )
+               <div style={{
+                  textOverflow: column.key === 'Drawing Number' ? 'unset' : 'ellipsis',
+                  overflow: column.key === 'Drawing Number' ? 'visible' : 'hidden',
+                  whiteSpace: 'nowrap',
+                  width: column.width - 30,
+                  color: rowData['Status'] === 'Reject and resubmit' ? 'red' :
+                     (
+                        rowData['Status'] === 'Approved with Comment, no submission Required' ||
+                        rowData['Status'] === 'Approved for Construction'
+                     ) ? 'green' : 'black'
+               }}>
+                  {
+                     ((column.key === 'Model Progress' || column.key === 'Drawing Progress') && <BtnProgress type={cellData} />) ||
+                     (column.key === 'Drawing Number' && rowData.treeLevel && <><span style={{ fontWeight: 'bold' }}>{cellData}</span><span>{info}</span></>) ||
+                     stateCell.cellsModifiedTemp[getCellTempId()] ||  // there is modified data
+                     (getCellTempId() in stateCell.cellsModifiedTemp && ' ') || // there is modified data === empty, MUST BE ' ', not ''
+                     cellData // there is no modification
+                  }
+               </div>
+            )
             }
 
 
             {btnShown && !cellBtnDisabled(column.key) && (
-               <div style={{
-                  cursor: 'pointer',
-                  position: 'absolute',
-                  right: 5,
-                  top: 5,
-                  height: 17,
-                  width: 17,
-                  backgroundImage: checkCellDateFormat(column.key) ? `url(${imgLink.btnDate})` : `url(${imgLink.btnText})`,
-                  backgroundSize: 17
-               }}
-                  onMouseDown={(e) => {
-                     e.stopPropagation();
-                     setPanelData(!panelData);
-                  }}
-                  ref={buttonRef}
-               />
+               <>
+                  {cellDataTypeBtn === 'cell-type-upload' ? (
+                     <Upload
+                        name='file' accept='application/pdf' multiple={false}
+                        headers={{ authorization: 'authorization-text' }}
+                        showUploadList={false}
+                        beforeUpload={() => {
+                           return false;
+                        }}
+                        onChange={onChangeUploadFile}
+                     >
+                        <Tooltip placement='topRight' title='Upload Drawing'>
+                           <div style={{
+                              cursor: 'pointer',
+                              position: 'absolute',
+                              left: 4,
+                              top: 5,
+                              height: 17,
+                              width: 17,
+                              backgroundImage: `url(${imgLink.btnFileUpload})`,
+                              backgroundSize: 17
+                           }}
+                              ref={buttonRef}
+                           />
+                        </Tooltip>
+                     </Upload>
+                  ) : (
+                     <div style={{
+                        cursor: 'pointer',
+                        position: 'absolute',
+                        right: 4,
+                        top: 5,
+                        height: 17,
+                        width: 17,
+                        backgroundImage: cellDataTypeBtn === 'cell-type-date' ? `url(${imgLink.btnDate})`
+                           : cellDataTypeBtn === 'cell-type-text' ? `url(${imgLink.btnText})`
+                              : null,
+                        backgroundSize: 17
+                     }}
+                        onMouseDown={(e) => {
+                           e.stopPropagation();
+                           setPanelData(!panelData);
+                        }}
+                        ref={buttonRef}
+                     />
+                  )}
+               </>
             )}
+
 
 
             {panelData && (
@@ -276,21 +383,26 @@ const Cell = (props) => {
                   zIndex: 999,
                   padding: '3px 5px 3px 7px',
                   boxShadow: 'rgba(0, 0, 0, 0.09) 0px 2px 1px, rgba(0, 0, 0, 0.09) 0px 4px 2px, rgba(0, 0, 0, 0.09) 0px 8px 4px, rgba(0, 0, 0, 0.09) 0px 16px 8px, rgba(0, 0, 0, 0.09) 0px 32px 16px',
-               
+
                   maxHeight: 400,
                   overflowY: 'scroll'
+
                }}
                   ref={panelRef}
                >
-                  {checkCellDateFormat(column.key) ? (
+                  {cellDataTypeBtn === 'cell-type-date' ? (
                      <PanelCalendar pickDate={(item) => pickDataSelect('date', item)} />
                   ) : getColumnsValue(rowsAll, column.key).map(item => {
                      return (
                         <SelectStyled
-                           key={item}
+                           key={(column.key === 'Drawing Progress' || column.key === 'Model Progress') ? item.key : item}
                            onMouseDown={(e) => {
                               e.stopPropagation();
-                              pickDataSelect('text', item);
+                              if (column.key === 'Drawing Progress' || column.key === 'Model Progress') {
+                                 pickDataSelect('div', item);
+                              } else {
+                                 pickDataSelect('text', item);
+                              };
                            }}
                         >{item}</SelectStyled>
                      );
@@ -313,9 +425,50 @@ const SelectStyled = styled.div`
    transition: 0.2s;
 `;
 
+
+const BtnProgress = ({ type }) => {
+   const img = type === 'Empty' ? imgLink.btnProgress0 :
+      type === 'Quarter' ? imgLink.btnProgress1 :
+         type === 'Half' ? imgLink.btnProgress2 :
+            type === 'Third Quarter' ? imgLink.btnProgress3 :
+               type === 'Full' ? imgLink.btnProgress4 :
+                  null;
+
+   return (
+      <div style={{ display: 'flex', textAlign: 'center', width: '100%' }}>
+         <div style={{
+            cursor: 'pointer',
+            height: 20,
+            width: 20,
+            backgroundImage: `url(${img})`,
+            backgroundSize: 20,
+            padding: 0
+         }}
+         />
+      </div>
+   );
+};
+const cellProgressFormat = [
+   <BtnProgress key='0' type='Empty' />,
+   <BtnProgress key='1' type='Quarter' />,
+   <BtnProgress key='2' type='Half' />,
+   <BtnProgress key='3' type='Third Quarter' />,
+   <BtnProgress key='4' type='Full' />,
+];
+const cellProgressFormatData = [
+   'Empty', 'Quarter', 'Half', 'Third Quarter', 'Full'
+];
+
 const checkCellDateFormat = (header) => {
-   return header.includes('(A)') || header.includes('(T)') ||
-      header === 'Construction Issuance Date' || header === 'Construction Start';
+   if (
+      header.includes('(A)') ||
+      header.includes('(T)') ||
+      header === 'Construction Issuance Date' ||
+      header === 'Construction Start'
+   ) return 'cell-type-date';
+   else if (header === 'Drawing') return 'cell-type-upload';
+   else if (header === 'Index' || header === 'Drawing Number' || header === 'Drawing Name') return 'cell-type-none';
+   else return 'cell-type-text';
 };
 const cellBtnDisabled = (headerId) => {
    if (headerId === 'Index' || headerId === 'Drawing Number' || headerId === 'Drawing Name') return true;
@@ -329,6 +482,9 @@ const getColumnsValue = (rows, headerKey) => {
    valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
 
    if (headerKey === 'Status') return cellStatusFormat;
+   if (headerKey === 'Use For') return cellUseForFormat;
+   if (headerKey === 'Drg Type') return cellDrgTypeFormat;
+   if (headerKey === 'Model Progress' || headerKey === 'Drawing Progress') return cellProgressFormat;
    return valueArr;
 };
 
@@ -342,7 +498,31 @@ const cellStatusFormat = [
    'Approved with comments, to Resubmit',
    'Revise In-Progress',
    'Approved with Comment, no submission Required',
-   'Approved for Construction'
+   'Approved for Construction',
+];
+
+
+
+const cellUseForFormat = [
+   'SUBMISSION',
+   'INFO',
+   'COORDINATION'
+];
+const cellDrgTypeFormat = [
+   'Key plan',
+   'Column wall setting out',
+   'Tile layout & detail',
+   'Reflected celing plan',
+   'Finishing layout',
+   'Door layout',
+   'Core layout & detail',
+   'Toilet',
+   'Edeck layout & detail',
+   'Staircase layout & detail',
+   'Surface drain',
+   'Lift lobby/ corridor',
+   'Material schedule',
+   'Other'
 ];
 
 const columnsLockedModeller = [
@@ -357,10 +537,11 @@ const columnsLockedModeller = [
    'Construction Start',
 ];
 
-export const columnLocked = (roleTradeCompany, rowData, showDrawingsOnly, column) => {
+export const columnLocked = (roleTradeCompany, rowData, modeGroup, column) => {
    if (
+      column === 'Drawing' ||
       (rowData && !rowData._rowLevel) || // lock drawing type ...
-      showDrawingsOnly === 'group-columns' ||
+      modeGroup.length > 0 ||
       (roleTradeCompany.role === 'Modeller' && columnsLockedModeller.includes(column)) ||
       (roleTradeCompany.role === 'View-Only User') ||
       (roleTradeCompany.role === 'Production' && column !== 'Construction Start')
@@ -370,15 +551,13 @@ export const columnLocked = (roleTradeCompany, rowData, showDrawingsOnly, column
       return false;
    };
 };
-
-export const rowLocked = (roleTradeCompany, rowData, showDrawingsOnly, drawingTypeTree) => {
-
+export const rowLocked = (roleTradeCompany, rowData, modeGroup, drawingTypeTree) => {
    if (!rowData._rowLevel || rowData._rowLevel < 1) return true;
-   if (showDrawingsOnly === 'group-columns') return true;
+   if (modeGroup.length > 0) return true;
    if (roleTradeCompany.role === 'Document Controller') return false;
-   
-   
-   const drawingTypeTreeClone = drawingTypeTree.map(x => ({...x}));
+
+
+   const drawingTypeTreeClone = drawingTypeTree.map(x => ({ ...x }));
    const dwgType = drawingTypeTreeClone.find(x => x.id === rowData._parentRow);
 
    let companyName;
@@ -393,7 +572,7 @@ export const rowLocked = (roleTradeCompany, rowData, showDrawingsOnly, drawingTy
    if (companyName === 'Woh Hup Private Ltd' && dwgType.treeLevel >= 2) {
 
       tradeName = getTradeNameTextFnc(dwgType, drawingTypeTreeClone);
-      
+
       return companyName !== roleTradeCompany.company || tradeName !== roleTradeCompany.trade;
    } else {
       return companyName !== roleTradeCompany.company;

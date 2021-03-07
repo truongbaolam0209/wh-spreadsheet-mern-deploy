@@ -1,57 +1,94 @@
-import { Icon, Select, Tooltip } from 'antd';
-import React, { useContext, useState } from 'react';
+import { Checkbox, Icon, Select, Tooltip } from 'antd';
+import React, { useContext, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { mongoObjectId } from '../../utils';
+import { mongoObjectId } from '../../utils/index';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
+
+
+
 
 const { Option } = Select;
 
 
-
 const FormFilter = ({ applyFilter, onClickCancelModal }) => {
 
-
    const { state: stateRow } = useContext(RowContext);
+   const { state: stateProject } = useContext(ProjectContext);
 
-   let { rowsAll } = stateRow;
+   const { headersShown } = stateProject.userData;
 
-   const [filterColumn, setFilterColumn] = useState({});
+   const [filterColumn, setFilterColumn] = useState(
+      stateRow.modeFilter.length > 1 ?
+         stateRow.modeFilter : [
+            {
+               id: mongoObjectId(),
+               header: 'Status',
+               value: 'Select Value...'
+            },
+            {
+               isIncludedParent: 'included'
+            }
+         ]);
 
    const setFilterSelect = (dataFilter) => {
-      setFilterColumn({ ...filterColumn, ...dataFilter });
+      let found = filterColumn.find(x => x.id === dataFilter.id);
+      found.header = dataFilter.header;
+      found.value = dataFilter.value;
+      setFilterColumn([...filterColumn]);
    };
 
 
-
-   const onClickApply = () => {
-      Object.keys(filterColumn).forEach(cl => {
-         rowsAll = rowsAll.filter(r => r[cl] === filterColumn[cl]);
-      });
-      applyFilter({ rowsAll, modeFilter: filterColumn });
-   };
-
-   const [idArr, setIdArr] = useState([]);
    const onClickAddField = () => {
-      if (idArr.length <= Object.keys(filterColumn).length) {
-         setIdArr([
-            ...idArr,
-            mongoObjectId()
-         ]);
+      setFilterColumn([
+         ...filterColumn,
+         { id: mongoObjectId(), header: 'Select Field...', value: 'Select Value...' }
+      ]);
+   };
+
+   const removeFilterTag = (id) => {
+      const arr = filterColumn.filter(x => x.id !== id);
+      setFilterColumn([...arr]);
+   };
+
+   const filterObj = stateRow.modeFilter.find(x => x.isIncludedParent);
+
+   const [isChecked, setIsChecked] = useState(
+      filterObj && filterObj.isIncludedParent === 'included' ? true :
+         filterObj && filterObj.isIncludedParent === 'not included' ? false :
+            true);
+   const onChangeBox = () => {
+
+      setIsChecked(!isChecked);
+      const found = filterColumn.find(x => x.isIncludedParent);
+
+      if (found) {
+         found.isIncludedParent = isChecked ? 'not included' : 'included';
+         setFilterColumn(filterColumn);
+      } else {
+         let xxx = [...filterColumn, { isIncludedParent: isChecked ? 'not included' : 'included' }];
+         setFilterColumn(xxx);
       };
    };
-   const removeFilterTag = (id, column) => {
-      idArr.splice(idArr.indexOf(id), 1);
-      setIdArr([...idArr]);
 
-      delete filterColumn[column];
-      setFilterColumn({ ...filterColumn });
+   const onClickApply = () => {
+      const output = filterColumn.filter(x => {
+         return (x.header !== 'Select Field...' && x.value !== 'Select Value...') || x.isIncludedParent;
+      });
+      if (!filterColumn.find(item => item.isIncludedParent)) {
+         output.push({ isIncludedParent: 'not included' });
+      };
+
+      if (output.length === 1 && output[0].isIncludedParent === 'included') {
+         applyFilter([]);
+      } else {
+         applyFilter(output);
+      };
+
    };
-
-
 
    return (
       <div style={{
@@ -70,17 +107,25 @@ const FormFilter = ({ applyFilter, onClickCancelModal }) => {
                marginBottom={10}
             />
 
-            {idArr.map(key => (
+            {filterColumn.filter(x => x.id).map(item => (
                <SelectComp
-                  key={key}
-                  id={key}
+                  key={item.id}
+                  id={item.id}
+                  data={item}
                   setFilterSelect={setFilterSelect}
-                  filterColumn={filterColumn}
                   removeFilterTag={removeFilterTag}
                />
             ))}
-
+            <div>
+               <CheckboxStyled
+                  onChange={onChangeBox}
+                  checked={isChecked}
+               >
+                  Include Parent Rows
+               </CheckboxStyled>
+            </div>
          </div>
+
          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
             <ButtonGroupComp
                onClickCancel={onClickCancelModal}
@@ -91,6 +136,15 @@ const FormFilter = ({ applyFilter, onClickCancelModal }) => {
    );
 };
 export default FormFilter;
+
+
+const CheckboxStyled = styled(Checkbox)`
+   .ant-checkbox-inner {
+      border-radius: 0;
+      border: none;
+      background: ${colorType.primary}
+   }
+`;
 
 
 const IconStyled = styled.div`
@@ -107,52 +161,75 @@ const IconStyled = styled.div`
 
 
 
-const SelectComp = ({ setFilterSelect, filterColumn, headerKey, id, removeFilterTag }) => {
+const SelectComp = ({ setFilterSelect, data, id, removeFilterTag }) => {
 
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow } = useContext(RowContext);
    const { rowsAll } = stateRow;
    const { headersShown } = stateProject.userData;
 
-   let columnsValueArr = getColumnsValue(rowsAll, headersShown);
-   const [column, setColumn] = useState(headerKey);
+   const columnsValueArr = getColumnsValue(rowsAll, headersShown);
 
+   const [column, setColumn] = useState(data.header);
+
+   const [value, setValue] = useState(null);
+
+   useEffect(() => {
+      if (column) {
+         setValue(data.value || 'Select Value...');
+         setFilterSelect({ id, header: column, value: data.value || 'Select Value...' });
+      };
+   }, [column]);
 
    return (
       <div style={{ display: 'flex', paddingBottom: 10, width: '100%' }}>
 
          <SelectStyled
             defaultValue='Select Field...'
+            value={column}
             style={{ marginRight: 13, width: '47%' }}
             onChange={(column) => setColumn(column)}
          >
-            {getHeadersFilterArr(
-               headersShown,
-               columnsValueArr,
-               Object.keys(filterColumn)
-            ).map(hd => (
+            {headersShown.filter(hd => columnsValueArr[hd]).map(hd => (
                <Option key={hd} value={hd}>{hd}</Option>
             ))}
          </SelectStyled>
 
 
          <SelectStyled
-            defaultValue='Select Value...'
+            showSearch
+            optionFilterProp='children'
+            filterOption={(input, option) => {
+               let stringArray = input.split(/(\s+)/).filter(str => str !== ' ');
+               let isFound = true;
+               stringArray.forEach(str => {
+                  if (option.props.children.toLowerCase().indexOf(str.toLowerCase()) === -1) {
+                     isFound = false;
+                  };
+               });
+               return isFound;
+            }}
+
             style={{ width: '47%' }}
-            onChange={(value) => setFilterSelect({ [column]: value })}
+            onChange={(value) => {
+               setFilterSelect({ id, header: column, value });
+               setValue(value);
+            }}
             disabled={!column ? true : false}
+            value={value}
          >
-            {column && columnsValueArr[column].map(hd => (
+            {column && columnsValueArr[column] && columnsValueArr[column].map(hd => (
                <Option key={hd} value={hd}>{hd}</Option>
             ))}
          </SelectStyled>
+
 
          <Tooltip title='Remove Field'>
             <IconStyled>
                <Icon
                   type='delete'
                   style={{ transform: 'translate(0, -3px)', color: colorType.grey2, fontSize: 12 }}
-                  onClick={() => removeFilterTag(id, column)}
+                  onClick={() => removeFilterTag(id)}
                />
             </IconStyled>
          </Tooltip>
@@ -180,14 +257,6 @@ const getColumnsValue = (rows, headers) => {
       valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
       if (valueArr.length > 0) valueObj[hd] = valueArr;
    });
+
    return valueObj;
-};
-
-
-const getHeadersFilterArr = (headers, columnsValueArr, filtered) => {
-   let arr = [];
-   headers.forEach(hd => {
-      if (columnsValueArr[hd] && filtered.indexOf(hd) === -1) arr.push(hd);
-   });
-   return arr;
 };

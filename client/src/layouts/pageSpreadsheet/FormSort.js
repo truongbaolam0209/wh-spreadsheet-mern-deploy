@@ -1,12 +1,10 @@
-import { Select } from 'antd';
-import _ from 'lodash';
+import { Checkbox, Select } from 'antd';
 import React, { useContext, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import ButtonGroupComp from './ButtonGroupComp';
-import ButtonStyle from './ButtonStyle';
 
 const { Option } = Select;
 
@@ -15,103 +13,62 @@ const { Option } = Select;
 const FormSort = ({ applySort, onClickCancel }) => {
 
     const { state: stateRow } = useContext(RowContext);
-    const { rowsAll, drawingTypeTree } = stateRow;
+    const { modeSort } = stateRow;
 
-    const setSortSelect = (dataSort) => {
-        setSortColumn(dataSort);
-    };
+    const { state: stateProject } = useContext(ProjectContext);
+    const { headersShown } = stateProject.userData;
 
-    
-    const [sortColumn, setSortColumn] = useState({});
-    const [type, setType] = useState('Sort Rows In Project');
-    const [backgroundSortDrawingType, setBackgroundSortDrawingType] = useState('white');
-    const [backgroundSortInProject, setBackgroundSortInProject] = useState(colorType.grey1);
-    const selectTypeClick = (e) => {
-        if (e.target.textContent === 'Sort Rows In Drawing Type') {
-            setBackgroundSortDrawingType(colorType.grey1);
-            setBackgroundSortInProject('white');
-        } else {
-            setBackgroundSortDrawingType('white');
-            setBackgroundSortInProject(colorType.grey1);
-        };
-        setType(e.target.textContent);
-    };
 
+    const [column, setColumn] = useState(Object.keys(modeSort).length === 3 ? modeSort.column : 'Select Field...');
+    const [value, setValue] = useState(Object.keys(modeSort).length === 3 ? (modeSort.type === 'ascending' ? 'Ascending' : 'Descending') : 'Ascending');
+    const [isChecked, setIsChecked] = useState(Object.keys(modeSort).length === 3 ? (modeSort.isIncludedParent === 'included' ? true : false) : true);
 
     const onClickApply = () => {
-        
-        if (_.isEmpty(sortColumn)) return;
-
-        const headerSorted = Object.keys(sortColumn)[0];
-        const typeSort = sortColumn[headerSorted].toLowerCase();
-        
-        let rowsOutput = [];
-        if (type === 'Sort Rows In Drawing Type') {
-
-            drawingTypeTree.forEach(tr => {
-                let subRows = rowsAll.filter(x => x._parentRow === tr.id);
-                if (typeSort === 'ascending') {
-                    subRows = sortFnc(subRows, headerSorted, true);
-                } else if (typeSort === 'descending') {
-                    subRows = sortFnc(subRows, headerSorted, false);
-                };
-                rowsOutput = [...rowsOutput, ...subRows];
+        if (column) {
+            applySort({
+                isIncludedParent: isChecked ? 'included' : 'not included',
+                column,
+                type: value.toLowerCase()
             });
-
-        } else if (type === 'Sort Rows In Project') {
-            let rowArr = rowsAll.filter(r => r._rowLevel === 1);
-            if (typeSort === 'ascending') {
-                rowsOutput = sortFnc(rowArr, headerSorted, true);
-            } else if (typeSort === 'descending') {
-                rowsOutput = sortFnc(rowArr, headerSorted, false);
-            };
-        };
-        applySort({ type, rowsOutput });
-    };
-
-
-    const sortFnc = (rows, header, ascending) => {
-        if (ascending) {
-            rows.sort((a, b) => (a[header] || '').toLowerCase() > (b[header] || '').toLowerCase() ? 
-            1 : 
-            ((b[header] || '').toLowerCase() > (a[header] || '').toLowerCase()) ? -1 : 0);
         } else {
-            return rows.sort((b, a) => (a[header] || '').toLowerCase() > (b[header] || '').toLowerCase() ? 
-            1 : 
-            ((b[header] || '').toLowerCase() > (a[header] || '').toLowerCase()) ? -1 : 0);
+            applySort({});
         };
-        return rows;
     };
+
+
 
     return (
-        <div style={{
-            width: '100%',
-            height: '100%'
-        }}>
+        <div style={{ width: '100%', height: '100%' }}>
             <div style={{
                 padding: 20,
                 borderBottom: `1px solid ${colorType.grey4}`
             }}>
-                <div style={{ display: 'flex', marginBottom: 20 }}>
-                    <ButtonStyle
-                        onClick={selectTypeClick}
-                        marginRight={15}
-                        background={backgroundSortDrawingType}
-                        borderOverwritten={true}
-                        bordercolor='red'
-                        name='Sort Rows In Drawing Type'
-                    />
-                    <ButtonStyle
-                        onClick={selectTypeClick}
-                        marginRight={15}
-                        background={backgroundSortInProject}
-                        borderOverwritten={true}
-                        bordercolor={colorType.grey4}
-                        name='Sort Rows In Project'
-                    />
-                </div>
+                <div style={{ display: 'flex', paddingBottom: 20, width: '100%' }}>
 
-                <SelectComp setSortSelect={setSortSelect} />
+                    <SelectStyled
+                        style={{ width: '50%', marginRight: 20 }}
+                        onChange={(column) => setColumn(column)}
+                        value={column}
+                    >
+                        {headersShown.map(hd => (
+                            <Option key={hd} value={hd}>{hd}</Option>
+                        ))}
+                    </SelectStyled>
+
+                    <SelectStyled
+                        style={{ width: '50%' }}
+                        onChange={(value) => setValue(value)}
+                        disabled={column === 'Select Field...' ? true : false}
+                        value={value}
+                    >
+                        <Option key='Ascending' value='Ascending'>Ascending</Option>
+                        <Option key='Descending' value='Descending'>Descending</Option>
+                    </SelectStyled>
+
+                </div>
+                <div>
+                    <CheckboxStyled onChange={() => setIsChecked(!isChecked)} checked={isChecked}>Include Parent Rows</CheckboxStyled>
+                </div>
             </div>
 
             <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
@@ -128,42 +85,33 @@ export default FormSort;
 
 
 
-const SelectComp = ({ setSortSelect }) => {
-
-    const { state: stateProject } = useContext(ProjectContext);
-
-    const [column, setColumn] = useState(null);
-
-    return (
-        <div style={{ display: 'flex', paddingBottom: 20, width: '100%' }}>
-            <SelectStyled
-                defaultValue='Select Field...'
-                style={{ width: '50%', marginRight: 20 }}
-                onChange={(column) => {
-                    setColumn(column);
-                    setSortSelect({ [column]: 'Ascending' })
-                }}
-            >
-                {stateProject.userData.headersShown.map(hd => (
-                    <Option key={hd} value={hd}>{hd}</Option>
-                ))}
-            </SelectStyled>
-
-            <SelectStyled
-                defaultValue='Ascending'
-                style={{ width: '50%' }}
-                onChange={(value) => setSortSelect({ [column]: value })}
-                disabled={column === null ? true : false}
-            >
-                <Option key='Ascending' value='Ascending'>Ascending</Option>
-                <Option key='Descending' value='Descending'>Descending</Option>
-            </SelectStyled>
-        </div>
-    );
-};
 
 const SelectStyled = styled(Select)`
     .ant-select-selection {
         border-radius: 0;
     }
 `;
+
+const CheckboxStyled = styled(Checkbox)`
+   .ant-checkbox-inner {
+      border-radius: 0;
+      border: none;
+      background: ${colorType.primary}
+   }
+`;
+
+export const sortFnc = (rows, header, ascending) => {
+    if (ascending) {
+        rows.sort((a, b) => (a[header] || '').toLowerCase() > (b[header] || '').toLowerCase() ?
+            1 :
+            ((b[header] || '').toLowerCase() > (a[header] || '').toLowerCase()) ? -1 : 0);
+    } else {
+        return rows.sort((b, a) => (a[header] || '').toLowerCase() > (b[header] || '').toLowerCase() ?
+            1 :
+            ((b[header] || '').toLowerCase() > (a[header] || '').toLowerCase()) ? -1 : 0);
+    };
+    return rows;
+};
+
+
+

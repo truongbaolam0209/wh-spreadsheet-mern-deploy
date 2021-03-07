@@ -18,10 +18,10 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow } = useContext(RowContext);
 
-   const { rowsAllInit } = stateRow;
+   const { rowsAll } = stateRow;
 
    const { companies, projectName, roleTradeCompany } = stateProject.allDataOneSheet;
-   const { drawingTypeTree } = stateRow;
+   const { drawingTypeTree, viewTemplateNodeId } = stateRow;
 
 
    const [input, setInput] = useState(addProjectHeaderToTree(drawingTypeTree, projectName));
@@ -30,7 +30,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
    const [modalTitle, setModalTitle] = useState(null);
    const [itemNode, setItemNode] = useState(null);
    const [mergeList, setMergeList] = useState([]);
-   
+
    const onClickApplyTradeOrCompany = ({ node, itemsAdded }) => {
       itemsAdded.forEach(item => {
          node.children.push({
@@ -82,7 +82,6 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
 
          let currentNodeFlatten = flattenAllTreeChildNode1(input[0].children);
          let outputArray = currentNodeFlatten.filter(x => idsToDelete.indexOf(x.id) === -1);
-
          setInput(addProjectHeaderToTree(outputArray, projectName));
 
       } else if (modalTitle === 'Merge All Child Drawings') {
@@ -94,7 +93,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
             };
          });
          // setMergeList({ ...mergeList, [itemNode.id]: idsToMerge });
-         setMergeList([ ...mergeListUpdate, itemNode.id ]);
+         setMergeList([...mergeListUpdate, itemNode.id]);
 
          let currentNodeFlatten = flattenAllTreeChildNode1(input[0].children);
          let outputArray = currentNodeFlatten.filter(x => idsToMerge.indexOf(x.id) === -1);
@@ -111,6 +110,23 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
 
    const isDocumentController = roleTradeCompany.role === 'Document Controller' && roleTradeCompany.company === 'Woh Hup Private Ltd';
    const treeFlatten = flattenAllTreeChildNode1(input);
+
+   let eyeShownInit;
+   if (viewTemplateNodeId) {
+      const nodeTreeFound = treeFlatten.find(x => x.id === viewTemplateNodeId);
+      if (nodeTreeFound) {
+         const br = getTreeFlattenOfNodeInArray(treeFlatten, nodeTreeFound);
+         eyeShownInit = br.map(x => x.id);
+      };
+   };
+   const [iconBtnEyeShownArr, setIconBtnEyeShownArr] = useState(eyeShownInit || []);
+   const [nodeIsolated, setNodeIsolated] = useState(viewTemplateNodeId || null);
+   const isolateView = (node) => {
+      setNodeIsolated(node.id);
+      const nodeFound = treeFlatten.find(x => x.id === node.id);
+      const branch = getTreeFlattenOfNodeInArray(treeFlatten, nodeFound);
+      setIconBtnEyeShownArr(branch.map(x => x.id));
+   };
 
    return (
       <Container>
@@ -148,7 +164,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
                }}
                canDrop={(props) => {
                   const { prevParent, nextParent, node } = props;
-                  
+
                   let nodePrevParentInTree, nodeNextParentInTree;
                   let companyNodePrevParent, companyNodeNextParent;
 
@@ -157,8 +173,8 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
                      nodeNextParentInTree = treeFlatten.find(x => x.id === nextParent.id);
                   };
 
-                  if (nodePrevParentInTree && nodeNextParentInTree && 
-                     nodePrevParentInTree.treeLevel === nodeNextParentInTree.treeLevel && 
+                  if (nodePrevParentInTree && nodeNextParentInTree &&
+                     nodePrevParentInTree.treeLevel === nodeNextParentInTree.treeLevel &&
                      nodePrevParentInTree.treeLevel >= 1
                   ) {
                      companyNodePrevParent = getCompanyNameFnc(nodePrevParentInTree, treeFlatten);
@@ -184,7 +200,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
 
                   const { node } = props;
                   const treeNode = treeFlatten.find(x => x.id === node.id);
-                  
+
                   let companyNode;
                   if (node.treeLevel >= 1) {
                      companyNode = getCompanyNameFnc(treeNode, treeFlatten);
@@ -195,60 +211,73 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
                      tradeNode = getTradeNameFnc(treeNode, treeFlatten);
                   };
 
+                  const isEyeShownColor = iconBtnEyeShownArr.indexOf(node.id) !== -1 ? 'black' : '#DCDCDC';
+                  const isEyeShownType = iconBtnEyeShownArr.indexOf(node.id) !== -1 ? 'eye' : 'eye-invisible';
+
                   return ({
                      className: 'xxx-xxx-xxx',
                      buttons:
                         (node.treeLevel === 0 && isDocumentController) ? [
-                           <IconBtn type='plus' onClick={() => addFolderBelow(node)} />
-
+                           <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
+                           <IconBtn type={isEyeShownType} onClick={() => isolateView(node)} color={isEyeShownColor} />
 
 
                         ] : (isDocumentController && companyNode === 'Woh Hup Private Ltd' && node.treeLevel === 1) ? [
                            <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
                            <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
+                           <IconBtn type={isEyeShownType} onClick={() => isolateView(node)} color={isEyeShownColor} />
                         ] : (isDocumentController && companyNode !== 'Woh Hup Private Ltd' && node.treeLevel === 1) ? [
                            <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
                            <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
                            node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />,
+                           <IconBtn type={isEyeShownType} onClick={() => isolateView(node)} color={isEyeShownColor} />
                         ] : (isDocumentController && companyNode === 'Woh Hup Private Ltd' && node.treeLevel === 2) ? [
                            <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
                            <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
-                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />,
+                           <IconBtn type={isEyeShownType} onClick={() => isolateView(node)} color={isEyeShownColor} />
                         ] : (isDocumentController && (
                            (companyNode === 'Woh Hup Private Ltd' && node.treeLevel >= 3) || (companyNode !== 'Woh Hup Private Ltd' && node.treeLevel >= 2)
                         )) ? [
                            <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
                            <IconBtn type='edit' onClick={() => editFolderName(node)} />,
                            <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
-                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />,
+                           <IconBtn type={isEyeShownType} onClick={() => isolateView(node)} color={isEyeShownColor} />
 
 
 
 
                         ] : (roleTradeCompany.role === 'Coordinator' && companyNode === 'Woh Hup Private Ltd' && companyNode === roleTradeCompany.company && node.treeLevel === 2 && tradeNode === roleTradeCompany.trade) ? [
                            <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
-                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />,
+                           <IconBtn type={isEyeShownType} onClick={() => isolateView(node)} color={isEyeShownColor} />
                         ] : (roleTradeCompany.role === 'Coordinator' && companyNode === 'Woh Hup Private Ltd' && companyNode === roleTradeCompany.company && node.treeLevel >= 3 && tradeNode === roleTradeCompany.trade) ? [
                            <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
                            <IconBtn type='edit' onClick={() => editFolderName(node)} />,
                            <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
-                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />,
+                           <IconBtn type={isEyeShownType} onClick={() => isolateView(node)} color={isEyeShownColor} />
 
 
-                           
+
 
                         ] : (companyNode !== 'Woh Hup Private Ltd' && companyNode === roleTradeCompany.company && node.treeLevel === 1) ? [
                            <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
-                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />,
+                           <IconBtn type={isEyeShownType} onClick={() => isolateView(node)} color={isEyeShownColor} />
                         ] : (companyNode !== 'Woh Hup Private Ltd' && companyNode === roleTradeCompany.company && node.treeLevel >= 2) ? [
                            <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
                            <IconBtn type='edit' onClick={() => editFolderName(node)} />,
                            <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
-                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />
+                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />,
+                           <IconBtn type={isEyeShownType} onClick={() => isolateView(node)} color={isEyeShownColor} />
 
 
-                           
-                        ] : []
+
+                        ] : [
+                           <IconBtn type='eye' onClick={() => isolateView(node)} color={isEyeShownColor} />
+                        ]
                   });
                }}
             />
@@ -257,7 +286,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
             <ButtonGroupComp
                onClickCancel={onClickCancelModal}
-               onClickApply={() => applyFolderOrganize(input[0].children, mergeList)} // remove projectName item before apply...
+               onClickApply={() => applyFolderOrganize(input[0].children, mergeList, nodeIsolated)} // remove projectName item before apply...
             />
          </div>
 
@@ -278,7 +307,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
                   confirmAction={confirmAction}
                   itemNode={itemNode}
                   input={input}
-                  rowsAllInit={rowsAllInit}
+                  rowsAll={rowsAll}
                />
             </ModalStyledSetting>
          )}
@@ -361,16 +390,18 @@ const PanelStyled = styled.div`
    overflow-x: hidden;
    border-bottom: 1px solid ${colorType.grey4};
 `;
-const IconBtn = ({ type, onClick }) => {
+const IconBtn = ({ type, onClick, color }) => {
 
    const text = type === 'plus' ? 'Add Sub Drawing Type'
       : type === 'delete' ? 'Delete Drawing Type'
          : type === 'edit' ? 'Edit Name'
-            : 'Merge All Sub Drawing Type'
+            : type === 'eye' ? 'Isolate View'
+               : type === 'eye-invisible' ? 'Isolate View'
+                  : 'Merge All Sub Drawing Type'
 
    return (
       <Tooltip title={text}>
-         <IconStyle type={type} onClick={onClick} />
+         <IconStyle type={type} onClick={onClick} style={{ color: color || 'black' }} />
       </Tooltip>
    );
 };
@@ -431,7 +462,7 @@ const PanelItemsStyled = styled.div`
    overflow-x: hidden;
    border-bottom: 1px solid ${colorType.grey4};
 `;
-const ConfirmOrEditNameModal = ({ modalTitle, confirmAction, itemNode, input, rowsAllInit }) => {
+const ConfirmOrEditNameModal = ({ modalTitle, confirmAction, itemNode, input, rowsAll }) => {
 
    let dwgsToWarn = [];
    if (modalTitle === 'Delete Drawing Type') {
@@ -439,7 +470,7 @@ const ConfirmOrEditNameModal = ({ modalTitle, confirmAction, itemNode, input, ro
       const currentTreeNode = currentTree.find(x => x.id === itemNode.id);
       const nodeArray = getTreeFlattenOfNodeInArray(currentTree, currentTreeNode);
       nodeArray.forEach(nd => {
-         dwgsToWarn = [...dwgsToWarn, ...rowsAllInit.filter(x => x._parentRow === nd.id)];
+         dwgsToWarn = [...dwgsToWarn, ...rowsAll.filter(x => x._parentRow === nd.id)];
       });
    };
 
@@ -459,24 +490,24 @@ const ConfirmOrEditNameModal = ({ modalTitle, confirmAction, itemNode, input, ro
          {modalTitle === 'Delete Drawing Type' ? (
             <div>
                <div>Are you sure to delete the drawing type <span style={{ fontWeight: 'bold' }}>{itemNode.title}</span>?</div>
-                  <div>All the following <span style={{ fontWeight: 'bold' }}>{dwgsToWarn.length}</span> drawings will be deleted accordingly:</div>
-                  <br />
-                  <div style={{ maxHeight: 300, overflowY: 'scroll' }}>
-                     {dwgsToWarn.map((dr, i) => (
-                        <div key={i}>({i + 1}) - {dr['Drawing Number']} - {dr['Drawing Name']}</div>
-                     ))}
-                  </div>
+               <div>All the following <span style={{ fontWeight: 'bold' }}>{dwgsToWarn.length}</span> drawings will be deleted accordingly:</div>
+               <br />
+               <div style={{ maxHeight: 300, overflowY: 'scroll' }}>
+                  {dwgsToWarn.map((dr, i) => (
+                     <div key={i}>({i + 1}) - {dr['Drawing Number']} - {dr['Drawing Name']}</div>
+                  ))}
+               </div>
             </div>
          ) : modalTitle === 'Merge All Child Drawings' ? (
             <div>Are you sure to delete all sub folders and retains all drawings</div>
          ) : (
-                  <Input
-                     placeholder='Enter new name...'
-                     style={{ width: '100%' }}
-                     value={value || itemNode.title}
-                     onChange={(e) => setValue(e.target.value)}
-                  />
-               )}
+            <Input
+               placeholder='Enter new name...'
+               style={{ width: '100%' }}
+               value={value || itemNode.title}
+               onChange={(e) => setValue(e.target.value)}
+            />
+         )}
 
          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
             <ButtonGroupComp
@@ -649,8 +680,9 @@ export const compareCurrentTreeAndTreeFromDB = (treeFromCurrentInit, treeFromCur
    let treeCurrentModified = removeNodesDeletedByOtherUsersFromTreeCurrent(treeFromCurrent, treeDeletedFromDB);
 
    let { nodesToRemoveFromDB, treeFromDB: treeFromDBModified, nodesIdNoNeedToAddNew } = removeNodesDeletedByCurrentUserFromTreeDB(treeFromDB, treeDeletedFromCurrent, treeCurrentModified);
-
+  
    let { nodesToAddToDB, treeDBModifiedToSave: treeDBModified } = haveChangedNodesInDBAndNewNodesInCurrentBackToDB(treeFromDBModified, treeCurrentModified, treeFromCurrentInit, nodesIdNoNeedToAddNew);
+
 
 
    // reorder item follow new order...

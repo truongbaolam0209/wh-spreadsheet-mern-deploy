@@ -2,7 +2,6 @@ import { Icon, Tooltip } from 'antd';
 import React, { useContext } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 
 
@@ -12,13 +11,14 @@ const IconTable = (props) => {
    const { type, onClick } = props;
 
    const { state: stateRow } = useContext(RowContext);
-   const { state: stateProject } = useContext(ProjectContext);
 
-   const roleInit = stateProject.allDataOneSheet && stateProject.allDataOneSheet.role;
-   const showDrawingsOnly = stateRow && stateRow.showDrawingsOnly;
+
+   const modeGroup = stateRow && stateRow.modeGroup;
+   const modeFilter = stateRow && stateRow.modeFilter;
+   const modeSort = stateRow && stateRow.modeSort;
 
    let disabled = false;
-   if (showDrawingsOnly === 'group-columns' && type !== 'swap' && type !== 'save') {
+   if (modeGroup && modeGroup.length > 0 && type !== 'swap' && type !== 'save') {
       disabled = true;
    };
 
@@ -26,15 +26,18 @@ const IconTable = (props) => {
    return (
       <Tooltip placement={type === 'menu' ? 'topLeft' : 'top'} title={toolTipBtn(type)}>
          <DivStyled>
-            {type === 'rfa-button' ? (
-               <IconRFA>RFA</IconRFA>
-            ) : (
-                  <IconStyled
-                     type={type}
-                     onClick={onClick}
-                     disabled={disabled}
-                  />
-               )}
+            <IconStyled
+               style={{
+                  background: modeFilter && modeFilter.length > 0 && type === 'filter' ? colorType.grey1 :
+                     modeSort && Object.keys(modeSort).length === 3 && type === 'sort-ascending' ? colorType.grey1 :
+                        modeGroup && modeGroup.length > 0 && type === 'apartment' ? colorType.grey1 :
+                           null
+               }}
+               type={type}
+               onClick={onClick}
+               disabled={disabled}
+            />
+
 
          </DivStyled>
       </Tooltip>
@@ -70,15 +73,16 @@ const toolTipBtn = (type) => {
                                                                      type === 'edit' ? 'Change User Name To Check Multi-User' :
                                                                         type === 'upload' ? 'Upload Data To Server' :
                                                                            type === 'rfa-button' ? 'Go To RFA View' :
-                                                                           'xxx';
+                                                                              type === 'plus-square' ? 'Add New RFA' :
+                                                                                 'No Title';
 };
 
 const DivStyled = styled.div`
-    &:hover {
-        background-color: ${colorType.grey1}
-    }
-    transition: 0.2s;
-    border-radius: 5px;
+   &:hover {
+      background-color: ${colorType.grey1}
+   };
+   transition: 0.2s;
+   border-radius: 5px;
 `;
 
 

@@ -3,8 +3,7 @@ import React, { useContext, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
-import { Context as RowContext } from '../../contexts/rowContext';
-import { groupByHeaders, mongoObjectId } from '../../utils';
+import { mongoObjectId } from '../../utils';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
 
@@ -16,35 +15,39 @@ const { Option } = Select;
 
 const FormGroup = ({ applyGroup, onClickCancelModal }) => {
 
-    const { state: stateRow } = useContext(RowContext);
+    const [group, setGroup] = useState([
+        {
+            id: mongoObjectId(),
+            column: 'Status'
+        }
+    ]);
 
-    const [group, setGroup] = useState([]);
 
-    const setGroupHeader = (hd) => {
-        setGroup([...group, hd]);
-    };
-    const removeTag = (column, id) => {
-        idArr.splice(idArr.indexOf(id), 1);
-        setIdArr([...idArr]);
 
-        group.splice(group.indexOf(column), 1);
+    const setGroupHeader = (id, hd) => {
+        const found = group.find(x => x.id === id);
+        found.column = hd;
         setGroup([...group]);
     };
 
-    const onClickApply = () => {
-        if (group.length === 0) return;
-        let output = groupByHeaders(stateRow.rowsAll.filter(r => r._rowLevel === 1), group);
-        applyGroup(output);
+    const removeTag = (id) => {
+        const arr = group.filter(x => x.id !== id);
+        setGroup(arr);
     };
 
-    const [idArr, setIdArr] = useState([]);
+    const onClickApply = () => {
+        applyGroup(group.map(x => x.column).filter(x => x !== 'Select Field...'));
+    };
+
+
     const onClickAddField = () => {
-        if (idArr.length <= group.length) {
-            setIdArr([
-                ...idArr, 
-                mongoObjectId()
-            ]);
-        };
+        setGroup([
+            ...group,
+            {
+                id: mongoObjectId(),
+                column: 'Select Field...'
+            }
+        ])
     };
 
     return (
@@ -53,7 +56,7 @@ const FormGroup = ({ applyGroup, onClickCancelModal }) => {
             height: '100%'
         }}>
             <div style={{ padding: 20, borderBottom: `1px solid ${colorType.grey4}` }}>
-                
+
                 <ButtonStyle
                     colorText='black'
                     marginRight={10}
@@ -63,16 +66,16 @@ const FormGroup = ({ applyGroup, onClickCancelModal }) => {
                     name='Add Field'
                     marginBottom={10}
                 />
-                {idArr.map(key => (
+                {group.map(hd => (
                     <SelectComp
-                        key={key}
-                        id={key}
-                        setGroupHeader={setGroupHeader}
+                        key={hd.id}
+                        item={hd}
                         group={group}
+                        setGroupHeader={setGroupHeader}
                         removeTag={removeTag}
                     />
                 ))}
-                
+
             </div>
 
             <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
@@ -81,7 +84,7 @@ const FormGroup = ({ applyGroup, onClickCancelModal }) => {
                     onClickApply={onClickApply}
                 />
             </div>
-            
+
         </div>
     );
 };
@@ -100,10 +103,9 @@ const IconStyled = styled.div`
 `;
 
 
-const SelectComp = ({ setGroupHeader, group, removeTag, id }) => {
+const SelectComp = ({ setGroupHeader, group, removeTag, item }) => {
 
     const { state: stateProject } = useContext(ProjectContext);
-    const [cl, setCl] = useState(null);
 
     return (
         <div style={{ display: 'flex', paddingBottom: 10, width: '70%' }}>
@@ -112,11 +114,11 @@ const SelectComp = ({ setGroupHeader, group, removeTag, id }) => {
                 defaultValue='Select Field...'
                 style={{ width: '100%', marginRight: 10 }}
                 onChange={(column) => {
-                    setGroupHeader(column);
-                    setCl(column);
+                    setGroupHeader(item.id, column);
                 }}
+                value={item.column}
             >
-                {stateProject.userData.headersShown.filter(hd => group.indexOf(hd) === -1).map(hd => (
+                {stateProject.userData.headersShown.filter(hd => !group.find(x => x.column === hd)).map(hd => (
                     <Option key={hd} value={hd}>{hd}</Option>
                 ))}
             </SelectStyled>
@@ -130,7 +132,7 @@ const SelectComp = ({ setGroupHeader, group, removeTag, id }) => {
                             color: colorType.grey2,
                             fontSize: 12
                         }}
-                        onClick={() => removeTag(cl, id)}
+                        onClick={() => removeTag(item.id)}
                     />
                 </IconStyled>
             </Tooltip>

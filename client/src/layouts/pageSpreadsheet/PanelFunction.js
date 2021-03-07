@@ -16,12 +16,12 @@ const PanelFunction = (props) => {
 
    const { roleTradeCompany } = stateProject.allDataOneSheet;
 
-   const { rowsSelectedToMove, rowsSelected, drawingTypeTree, showDrawingsOnly } = stateRow;
+   const { rowsSelectedToMove, rowsSelected, drawingTypeTree, modeGroup } = stateRow;
 
    const { rowData, column } = panelType.cellProps;
 
-   const isLockedColumn = columnLocked(roleTradeCompany, rowData, showDrawingsOnly, column.key);
-   const isLockedRow = rowLocked(roleTradeCompany, rowData, showDrawingsOnly, drawingTypeTree);
+   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key);
+   const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
 
    const dwgType = drawingTypeTree.find(x => x.id === rowData.id);
 
@@ -116,7 +116,6 @@ const Container = styled.div`
 const disabledBtn = ({ panelType }, btn, rowsSelectedToMove, roleTradeCompany, isLockedByCompanyOrTrade, rowsSelected, drawingTypeTree) => {
    const { rowData } = panelType.cellProps;
    const { _rowLevel, children, treeLevel, id } = rowData;
-
 
 
    if (

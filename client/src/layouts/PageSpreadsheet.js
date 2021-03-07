@@ -8,7 +8,7 @@ import { colorType, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { debounceFnc, getActionName, getHeaderWidth, getModalWidth, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
+import { debounceFnc, getActionName, getHeaderWidth, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
 import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
 import ButtonAdminUploadDataPDD from './pageSpreadsheet/ButtonAdminUploadDataPDD';
 import ButtonAdminUploadRows from './pageSpreadsheet/ButtonAdminUploadRows';
@@ -17,6 +17,7 @@ import CellHeader from './pageSpreadsheet/CellHeader';
 import CellIndex from './pageSpreadsheet/CellIndex';
 import ExportCSV from './pageSpreadsheet/ExportCSV';
 import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from './pageSpreadsheet/FormDrawingTypeOrder';
+import { sortFnc } from './pageSpreadsheet/FormSort';
 import IconTable from './pageSpreadsheet/IconTable';
 import InputSearch from './pageSpreadsheet/InputSearch';
 import PanelFunction, { getPanelPosition } from './pageSpreadsheet/PanelFunction';
@@ -207,7 +208,7 @@ const PageSpreadsheet = (props) => {
 
 
 
-   const { state: stateCell, setCellActive, OverwriteCellsModified, copyTempData, pasteTempData, applyActionOnCell } = useContext(CellContext);
+   const { state: stateCell, setCellActive, OverwriteCellsModified, copyTempData, applyActionOnCell } = useContext(CellContext);
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
@@ -223,16 +224,30 @@ const PageSpreadsheet = (props) => {
    const [panelFunctionVisible, setPanelFunctionVisible] = useState(false);
    const [panelSettingVisible, setPanelSettingVisible] = useState(false);
 
+
+
    const buttonPanelFunction = (btn) => {
-      let { rowsAllInit, rowsUpdatePreRowOrParentRow, rowsSelected, rowsSelectedToMove } = stateRow;
+      let { rowsAll, rowsUpdatePreRowOrParentRow, rowsSelected, rowsSelectedToMove } = stateRow;
+
       setPanelFunctionVisible(false);
+      setCellHistoryFound(null);
 
       if (btn === 'Move Drawings') {
          if (stateRow.rowsSelected.length > 0) {
-            getSheetRows({ ...stateRow, rowsSelectedToMove: [...rowsSelected] });
+            getSheetRows({ 
+               ...stateRow, 
+               rowsSelectedToMove: [...rowsSelected],
+               // modeFilter: [], 
+               // modeSort: {}
+            });
          } else {
-            const row = rowsAllInit.find(x => x.id === panelType.cellProps.rowData.id);
-            getSheetRows({ ...stateRow, rowsSelectedToMove: [row] });
+            const row = rowsAll.find(x => x.id === panelType.cellProps.rowData.id);
+            getSheetRows({ 
+               ...stateRow, 
+               rowsSelectedToMove: [row],
+               // modeFilter: [], 
+               // modeSort: {}
+            });
          };
       } else if (btn === 'Paste Drawings') {
          const { rowData } = panelType.cellProps;
@@ -243,21 +258,21 @@ const PageSpreadsheet = (props) => {
             getSheetRows({ ...stateRow, rowsSelectedToMove: [], rowsSelected: [] });
          } else {
             rowsSelectedToMove.forEach(row => {
-               const rowBelowPrevious = rowsAllInit.find(r => r._preRow === row.id);
+               const rowBelowPrevious = rowsAll.find(r => r._preRow === row.id);
                if (rowBelowPrevious) {
                   rowBelowPrevious._preRow = row._preRow;
                   updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelowPrevious);
                };
             });
             if (rowData.treeLevel) {
-               const lastRowOfBranch = rowsAllInit.find(r => r._parentRow === rowData.id && !rowsAllInit.find(x => x._preRow === r.id));
+               const lastRowOfBranch = rowsAll.find(r => r._parentRow === rowData.id && !rowsAll.find(x => x._preRow === r.id));
                rowsSelectedToMove.forEach((row, i) => {
                   row._preRow = i === 0 ? (lastRowOfBranch ? lastRowOfBranch.id : null) : rowsSelectedToMove[i - 1].id;
                   row._parentRow = rowData.id;
                   updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
                });
             } else {
-               const rowBelowNext = rowsAllInit.find(r => r._preRow === rowData.id);
+               const rowBelowNext = rowsAll.find(r => r._preRow === rowData.id);
                if (rowBelowNext) {
                   rowBelowNext._preRow = stateRow.rowsSelectedToMove[stateRow.rowsSelectedToMove.length - 1];
                   updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelowNext);
@@ -268,14 +283,15 @@ const PageSpreadsheet = (props) => {
                   updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
                });
             };
-            const rowsOutput = _processRowsChainNoGroupFnc1([...rowsAllInit]);
+            const rowsOutput = _processRowsChainNoGroupFnc1([...rowsAll]);
             getSheetRows({
                ...stateRow,
                rowsAll: rowsOutput,
-               rowsAllInit: rowsOutput,
                rowsUpdatePreRowOrParentRow,
                rowsSelectedToMove: [],
-               rowsSelected: []
+               rowsSelected: [],
+               modeFilter: [], 
+               modeSort: {}
             });
          };
 
@@ -296,6 +312,8 @@ const PageSpreadsheet = (props) => {
       if (currentDOMCell) currentDOMCell.cell.classList.remove('cell-current');
       currentDOMCell = null;
    };
+
+   
    const onMouseDownColumnHeader = (e, header) => {
       // setCursor({ x: e.clientX, y: e.clientY });
       // setPanelType({ type: 'column', header });
@@ -309,43 +327,44 @@ const PageSpreadsheet = (props) => {
 
    const commandAction = (update) => {
       if (
-         update.type === 'insert-drawings' || update.type === 'insert-drawings-by-folder' || update.type === 'duplicate-drawings' ||
-         update.type === 'delete-drawing' || update.type === 'add-view-templates' || update.type === 'sort-data-drawing-type' ||
-         update.type === 'sort-data-project' || update.type === 'drawing-data-automation' || update.type === 'create-new-drawing-revisions'
+         update.type === 'add-view-templates' || update.type === 'sort-data' || update.type === 'filter-by-columns' ||
+         update.type === 'drawing-data-automation' || update.type === 'create-new-drawing-revisions'
       ) {
          getSheetRows({ ...stateRow, ...update.data });
 
-      } else if (update.type === 'filter-by-columns') {
-         const { rowsAll, modeFilter } = update.data;
-         if (rowsAll.length > 0 && Object.keys(modeFilter).length > 0) {
-            getSheetRows({ ...stateRow, ...update.data });
-
-         } else if (rowsAll.length === 0 && Object.keys(modeFilter).length > 0) {
-            message.info('There is no drawing found', 1.5);
-         };
+      } else if (
+         update.type === 'insert-drawings' || update.type === 'insert-drawings-by-folder' ||
+         update.type === 'duplicate-drawings' || update.type === 'delete-drawing'
+      ) {
+         getSheetRows({ ...stateRow, ...update.data, modeFilter: [], modeSort: {} });
 
       } else if (update.type === 'reset-filter-sort') {
+
          getSheetRows({ ...stateRow, ...update.data });
-         setExpandedRows(getRowsKeyExpanded(stateRow.drawingTypeTree, stateRow.viewTemplateNodeId));
          setSearchInputShown(false);
          setCellSearchFound(null);
-         setCellHistoryFound(null);
+
 
       } else if (update.type === 'reorder-columns' || update.type === 'drawing-colorized') {
          setUserData({ ...stateProject.userData, ...update.data });
 
       } else if (update.type === 'drawing-folder-organization') {
          getSheetRows({ ...stateRow, ...update.data });
-         setExpandedRows(getRowsKeyExpanded(update.data.drawingTypeTree, stateRow.viewTemplateNodeId));
+         if (update.data.viewTemplateNodeId) {
+            setExpandedRows(getRowsKeyExpanded(update.data.drawingTypeTree, update.data.viewTemplateNodeId));
+         } else {
+            setExpandedRows(getRowsKeyExpanded(update.data.drawingTypeTree, stateRow.viewTemplateNodeId));
+         };
+         
 
       } else if (update.type === 'group-columns') {
-         getSheetRows({ ...stateRow, rowsAll: update.data.rows, showDrawingsOnly: 'group-columns' });
-         setExpandedRows(update.data.expandedRows);
+         getSheetRows({ ...stateRow, ...update.data });
 
       } else if (update.type === 'highlight-cell-history') {
          setCellHistoryFound(update.data);
          setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
          setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
+
 
       } else if (update.type === 'save-data-successfully') {
          message.success('Save Data Successfully', 1.5);
@@ -353,13 +372,12 @@ const PageSpreadsheet = (props) => {
          message.error('Network Error', 1.5);
 
       } else if (update.type === 'reload-data-from-server') {
-
          fetchDataOneSheet({
             ...update.data,
             email, projectId, projectName, role, token, company, companies, roleTradeCompany
          });
          setUserData(getHeadersData(update.data));
-         getSheetRows(getInputDataInitially(update.data));
+         getSheetRows(getInputDataInitially(update.data, roleTradeCompany));
          setExpandedRows(getRowsKeyExpanded(update.data.publicSettings.drawingTypeTree, update.data.userSettings.viewTemplateNodeId));
          OverwriteCellsModified({});
          setCellActive(null);
@@ -375,8 +393,6 @@ const PageSpreadsheet = (props) => {
 
 
 
-   // SAVE DATA TO SMART SHEET
-   const [state, setstate] = useState(null);
    const [adminFncInitPanel, setAdminFncInitPanel] = useState(false);
    const [adminFncBtn, setAdminFncBtn] = useState(null);
    const adminFncServerInit = (btn) => {
@@ -415,7 +431,6 @@ const PageSpreadsheet = (props) => {
             setUserData(getHeadersData(res.data));
             getSheetRows(getInputDataInitially(res.data));
             setExpandedRows(getRowsKeyExpanded(res.data.publicSettings.drawingTypeTree, res.data.userSettings ? res.data.userSettings.viewTemplateNodeId : null));
-
 
             setLoading(false);
          } catch (err) {
@@ -481,12 +496,13 @@ const PageSpreadsheet = (props) => {
    const rowClassName = (props) => {
       const { rowData } = props;
       const { colorization } = stateProject.userData;
-      const { rowsSelected, showDrawingsOnly, drawingTypeTree } = stateRow;
+      const { rowsSelected, modeGroup, drawingTypeTree } = stateRow;
 
       const valueArr = colorization.value;
       const value = rowData[colorization.header];
 
-      const isRowLocked = rowLocked(roleTradeCompany, rowData, showDrawingsOnly, drawingTypeTree);
+      const isRowLocked = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
+      
 
       if (rowsSelected.find(x => x.id === rowData.id)) {
          return 'row-selected';
@@ -508,22 +524,32 @@ const PageSpreadsheet = (props) => {
    };
 
 
-   // const rowProps = (props) => {
-   //    const { rowsSelected } = stateRow;
-   //    const { rowData } = props;
-   //    return {
-   //       className: 'className',
-   //       rowData: 'rowData'
-   //    };
-   // };
-
-
-
    const [searchInputShown, setSearchInputShown] = useState(false);
-   const searchGlobal = debounceFnc((found) => {
-      setCellSearchFound(found);
+   const searchGlobal = debounceFnc((textSearch) => {
+      let searchDataObj = {};
+      if (textSearch !== '') {
+         stateRow.rowsAll.forEach(row => {
+            let obj = {};
+            Object.keys(row).forEach(key => {
+               if (
+                  key !== 'id' && key !== '_preRow' && key !== '_parentRow' &&
+                  row[key] &&
+                  row[key].toString().toLowerCase().includes(textSearch.toLowerCase())
+               ) {
+                  obj[row.id] = [...obj[row.id] || [], key];
+               };
+            });
+            if (Object.keys(obj).length > 0) searchDataObj = { ...searchDataObj, [row.id]: obj[row.id] };
+         });
+      };
+      
+      setCellSearchFound(searchDataObj);
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
+      getSheetRows({ 
+         ...stateRow, 
+         modeSearch: { searchDataObj, isFoundShownOnly: 'show all' } 
+      });
    }, 500);
 
    const renderColumns = (arr, nosColumnFixed) => {
@@ -560,7 +586,7 @@ const PageSpreadsheet = (props) => {
                   ? 'cell-found'
                   : (cellHistoryFound && cellHistoryFound.find(cell => cell.rowId === id && cell.header === key))
                      ? 'cell-history-highlight'
-                     : (columnLocked(roleTradeCompany, rowData, stateRow.showDrawingsOnly, key) && rowData._rowLevel)
+                     : (columnLocked(roleTradeCompany, rowData, stateRow.modeGroup, key) && rowData._rowLevel)
                         ? 'cell-locked'
                         : '';
             }
@@ -587,7 +613,12 @@ const PageSpreadsheet = (props) => {
                ? <InputSearch searchGlobal={searchGlobal} />
                : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
-            <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON')} />
+            {stateRow && stateRow.modeGroup.length > 0 ? (
+               <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-1')} />
+            ) : (
+               <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-2')} />
+            )}
+            
             <DividerRibbon />
             <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
             <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
@@ -640,7 +671,6 @@ const PageSpreadsheet = (props) => {
                overscanRowCount={0}
                onScroll={onScroll}
                rowClassName={rowClassName}
-               // rowProps={rowProps}
                onRowExpand={onRowExpand}
             />
          ) : <LoadingIcon />}
@@ -667,7 +697,7 @@ const PageSpreadsheet = (props) => {
 
 
          <ModalStyledSetting
-            title={getActionName(panelSettingType)}
+            title={stateRow && stateRow.modeGroup.length > 0 ? 'Quit Grouping Mode' : getActionName(panelSettingType)}
             visible={panelSettingVisible}
             footer={null}
             onCancel={() => {
@@ -677,8 +707,12 @@ const PageSpreadsheet = (props) => {
             }}
             destroyOnClose={true}
             centered={true}
-            width={getModalWidth(panelSettingType)}
-            width={panelSettingType === 'addDrawingType-ICON' ? 700 : 520}
+
+            width={
+               panelSettingType === 'addDrawingType-ICON' ? window.innerWidth * 0.8 :
+               panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
+               520
+            }
          >
             <PanelSetting
                panelType={panelType}
@@ -690,7 +724,6 @@ const PageSpreadsheet = (props) => {
                   setPanelType(null);
                }}
                setLoading={setLoading}
-
             />
          </ModalStyledSetting>
 
@@ -727,14 +760,14 @@ const DividerRibbon = () => {
 
 const TableStyled = styled(Table)`
    .cell-locked {
-      background-color: #FAFAD2
+      background-color: ${colorType.lockedCell};
    };
    .row-locked {
-      background-color: #FAFAD2
+      background-color: ${colorType.lockedCell};
    };
    .row-drawing-type {
       background-color: ${colorType.grey3};
-      font-weight: bold;
+      /* font-weight: bold; */
    };
    .row-selected {
       background-color: ${colorType.cellHighlighted};
@@ -798,10 +831,6 @@ const TableStyled = styled(Table)`
       border-right: 1px solid #DCDCDC;
       overflow: visible !important;
    }
-   .BaseTable__table-frozen-left {
-      border-right: 4px solid #DCDCDC;
-      box-shadow: none;
-   }
 `;
 const ModalStyleFunction = styled(Modal)`
    .ant-modal-close, .ant-modal-header {
@@ -864,82 +893,148 @@ const SpinStyled = styled.div`
 
 
 const getInputDataInitially = (data) => {
+
    const { rows, publicSettings, userSettings } = data;
    const { drawingTypeTree } = publicSettings;
    let viewTemplates = [];
    let viewTemplateNodeId = null;
+   let modeFilter = [];
+   let modeSort = {};
    if (userSettings) {
       viewTemplates = userSettings.viewTemplates || [];
       viewTemplateNodeId = userSettings.viewTemplateNodeId || null;
+      modeFilter = userSettings.modeFilter || [];
+      modeSort = userSettings.modeSort || {};
    };
 
-   let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);
 
+   let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);
    const { treeNodesToAdd, rowsToAdd, rowsUpdatePreOrParent } = rearrangeRowsNotMatchTreeNode(rows, rowsAllOutput, drawingTypeTree);
 
 
    return {
-      rowsAll: [...rowsAllOutput, ...rowsToAdd], // CHECK
-      rowsAllInit: [...rowsAllOutput, ...rowsToAdd], // CHECK
+      rowsAll: [...rowsAllOutput, ...rowsToAdd], // handle rows can not match parent
       rowsVersionsToSave: [],
-      showDrawingsOnly: false,
 
       viewTemplates,
       viewTemplateNodeId,
-      drawingTypeTree: [...drawingTypeTree, ...treeNodesToAdd], // CHECK
+      drawingTypeTree: [...drawingTypeTree, ...treeNodesToAdd], // handle rows can not match parent
       drawingTypeTreeInit: drawingTypeTree,
       drawingsTypeDeleted: [],
-      drawingsTypeNewIds: [...treeNodesToAdd.map(x => x.id)], // CHECK
+      drawingsTypeNewIds: [...treeNodesToAdd.map(x => x.id)], // handle rows can not match parent
 
       rowsDeleted: [],
       idRowsNew: [],
-      rowsUpdatePreRowOrParentRow: { ...rowsUpdatePreOrParent }, // CHECK
+      rowsUpdatePreRowOrParentRow: { ...rowsUpdatePreOrParent }, // handle rows can not match parent
 
       rowsSelected: [],
       rowsSelectedToMove: [],
 
-      modeFilter: {},
+      modeFilter,
+      modeSort,
+      modeSearch: {},
+      modeGroup: [],
 
-      isRfaView: false
+
    };
 };
 
 const arrangeDrawingTypeFinal = (stateRow) => {
-   const { rowsAll, showDrawingsOnly, drawingTypeTree, viewTemplateNodeId } = stateRow;
+   const { 
+      rowsAll, drawingTypeTree, viewTemplateNodeId, 
+      modeFilter, modeGroup, modeSort, modeSearch
+   } = stateRow;
+
 
    let drawingTypeTreeTemplate;
-   let rowsAllTemplate;
+   let rowsAllInTemplate;
    const templateNode = drawingTypeTree.find(x => x.id === viewTemplateNodeId);
+
 
    if (templateNode) {
       const nodeArray = getTreeFlattenOfNodeInArray(drawingTypeTree, templateNode);
       if (nodeArray.length > 1) {
          drawingTypeTreeTemplate = nodeArray.filter(x => x.id !== templateNode.id);
-         rowsAllTemplate = rowsAll.filter(x => drawingTypeTreeTemplate.find(tr => tr.id === x._parentRow));
+         rowsAllInTemplate = rowsAll.filter(x => drawingTypeTreeTemplate.find(tr => tr.id === x._parentRow));
       } else {
          const parent = nodeArray[0];
          return rowsAll.filter(x => x._parentRow === parent.id);
       };
    } else {
       drawingTypeTreeTemplate = drawingTypeTree.map(x => ({ ...x }));
-      rowsAllTemplate = rowsAll.map(x => ({ ...x }));
+      rowsAllInTemplate = rowsAll.map(x => ({ ...x }));
+   };
+
+   
+
+   if (Object.keys(modeSearch).length === 2) {
+      const { isFoundShownOnly, searchDataObj } = modeSearch;
+      if (isFoundShownOnly === 'show found only') {
+         rowsAllInTemplate = rowsAllInTemplate.filter(row => row.id in searchDataObj);
+      };
    };
 
 
-   if (showDrawingsOnly === 'sort-data-project') return rowsAllTemplate;
-   if (showDrawingsOnly === 'group-columns') return rowsAllTemplate;
+
+   if (modeFilter.length > 0) {
+      modeFilter.forEach(filter => {
+         if (filter.id) {
+            rowsAllInTemplate = rowsAllInTemplate.filter(r => r[filter.header] === filter.value);
+         };
+      });
+      if (Object.keys(modeSort).length !== 3 && modeFilter.find(x => x.isIncludedParent === 'not included')) {
+         return rowsAllInTemplate;
+      };
+   };
+
+   
+
+   if (Object.keys(modeSort).length === 3) {
+      const { isIncludedParent: isIncludedParentSort, column: columnSort, type: typeSort } = modeSort;
+      if (isIncludedParentSort === 'included') {
+         const listParentIds = [...new Set(rowsAllInTemplate.map(x => x._parentRow))];
+         let rowsSortedOutput = [];
+         listParentIds.forEach(parentId => {
+            let subRows = rowsAllInTemplate.filter(x => x._parentRow === parentId);
+            if (typeSort === 'ascending') {
+               subRows = sortFnc(subRows, columnSort, true);
+            } else if (typeSort === 'descending') {
+               subRows = sortFnc(subRows, columnSort, false);
+            };
+            rowsSortedOutput = [...rowsSortedOutput, ...subRows];
+         });
+         rowsAllInTemplate = [...rowsSortedOutput];
+
+         if (modeFilter.find(x => x.isIncludedParent === 'not included')) return rowsAllInTemplate;
+
+      } else if (isIncludedParentSort === 'not included') {
+         if (typeSort === 'ascending') {
+            rowsAllInTemplate = sortFnc(rowsAllInTemplate, columnSort, true);
+         } else if (typeSort === 'descending') {
+            rowsAllInTemplate = sortFnc(rowsAllInTemplate, columnSort, false);
+         };
+         return rowsAllInTemplate;
+      };
+   };
+   
+
+   if (modeGroup.length > 0) {
+      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup);
+      return rows;
+   };
 
 
    let dataOutput = [];
    drawingTypeTreeTemplate.forEach(item => {
       let newItem = { ...item };
-      let rowsChildren = rowsAllTemplate.filter(r => r._parentRow === newItem.id);
+      let rowsChildren = rowsAllInTemplate.filter(r => r._parentRow === newItem.id);
       if (rowsChildren.length > 0) {
          newItem.children = rowsChildren;
       };
       dataOutput.push(newItem);
    });
    const output = convertFlattenArraytoTree1(dataOutput);
+
    return output;
 };
 
@@ -953,7 +1048,6 @@ const getRowsKeyExpanded = (drawingTypeTree, viewTemplateNodeId) => {
       return drawingTypeTree.map(x => x.id);
    };
 };
-
 
 const getHeadersData = (projectData) => {
 

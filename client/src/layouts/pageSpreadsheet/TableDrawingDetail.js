@@ -45,6 +45,7 @@ const TableDrawingDetail = (props) => {
       const fetchRowsHistory = async () => {
          try {
             const res = await Axios.get(`${SERVER_URL}/row/history/one-row/`, { params: { token, projectId, rowId } });
+
             let rowsHistory = [];
             res.data.forEach((r, i) => {
                const { history } = r;
@@ -69,12 +70,10 @@ const TableDrawingDetail = (props) => {
                setRowsHistoryPrevious(rowsHistoryPrevious);
             };
 
-
             setRowCurrent({
                ...rowData,
                key: rowsHistory.length + rowsHistoryPrevious.length + 1
             });
-
 
 
          } catch (err) {
@@ -95,6 +94,7 @@ const TableDrawingDetail = (props) => {
 
    const panelWidth = window.innerWidth * 0.8;
    const panelHeight = window.innerHeight * 0.8;
+
 
    return (
       <div style={{

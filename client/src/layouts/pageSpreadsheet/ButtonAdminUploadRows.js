@@ -17,7 +17,6 @@ const ButtonAdminUploadRows = () => {
       const fileReader = new FileReader();
       fileReader.readAsText(e.target.files[0], 'UTF-8');
       fileReader.onload = e => {
-         // console.log(JSON.parse(e.target.result));
          setFile(JSON.parse(e.target.result));
          // setFile(getDataSumangAndHandy(JSON.parse(e.target.result)));
       };
