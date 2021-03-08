@@ -977,10 +977,14 @@ const arrangeDrawingTypeFinal = (stateRow) => {
 
 
    if (modeFilter.length > 0) {
+      let filterObj = {};
       modeFilter.forEach(filter => {
-         if (filter.id) {
-            rowsAllInTemplate = rowsAllInTemplate.filter(r => r[filter.header] === filter.value);
+         if (filter.header) {
+            filterObj[filter.header] = [...filterObj[filter.header] || [], filter.value];
          };
+      });
+      Object.keys(filterObj).forEach(header => {
+         rowsAllInTemplate = rowsAllInTemplate.filter(r => filterObj[header].indexOf(r[header]) !== -1);
       });
       if (Object.keys(modeSort).length !== 3 && modeFilter.find(x => x.isIncludedParent === 'not included')) {
          return rowsAllInTemplate;
