@@ -5,7 +5,7 @@ import { SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 
 
-const ButtonAdminUploadRows = () => {
+const ButtonAdminCreateAndUpdateRowsHistory = () => {
 
    const { state: stateProject } = useContext(ProjectContext);
    const token = stateProject.allDataOneSheet && stateProject.allDataOneSheet.token;
@@ -25,8 +25,8 @@ const ButtonAdminUploadRows = () => {
 
    const uploadCurrentDataToServer = async () => {
       try {
-         await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId: file.projectId, rows: file.rowsUpdate });
-         message.info('DONE...Save DATA ROWS');
+         await Axios.post(`${SERVER_URL}/row/history/update-rows-history/`, { token, projectId, rowsHistory: file });
+         message.info('DONE...');
       } catch (err) {
          console.log(err);
       };
@@ -34,18 +34,27 @@ const ButtonAdminUploadRows = () => {
 
 
    return (
-      <>
+      <Tooltip title='Create Or Update Rows History'>
          {file ? (
-            <Tooltip title='Upload Data Rows'>
-               <Icon type='edit' onClick={uploadCurrentDataToServer} style={{ marginRight: 10 }} />
-            </Tooltip>
+            <Icon type='warning' onClick={uploadCurrentDataToServer} style={{ marginRight: 10 }} />
          ) : (
-               <input style={{ height: 25, fontSize: 8, marginRight: 3 }} type='file' onChange={handleChange} />
-            )}
-      </>
+            <label style={{
+               border: '1px solid black',
+               display: 'inline-block',
+               width: 20,
+               height: 20,
+               padding: 3,
+               margin: 3,
+               cursor: 'pointer'
+            }}>
+               <input style={{ height: 25, fontSize: 8, marginRight: 6, display: 'none' }} type='file' onChange={handleChange} />
+               <div style={{ transform: 'translateX(-2px) translateY(-5px)' }}>(5)</div>
+            </label>
+         )}
+      </Tooltip>
    );
 };
 
-export default ButtonAdminUploadRows;
+export default ButtonAdminCreateAndUpdateRowsHistory;
 
 

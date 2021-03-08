@@ -5,15 +5,17 @@ import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
 import IconTable from './IconTable';
+
+
 // https://www.youtube.com/watch?v=TDGsVqVzW4A
 // https://www.youtube.com/watch?v=HwnHgEoiZzE
 
 
-const ExportCSV = ({ fileName }) => {
+const ExcelExport = ({ fileName }) => {
 
    const { state: stateRow } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
-   
+
 
    const fileType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8';
 
@@ -34,17 +36,18 @@ const ExportCSV = ({ fileName }) => {
    );
 };
 
-export default ExportCSV;
+export default ExcelExport;
 
 const prepareDataToExport = (stateProject, stateRow) => {
    const { allDataOneSheet: { publicSettings: { headers } } } = stateProject;
    const { drawingTypeTree, viewTemplateNodeId, rowsAll } = stateRow;
    const nodeParent = drawingTypeTree.find(x => x.id === viewTemplateNodeId);
    let tree;
+
    if (nodeParent) {
-      tree = getTreeFlattenOfNodeInArray(drawingTypeTree, nodeParent).filter(x => x.id !== nodeParent.id);
+      tree = getTreeFlattenOfNodeInArray(drawingTypeTree.map(x => ({...x})), nodeParent).filter(x => x.id !== nodeParent.id);
    } else {
-      tree = drawingTypeTree;
+      tree = drawingTypeTree.map(x => ({...x}));
    };
    const treeArr = convertFlattenArraytoTree1(tree);
    let finalArr = [];

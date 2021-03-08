@@ -5,12 +5,11 @@ import { SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 
 
-const ButtonAdminUploadDataPDD = () => {
+const ButtonAdminCreateAndUpdateRows = () => {
 
    const { state: stateProject } = useContext(ProjectContext);
    const token = stateProject.allDataOneSheet && stateProject.allDataOneSheet.token;
-   const email = stateProject.allDataOneSheet && stateProject.allDataOneSheet.email;
-
+   const projectId = stateProject.allDataOneSheet && stateProject.allDataOneSheet.projectId;
 
    const [file, setFile] = useState('');
 
@@ -26,10 +25,7 @@ const ButtonAdminUploadDataPDD = () => {
 
    const uploadCurrentDataToServer = async () => {
       try {
-         await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId: file.projectId, rows: file.rowsUpdate });
-         await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId: file.projectId, email, rowsHistory: file.rowsHistory });
-         await Axios.post(`${SERVER_URL}/sheet/update-setting-public/`, { token, projectId: file.projectId, email, publicSettings: file.publicSettings });
-
+         await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: file });
          message.info('DONE...');
       } catch (err) {
          console.log(err);
@@ -38,9 +34,9 @@ const ButtonAdminUploadDataPDD = () => {
 
 
    return (
-      <Tooltip title='Upload DATA PDD'>
+      <Tooltip title='Create Or Update Rows'>
          {file ? (
-            <Icon type='fund' onClick={uploadCurrentDataToServer} style={{ marginRight: 10 }} />
+            <Icon type='question-circle' onClick={uploadCurrentDataToServer} style={{ marginRight: 10 }} />
          ) : (
             <label style={{
                border: '1px solid black',
@@ -52,13 +48,13 @@ const ButtonAdminUploadDataPDD = () => {
                cursor: 'pointer'
             }}>
                <input style={{ height: 25, fontSize: 8, marginRight: 6, display: 'none' }} type='file' onChange={handleChange} />
-               <div style={{ transform: 'translateX(-2px) translateY(-5px)' }}>(2)</div>
+               <div style={{ transform: 'translateX(-2px) translateY(-5px)' }}>(3)</div>
             </label>
          )}
       </Tooltip>
    );
 };
 
-export default ButtonAdminUploadDataPDD;
+export default ButtonAdminCreateAndUpdateRows;
 
 

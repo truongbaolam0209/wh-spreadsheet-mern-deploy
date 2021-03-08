@@ -1,5 +1,6 @@
 import { Divider, Icon, message, Modal } from 'antd';
 import Axios from 'axios';
+import moment from 'moment';
 import React, { forwardRef, useContext, useEffect, useRef, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import 'react-base-table/styles.css';
@@ -8,14 +9,16 @@ import { colorType, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { debounceFnc, getActionName, getHeaderWidth, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
+import { debounceFnc, ExcelDateToJSDate, getActionName, getHeaderWidth, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
+import ButtonAdminCreateAndUpdateRows from './pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
+import ButtonAdminCreateAndUpdateRowsHistory from './pageSpreadsheet/ButtonAdminCreateAndUpdateRowsHistory';
+import ButtonAdminDeleteRowsHistory from './pageSpreadsheet/ButtonAdminDeleteRowsHistory';
 import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
 import ButtonAdminUploadDataPDD from './pageSpreadsheet/ButtonAdminUploadDataPDD';
-import ButtonAdminUploadRows from './pageSpreadsheet/ButtonAdminUploadRows';
 import Cell, { columnLocked, rowLocked } from './pageSpreadsheet/Cell';
 import CellHeader from './pageSpreadsheet/CellHeader';
 import CellIndex from './pageSpreadsheet/CellIndex';
-import ExportCSV from './pageSpreadsheet/ExportCSV';
+import ExcelExport from './pageSpreadsheet/ExcelExport';
 import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from './pageSpreadsheet/FormDrawingTypeOrder';
 import { sortFnc } from './pageSpreadsheet/FormSort';
 import IconTable from './pageSpreadsheet/IconTable';
@@ -234,16 +237,16 @@ const PageSpreadsheet = (props) => {
 
       if (btn === 'Move Drawings') {
          if (stateRow.rowsSelected.length > 0) {
-            getSheetRows({ 
-               ...stateRow, 
+            getSheetRows({
+               ...stateRow,
                rowsSelectedToMove: [...rowsSelected],
                // modeFilter: [], 
                // modeSort: {}
             });
          } else {
             const row = rowsAll.find(x => x.id === panelType.cellProps.rowData.id);
-            getSheetRows({ 
-               ...stateRow, 
+            getSheetRows({
+               ...stateRow,
                rowsSelectedToMove: [row],
                // modeFilter: [], 
                // modeSort: {}
@@ -290,7 +293,7 @@ const PageSpreadsheet = (props) => {
                rowsUpdatePreRowOrParentRow,
                rowsSelectedToMove: [],
                rowsSelected: [],
-               modeFilter: [], 
+               modeFilter: [],
                modeSort: {}
             });
          };
@@ -313,7 +316,7 @@ const PageSpreadsheet = (props) => {
       currentDOMCell = null;
    };
 
-   
+
    const onMouseDownColumnHeader = (e, header) => {
       // setCursor({ x: e.clientX, y: e.clientY });
       // setPanelType({ type: 'column', header });
@@ -355,7 +358,7 @@ const PageSpreadsheet = (props) => {
          } else {
             setExpandedRows(getRowsKeyExpanded(update.data.drawingTypeTree, stateRow.viewTemplateNodeId));
          };
-         
+
 
       } else if (update.type === 'group-columns') {
          getSheetRows({ ...stateRow, ...update.data });
@@ -502,7 +505,7 @@ const PageSpreadsheet = (props) => {
       const value = rowData[colorization.header];
 
       const isRowLocked = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
-      
+
 
       if (rowsSelected.find(x => x.id === rowData.id)) {
          return 'row-selected';
@@ -542,13 +545,13 @@ const PageSpreadsheet = (props) => {
             if (Object.keys(obj).length > 0) searchDataObj = { ...searchDataObj, [row.id]: obj[row.id] };
          });
       };
-      
+
       setCellSearchFound(searchDataObj);
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
-      getSheetRows({ 
-         ...stateRow, 
-         modeSearch: { searchDataObj, isFoundShownOnly: 'show all' } 
+      getSheetRows({
+         ...stateRow,
+         modeSearch: { searchDataObj, isFoundShownOnly: 'show all' }
       });
    }, 500);
 
@@ -618,24 +621,26 @@ const PageSpreadsheet = (props) => {
             ) : (
                <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-2')} />
             )}
-            
+
             <DividerRibbon />
             <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
             <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
             <DividerRibbon />
             <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
             <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
-            <ExportCSV fileName={projectName} />
+            <ExcelExport fileName={projectName} />
             <DividerRibbon />
             <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
             <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
             <DividerRibbon />
             {isAdmin && (
                <div style={{ display: 'flex' }}>
-                  <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                   <ButtonAdminUploadData />
-                  <ButtonAdminUploadRows />
                   <ButtonAdminUploadDataPDD />
+                  <ButtonAdminCreateAndUpdateRows />
+                  <ButtonAdminDeleteRowsHistory />
+                  <ButtonAdminCreateAndUpdateRowsHistory />
+                  <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                </div>
             )}
 
@@ -710,8 +715,8 @@ const PageSpreadsheet = (props) => {
 
             width={
                panelSettingType === 'addDrawingType-ICON' ? window.innerWidth * 0.8 :
-               panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
-               520
+                  panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
+                     520
             }
          >
             <PanelSetting
@@ -940,8 +945,8 @@ const getInputDataInitially = (data) => {
 };
 
 const arrangeDrawingTypeFinal = (stateRow) => {
-   const { 
-      rowsAll, drawingTypeTree, viewTemplateNodeId, 
+   const {
+      rowsAll, drawingTypeTree, viewTemplateNodeId,
       modeFilter, modeGroup, modeSort, modeSearch
    } = stateRow;
 
@@ -965,7 +970,7 @@ const arrangeDrawingTypeFinal = (stateRow) => {
       rowsAllInTemplate = rowsAll.map(x => ({ ...x }));
    };
 
-   
+
 
    if (Object.keys(modeSearch).length === 2) {
       const { isFoundShownOnly, searchDataObj } = modeSearch;
@@ -991,7 +996,7 @@ const arrangeDrawingTypeFinal = (stateRow) => {
       };
    };
 
-   
+
 
    if (Object.keys(modeSort).length === 3) {
       const { isIncludedParent: isIncludedParentSort, column: columnSort, type: typeSort } = modeSort;
@@ -1020,7 +1025,7 @@ const arrangeDrawingTypeFinal = (stateRow) => {
          return rowsAllInTemplate;
       };
    };
-   
+
 
    if (modeGroup.length > 0) {
       const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup);
@@ -1203,6 +1208,56 @@ const getUserRoleTradeCompany = (role, company) => {
 
 
 
+
+
+
+
+const compareDataExcelVsDB = (db, excel) => {
+
+   const { rows, rowHistories, settings } = db;
+   const settingsPDD = settings.find(x => x.sheet === 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q' && x.drawingTypeTree);
+   const { headers } = settingsPDD;
+
+   const dwgNumberKey = headers.find(hd => hd.text === 'Drawing Number').key;
+
+   let rowsToUpdate = [];
+   let rowsToDeleteHistory = [];
+   let rowsHistoryIdToDelete = [];
+   excel.forEach((dt, i) => {
+      const { data } = dt;
+
+      if (data['Drawing Number']) {
+         const row = rows.find(r => r.data && r.data[dwgNumberKey] === data['Drawing Number']);
+         if (row) {
+
+            if (data['Delete history'] === 'Delete history') {
+               rowsToDeleteHistory.push(row._id);
+            };
+            let obj = { _id: row._id };
+
+            let dataObj = {};
+            headers.forEach(hd => {
+               dataObj[hd.key] = data[hd.text] || '';
+               if (
+                  Number.isInteger(dataObj[hd.key]) &&
+                  dataObj[hd.key] >= 10000 && 
+                  dataObj[hd.key] <= 99999
+               ) {
+                  dataObj[hd.key] = moment(ExcelDateToJSDate(dataObj[hd.key])).format('DD/MM/YY')
+               };
+            });
+            obj.data = dataObj;
+            rowsToUpdate.push(obj);
+         };
+      };
+   });
+
+   rowsToDeleteHistory.forEach(id => {
+      const rowsHistory = rowHistories.filter(x => x.row === id);
+      rowsHistoryIdToDelete = [...rowsHistoryIdToDelete, ...rowsHistory.map(x => x._id)];
+   });
+};
+// checkData(db, excel);
 
 
 

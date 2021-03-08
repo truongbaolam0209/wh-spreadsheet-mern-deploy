@@ -28,7 +28,7 @@ const ButtonAdminUploadData = () => {
          await Axios.post(`${SERVER_URL}/cell/history/save-all-data-cell-history`, { token, dataToSave: file.cellHistories });
          await Axios.post(`${SERVER_URL}/sheet/save-all-data-settings`, { token, dataToSave: file.settings });
          await Axios.post(`${SERVER_URL}/sheet/save-all-data-rows`, { token, dataToSave: file.rows });
-         message.info('DONE...Save DATA');
+         message.info('DONE...');
       } catch (err) {
          console.log(err);
       };
@@ -37,14 +37,28 @@ const ButtonAdminUploadData = () => {
 
    return (
       <>
-         {file ? (
-            <Tooltip title='Upload Data All'>
+         <Tooltip title='Upload Data All'>
+            {file ? (
                <Icon type='upload' onClick={uploadCurrentDataToServer} style={{ marginRight: 10 }} />
-            </Tooltip>
-         ) : (
-               <input style={{ height: 25, fontSize: 8, marginRight: 3 }} type='file' onChange={handleChange} />
+            ) : (
+               <label style={{
+                  border: '1px solid black',
+                  display: 'inline-block',
+                  width: 20,
+                  height: 20,
+                  padding: 3,
+                  margin: 3,
+                  cursor: 'pointer'
+               }}>
+                  <input
+                     style={{ height: 25, fontSize: 8, marginRight: 6, display: 'none' }}
+                     type='file'
+                     onChange={handleChange}
+                  />
+                  <div style={{ transform: 'translateX(-2px) translateY(-5px)' }}>(1)</div>
+               </label>
             )}
-
+         </Tooltip>
 
       </>
    );

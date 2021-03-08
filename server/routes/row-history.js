@@ -2,17 +2,21 @@ const express = require('express');
 const Router = express.Router;
 const router = new Router();
 const RowHistory = require('../modules/row-history');
-const { validateToken } = require('../../custom/validate');
 
-router.post('/save-all-data-row-history', validateToken, RowHistory.saveAllDataRowHistoryToServer);
 
-router.post('/', validateToken, RowHistory.saveRowHistory);
+router.post('/save-all-data-row-history', RowHistory.saveAllDataRowHistoryToServer);
 
-router.get('/', validateToken, RowHistory.findHistoriesForSheet);
+router.post('/delete-rows-history', RowHistory.deleteRowsHistory);
 
-router.get('/one-row/', validateToken, RowHistory.findHistoryForOneRow);
+router.post('/update-rows-history', RowHistory.updateOrCreateHistories);
 
-router.post('/delete-all/', validateToken, RowHistory.deleteAllDataInCollection);
+router.post('/', RowHistory.saveRowHistory);
+
+router.get('/', RowHistory.findHistoriesForSheet);
+
+router.get('/one-row/', RowHistory.findHistoryForOneRow);
+
+router.post('/delete-all/', RowHistory.deleteAllDataInCollection);
 
 
 module.exports = router;
