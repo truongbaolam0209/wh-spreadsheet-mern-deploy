@@ -36,7 +36,7 @@ const Cell = (props) => {
    const { roleTradeCompany } = stateProject.allDataOneSheet;
 
 
-   let info = ''
+   let info = '';
    if (rowData.treeLevel && column.key === 'Drawing Number') {
       const node = drawingTypeTree.find(x => x.id === rowData.id);
       const branches = getTreeFlattenOfNodeInArray(drawingTypeTree, node);

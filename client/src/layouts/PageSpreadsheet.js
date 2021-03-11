@@ -277,7 +277,7 @@ const PageSpreadsheet = (props) => {
             } else {
                const rowBelowNext = rowsAll.find(r => r._preRow === rowData.id);
                if (rowBelowNext) {
-                  rowBelowNext._preRow = stateRow.rowsSelectedToMove[stateRow.rowsSelectedToMove.length - 1];
+                  rowBelowNext._preRow = stateRow.rowsSelectedToMove[stateRow.rowsSelectedToMove.length - 1].id;
                   updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, rowBelowNext);
                };
                rowsSelectedToMove.forEach((row, i) => {
