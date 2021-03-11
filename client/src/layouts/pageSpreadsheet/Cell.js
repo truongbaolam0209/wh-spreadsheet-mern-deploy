@@ -6,8 +6,8 @@ import { colorType, imgLink } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
+import PanelCalendar from '../generalComponents/PanelCalendar';
 import { getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
-import PanelCalendar from './PanelCalendar';
 
 
 const Cell = (props) => {

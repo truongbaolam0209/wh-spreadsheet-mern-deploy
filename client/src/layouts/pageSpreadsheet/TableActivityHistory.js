@@ -8,10 +8,12 @@ import { colorType, SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { convertHistoryData, mongoObjectId } from '../../utils';
-import ButtonStyle from './ButtonStyle';
-import FormFilterActivityHistory from './FormFilterActivityHistory';
-import IconTable from './IconTable';
-import PanelCalendarDuration from './PanelCalendarDuration';
+import ButtonStyle from '../generalComponents/ButtonStyle';
+import FormFilterActivityHistory from '../generalComponents/FormFilterActivityHistory';
+import IconTable from '../generalComponents/IconTable';
+import PanelCalendarDuration from '../generalComponents/PanelCalendarDuration';
+
+
 
 const Table = (props) => {
    return (

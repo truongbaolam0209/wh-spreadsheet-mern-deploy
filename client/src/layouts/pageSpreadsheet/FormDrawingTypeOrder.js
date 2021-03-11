@@ -8,8 +8,8 @@ import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { mongoObjectId } from '../../utils';
-import ButtonColumnTag from './ButtonColumnTag';
-import ButtonGroupComp from './ButtonGroupComp';
+import ButtonColumnTag from '../generalComponents/ButtonColumnTag';
+import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
 
 
 

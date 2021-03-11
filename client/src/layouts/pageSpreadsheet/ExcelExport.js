@@ -3,8 +3,8 @@ import React, { useContext } from 'react';
 import * as XLSX from 'xlsx';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
+import IconTable from '../generalComponents/IconTable';
 import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
-import IconTable from './IconTable';
 
 
 // https://www.youtube.com/watch?v=TDGsVqVzW4A
@@ -45,9 +45,9 @@ const prepareDataToExport = (stateProject, stateRow) => {
    let tree;
 
    if (nodeParent) {
-      tree = getTreeFlattenOfNodeInArray(drawingTypeTree.map(x => ({...x})), nodeParent).filter(x => x.id !== nodeParent.id);
+      tree = getTreeFlattenOfNodeInArray(drawingTypeTree.map(x => ({ ...x })), nodeParent).filter(x => x.id !== nodeParent.id);
    } else {
-      tree = drawingTypeTree.map(x => ({...x}));
+      tree = drawingTypeTree.map(x => ({ ...x }));
    };
    const treeArr = convertFlattenArraytoTree1(tree);
    let finalArr = [];

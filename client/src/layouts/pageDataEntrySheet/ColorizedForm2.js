@@ -6,21 +6,19 @@ import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
 
+
+
+
+
+
 const { Option } = Select;
 
-const ColorizedForm = ({ applyColorization, onClickCancelModal }) => {
+const ColorizedForm2 = ({ applyColorization, onClickCancelModal }) => {
 
     const { state: stateRow } = useContext(RowContext);
     const { state: stateProject } = useContext(ProjectContext);
-    let colorization = stateProject.userData.colorization;
 
-    const arr = [
-        'No Colorization',
-        'Rev',
-        'Status',
-        'Modeller',
-        'Coordinator In Charge'
-    ];
+    const { headersShown, colorization } = stateProject.userData;
 
     const [arrData, setArrData] = useState(colorization.value || []);
 
@@ -50,7 +48,7 @@ const ColorizedForm = ({ applyColorization, onClickCancelModal }) => {
                         setItem(item);
                     }}
                 >
-                    {arr.map(item => (
+                    {headersShown.map(item => (
                         <Option key={item} value={item}>{item}</Option>
                     ))}
                 </SelectStyled>
@@ -74,7 +72,7 @@ const ColorizedForm = ({ applyColorization, onClickCancelModal }) => {
         </div>
     );
 };
-export default ColorizedForm;
+export default ColorizedForm2;
 
 const TagBtn = ({ value, onClickBtn, arrData }) => {
     return (
@@ -83,7 +81,13 @@ const TagBtn = ({ value, onClickBtn, arrData }) => {
             marginBottom: 5,
             border: `1px solid ${colorType.grey1}`,
             cursor: 'pointer',
-            background: arrData.indexOf(value) === -1 ? 'white' : colorType.grey1
+            background: arrData.indexOf(value) === -1 ? 'white' : colorType.grey1,
+
+
+            maxWidth: 250,
+            textOverflow: 'ellipsis',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
         }} onClick={() => onClickBtn(value)}>
             {value}
         </div>

@@ -49,5 +49,5 @@ export const imgLink = {
 
 
 // export const SERVER_URL = 'http://localhost:9000/api';
-export const SERVER_URL =  window.location.origin.includes('https://bim.wohhup.com') ?'https://bim.wohhup.com/api' : 'http://localhost:8081/api'
+export const SERVER_URL = window.location.origin.includes('https://bim.wohhup.com') ? 'https://bim.wohhup.com/api' : 'http://localhost:8081/api'
 

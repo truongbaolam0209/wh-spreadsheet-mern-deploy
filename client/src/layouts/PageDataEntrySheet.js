@@ -1,6 +1,5 @@
 import { Divider, Icon, message, Modal } from 'antd';
 import Axios from 'axios';
-import moment from 'moment';
 import React, { forwardRef, useContext, useEffect, useRef, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import 'react-base-table/styles.css';
@@ -9,25 +8,18 @@ import { colorType, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { debounceFnc, ExcelDateToJSDate, getActionName, getHeaderWidth, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
+import { debounceFnc, genId, getActionName, groupByHeaders, mongoObjectId, processRowsFromDB, randomColorRange } from '../utils';
 import CellHeader from './generalComponents/CellHeader';
 import { sortFnc } from './generalComponents/FormSort';
 import IconTable from './generalComponents/IconTable';
 import InputSearch from './generalComponents/InputSearch';
 import ViewTemplateSelect from './generalComponents/ViewTemplateSelect';
-import ButtonAdminCreateAndUpdateRows from './pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
-import ButtonAdminCreateAndUpdateRowsHistory from './pageSpreadsheet/ButtonAdminCreateAndUpdateRowsHistory';
-import ButtonAdminDeleteRowsHistory from './pageSpreadsheet/ButtonAdminDeleteRowsHistory';
-import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
-import ButtonAdminUploadDataPDD from './pageSpreadsheet/ButtonAdminUploadDataPDD';
-import Cell, { columnLocked, rowLocked } from './pageSpreadsheet/Cell';
-import CellIndex from './pageSpreadsheet/CellIndex';
-import ExcelExport from './pageSpreadsheet/ExcelExport';
-import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from './pageSpreadsheet/FormDrawingTypeOrder';
-import PanelFunction, { getPanelPosition } from './pageSpreadsheet/PanelFunction';
-import PanelSetting, { updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from './pageSpreadsheet/PanelSetting';
-
-
+import Cell2 from './pageDataEntrySheet/Cell2';
+import CellIndex2 from './pageDataEntrySheet/CellIndex2';
+import ExcelExport2 from './pageDataEntrySheet/ExcelExport2';
+import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from './pageDataEntrySheet/FormDrawingTypeOrder2';
+import PanelFunction2, { getPanelPosition } from './pageDataEntrySheet/PanelFunction2';
+import PanelSetting2, { updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from './pageDataEntrySheet/PanelSetting2';
 
 
 
@@ -50,13 +42,14 @@ let isTyping = false;
 let addedEvent = false;
 
 
-const PageSpreadsheet = (props) => {
+const PageDataEntrySheet = (props) => {
 
+   const {
+      role, email, isAdmin, token, sheetDataInput, sheetId: projectId, sheetName: projectName,
+      cellsHistoryInCurrentSheet, cellOneHistory,
+      saveDataToServerCallback,
+   } = props;
 
-   let { email, role, isAdmin, projectId, projectName, token, company, companies } = props;
-   const roleTradeCompany = getUserRoleTradeCompany(role, company);
-
-   const tableRef = useRef();
 
    const handlerBeforeUnload = (e) => {
       if (window.location.pathname === '/drawing-edit') {
@@ -72,8 +65,7 @@ const PageSpreadsheet = (props) => {
    }, []);
 
 
-
-
+   const tableRef = useRef();
    const getCurrentDOMCell = () => {
       isTyping = true;
       setCellActive(currentDOMCell);
@@ -210,15 +202,14 @@ const PageSpreadsheet = (props) => {
 
 
 
-
    const { state: stateCell, setCellActive, OverwriteCellsModified, copyTempData, applyActionOnCell } = useContext(CellContext);
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
+
    // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
    // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
-   // console.log('ALL STATES...', stateCell, stateRow, stateProject);
 
 
    const [cursor, setCursor] = useState(null);
@@ -226,7 +217,6 @@ const PageSpreadsheet = (props) => {
    const [panelSettingType, setPanelSettingType] = useState(null);
    const [panelFunctionVisible, setPanelFunctionVisible] = useState(false);
    const [panelSettingVisible, setPanelSettingVisible] = useState(false);
-
 
 
    const buttonPanelFunction = (btn) => {
@@ -237,20 +227,10 @@ const PageSpreadsheet = (props) => {
 
       if (btn === 'Move Drawings') {
          if (stateRow.rowsSelected.length > 0) {
-            getSheetRows({
-               ...stateRow,
-               rowsSelectedToMove: [...rowsSelected],
-               // modeFilter: [], 
-               // modeSort: {}
-            });
+            getSheetRows({ ...stateRow, rowsSelectedToMove: [...rowsSelected] });
          } else {
             const row = rowsAll.find(x => x.id === panelType.cellProps.rowData.id);
-            getSheetRows({
-               ...stateRow,
-               rowsSelectedToMove: [row],
-               // modeFilter: [], 
-               // modeSort: {}
-            });
+            getSheetRows({ ...stateRow, rowsSelectedToMove: [row] });
          };
       } else if (btn === 'Paste Drawings') {
          const { rowData } = panelType.cellProps;
@@ -275,6 +255,7 @@ const PageSpreadsheet = (props) => {
                   updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
                });
             } else {
+
                const rowBelowNext = rowsAll.find(r => r._preRow === rowData.id);
                if (rowBelowNext) {
                   rowBelowNext._preRow = stateRow.rowsSelectedToMove[stateRow.rowsSelectedToMove.length - 1].id;
@@ -316,12 +297,6 @@ const PageSpreadsheet = (props) => {
       currentDOMCell = null;
    };
 
-
-   const onMouseDownColumnHeader = (e, header) => {
-      // setCursor({ x: e.clientX, y: e.clientY });
-      // setPanelType({ type: 'column', header });
-      // setPanelFunctionVisible(true);
-   };
    const onRightClickCell = (e, cellProps) => {
       setCursor({ x: e.clientX, y: e.clientY });
       setPanelType({ type: 'cell', cellProps });
@@ -347,7 +322,6 @@ const PageSpreadsheet = (props) => {
          setSearchInputShown(false);
          setCellSearchFound(null);
 
-
       } else if (update.type === 'reorder-columns' || update.type === 'drawing-colorized') {
          setUserData({ ...stateProject.userData, ...update.data });
 
@@ -358,7 +332,6 @@ const PageSpreadsheet = (props) => {
          } else {
             setExpandedRows(getRowsKeyExpanded(update.data.drawingTypeTree, stateRow.viewTemplateNodeId));
          };
-
 
       } else if (update.type === 'group-columns') {
          getSheetRows({ ...stateRow, ...update.data });
@@ -375,16 +348,19 @@ const PageSpreadsheet = (props) => {
          message.error('Network Error', 1.5);
 
       } else if (update.type === 'reload-data-from-server') {
-         fetchDataOneSheet({
-            ...update.data,
-            email, projectId, projectName, role, token, company, companies, roleTradeCompany
-         });
-         setUserData(getHeadersData(update.data));
-         getSheetRows(getInputDataInitially(update.data, roleTradeCompany));
-         setExpandedRows(getRowsKeyExpanded(update.data.publicSettings.drawingTypeTree, update.data.userSettings.viewTemplateNodeId));
-         OverwriteCellsModified({});
-         setCellActive(null);
-         setLoading(false);
+         // fetchDataOneSheet({
+         //    ...update.data,
+         //    email, projectId, projectName, role, token
+         // });
+         // setUserData(getHeadersData(update.data));
+         // getSheetRows(getInputDataInitially(update.data));
+         // setExpandedRows(getRowsKeyExpanded(
+         //    update.data.publicSettings.drawingTypeTree,
+         //    update.data.userSettings.viewTemplateNodeId
+         // ));
+         // OverwriteCellsModified({});
+         // setCellActive(null);
+         // setLoading(false);
       };
       setPanelSettingVisible(false);
       setPanelSettingType(null);
@@ -393,7 +369,6 @@ const PageSpreadsheet = (props) => {
    const onScroll = () => {
       if (stateCell.cellActive) setCellActive(null);
    };
-
 
 
    const [adminFncInitPanel, setAdminFncInitPanel] = useState(false);
@@ -424,16 +399,22 @@ const PageSpreadsheet = (props) => {
       const fetchOneProject = async () => {
          try {
             setLoading(true);
-            const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+            // const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+            // const result = resolveDataFromProps(res);
 
 
-            fetchDataOneSheet({
-               ...res.data,
-               email, projectId, projectName, role, token, company, companies, roleTradeCompany
-            });
-            setUserData(getHeadersData(res.data));
-            getSheetRows(getInputDataInitially(res.data));
-            setExpandedRows(getRowsKeyExpanded(res.data.publicSettings.drawingTypeTree, res.data.userSettings ? res.data.userSettings.viewTemplateNodeId : null));
+
+            const result = resolveDataFromProps({ data: sheetDataInput });
+
+            fetchDataOneSheet({ ...result, email, projectId, projectName, role, token });
+
+            setUserData(getHeadersData(result));
+            getSheetRows(getInputDataInitially(result));
+
+            setExpandedRows(getRowsKeyExpanded(
+               result.publicSettings.drawingTypeTree,
+               result.userSettings ? result.userSettings.viewTemplateNodeId : null
+            ));
 
             setLoading(false);
          } catch (err) {
@@ -458,10 +439,17 @@ const PageSpreadsheet = (props) => {
    };
 
 
+
    const [expandedRows, setExpandedRows] = useState([]);
-   const [expandColumnKey, setExpandColumnKey] = useState('Drawing Number');
+   const [expandColumnKey, setExpandColumnKey] = useState(null);
    const [cellSearchFound, setCellSearchFound] = useState(null);
    const [cellHistoryFound, setCellHistoryFound] = useState(null);
+
+   useEffect(() => {
+      if (stateProject.userData) {
+         setExpandColumnKey(stateProject.userData.headersShown[0]);
+      };
+   }, [stateProject.userData]);
 
    const onRowExpand = (props) => {
       const { rowKey, expanded } = props;
@@ -499,12 +487,10 @@ const PageSpreadsheet = (props) => {
    const rowClassName = (props) => {
       const { rowData } = props;
       const { colorization } = stateProject.userData;
-      const { rowsSelected, modeGroup, drawingTypeTree } = stateRow;
+      const { rowsSelected } = stateRow;
 
       const valueArr = colorization.value;
       const value = rowData[colorization.header];
-
-      const isRowLocked = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
 
 
       if (rowsSelected.find(x => x.id === rowData.id)) {
@@ -513,9 +499,7 @@ const PageSpreadsheet = (props) => {
       if (!rowData._rowLevel || rowData._rowLevel < 1) {
          return 'row-drawing-type';
       };
-      if (isRowLocked) {
-         return 'row-locked';
-      };
+
 
       if (colorization !== null && colorization.header !== 'No Colorization' &&
          valueArr && valueArr.length > 0 && valueArr.indexOf(value) !== -1
@@ -555,27 +539,24 @@ const PageSpreadsheet = (props) => {
       });
    }, 500);
 
-   const renderColumns = (arr, nosColumnFixed) => {
+
+   const renderColumns = (headerArr, nosColumnFixed) => {
 
       let headersObj = [{
          key: 'Index', dataKey: 'Index', title: '', width: 50,
          frozen: Column.FrozenDirection.LEFT,
-         cellRenderer: <CellIndex />,
+         cellRenderer: <CellIndex2 />,
          style: { padding: 0, margin: 0 }
       }];
-      arr.forEach((hd, index) => {
+      headerArr.forEach((hd, index) => {
          headersObj.push({
             key: hd, dataKey: hd, title: hd,
-            width: getHeaderWidth(hd),
+            width: hd.length * 20,
             resizable: true,
             frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
-            headerRenderer: (
-               <CellHeader
-                  onMouseDownColumnHeader={onMouseDownColumnHeader}
-               />
-            ),
+            headerRenderer: <CellHeader />,
             cellRenderer: (
-               <Cell
+               <Cell2
                   setPosition={setPosition}
                   onRightClickCell={onRightClickCell}
                   getCurrentDOMCell={getCurrentDOMCell}
@@ -584,23 +565,24 @@ const PageSpreadsheet = (props) => {
             className: (props) => {
                const { rowData, column: { key } } = props;
                const { id } = rowData;
+               const headerData = sheetDataInput.publicSettings.headers.find(hd => hd.text === key);
 
                return (cellSearchFound && id in cellSearchFound && cellSearchFound[id].indexOf(key) !== -1)
                   ? 'cell-found'
                   : (cellHistoryFound && cellHistoryFound.find(cell => cell.rowId === id && cell.header === key))
                      ? 'cell-history-highlight'
-                     : (columnLocked(roleTradeCompany, rowData, stateRow.modeGroup, key) && rowData._rowLevel)
+                     : (headerData.roleCanEdit.indexOf(role.name) === -1 && rowData._rowLevel)
                         ? 'cell-locked'
                         : '';
             }
          });
       });
+
       return headersObj;
    };
 
 
    return (
-
       <div
          onContextMenu={(e) => e.preventDefault()}
       >
@@ -628,18 +610,13 @@ const PageSpreadsheet = (props) => {
             <DividerRibbon />
             <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
             <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
-            <ExcelExport fileName={projectName} />
+            <ExcelExport2 fileName={projectName} />
             <DividerRibbon />
             <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
             <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
             <DividerRibbon />
             {isAdmin && (
                <div style={{ display: 'flex' }}>
-                  <ButtonAdminUploadData />
-                  <ButtonAdminUploadDataPDD />
-                  <ButtonAdminCreateAndUpdateRows />
-                  <ButtonAdminDeleteRowsHistory />
-                  <ButtonAdminCreateAndUpdateRowsHistory />
                   <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                </div>
             )}
@@ -648,14 +625,11 @@ const PageSpreadsheet = (props) => {
          </ButtonBox>
 
 
-
-
          {!loading ? (
             <TableStyled
                dataForStyled={{
                   stateProject,
                   randomColorRange,
-                  randomColorRangeStatus,
                   cellSearchFound,
                   cellHistoryFound
                }}
@@ -694,7 +668,7 @@ const PageSpreadsheet = (props) => {
             mask={false}
             width={250}
          >
-            <PanelFunction
+            <PanelFunction2
                panelType={panelType}
                buttonPanelFunction={buttonPanelFunction}
             />
@@ -719,7 +693,7 @@ const PageSpreadsheet = (props) => {
                      520
             }
          >
-            <PanelSetting
+            <PanelSetting2
                panelType={panelType}
                panelSettingType={panelSettingType}
                commandAction={commandAction}
@@ -729,6 +703,9 @@ const PageSpreadsheet = (props) => {
                   setPanelType(null);
                }}
                setLoading={setLoading}
+               cellsHistoryInCurrentSheet={cellsHistoryInCurrentSheet}
+               cellOneHistory={cellOneHistory}
+               saveDataToServerCallback={saveDataToServerCallback}
             />
          </ModalStyledSetting>
 
@@ -744,10 +721,9 @@ const PageSpreadsheet = (props) => {
             ></Modal>
          )}
       </div>
-
    );
 };
-export default PageSpreadsheet;
+export default PageDataEntrySheet;
 
 
 
@@ -772,25 +748,23 @@ const TableStyled = styled(Table)`
    };
    .row-drawing-type {
       background-color: ${colorType.grey3};
-      /* font-weight: bold; */
+      font-weight: bold;
    };
    .row-selected {
       background-color: ${colorType.cellHighlighted};
    };
    
-   
-   
    ${({ dataForStyled }) => {
-      const { stateProject, randomColorRange, randomColorRangeStatus } = dataForStyled;
+      const { stateProject, randomColorRange } = dataForStyled;
       let colorization = stateProject.userData.colorization;
 
       const value = colorization.value || [];
 
       let res = [];
       value.map(n => {
-         let color = stateProject.userData.colorization.header === 'Status' ?
-            randomColorRangeStatus[n] :
-            randomColorRange[value.indexOf(n)];
+         let color = randomColorRange[value.indexOf(n)];
+         // let color = getRandomColor();
+
          if (n) {
             res.push(`.colorization-${stateProject.userData.colorization.header.replace(/\s/g, '').replace(/,/g, '')}-${n.replace(/\s/g, '').replace(/,/g, '')}-styled {
                background-color: ${color};
@@ -798,7 +772,6 @@ const TableStyled = styled(Table)`
          };
       });
       const output = [...new Set(res)].join('\n');
-
       return output;
    }}
 
@@ -824,18 +797,18 @@ const TableStyled = styled(Table)`
       -moz-user-select: none;
       -ms-user-select: none;
       user-select: none;
-   }
+   };
    .BaseTable__header-cell {
       padding: 5px;
       border-right: 1px solid #DCDCDC;
       background: ${colorType.primary};
       color: white
-   }
+   };
    .BaseTable__row-cell {
       padding: 0;
       border-right: 1px solid #DCDCDC;
       overflow: visible !important;
-   }
+   };
 `;
 const ModalStyleFunction = styled(Modal)`
    .ant-modal-close, .ant-modal-header {
@@ -846,9 +819,9 @@ const ModalStyleFunction = styled(Modal)`
    }
 `;
 const ModalStyledSetting = styled(Modal)`
-    .ant-modal-content {
-        border-radius: 0;
-    }
+   .ant-modal-content {
+      border-radius: 0;
+   }
    .ant-modal-close {
       display: none;
    }
@@ -867,13 +840,13 @@ const ModalStyledSetting = styled(Modal)`
    }
 `;
 const ButtonBox = styled.div`
-    width: ${`${window.innerWidth}px`};
-    position: relative;
-    display: flex;
-    padding-top: 7px;
-    padding-bottom: 7px;
-    padding-left: 7px;
-    background: ${colorType.grey4};
+   width: ${`${window.innerWidth}px`};
+   position: relative;
+   display: flex;
+   padding-top: 7px;
+   padding-bottom: 7px;
+   padding-left: 7px;
+   background: ${colorType.grey4};
 `;
 const LoadingIcon = () => {
    return (
@@ -883,28 +856,39 @@ const LoadingIcon = () => {
    );
 };
 const SpinStyled = styled.div`
-    background: rgba(0, 0, 0, 0.05);
-    opacity: 0.7;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: ${`${window.innerWidth}px`};
-    height: ${`${window.innerHeight}px`};
-    display: flex;
-    justify-content: center;
-    z-index: 1000;
+   background: rgba(0, 0, 0, 0.05);
+   opacity: 0.7;
+   position: fixed;
+   top: 0;
+   left: 0;
+   width: ${`${window.innerWidth}px`};
+   height: ${`${window.innerHeight}px`};
+   display: flex;
+   justify-content: center;
+   z-index: 1000;
 `;
 
 
-
+const createRowsInit = (sheetId, nos) => {
+   const idsArr = genId(nos);
+   return idsArr.map((id, i) => {
+      return ({
+         id, _rowLevel: 1,
+         _parentRow: sheetId,
+         _preRow: i === 0 ? null : idsArr[i - 1]
+      });
+   });
+};
 const getInputDataInitially = (data) => {
 
    const { rows, publicSettings, userSettings } = data;
-   const { drawingTypeTree } = publicSettings;
+   const { drawingTypeTree, sheetId } = publicSettings;
+
    let viewTemplates = [];
    let viewTemplateNodeId = null;
    let modeFilter = [];
    let modeSort = {};
+
    if (userSettings) {
       viewTemplates = userSettings.viewTemplates || [];
       viewTemplateNodeId = userSettings.viewTemplateNodeId || null;
@@ -912,25 +896,27 @@ const getInputDataInitially = (data) => {
       modeSort = userSettings.modeSort || {};
    };
 
+   const newRows = createRowsInit(sheetId, 5);
+   const sheetInitState = (drawingTypeTree.length === 0 && rows.length === 0);
 
    let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);
    const { treeNodesToAdd, rowsToAdd, rowsUpdatePreOrParent } = rearrangeRowsNotMatchTreeNode(rows, rowsAllOutput, drawingTypeTree);
 
-
    return {
-      rowsAll: [...rowsAllOutput, ...rowsToAdd], // handle rows can not match parent
-      rowsVersionsToSave: [],
+      rowsAll: sheetInitState ? newRows : [...rowsAllOutput, ...rowsToAdd], // handle rows can not match parent
+
 
       viewTemplates,
       viewTemplateNodeId,
+
       drawingTypeTree: [...drawingTypeTree, ...treeNodesToAdd], // handle rows can not match parent
       drawingTypeTreeInit: drawingTypeTree,
       drawingsTypeDeleted: [],
       drawingsTypeNewIds: [...treeNodesToAdd.map(x => x.id)], // handle rows can not match parent
 
       rowsDeleted: [],
-      idRowsNew: [],
-      rowsUpdatePreRowOrParentRow: { ...rowsUpdatePreOrParent }, // handle rows can not match parent
+      idRowsNew: sheetInitState ? newRows.map(r => r.id) : [],
+      rowsUpdatePreRowOrParentRow: sheetInitState ? newRows : { ...rowsUpdatePreOrParent }, // handle rows can not match parent
 
       rowsSelected: [],
       rowsSelectedToMove: [],
@@ -939,17 +925,15 @@ const getInputDataInitially = (data) => {
       modeSort,
       modeSearch: {},
       modeGroup: [],
-
-
    };
 };
 
 const arrangeDrawingTypeFinal = (stateRow) => {
+
    const {
       rowsAll, drawingTypeTree, viewTemplateNodeId,
       modeFilter, modeGroup, modeSort, modeSearch
    } = stateRow;
-
 
    let drawingTypeTreeTemplate;
    let rowsAllInTemplate;
@@ -969,7 +953,6 @@ const arrangeDrawingTypeFinal = (stateRow) => {
       drawingTypeTreeTemplate = drawingTypeTree.map(x => ({ ...x }));
       rowsAllInTemplate = rowsAll.map(x => ({ ...x }));
    };
-
 
 
    if (Object.keys(modeSearch).length === 2) {
@@ -1033,6 +1016,8 @@ const arrangeDrawingTypeFinal = (stateRow) => {
    };
 
 
+   if (drawingTypeTreeTemplate.length === 0) return rowsAllInTemplate;
+
    let dataOutput = [];
    drawingTypeTreeTemplate.forEach(item => {
       let newItem = { ...item };
@@ -1048,7 +1033,6 @@ const arrangeDrawingTypeFinal = (stateRow) => {
 };
 
 const getRowsKeyExpanded = (drawingTypeTree, viewTemplateNodeId) => {
-
    const templateNode = drawingTypeTree.find(x => x.id === viewTemplateNodeId);
    if (templateNode) {
       const drawingTypeTreeTemplate = getTreeFlattenOfNodeInArray(drawingTypeTree, templateNode).filter(x => x.id !== templateNode.id);
@@ -1062,7 +1046,6 @@ const getHeadersData = (projectData) => {
 
    const { publicSettings, userSettings } = projectData;
    let { headers } = publicSettings;
-
    let headersShown, headersHidden, colorization, nosColumnFixed;
 
    if (!userSettings) {
@@ -1081,14 +1064,14 @@ const getHeadersData = (projectData) => {
       headersShown,
       nosColumnFixed,
       headersHidden,
-      colorization,
+      colorization
    };
 };
 
 export const getOutputRowsAllSorted = (drawingTypeTree, rowsAll) => {
-
    const drawingTypeTreeClone = drawingTypeTree.map(x => ({ ...x }));
    const treeTemp = convertFlattenArraytoTree1(drawingTypeTreeClone);
+   if (treeTemp.length === 0) return rowsAll;
 
    let rowsOutput = [];
    const getIndex = (arr) => {
@@ -1104,8 +1087,6 @@ export const getOutputRowsAllSorted = (drawingTypeTree, rowsAll) => {
    getIndex(treeTemp);
    return rowsOutput;
 };
-
-
 const rearrangeRowsNotMatchTreeNode = (rows, rowsArranged, drawingTypeTree) => {
    const rowsToArrange = rows.filter(x => !rowsArranged.find(r => r.id === x.id));
    if (rowsToArrange.length === 0) {
@@ -1122,7 +1103,7 @@ const rearrangeRowsNotMatchTreeNode = (rows, rowsArranged, drawingTypeTree) => {
       if (nodeInTree) {
          const newId = mongoObjectId();
          treeNodesToAdd.push({
-            'Drawing Number': 'New Drawing Type',
+            title: 'New Folder',
             id: newId,
             parentId: nodeInTree.id,
             treeLevel: nodeInTree.treeLevel + 1,
@@ -1146,61 +1127,19 @@ const rearrangeRowsNotMatchTreeNode = (rows, rowsArranged, drawingTypeTree) => {
 
 
 
-const getUserRoleTradeCompany = (role, company) => {
+export const resolveDataFromProps = ({ data }) => {
+   let { publicSettings, rows } = data;
+   const { headers } = publicSettings;
+   headers.forEach(hd => {
+      hd.text = hd.name;
+      hd.key = hd.id;
+      delete hd.name;
+      delete hd.id;
+   });
 
-   const roleArray = [
-      'Document Controller',
-
-      'WH Archi Coordinator',
-      'WH C&S Design Engineer',
-      'WH M&E Coordinator',
-      'WH PRECAST Coordinator',
-
-      'WH Archi Modeller',
-      'WH C&S Modeller',
-      'WH M&E Modeller',
-      'WH PRECAST Modeller',
-
-      'Production',
-
-      'WH Archi Manager',
-      'WH C&S Manager',
-      'WH M&E Manager',
-      'WH PRECAST Manager',
-
-      'Planning Engineer',
-      'QS',
-      'Project Manager',
-      'Corporate Manager',
-      'QAQC',
-      'Safety',
-      'Client',
-
-      'Sub-Con',
-      'Consultant',
-   ];
-
-
-   if (
-      !role || !company || roleArray.indexOf(role) === -1 ||
-      role === 'WH Archi Manager' || role === 'WH C&S Manager' || role === 'WH M&E Manager' || role === 'WH PRECAST Manager' ||
-      role === 'Planning Engineer' || role === 'QS' || role === 'Project Manager' || role === 'Corporate Manager' ||
-      role === 'Client' || role === 'QAQC' || role === 'Safety'
-   ) {
-      return { role: 'View-Only User', trade: null, company: null };
-   };
-
-   if (role === 'WH Archi Coordinator') return { role: 'Coordinator', trade: 'ARCHI', company };
-   if (role === 'WH C&S Design Engineer') return { role: 'Coordinator', trade: 'C&S', company };
-   if (role === 'WH M&E Coordinator') return { role: 'Coordinator', trade: 'M&E', company };
-   if (role === 'WH PRECAST Coordinator') return { role: 'Coordinator', trade: 'PRECAST', company };
-
-   if (role === 'WH Archi Modeller') return { role: 'Modeller', trade: 'ARCHI', company };
-   if (role === 'WH C&S Modeller') return { role: 'Modeller', trade: 'C&S', company };
-   if (role === 'WH M&E Modeller') return { role: 'Modeller', trade: 'M&E', company };
-   if (role === 'WH PRECAST Modeller') return { role: 'Modeller', trade: 'PRECAST', company };
-
-   return { role, trade: null, company };
+   const rowsOutput = processRowsFromDB(headers, rows);
+   data.rows = rowsOutput;
+   return data;
 };
 
 
@@ -1208,56 +1147,6 @@ const getUserRoleTradeCompany = (role, company) => {
 
 
 
-
-
-
-
-const compareDataExcelVsDB = (db, excel) => {
-
-   const { rows, rowHistories, settings } = db;
-   const settingsPDD = settings.find(x => x.sheet === 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q' && x.drawingTypeTree);
-   const { headers } = settingsPDD;
-
-   const dwgNumberKey = headers.find(hd => hd.text === 'Drawing Number').key;
-
-   let rowsToUpdate = [];
-   let rowsToDeleteHistory = [];
-   let rowsHistoryIdToDelete = [];
-   excel.forEach((dt, i) => {
-      const { data } = dt;
-
-      if (data['Drawing Number']) {
-         const row = rows.find(r => r.data && r.data[dwgNumberKey] === data['Drawing Number']);
-         if (row) {
-
-            if (data['Delete history'] === 'Delete history') {
-               rowsToDeleteHistory.push(row._id);
-            };
-            let obj = { _id: row._id };
-
-            let dataObj = {};
-            headers.forEach(hd => {
-               dataObj[hd.key] = data[hd.text] || '';
-               if (
-                  Number.isInteger(dataObj[hd.key]) &&
-                  dataObj[hd.key] >= 10000 &&
-                  dataObj[hd.key] <= 99999
-               ) {
-                  dataObj[hd.key] = moment(ExcelDateToJSDate(dataObj[hd.key])).format('DD/MM/YY')
-               };
-            });
-            obj.data = dataObj;
-            rowsToUpdate.push(obj);
-         };
-      };
-   });
-
-   rowsToDeleteHistory.forEach(id => {
-      const rowsHistory = rowHistories.filter(x => x.row === id);
-      rowsHistoryIdToDelete = [...rowsHistoryIdToDelete, ...rowsHistory.map(x => x._id)];
-   });
-};
-// checkData(db, excel);
 
 
 

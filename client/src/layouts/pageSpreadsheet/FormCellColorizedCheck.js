@@ -4,8 +4,8 @@ import React, { useContext, useEffect, useState } from 'react';
 import { SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { convertHistoryData } from '../../utils';
-import ButtonStyle from './ButtonStyle';
-import PanelCalendarDuration from './PanelCalendarDuration';
+import ButtonStyle from '../generalComponents/ButtonStyle';
+import PanelCalendarDuration from '../generalComponents/PanelCalendarDuration';
 
 
 
