@@ -202,9 +202,10 @@ export const groupByHeaders = (data, headers) => {
 
 
 export const extractCellInfo = (key) => {
+    const idexOfSplitDigit = key.indexOf('~#&&#~');
     return {
-        rowId: key.slice(0, 24),
-        headerName: key.slice(25, key.length)
+        rowId: key.slice(0, idexOfSplitDigit),
+        headerName: key.slice(idexOfSplitDigit + 6, key.length)
     }
 };
 export const convertCellTempToHistory = (

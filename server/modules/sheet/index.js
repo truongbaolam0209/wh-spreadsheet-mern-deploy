@@ -1,7 +1,7 @@
 const schema = require('./schema');
 const model = require('./model');
 const { genCRUDHandlers } = require('../crud');
-const { toObjectId, mongoObjectId, convertCellTempToHistory, convertDrawingVersionToHistory, extractCellInfo } = require('../utils');
+const { toObjectId, mongoObjectId } = require('../utils');
 const {
    findPublicSettings,
    findUserSettings,

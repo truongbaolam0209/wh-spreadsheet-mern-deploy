@@ -105,7 +105,7 @@ const Cell = (props) => {
    const cellDataTypeBtn = checkCellDateFormat(column.key);
 
 
-   const getCellTempId = () => `${rowData['id']}-${column.key}`;
+   const getCellTempId = () => `${rowData['id']}~#&&#~${column.key}`;
 
    const cellEditDone = (value) => {
       if (rowData._rowLevel === 1) {

@@ -52,7 +52,7 @@ const Cell2 = (props) => {
    const [panelData, setPanelData] = useState(false);
 
 
-   const getCellTempId = () => `${rowData['id']}-${column.key}`;
+   const getCellTempId = () => `${rowData['id']}~#&&#~${column.key}`;
 
    const cellEditDone = (value) => {
 

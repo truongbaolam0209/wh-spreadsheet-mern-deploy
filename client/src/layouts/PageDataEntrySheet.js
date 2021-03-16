@@ -1048,7 +1048,7 @@ const getHeadersData = (projectData) => {
    let { headers } = publicSettings;
    let headersShown, headersHidden, colorization, nosColumnFixed;
 
-   if (!userSettings) {
+   if (!userSettings || Object.keys(userSettings).length === 0) {
       headersShown = headers.map(hd => hd.text);
       headersHidden = [];
       colorization = {};
