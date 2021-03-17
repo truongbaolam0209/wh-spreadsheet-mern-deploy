@@ -26,12 +26,16 @@ import PanelSetting2, { updatePreRowParentRowToState, _processRowsChainNoGroupFn
 const Table = forwardRef((props, ref) => {
    return (
       <AutoResizer>
-         {() => <BaseTable
-            {...props}
-            ref={ref}
-            width={window.innerWidth}
-            height={window.innerHeight - 99.78}
-         />}
+         {({ width }) => {
+            return (
+               <BaseTable
+                  {...props}
+                  ref={ref}
+                  height={window.innerHeight - 99.78 - 33.6}
+                  width={width}
+               />
+            );
+         }}
       </AutoResizer>
    );
 });
@@ -47,12 +51,15 @@ const PageDataEntrySheet = (props) => {
    const {
       role, email, isAdmin, token, sheetDataInput, sheetId: projectId, sheetName: projectName,
       cellsHistoryInCurrentSheet, cellOneHistory,
-      saveDataToServerCallback,
+      saveDataToServerCallback
    } = props;
+
+   const { headers } = sheetDataInput.publicSettings;
+   
 
 
    const handlerBeforeUnload = (e) => {
-      if (window.location.pathname === '/drawing-edit') {
+      if (window.location.pathname === '/data-entry-sheet') {
          e.preventDefault();
          e.returnValue = '';
       };
@@ -541,7 +548,10 @@ const PageDataEntrySheet = (props) => {
 
 
    const renderColumns = (headerArr, nosColumnFixed) => {
-
+      const widthColumn = (headers, hd) => {
+         const type = headers.find(x => x.text === hd).type;
+         return type === 'date' ? 95 : type === 'checkbox' ? 50 : hd.length * 25
+      };
       let headersObj = [{
          key: 'Index', dataKey: 'Index', title: '', width: 50,
          frozen: Column.FrozenDirection.LEFT,
@@ -551,7 +561,7 @@ const PageDataEntrySheet = (props) => {
       headerArr.forEach((hd, index) => {
          headersObj.push({
             key: hd, dataKey: hd, title: hd,
-            width: hd.length * 20,
+            width: widthColumn(headers, hd),
             resizable: true,
             frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
             headerRenderer: <CellHeader />,
@@ -840,7 +850,7 @@ const ModalStyledSetting = styled(Modal)`
    }
 `;
 const ButtonBox = styled.div`
-   width: ${`${window.innerWidth}px`};
+   width: 100%;
    position: relative;
    display: flex;
    padding-top: 7px;
