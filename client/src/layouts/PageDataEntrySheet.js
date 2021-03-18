@@ -49,15 +49,13 @@ let addedEvent = false;
 const PageDataEntrySheet = (props) => {
 
    const {
-      role, email, isAdmin, token, sheetDataInput, sheetId: projectId, sheetName: projectName,
+      role, email, isAdmin, token, sheetDataInput: sheetDataInputRaw, sheetId: projectId, sheetName: projectName,
       cellsHistoryInCurrentSheet, cellOneHistory,
-      saveDataToServerCallback
+      saveDataToServerCallback, outputDataType
    } = props;
-
-   const { headers } = sheetDataInput.publicSettings;
    
-
-
+   let sheetDataInput = convertSheetInputRaw(sheetDataInputRaw);
+   console.log('sheetDataInput=XXXXXXXXXXX', sheetDataInput);
    const handlerBeforeUnload = (e) => {
       if (window.location.pathname === '/data-entry-sheet') {
          e.preventDefault();
@@ -213,10 +211,30 @@ const PageDataEntrySheet = (props) => {
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
+   const [adminFncInitPanel, setAdminFncInitPanel] = useState(false);
+   const [adminFncBtn, setAdminFncBtn] = useState(null);
+   const adminFncServerInit = (btn) => {
+      setAdminFncInitPanel(true);
+      setAdminFncBtn(btn);
+   };
+   const adminFnc = async (btn) => {
+      try {
+         if (btn === 'delete-all-collections') {
+            await Axios.post(`${SERVER_URL}/cell/history/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/row/history/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/sheet/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/settings/delete-all/`, { token });
+            message.info('DONE...Delete All Data In Every DB Collections');
+         };
+      } catch (err) {
+         console.log(err);
+      };
+   };
 
-   // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
-   // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
-   // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
+
+   useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
+   useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
+   useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
 
 
    const [cursor, setCursor] = useState(null);
@@ -224,6 +242,11 @@ const PageDataEntrySheet = (props) => {
    const [panelSettingType, setPanelSettingType] = useState(null);
    const [panelFunctionVisible, setPanelFunctionVisible] = useState(false);
    const [panelSettingVisible, setPanelSettingVisible] = useState(false);
+
+   const [expandedRows, setExpandedRows] = useState([]);
+   const [expandColumnKey, setExpandColumnKey] = useState(null);
+   const [cellSearchFound, setCellSearchFound] = useState(null);
+   const [cellHistoryFound, setCellHistoryFound] = useState(null);
 
 
    const buttonPanelFunction = (btn) => {
@@ -378,58 +401,28 @@ const PageDataEntrySheet = (props) => {
    };
 
 
-   const [adminFncInitPanel, setAdminFncInitPanel] = useState(false);
-   const [adminFncBtn, setAdminFncBtn] = useState(null);
-   const adminFncServerInit = (btn) => {
-      setAdminFncInitPanel(true);
-      setAdminFncBtn(btn);
-   };
-   const adminFnc = async (btn) => {
-      try {
-         if (btn === 'delete-all-collections') {
-            await Axios.post(`${SERVER_URL}/cell/history/delete-all/`, { token });
-            await Axios.post(`${SERVER_URL}/row/history/delete-all/`, { token });
-            await Axios.post(`${SERVER_URL}/sheet/delete-all/`, { token });
-            await Axios.post(`${SERVER_URL}/settings/delete-all/`, { token });
-            message.info('DONE...Delete All Data In Every DB Collections');
-         };
-      } catch (err) {
-         console.log(err);
-      };
-   };
 
 
-
-
-   const [loading, setLoading] = useState(true);
    useEffect(() => {
-      const fetchOneProject = async () => {
-         try {
-            setLoading(true);
-            // const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
-            // const result = resolveDataFromProps(res);
+      console.log('result---3333333', sheetDataInput);
+      const result = resolveDataFromProps({ data: sheetDataInput });
+      console.log('result---4444444', result);
+      fetchDataOneSheet({ ...result, email, projectId, projectName, role, token });
+      
+      setUserData(getHeadersData(result));
+   
+      getSheetRows(getInputDataInitially(result));
+   
+      setExpandedRows(getRowsKeyExpanded(
+         result.publicSettings.drawingTypeTree,
+         result.userSettings ? result.userSettings.viewTemplateNodeId : null
+      ));
+   }, [sheetDataInput]);
+   // }, []);
+
+   
 
 
-
-            const result = resolveDataFromProps({ data: sheetDataInput });
-
-            fetchDataOneSheet({ ...result, email, projectId, projectName, role, token });
-
-            setUserData(getHeadersData(result));
-            getSheetRows(getInputDataInitially(result));
-
-            setExpandedRows(getRowsKeyExpanded(
-               result.publicSettings.drawingTypeTree,
-               result.userSettings ? result.userSettings.viewTemplateNodeId : null
-            ));
-
-            setLoading(false);
-         } catch (err) {
-            console.log(err);
-         };
-      };
-      fetchOneProject();
-   }, []);
 
 
    useEffect(() => {
@@ -441,16 +434,14 @@ const PageDataEntrySheet = (props) => {
       return () => clearInterval(interval);
    }, []);
 
+
    const updateExpandedRowIdsArray = (viewTemplateNodeId) => {
       setExpandedRows(getRowsKeyExpanded(stateRow.drawingTypeTree, viewTemplateNodeId));
    };
 
 
 
-   const [expandedRows, setExpandedRows] = useState([]);
-   const [expandColumnKey, setExpandColumnKey] = useState(null);
-   const [cellSearchFound, setCellSearchFound] = useState(null);
-   const [cellHistoryFound, setCellHistoryFound] = useState(null);
+   
 
    useEffect(() => {
       if (stateProject.userData) {
@@ -547,7 +538,33 @@ const PageDataEntrySheet = (props) => {
    }, 500);
 
 
+
+
+
+   if (
+      !sheetDataInput ||
+      !sheetDataInput.publicSettings ||
+      !sheetDataInput.publicSettings.headers ||
+      sheetDataInput.publicSettings.headers.length === 0
+   ) {
+      return (
+         <div style={{
+            width: window.innerWidth,
+            height: window.innerHeight,
+            textAlign: 'center',
+            display: 'table-cell',
+            verticalAlign: 'middle',
+            fontSize: 30
+         }}>Please add headers to sheet</div>
+      );
+   };
+
+   const { headers } = sheetDataInput.publicSettings;
+
+
+
    const renderColumns = (headerArr, nosColumnFixed) => {
+      console.log('headerArr----------------', headerArr);
       const widthColumn = (headers, hd) => {
          const type = headers.find(x => x.text === hd).type;
          return type === 'date' ? 95 : type === 'checkbox' ? 50 : hd.length * 25
@@ -592,6 +609,9 @@ const PageDataEntrySheet = (props) => {
    };
 
 
+
+
+
    return (
       <div
          onContextMenu={(e) => e.preventDefault()}
@@ -630,12 +650,10 @@ const PageDataEntrySheet = (props) => {
                   <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                </div>
             )}
-
-            <div style={{ position: 'absolute', top: 3, right: 30, fontSize: 25, color: colorType.primary }}>{projectName}</div>
          </ButtonBox>
 
 
-         {!loading ? (
+         {stateProject.allDataOneSheet && (
             <TableStyled
                dataForStyled={{
                   stateProject,
@@ -662,7 +680,9 @@ const PageDataEntrySheet = (props) => {
                rowClassName={rowClassName}
                onRowExpand={onRowExpand}
             />
-         ) : <LoadingIcon />}
+         )}
+         
+
 
 
          <ModalStyleFunction
@@ -712,7 +732,7 @@ const PageDataEntrySheet = (props) => {
                   setPanelSettingType(null);
                   setPanelType(null);
                }}
-               setLoading={setLoading}
+               outputDataType={outputDataType}
                cellsHistoryInCurrentSheet={cellsHistoryInCurrentSheet}
                cellOneHistory={cellOneHistory}
                saveDataToServerCallback={saveDataToServerCallback}
@@ -773,8 +793,6 @@ const TableStyled = styled(Table)`
       let res = [];
       value.map(n => {
          let color = randomColorRange[value.indexOf(n)];
-         // let color = getRandomColor();
-
          if (n) {
             res.push(`.colorization-${stateProject.userData.colorization.header.replace(/\s/g, '').replace(/,/g, '')}-${n.replace(/\s/g, '').replace(/,/g, '')}-styled {
                background-color: ${color};
@@ -858,13 +876,7 @@ const ButtonBox = styled.div`
    padding-left: 7px;
    background: ${colorType.grey4};
 `;
-const LoadingIcon = () => {
-   return (
-      <SpinStyled>
-         <Icon type='loading' style={{ fontSize: 40, textAlign: 'center', margin: 'auto' }} />
-      </SpinStyled>
-   );
-};
+
 const SpinStyled = styled.div`
    background: rgba(0, 0, 0, 0.05);
    opacity: 0.7;
@@ -1138,24 +1150,38 @@ const rearrangeRowsNotMatchTreeNode = (rows, rowsArranged, drawingTypeTree) => {
 
 
 export const resolveDataFromProps = ({ data }) => {
-   let { publicSettings, rows } = data;
+
+   let { rows, publicSettings, userSettings } = data;
    const { headers } = publicSettings;
+   
    headers.forEach(hd => {
-      hd.text = hd.name;
-      hd.key = hd.id;
-      delete hd.name;
-      delete hd.id;
+      if (!hd.text && !hd.key) {
+         hd.text = hd.name;
+         hd.key = hd.id;
+         delete hd.name;
+         delete hd.id;
+      };
    });
 
    const rowsOutput = processRowsFromDB(headers, rows);
+
    data.rows = rowsOutput;
    return data;
 };
 
 
 
+const convertSheetInputRaw = (data) => {
+   data.rows = data.rows || [];
+   data.publicSettings = data.publicSettings || {};
+   data.userSettings = data.userSettings || {};
 
-
+   data.publicSettings.headers = data.publicSettings.headers || [];
+   data.publicSettings.drawingTypeTree = data.publicSettings.drawingTypeTree || [];
+   data.publicSettings.activityRecorded = data.publicSettings.activityRecorded || [];
+   
+   return data;
+};
 
 
 
