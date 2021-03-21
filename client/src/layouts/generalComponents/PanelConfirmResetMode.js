@@ -1,16 +1,13 @@
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-import { Context as RowContext } from '../../contexts/rowContext';
 import { mongoObjectId } from '../../utils';
 import ButtonColumnTag from './ButtonColumnTag';
 import ButtonGroupComp from './ButtonGroupComp';
 
 
-const PanelConfirmResetMode = ({ applyResetMode, onClickCancelModal }) => {
+const PanelConfirmResetMode = ({ applyResetMode, onClickCancelModal, modeFilter, modeSort, modeSearch }) => {
 
-    const { state: stateRow } = useContext(RowContext);
-    const { modeFilter, modeSort, modeSearch } = stateRow;
 
     const [btnArr, setBtnArr] = useState([
         { id: mongoObjectId(), header: 'Filter', mode: modeFilter.length > 0 ? 'shown' : 'hidden' },

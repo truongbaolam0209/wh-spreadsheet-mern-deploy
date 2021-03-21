@@ -1,33 +1,39 @@
 import { Icon, Tooltip } from 'antd';
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-import { Context as RowContext } from '../../contexts/rowContext';
 
 
-const InputSearch = ({ searchGlobal }) => {
+const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTableDataXXX }) => {
 
-   const { state: stateRow, getSheetRows } = useContext(RowContext);
+
    const [mode, setMode] = useState(false);
 
-   
    const onChange = (e) => {
       if (!e.target) return;
       searchGlobal(e.target.value);
    };
 
    const showDrawingSearchOnly = () => {
-      getSheetRows({
-         ...stateRow,
-         modeSearch: { ...stateRow.modeSearch, isFoundShownOnly: 'show found only' }
-      });
+      if (isDashboard) {
+         setTableDataXXX('show found only');
+      } else {
+         getSheetRows({
+            ...stateRow,
+            modeSearch: { ...stateRow.modeSearch, isFoundShownOnly: 'show found only' }
+         });
+      };
    };
 
    const showDrawingAll = () => {
-      getSheetRows({
-         ...stateRow,
-         modeSearch: { ...stateRow.modeSearch, isFoundShownOnly: 'show all' }
-      });
+      if (isDashboard) {
+         setTableDataXXX('show all');
+      } else {
+         getSheetRows({
+            ...stateRow,
+            modeSearch: { ...stateRow.modeSearch, isFoundShownOnly: 'show all' }
+         });
+      };
    };
 
 
@@ -40,7 +46,8 @@ const InputSearch = ({ searchGlobal }) => {
                border: 'none',
                outline: 'none',
                height: 21,
-               background: 'transparent'
+               background: 'transparent',
+               width: 220
             }}
          />
          <div style={{ float: 'right' }}>

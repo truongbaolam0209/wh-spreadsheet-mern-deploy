@@ -55,13 +55,15 @@ const ChartBarRecord = ({ data, category, closeChart, reportType, month }) => {
             )}
          </BarChart>
          {category === 'Drawing Approved For Construction' && (
-            <div style={{ paddingLeft: 20, paddingBottom: 10 }}>
-               <StyledBadge
-                  size='small'
-                  color={colorType.grey2}
-                  text={'Actual'}
-                  style={{ paddingRight: 20 }}
-               />
+            <div style={{ paddingLeft: 20, paddingBottom: 10, display: 'flex' }}>
+               <div style={{ marginRight: 30 }}>
+                  <StyledBadge
+                     size='small'
+                     color={colorType.grey2}
+                     text={'Actual'}
+                  />
+               </div>
+
                <StyledBadge
                   size='small'
                   color={colorType.blue}
@@ -84,5 +86,6 @@ const StyledBadge = styled(Badge)`
       width: 15px;
       height: 15px;
       border-radius: 0;
-   }
+      
+   };
 `;

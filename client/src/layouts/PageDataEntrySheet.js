@@ -55,7 +55,6 @@ const PageDataEntrySheet = (props) => {
    } = props;
    
    let sheetDataInput = convertSheetInputRaw(sheetDataInputRaw);
-   console.log('sheetDataInput=XXXXXXXXXXX', sheetDataInput);
    const handlerBeforeUnload = (e) => {
       if (window.location.pathname === '/data-entry-sheet') {
          e.preventDefault();
@@ -232,9 +231,9 @@ const PageDataEntrySheet = (props) => {
    };
 
 
-   useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
-   useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
-   useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
+   // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
+   // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
+   // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
 
 
    const [cursor, setCursor] = useState(null);
@@ -404,9 +403,8 @@ const PageDataEntrySheet = (props) => {
 
 
    useEffect(() => {
-      console.log('result---3333333', sheetDataInput);
       const result = resolveDataFromProps({ data: sheetDataInput });
-      console.log('result---4444444', result);
+
       fetchDataOneSheet({ ...result, email, projectId, projectName, role, token });
       
       setUserData(getHeadersData(result));
@@ -564,7 +562,6 @@ const PageDataEntrySheet = (props) => {
 
 
    const renderColumns = (headerArr, nosColumnFixed) => {
-      console.log('headerArr----------------', headerArr);
       const widthColumn = (headers, hd) => {
          const type = headers.find(x => x.text === hd).type;
          return type === 'date' ? 95 : type === 'checkbox' ? 50 : hd.length * 25
@@ -1033,7 +1030,7 @@ const arrangeDrawingTypeFinal = (stateRow) => {
 
 
    if (modeGroup.length > 0) {
-      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup);
+      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup, true);
       return rows;
    };
 

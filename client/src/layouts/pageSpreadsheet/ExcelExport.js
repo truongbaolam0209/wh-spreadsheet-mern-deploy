@@ -7,8 +7,6 @@ import IconTable from '../generalComponents/IconTable';
 import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
 
 
-// https://www.youtube.com/watch?v=TDGsVqVzW4A
-// https://www.youtube.com/watch?v=HwnHgEoiZzE
 
 
 const ExcelExport = ({ fileName }) => {
@@ -45,10 +43,14 @@ const prepareDataToExport = (stateProject, stateRow) => {
    let tree;
 
    if (nodeParent) {
-      tree = getTreeFlattenOfNodeInArray(drawingTypeTree.map(x => ({ ...x })), nodeParent).filter(x => x.id !== nodeParent.id);
+      tree = getTreeFlattenOfNodeInArray(drawingTypeTree.map(x => ({ ...x })), nodeParent);
+      if (tree.length > 1) {
+         tree = getTreeFlattenOfNodeInArray(drawingTypeTree.map(x => ({ ...x })), nodeParent).filter(x => x.id !== nodeParent.id);
+      };
    } else {
       tree = drawingTypeTree.map(x => ({ ...x }));
    };
+
    const treeArr = convertFlattenArraytoTree1(tree);
    let finalArr = [];
 

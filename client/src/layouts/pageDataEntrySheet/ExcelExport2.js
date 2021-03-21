@@ -8,10 +8,6 @@ import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from './FormD
 
 
 
-// https://www.youtube.com/watch?v=TDGsVqVzW4A
-// https://www.youtube.com/watch?v=HwnHgEoiZzE
-
-
 const ExcelExport = ({ fileName }) => {
 
     const { state: stateRow } = useContext(RowContext);
@@ -46,10 +42,13 @@ const prepareDataToExport = (stateProject, stateRow) => {
     let tree;
 
     if (nodeParent) {
-        tree = getTreeFlattenOfNodeInArray(drawingTypeTree.map(x => ({ ...x })), nodeParent).filter(x => x.id !== nodeParent.id);
-    } else {
+        tree = getTreeFlattenOfNodeInArray(drawingTypeTree.map(x => ({ ...x })), nodeParent);
+        if (tree.length > 1) {
+           tree = getTreeFlattenOfNodeInArray(drawingTypeTree.map(x => ({ ...x })), nodeParent).filter(x => x.id !== nodeParent.id);
+        };
+     } else {
         tree = drawingTypeTree.map(x => ({ ...x }));
-    };
+     };
     const treeArr = convertFlattenArraytoTree1(tree);
 
     if (treeArr.length === 0) return rowsAll.map(r => {

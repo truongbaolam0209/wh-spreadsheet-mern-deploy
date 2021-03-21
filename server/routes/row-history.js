@@ -18,5 +18,6 @@ router.get('/one-row/', validateToken, RowHistory.findHistoryForOneRow);
 
 router.post('/delete-all/', validateToken, RowHistory.deleteAllDataInCollection);
 
+router.post('/find-row-histories-many-project', validateToken, RowHistory.findManyHistoriesOfManyProject);
 
 module.exports = router;

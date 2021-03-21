@@ -77,7 +77,7 @@ const ChartBarRecordPanel = ({ data }) => {
 
          <Divider style={{ margin: '5px 0 5px 0' }} />
 
-         <div style={{ height: 0.7 * window.innerHeight, overflowY: 'scroll' }}>
+         <div style={{ height: 0.6 * window.innerHeight, overflowY: 'scroll' }}>
             {categoryArrayShown.map(category => (
                <ChartBarRecord
                   key={category}

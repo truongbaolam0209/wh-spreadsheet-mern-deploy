@@ -2,7 +2,7 @@ import { message, Tooltip, Upload } from 'antd';
 import moment from 'moment';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { colorType, imgLink } from '../../constants';
+import { colorTextRow, colorType, imgLink } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
@@ -256,8 +256,6 @@ const Cell = (props) => {
 
 
 
-   const [fileList, setFileList] = useState(null);
-
    const onChangeUploadFile = (info) => {
 
    };
@@ -303,15 +301,15 @@ const Cell = (props) => {
                   overflow: column.key === 'Drawing Number' ? 'visible' : 'hidden',
                   whiteSpace: 'nowrap',
                   width: column.width - 30,
-                  color: rowData['Status'] === 'Reject and resubmit' ? 'red' :
-                     (
-                        rowData['Status'] === 'Approved with Comment, no submission Required' ||
-                        rowData['Status'] === 'Approved for Construction'
-                     ) ? 'green' : 'black'
+                  color: colorTextRow[rowData['Status']] || 'black'
                }}>
                   {
                      ((column.key === 'Model Progress' || column.key === 'Drawing Progress') && <BtnProgress type={cellData} />) ||
-                     (column.key === 'Drawing Number' && rowData.treeLevel && <><span style={{ fontWeight: 'bold' }}>{cellData}</span><span>{info}</span></>) ||
+                     (
+                        column.key === 'Drawing Number' && 
+                        (rowData.treeLevel || rowData._rowLevel < 1) && 
+                        <><span style={{ fontWeight: 'bold' }}>{cellData}</span><span>{info}</span></>
+                     ) ||
                      stateCell.cellsModifiedTemp[getCellTempId()] ||  // there is modified data
                      (getCellTempId() in stateCell.cellsModifiedTemp && ' ') || // there is modified data === empty, MUST BE ' ', not ''
                      cellData // there is no modification
@@ -504,9 +502,10 @@ const cellStatusFormat = [
 
 
 const cellUseForFormat = [
-   'SUBMISSION',
-   'INFO',
-   'COORDINATION'
+   'Coordination',
+	'Issue for Construction',
+	'Request for Approval',
+	'Request for Confirmation',
 ];
 const cellDrgTypeFormat = [
    'Key plan',

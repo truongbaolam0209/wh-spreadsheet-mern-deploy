@@ -427,6 +427,7 @@ const PageSpreadsheet = (props) => {
             const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
 
 
+
             fetchDataOneSheet({
                ...res.data,
                email, projectId, projectName, role, token, company, companies, roleTradeCompany
@@ -527,6 +528,7 @@ const PageSpreadsheet = (props) => {
    };
 
 
+
    const [searchInputShown, setSearchInputShown] = useState(false);
    const searchGlobal = debounceFnc((textSearch) => {
       let searchDataObj = {};
@@ -545,7 +547,6 @@ const PageSpreadsheet = (props) => {
             if (Object.keys(obj).length > 0) searchDataObj = { ...searchDataObj, [row.id]: obj[row.id] };
          });
       };
-
       setCellSearchFound(searchDataObj);
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
       setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
@@ -613,7 +614,7 @@ const PageSpreadsheet = (props) => {
             <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
 
             {searchInputShown
-               ? <InputSearch searchGlobal={searchGlobal} />
+               ? <InputSearch searchGlobal={searchGlobal} stateRow={stateRow} getSheetRows={getSheetRows} />
                : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
             {stateRow && stateRow.modeGroup.length > 0 ? (
@@ -1028,7 +1029,7 @@ const arrangeDrawingTypeFinal = (stateRow) => {
 
 
    if (modeGroup.length > 0) {
-      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup);
+      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup, false);
       return rows;
    };
 

@@ -1,8 +1,7 @@
 import { Icon, Select, Tooltip } from 'antd';
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-import { Context as ProjectContext } from '../../contexts/projectContext';
 import { mongoObjectId } from '../../utils';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
@@ -13,7 +12,7 @@ const { Option } = Select;
 
 
 
-const FormGroup = ({ applyGroup, onClickCancelModal }) => {
+const FormGroup = ({ applyGroup, onClickCancelModal, headers }) => {
 
     const [group, setGroup] = useState([
         {
@@ -73,6 +72,7 @@ const FormGroup = ({ applyGroup, onClickCancelModal }) => {
                         group={group}
                         setGroupHeader={setGroupHeader}
                         removeTag={removeTag}
+                        headers={headers}
                     />
                 ))}
 
@@ -103,9 +103,8 @@ const IconStyled = styled.div`
 `;
 
 
-const SelectComp = ({ setGroupHeader, group, removeTag, item }) => {
+const SelectComp = ({ setGroupHeader, group, removeTag, item, headers }) => {
 
-    const { state: stateProject } = useContext(ProjectContext);
 
     return (
         <div style={{ display: 'flex', paddingBottom: 10, width: '70%' }}>
@@ -118,7 +117,7 @@ const SelectComp = ({ setGroupHeader, group, removeTag, item }) => {
                 }}
                 value={item.column}
             >
-                {stateProject.userData.headersShown.filter(hd => !group.find(x => x.column === hd)).map(hd => (
+                {headers.filter(hd => !group.find(x => x.column === hd)).map(hd => (
                     <Option key={hd} value={hd}>{hd}</Option>
                 ))}
             </SelectStyled>

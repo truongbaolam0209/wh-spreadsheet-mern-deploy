@@ -114,7 +114,6 @@ const TableActivityHistory = (props) => {
             });
             let outputArr = [...rowsOutput, ...cellsOutput, ...activityRecordedData];
 
-
             setHistoryAll(sortDataBeforePrint(outputArr));
             setHistoryAllInit(sortDataBeforePrint(outputArr));
 
@@ -124,7 +123,6 @@ const TableActivityHistory = (props) => {
       };
       fetchRowsAndCellHistory();
    }, []);
-
 
    const [modalFilter, setModalFilter] = useState(false);
 
@@ -200,7 +198,7 @@ const TableActivityHistory = (props) => {
                </div>
                <div style={{ display: 'flex', marginBottom: 10 }}>
                   <div style={{ marginRight: 10, display: 'flex' }}>
-                     <IconTable type='filter' onClick={() => setModalFilter(true)} />
+                     <IconTable type='filter' onClick={() => setModalFilter(true)} isActivityTable={true} />
                      <IconTable type='swap' onClick={resetDataFilter} />
                   </div>
 

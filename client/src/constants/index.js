@@ -48,6 +48,49 @@ export const imgLink = {
 };
 
 
+
+
+
+const colorTextCode = {
+    yellow: '#fff200',
+    dark: '#1e272e',
+    grey0: '#ecf0f1',
+    grey1: '#bdc3c7',
+    grey2: '#636e72',
+    grey3: '#dfe4ea',
+    grey4: '#f1f2f6',
+    red: '#b33939',
+    green: '#009432',
+    blue: '#0984e3',
+    orange: '#cc8e35',
+    orange2: '#ff6600',
+    purple: '#303952',
+    rose: '#e84118',
+    black: 'black',
+    pp: '#9b59b6',
+    pp2: '#bf95d0',
+    grey9: '#b3cccc',
+ };
+ 
+ 
+ 
+ export const colorTextRow = {
+    'Approved with Comment, no submission Required': colorTextCode.green,
+    'Approved for Construction': colorTextCode.blue,
+    'Approved with comments, to Resubmit': colorTextCode.orange2,
+    'Reject and resubmit': colorTextCode.red,
+    'Revise In-Progress': colorTextCode.yellow,
+
+    'Consultant reviewing': colorTextCode.grey2,
+ 
+    'Not Started': colorTextCode.orange,
+ 
+    '1st cut of drawing in-progress': colorTextCode.pp2,
+    '1st cut of model in-progress': colorTextCode.pp,
+    'Pending design': colorTextCode.grey9,
+ };
+
+
 // export const SERVER_URL = 'http://localhost:9000/api';
 export const SERVER_URL = window.location.origin.includes('https://bim.wohhup.com') ? 'https://bim.wohhup.com/api' : 'http://localhost:8081/api'
 

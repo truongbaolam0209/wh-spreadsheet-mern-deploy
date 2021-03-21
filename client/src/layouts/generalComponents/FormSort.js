@@ -1,24 +1,16 @@
 import { Checkbox, Select } from 'antd';
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-import { Context as ProjectContext } from '../../contexts/projectContext';
-import { Context as RowContext } from '../../contexts/rowContext';
 import ButtonGroupComp from './ButtonGroupComp';
 
 const { Option } = Select;
 
 
 
-const FormSort = ({ applySort, onClickCancel }) => {
+const FormSort = ({ applySort, onClickCancel, modeSort, headers }) => {
 
-    const { state: stateRow } = useContext(RowContext);
-    const { modeSort } = stateRow;
-
-    const { state: stateProject } = useContext(ProjectContext);
-    const { headersShown } = stateProject.userData;
-
-
+    
     const [column, setColumn] = useState(Object.keys(modeSort).length === 3 ? modeSort.column : 'Select Field...');
     const [value, setValue] = useState(Object.keys(modeSort).length === 3 ? (modeSort.type === 'ascending' ? 'Ascending' : 'Descending') : 'Ascending');
     const [isChecked, setIsChecked] = useState(Object.keys(modeSort).length === 3 ? (modeSort.isIncludedParent === 'included' ? true : false) : true);
@@ -50,7 +42,7 @@ const FormSort = ({ applySort, onClickCancel }) => {
                         onChange={(column) => setColumn(column)}
                         value={column}
                     >
-                        {headersShown.map(hd => (
+                        {headers.map(hd => (
                             <Option key={hd} value={hd}>{hd}</Option>
                         ))}
                     </SelectStyled>

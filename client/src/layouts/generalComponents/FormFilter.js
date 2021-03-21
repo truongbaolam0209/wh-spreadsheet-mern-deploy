@@ -1,29 +1,21 @@
 import { Checkbox, Icon, Select, Tooltip } from 'antd';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-import { Context as ProjectContext } from '../../contexts/projectContext';
-import { Context as RowContext } from '../../contexts/rowContext';
 import { mongoObjectId } from '../../utils/index';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
 
 
-
-
 const { Option } = Select;
 
 
-const FormFilter = ({ applyFilter, onClickCancelModal }) => {
+const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFilter }) => {
 
-   const { state: stateRow } = useContext(RowContext);
-   const { state: stateProject } = useContext(ProjectContext);
-
-   const { headersShown } = stateProject.userData;
 
    const [filterColumn, setFilterColumn] = useState(
-      stateRow.modeFilter.length > 1 ?
-         stateRow.modeFilter : [
+      modeFilter.length > 1 ?
+         modeFilter : [
             {
                id: mongoObjectId(),
                header: 'Status',
@@ -54,7 +46,7 @@ const FormFilter = ({ applyFilter, onClickCancelModal }) => {
       setFilterColumn([...arr]);
    };
 
-   const filterObj = stateRow.modeFilter.find(x => x.isIncludedParent);
+   const filterObj = modeFilter.find(x => x.isIncludedParent);
 
    const [isChecked, setIsChecked] = useState(
       filterObj && filterObj.isIncludedParent === 'included' ? true :
@@ -114,6 +106,8 @@ const FormFilter = ({ applyFilter, onClickCancelModal }) => {
                   data={item}
                   setFilterSelect={setFilterSelect}
                   removeFilterTag={removeFilterTag}
+                  headers={headers}
+                  rowsAll={rowsAll}
                />
             ))}
             <div>
@@ -161,14 +155,9 @@ const IconStyled = styled.div`
 
 
 
-const SelectComp = ({ setFilterSelect, data, id, removeFilterTag }) => {
+const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rowsAll }) => {
 
-   const { state: stateProject } = useContext(ProjectContext);
-   const { state: stateRow } = useContext(RowContext);
-   const { rowsAll } = stateRow;
-   const { headersShown } = stateProject.userData;
-
-   const columnsValueArr = getColumnsValue(rowsAll, headersShown);
+   const columnsValueArr = getColumnsValue(rowsAll, headers);
 
    const [column, setColumn] = useState(data.header);
 
@@ -190,7 +179,7 @@ const SelectComp = ({ setFilterSelect, data, id, removeFilterTag }) => {
             style={{ marginRight: 13, width: '47%' }}
             onChange={(column) => setColumn(column)}
          >
-            {headersShown.filter(hd => columnsValueArr[hd]).map(hd => (
+            {headers.filter(hd => columnsValueArr[hd]).map(hd => (
                <Option key={hd} value={hd}>{hd}</Option>
             ))}
          </SelectStyled>

@@ -39,6 +39,7 @@ const findHistoriesForSheet = async (req, res, next) => {
    };
 };
 
+
 const findHistoryForOneRow = async (req, res, next) => {
    try {
       let { projectId: sheetId, rowId: qRowId } = req.query;
@@ -130,6 +131,30 @@ const updateOrCreateHistories = async (req, res, next) => {
    };
 };
 
+
+
+const findHistories = async (sheetId) => {
+   let histories = await model.find({ sheet: sheetId })
+      .sort([['row', 1]])
+      .exec();
+
+   return {
+      histories,
+      projectId: sheetId
+   };
+};
+const findManyHistoriesOfManyProject = async (req, res, next) => {
+   try {
+      let sheetIdsData = req.body.sheetIds;
+      if (!(sheetIdsData instanceof Array)) throw new HTTP(400, 'Sheet ids must be array!');
+      let sheetIds = sheetIdsData.map(id => id).filter(Boolean);
+      let items = await Promise.all(sheetIds.map(findHistories));
+      return res.json(items);
+   } catch (error) {
+      next(error);
+   };
+};
+
 module.exports = {
    schema,
    model,
@@ -140,7 +165,7 @@ module.exports = {
    deleteAllDataInCollection,
    deleteRowsHistory,
    updateOrCreateHistories,
-
+   findManyHistoriesOfManyProject,
 
    saveAllDataRowHistoryToServer
 };

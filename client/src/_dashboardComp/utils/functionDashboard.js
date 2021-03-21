@@ -1,237 +1,43 @@
-import Axios from 'axios';
-import _ from 'lodash';
 import moment from 'moment';
-import { _SelectColumnFilter } from '../componentsDashboard/_TableDrawingList';
 
 
+export const inputStackData = [
+   'Approved for Construction',
+   'Approved with Comment, no submission Required',
+   'Revise In-Progress',
+   'Approved with comments, to Resubmit',
+   'Reject and resubmit',
+   'Consultant reviewing',
+   'Pending design',
+   '1st cut of drawing in-progress',
+   '1st cut of model in-progress',
+   'Not Started',
+];
+const inputStackResubmit = [
+   'Approved in previous version but need resubmit',
+   'Reject, to resubmit',
+];
 
-
-
-
-export const api = Axios.create({
-   baseURL: '/api',
-   headers: {
-      'Content-Type': 'application/json'
-   }
-});
-
-
-
-export const removeUnwantedHeaders = (columnsIndexArray) => {
-
-   const unwantedHeader = [
-      'Delta_Date',
-      'Delta_IT_CT',
-      'Delta_Issue',
-      'Delta_KTP'
-   ];
-   unwantedHeader.forEach(hd => {
-      delete columnsIndexArray[hd];
-   });
-   return columnsIndexArray;
-};
-
-
-
-
-export const getDataConverted = (projectArray) => {
-   let dataOutput = {};
-   for (let i = 0; i < projectArray.length; i++) {
-
-      // get the column header
-      const project = projectArray[i];
-      const categoryArray = _.map(project.columns, 'title');
-      let columnsIndexArray = {};
-      categoryArray.forEach(cate => {
-         project.columns.forEach(cl => {
-            if (cl.title === cate) columnsIndexArray[cate] = cl.index;
-         });
-      });
-
-      const indexDrawingName = columnsIndexArray['Drawing Name'];
-      const indexRev = columnsIndexArray['Rev'];
-
-      let allDrawings = [];
-      let allDrawingsLatestRevision = [];
-
-      for (let i = 0; i < project.rows.length; i++) {
-         const dwg = project.rows[i];
-         if (dwg.cells[indexDrawingName].value === undefined) continue; // make sure all drawing name is keyed in
-         allDrawings.push([...dwg.cells]);
-
-         if (dwg.cells[indexRev].value === undefined) {
-            allDrawingsLatestRevision.push([...dwg.cells]);
-            continue;
+export const converToInputStack = (data) => {
+   
+   let output = [];
+   data.forEach(item => {
+      let arr = { ...item };
+      delete arr.name;
+      Object.keys(arr).forEach(stt => {
+         if (inputStackData.indexOf(stt) !== -1 || inputStackResubmit.indexOf(stt) !== -1) {
+            output = [...output, stt];
          };
-
-         let found = false;
-         for (let j = 0; j < allDrawingsLatestRevision.length; j++) {
-            if (allDrawingsLatestRevision[j][indexDrawingName].value === dwg.cells[indexDrawingName].value) {
-               found = true;
-               if (String(allDrawingsLatestRevision[j][indexRev].value) < String(dwg.cells[indexRev].value)) {
-                  allDrawingsLatestRevision.splice(j, 1);
-                  allDrawingsLatestRevision.push([...dwg.cells]);
-               };
-               break;
-            };
-         };
-         if (!found) allDrawingsLatestRevision.push([...dwg.cells]);
-      };
-
-      dataOutput[project.name.slice(0, project.name.length - 17)] = {
-         columnsIndexArray: removeUnwantedHeaders(columnsIndexArray),
-         allDrawings,
-         allDrawingsLatestRevision
-      };
-   };
-   return dataOutput;
-};
-
-
-
-export const getAllDrawingSameValueInOneColumn = (data, column, dataType) => {
-
-   const { columnsIndexArray, allDrawings, allDrawingsLatestRevision } = data;
-
-   const drawings = dataType === 'all' ? allDrawings : allDrawingsLatestRevision;
-   const indexCategory = columnsIndexArray[column];
-
-   let drawingCount = {};
-   let drawingList = {};
-
-   drawings.forEach(dwg => {
-      const { value } = dwg[indexCategory];
-
-      drawingCount[value] = (drawingCount[value] || 0) + 1;
-      drawingList[value] = [...drawingList[value] || [], dwg];
-   });
-
-   return {
-      drawingCount,
-      drawingList
-   };
-};
-
-
-
-export const getDrawingLateNow = (data, type) => {
-
-   const { allDrawingsLatestRevision, columnsIndexArray } = data;
-
-   const dwgsLateNow = [];
-   const columnHeader = type === 'getApproval' ? 'get Approval'
-      : type === 'drgToConsultant' ? 'Drg to Consultant' : null;
-
-   allDrawingsLatestRevision.forEach(dwg => {
-      const status = dwg[columnsIndexArray['Status']].value;
-      // make sure drawing is not approved or consultant reviewing
-      if (status && (status.includes('Approved') || status === 'Consultant reviewing')) return;
-
-      const dateT = dwg[columnsIndexArray[`${columnHeader} (T)`]].value;
-      const dateA = dwg[columnsIndexArray[`${columnHeader} (A)`]].value;
-      if (dateT === undefined || dateA !== undefined) return;
-
-      const diff = moment(dateT).diff(moment(), 'days');
-      if (diff < 0) dwgsLateNow.push([...dwg]);
-   });
-   return dwgsLateNow;
-};
-
-export const getDrawingLateNow1 = (drawings, type) => {
-
-   const dwgsLateNow = [];
-   drawings.forEach(dwg => {
-      const status = dwg['Status'];
-      // make sure drawing is not approved or consultant reviewing
-      if (status && (status.includes('Approved') || status === 'Consultant reviewing')) return;
-
-      const dateT = dwg[`${type} (T)`];
-      const dateA = dwg[`${type} (A)`];
-      if (dateT === undefined || dateA !== undefined) return;
-
-      const diff = moment(dateT).diff(moment(), 'days');
-      if (diff < 0) dwgsLateNow.push(dwg);
-   });
-   return dwgsLateNow;
-};
-
-
-
-export const mergeUndefined = ({ drawingCount, drawingList }, mergeWith, columnsIndexArray, columnHeader) => {
-   if (drawingCount['undefined'] === undefined) return;
-
-   drawingCount[mergeWith] = (drawingCount[mergeWith] || 0) + drawingCount['undefined'];
-   delete drawingCount['undefined'];
-
-   drawingList[mergeWith] = [...drawingList[mergeWith] || [], ...drawingList['undefined']];
-   delete drawingList['undefined'];
-
-   return {
-      drawingCount,
-      drawingList
-   };
-};
-
-
-export const formatStringNameToId = (str) => {
-   let mystring = str.replace(/ /g, '').replace(/\(|\)/g, '');
-   return mystring.charAt(0).toLowerCase() + mystring.slice(1);
-};
-
-
-export const pickDataToTable = (drawings, columnsIndexArray) => {
-   let arr = [];
-   drawings.forEach(dwg => {
-      let obj = {};
-      Object.keys(columnsIndexArray).forEach(header => {
-         obj[formatStringNameToId(header)] = dwg[columnsIndexArray[header]].value || '. ';
-      });
-      arr.push(obj);
-   });
-   return arr;
-};
-
-
-export const convertDataToStackedChart = (data) => {
-   let dataChart = [];
-   let allKeys = [];
-   data && Object.keys(data).forEach(project => {
-      const { drawingCount } = mergeUndefined(getAllDrawingSameValueInOneColumn(data[project], 'Status'), 'Not Started');
-      dataChart.push({ ...drawingCount, name: project });
-      allKeys = [...allKeys, ...Object.keys(drawingCount)];
-   });
-   const itemArr = [...new Set(allKeys)];
-
-   itemArr.forEach(key => {
-      dataChart.forEach(projectData => {
-         if (key in projectData) return;
-         projectData[key] = 0;
       });
    });
-
-   return {
-      dataChart,
-      itemArr
-   };
+   return [...new Set(output)];
 };
-
 
 
 export const sortStatusOrder = (data) => {
 
    const statusArr = [...data];
-   const inputStackData = [
-      'Not Started',
-      '1st cut of model in-progress',
-      '1st cut of drawing in-progress',
-      'Pending design',
-      'Consultant reviewing',
-      'Reject and resubmit',
-      'Approved with comments, to Resubmit',
-      'Revise In-Progress',
-      'Approved with Comment, no submission Required',
-      'Approved for Construction',
-   ];
+
    let arr = [];
    inputStackData.forEach(element => {
       statusArr.forEach(e => {
@@ -242,15 +48,92 @@ export const sortStatusOrder = (data) => {
    return arr;
 };
 
+const checkDiffDates = (dateInput1, dateInput2) => {
+   let date1 = dateInput1;
+   let date2 = dateInput2;
+   if (dateInput1 && dateInput1.length === 8 && dateInput1.includes('/')) date1 = moment(dateInput1, 'DD/MM/YY').format('YYYY-MM-DD');
+   if (dateInput2 && dateInput2.length === 8 && dateInput2.includes('/')) date2 = moment(dateInput2, 'DD/MM/YY').format('YYYY-MM-DD');
 
-
-export const randomInteger = (min, max) => {
-   return Math.floor(Math.random() * (max - min + 1)) + min;
+   if (date1 && date2) {
+      return  moment(date1).diff(moment(date2), 'days');
+   } else if (date1 && !date2) {
+      return moment(date1).diff(moment(), 'days');
+   };
 };
 
 
-export const createDummyRecords = () => {
+export const getDrawingLateNow1 = (drawings, type) => {
+   const conditionArray1 = [
+      'Approved for Construction',
+      'Approved with Comment, no submission Required',
+      'Consultant reviewing'
+   ];
+   const conditionArray2 = [
+      'Approved for Construction',
+      'Approved with Comment, no submission Required',
+   ];
 
+   let rowsLateOutput;
+
+
+   
+   if (type === 'drawingsLateStart') {
+      rowsLateOutput = drawings.filter(r => {
+         return conditionArray1.indexOf(r.Status) === -1 && 
+         (
+            ((r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (T)']) < 0) ||
+            !r['Drawing Start (A)'] ||
+            ((r['Drawing Start (A)'] && r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (A)'], r['Drawing Start (T)']) < 0)))
+         );
+      });
+   } else if (type === 'drawingsLateSubmission') {
+      rowsLateOutput = drawings.filter(r => {
+         return conditionArray1.indexOf(r.Status) === -1 && 
+         (
+            ((r['Drg To Consultant (T)'] && checkDiffDates(r['Drg To Consultant (T)']) < 0)) ||
+            !r['Drg To Consultant (A)']
+         );
+      });
+   } else if (type === 'drawingsLateApproval') {
+      rowsLateOutput = drawings.filter(r => {
+         return conditionArray2.indexOf(r.Status) === -1 && 
+         (
+            ((r['Get Approval (T)'] && checkDiffDates(r['Get Approval (T)']) < 0)) ||
+            !r['Get Approval (A)'] ||
+            ((r['Get Approval (A)'] && r['Get Approval (T)'] && checkDiffDates(r['Get Approval (A)'], r['Get Approval (T)']) < 0))
+         );
+      });
+   } else if (type === 'drawingsLateConstruction') {
+      rowsLateOutput = drawings.filter(r => {
+         return conditionArray2.indexOf(r.Status) === -1 && 
+         (
+            !r['Drg To Consultant (A)'] ||
+            ((r['Get Approval (A)'] && r['Construction Issuance Date'] && checkDiffDates(r['Get Approval (A)'], r['Construction Issuance Date']) < 0))
+         );
+      });
+   };
+   return rowsLateOutput;
+};
+
+
+
+
+
+export const formatStringNameToId = (str) => {
+   let mystring = str.replace(/ /g, '').replace(/\(|\)/g, '');
+   return mystring.charAt(0).toLowerCase() + mystring.slice(1);
+};
+
+
+
+
+
+
+
+const randomInteger = (min, max) => {
+   return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+export const createDummyRecords = () => {
    let categoryArr = [
       'Drawing Approved For Construction',
       'Drawing Approved With Comments To Resubmit',
@@ -298,155 +181,11 @@ export const createDummyRecords = () => {
 };
 
 
-const getColumnWidth = (rows, accessor, headerText) => {
-   const maxWidth = 400;
-   const magicSpacing = 10;
-   const cellLength = Math.max(
-      ...rows.map(row => (`${row[accessor]}` || '').length),
-      headerText.length,
-   );
-
-   return Math.min(maxWidth, cellLength * magicSpacing);
-};
 
 
 
 
-const getHeaderWidth = (header) => {
-
-   if (header === 'RFA Ref') return 270;
-   else if (
-      header === 'Block/Zone' ||
-      header === 'Level' || header === 'Unit/CJ' ||
-      header === 'Drg Type' || header === 'Use For' ||
-      header === 'Coordinator In Charge' || header === 'Modeller' ||
-      header === 'Model Progress' || header === 'Drawing Progress' ||
-      header === 'Construction Start'
-   ) return 200;
-   else if (header === 'Construction Issuance Date') return 220;
-   else if (header === 'Drawing') return 200;
-
-   else if (
-      header === 'Drg To Consultant (A)' ||
-      header === 'Drg To Consultant (T)' ||
-      header === 'Get Approval (A)' ||
-      header === 'Get Approval (T)'
-   ) return 220;
-
-   else if (header.includes('(A)') || header.includes('(T)')) return 190;
-
-
-
-
-   else if (header === 'Rev') return 150;
-   else if (header === 'Status') return 380;
-   else if (header === 'Remark') return 350;
-   else if (header === 'Drawing Number') return 300;
-   else if (header === 'Drawing Name') return 350;
-   else return 300;
-
-};
-
-
-
-
-export const getColumnsHeader1 = (columnsIndexArray) => {
-
-   let columnsName = [
-      {
-         Header: '',
-         id: 'index',
-         accessor: (row, i) => i + 1,
-         width: 50,
-      },
-   ];
-
-   const filterSelect = (key) => {
-      if (
-         key === 'Status' ||
-         key === 'Rev' ||
-         key === 'Modeller' ||
-         key === 'Remark' ||
-         key === 'Coordinator In Charge' ||
-         key === 'Drg Type' ||
-         key === 'Use For' ||
-         key === 'Block/Zone' ||
-         key === 'Level' ||
-         key === 'Unit/CJ' ||
-         key === 'RFA Ref'
-      ) {
-         return true;
-      };
-   };
-
-   columnsIndexArray.forEach(hd => {
-      const width = getHeaderWidth(hd);
-
-      // const accessor = formatStringNameToId(hd);
-      const accessor = hd;
-
-      if (filterSelect(hd)) {
-         columnsName.push({
-            Header: hd,
-            Filter: _SelectColumnFilter,
-            accessor,
-            width,
-         });
-      } else {
-         columnsName.push({
-            Header: hd,
-            accessor,
-            width,
-         });
-      };
-   });
-   return columnsName;
-};
-
-
-
-export const getHeaderSorted = (columnsData, columnsHeader) => {
-
-   let arr = [];
-   columnsData.forEach(headerData => {
-      if (headerData.Header === '') {
-         arr.push(headerData);
-         return;
-      };
-      columnsHeader.forEach(header => {
-         if (headerData.Header === header) arr.push(headerData);
-      });
-   });
-   return arr;
-};
-export const getHeaderSorted1 = (columnsData, columnsHeader) => {
-   let arr = [];
-   columnsData.forEach(headerData => {
-      if (headerData.Header === '') {
-         arr.push(headerData);
-         return;
-      };
-      columnsHeader.forEach(header => {
-         if (headerData.Header === header) arr.push(headerData);
-      });
-   });
-   return arr;
-};
-
-
-export const countAverage = (nums) => nums.reduce((a, b) => (a + b)) / nums.length;
-
-
-export const recordGetAllMonth = (data, category) => {
-   let arr = [];
-   Object.keys(data[category]).forEach(item => {
-      arr.push(moment(item).add(-1, 'day').format('MM/YY'));
-   });
-   return [...new Set(arr)];
-};
-
-
-function getRandomInt(min, max) {
+const getRandomInt = (min, max) => {
    min = Math.ceil(min);
    max = Math.floor(max);
    return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
@@ -455,9 +194,9 @@ export const recordDataToChartDaily = (data, category, month) => {
    let arr = [];
    Object.keys(data[category]).forEach((item, i) => {
 
-      const addNos = i % 3 == 0 ? -1 
+      const addNos = i % 3 == 0 ? -1
          : i % 2 == 0 ? 1
-         : i % 5 == 0 ? 2 : 0;
+            : i % 5 == 0 ? 2 : 0;
 
       const date = moment(item).add(-1, 'day');
       if (date.format('MM/YY') === month) {
@@ -470,15 +209,13 @@ export const recordDataToChartDaily = (data, category, month) => {
    });
    return arr;
 };
-
-
 export const recordDataToChartWeekly = (data, category) => {
    let arr = [];
    Object.keys(data[category]).forEach((item, i) => {
-      
-      const addNos = i % 3 == 0 ? -1 
+
+      const addNos = i % 3 == 0 ? -1
          : i % 5 == 0 ? 1
-         : i % 7 == 0 ? 2 : 0;
+            : i % 7 == 0 ? 2 : 0;
 
       const date = moment(item).add(-1, 'day');
       arr.push({
@@ -495,7 +232,7 @@ export const recordDataToChartWeekly = (data, category) => {
       let weekName = `W${arr[i].week} ${arr[i].month}/${arr[i].year}`;
       groups[weekName] = {};
    };
-   
+
 
    for (let i = 0; i < arr.length; i++) {
       let weekName = `W${arr[i].week} ${arr[i].month}/${arr[i].year}`;
@@ -505,23 +242,21 @@ export const recordDataToChartWeekly = (data, category) => {
 
    let arrOutput = [];
    for (let week in groups) {
-      arrOutput.push({ 
-         week, 
+      arrOutput.push({
+         week,
          value: groups[week].value.reduce((a, b) => a + b, 0),
          target: groups[week].target.reduce((a, b) => a + b, 0),
       });
    };
    return arrOutput;
 };
-
-
 export const recordDataToChartMonthly = (data, category) => {
    let arr = [];
    Object.keys(data[category]).forEach((item, i) => {
 
-      const addNos = i % 4 == 0 ? -4 
+      const addNos = i % 4 == 0 ? -4
          : i % 3 == 0 ? 3
-         : i % 2 == 0 ? 2 : 0;
+            : i % 2 == 0 ? 2 : 0;
 
       const date = moment(item).add(-1, 'day');
       arr.push({
@@ -546,8 +281,8 @@ export const recordDataToChartMonthly = (data, category) => {
 
    let arrOutput = [];
    for (let month in groups) {
-      arrOutput.push({ 
-         month, 
+      arrOutput.push({
+         month,
          value: groups[month].value.reduce((a, b) => a + b, 0),
          target: groups[month].target.reduce((a, b) => a + b, 0),
       });
@@ -558,15 +293,374 @@ export const recordDataToChartMonthly = (data, category) => {
 
 
 
-export const changeColumnOrder = (arr, accessor, leftOrRight, to) => {
-   const array = [...arr];
-   let cl = array.find(item => item.accessor === accessor);
-   const index = array.indexOf(cl);
-   const f = array.splice(index, 1)[0];
-   if (leftOrRight) {
-      array.splice(index + leftOrRight, 0, f);
-   } else {
-      array.splice(to, 0, f);
+
+
+
+
+
+
+
+const flattenAllTreeChildNode1 = (root) => {
+   let temp = [];
+   let queue = [...root];
+   while (queue.length > 0) {
+      let node = queue.shift();
+      if (node.children) {
+         let childNode = [];
+         node.children.forEach(nd => {
+            childNode.push({ ...nd, parentId: node.id });
+         });
+         queue = [...queue, ...childNode];
+         let nodeObj = { ...node };
+         delete nodeObj.children;
+         temp.push(nodeObj);
+      } else {
+         let nodeObj = { ...node };
+         delete nodeObj.children;
+         temp.push(nodeObj);
+      };
    };
-   return array;
+   return temp;
 };
+const getListOfBranchesTree = (inputArr) => {
+   const arr = inputArr.map(x => ({ ...x }));
+   arr.sort((a, b) => { return b.treeLevel - a.treeLevel });
+
+   const parentArrIds = [];
+   arr.forEach(x => {
+      let item = arr.find(fld => fld.id === x.parentId);
+      if (item) {
+         item.children = [...item.children || [], x];
+      } else {
+         parentArrIds.push(x.id);
+      };
+   });
+   return arr.filter(x => parentArrIds.indexOf(x.id) !== -1);
+};
+const getTreeFlattenOfNodeInArray = (treeArray, node) => {
+   let obj = { ...node };
+   let arrayTree = treeArray.map(x => ({ ...x })).filter(x => x.treeLevel > obj.treeLevel);
+   arrayTree = [...arrayTree, obj];
+   const treeOfFound = getListOfBranchesTree(arrayTree).find(x => x.id === obj.id);
+   return flattenAllTreeChildNode1([treeOfFound]);
+};
+const getUniqueValueByColumns = (rows, header) => {
+   let valueArr = [];
+   rows.forEach(row => valueArr.push(row[header]));
+   return [...new Set(valueArr)];
+};
+const countDrawingsByColumnAndStatus = (rows, column) => {
+   let valueArray = getUniqueValueByColumns(rows, column).sort();
+
+   let arrCount = [];
+   let objDrawings = {};
+   valueArray.forEach(columnValue => {
+      let rowsFilter = rows.filter(r => r[column] === columnValue);
+      let obj = {};
+      let objDwgs = {};
+      rowsFilter.forEach(r => {
+         obj[r.Status] = (obj[r.Status] || 0) + 1;
+         objDwgs[r.Status] = [...objDwgs[r.Status] || [], r];
+      });
+      obj.name = columnValue;
+      arrCount.push(obj);
+      objDrawings[columnValue] = objDwgs;
+   });
+   return { arrCount, objDrawings };
+};
+
+const countDrawingsByRevAndStatus = (rows) => {
+   let valueArray = getUniqueValueByColumns(rows, 'Rev').sort();
+   valueArray.unshift('NS');
+
+   let arrCount = [];
+   let objDrawings = {};
+   valueArray.forEach(columnValue => {
+      let obj = {};
+      let objDwgs = {};
+      let rowsFilter;
+      if (columnValue !== 'NS') {
+         rowsFilter = rows.filter(r => {
+            return r['Rev'] === columnValue &&
+               r.Status !== 'Not Started' &&
+               r.Status !== '1st cut of model in-progress' &&
+               r.Status !== '1st cut of drawing in-progress';
+         });
+      } else {
+         rowsFilter = rows.filter(r => {
+            return r.Status === 'Not Started' ||
+               r.Status === '1st cut of model in-progress' ||
+               r.Status === '1st cut of drawing in-progress';
+         });
+      };
+      rowsFilter.forEach(r => {
+         obj[r.Status] = (obj[r.Status] || 0) + 1;
+         objDwgs[r.Status] = [...objDwgs[r.Status] || [], r];
+      });
+      obj.name = columnValue;
+      arrCount.push(obj);
+      objDrawings[columnValue] = objDwgs;
+   });
+   return { arrCount, objDrawings };
+};
+const convertToInputDataForChart = (rows, rowsHistory, headers) => {
+
+   rows.forEach(r => {
+      if (!r.Rev) r.Rev = '0';
+      r.Rev = r.Rev.toUpperCase();
+
+      if (!r.Status) r.Status = 'Not Started';
+
+      if (!r.Modeller) r.Modeller = 'No data';
+      r.Modeller = r.Modeller.toUpperCase();
+
+      if (!r['Coordinator In Charge']) r['Coordinator In Charge'] = 'No data';
+      r['Coordinator In Charge'] = r['Coordinator In Charge'].toUpperCase();
+   });
+
+
+   let inputStack = getUniqueValueByColumns(rows, 'Status');
+
+
+   const { arrCount: barDrawingRevCount, objDrawings: barDrawingRevDrawings } = countDrawingsByRevAndStatus(rows);
+   let { arrCount: barDrawingModellerCount, objDrawings: barDrawingModellerDrawings } = countDrawingsByColumnAndStatus(rows, 'Modeller');
+   let { arrCount: barDrawingCoordinatorCount, objDrawings: barDrawingCoordinatorDrawings } = countDrawingsByColumnAndStatus(rows, 'Coordinator In Charge');
+
+   let itemNoData1 = barDrawingModellerCount.filter(x => x.name === 'No data');
+   let itemRest1 = barDrawingModellerCount.filter(x => x.name !== 'No data');
+   barDrawingModellerCount = [...itemNoData1, ...itemRest1];
+
+   let itemNoData2 = barDrawingCoordinatorCount.filter(x => x.name === 'No data');
+   let itemRest2 = barDrawingCoordinatorCount.filter(x => x.name !== 'No data');
+   barDrawingCoordinatorCount = [...itemNoData2, ...itemRest2];
+
+
+
+
+   let pieDrawingStatusCount = {};
+   let pieDrawingStatusDrawings = {};
+   inputStack.forEach(stt => {
+      let rowArr = rows.filter(r => r.Status === stt);
+      rowArr.forEach(r => {
+         pieDrawingStatusCount[stt] = (pieDrawingStatusCount[stt] || 0) + 1;
+      });
+      pieDrawingStatusDrawings[stt] = rowArr;
+   });
+
+
+   const drawingsLateSubmission = getDrawingLateNow1(rows, 'drawingsLateSubmission');
+   const drawingsLateApproval = getDrawingLateNow1(rows, 'drawingsLateApproval');
+   const drawingsLateStart = getDrawingLateNow1(rows, 'drawingsLateStart');
+   const drawingsLateConstruction = getDrawingLateNow1(rows, 'drawingsLateConstruction');
+
+
+
+
+
+   const revArray = ['0', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+   const allDwgsToResubmit = rows.filter(x => {
+      return x['Status'] === 'Approved with comments, to Resubmit' || x['Status'] === 'Reject and resubmit';
+   });
+
+   let objData = {};
+   allDwgsToResubmit.forEach(r => {
+      const columnIndex = revArray.indexOf(r['Rev'] || '0') + 1;
+      objData[columnIndex] = [...objData[columnIndex] || [], r];
+   });
+
+
+   let barDrawingResubmitDrawings = {};
+   let barDrawingResubmitCount = [];
+   Object.keys(objData).forEach(cl => {
+      const rows = objData[cl];
+      let rejectToResubmit = [];
+      let approvedPreviousVersion = [];
+      rows.forEach(row => {
+         const histories = rowsHistory.filter(r => r.row === row.id);
+         const found = histories.find(x => x['Status'] === 'Approved for Construction' || x['Status'] === 'Approved with Comment, no submission Required');
+         if (found) {
+            approvedPreviousVersion.push(row);
+         } else {
+            rejectToResubmit.push(row);
+         };
+      });
+      barDrawingResubmitCount.push({
+         'Approved in previous version but need resubmit': approvedPreviousVersion.length,
+         'Reject, to resubmit': rejectToResubmit.length,
+         name: cl
+      });
+      barDrawingResubmitDrawings[cl] = { 
+         'Approved in previous version but need resubmit': approvedPreviousVersion,
+         'Reject, to resubmit': rejectToResubmit
+      };
+   });
+
+
+
+   return {
+      rows,
+      headers,
+
+      'Bar Drawing Rev': barDrawingRevDrawings,
+      barDrawingRevCount,
+      'Bar Drawing Modeller': barDrawingModellerDrawings,
+      barDrawingModellerCount,
+      'Bar Drawing Coordinator': barDrawingCoordinatorDrawings,
+      barDrawingCoordinatorCount,
+      'Bar Drawing Resubmit': barDrawingResubmitDrawings,
+      barDrawingResubmitCount,
+
+
+      'Pie Drawing Status': pieDrawingStatusDrawings,
+      pieDrawingStatusCount,
+
+
+      drawingsLateSubmission,
+      drawingsLateApproval,
+      drawingsLateStart,
+      drawingsLateConstruction
+
+   };
+};
+
+
+const converHistoryData = (rowsHistory, headers) => {
+   return rowsHistory.map(rowH => {
+      let obj = {
+         row: rowH.row
+      };
+      const { history } = rowH;
+      if (history) {
+         headers.forEach(hd => {
+            if (history[hd.key]) obj[hd.text] = history[hd.key];
+         });
+      };
+      return obj;
+   });
+};
+
+
+export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
+
+   let output = {
+      projectSplit: [],
+   };
+
+   const arrComparison = ['OVERALL', 'WH - ARCHI', 'WH - C&S', 'WH - M&E', 'WH - PRECAST', 'SUBCON'].map(item => ({
+      name: item,
+      data: []
+   }));
+
+
+   data.forEach(projectData => {
+
+      let { publicSettings: { headers, drawingTypeTree }, rows: rowsAllInProject, _id } = projectData;
+      const headersArrayText = headers.map(x => x.text);
+      const projectName = projectsArray.find(dt => dt.id === _id).name;
+
+
+      const historiesThisProject = dataRowHistories.find(x => x.projectId === _id).histories || [];
+
+      const dataRowHistoriesThisProject = converHistoryData(historiesThisProject, headers);
+
+      const dataInfoOverAll = convertToInputDataForChart(rowsAllInProject, dataRowHistoriesThisProject, headersArrayText);
+      let projectOutput = [{ panel: 'OVERALL', dataInfo: dataInfoOverAll }];
+
+
+      const found = arrComparison.find(x => x.name === 'OVERALL');
+      found.data.push({
+         projectName,
+         projectId: _id,
+         compareDrawingStatus: dataInfoOverAll.pieDrawingStatusCount,
+   
+         compareDrawingsLateSubmission: dataInfoOverAll.drawingsLateSubmission.length,
+         compareDrawingsLateApproval: dataInfoOverAll.drawingsLateApproval.length,
+         compareDrawingsLateStart: dataInfoOverAll.drawingsLateStart.length,
+         compareDrawingsLateConstruction: dataInfoOverAll.drawingsLateConstruction.length,
+      });
+
+      const wohhupNode = drawingTypeTree.find(x => x.treeLevel === 1 && x['Drawing Number'] === 'Woh Hup Private Ltd');
+      if (wohhupNode) {
+         const arrWHTrade = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
+         arrWHTrade.forEach(trade => {
+            const tradeNode = drawingTypeTree.find(x => {
+               return x.treeLevel === 2 && x['Drawing Number'] === trade && x.parentId === wohhupNode.id;
+            });
+            if (tradeNode) {
+               const allNodesUnderThisTrade = getTreeFlattenOfNodeInArray(drawingTypeTree, tradeNode);
+               const allIdsNode = [...new Set(allNodesUnderThisTrade.map(x => x.id))];
+               const rowsInThisTrade = rowsAllInProject.filter(x => allIdsNode.find(id => id === x._parentRow));
+               const rowsHistoriesThisTrade = dataRowHistoriesThisProject.filter(r => rowsInThisTrade.find(x => x._id === r.row));
+               const dataInfoThisTrade = convertToInputDataForChart(rowsInThisTrade, rowsHistoriesThisTrade, headersArrayText);
+               projectOutput.push({
+                  panel: 'WH - ' + trade,
+                  dataInfo: dataInfoThisTrade
+               });
+
+               const foundTrade = arrComparison.find(x => x.name === 'WH - ' + trade);
+               if (foundTrade) {
+                  foundTrade.data.push({
+                     projectName,
+                     projectId: _id,
+                     compareDrawingStatus: dataInfoThisTrade.pieDrawingStatusCount,
+
+                     compareDrawingsLateSubmission: dataInfoThisTrade.drawingsLateSubmission.length,
+                     compareDrawingsLateApproval: dataInfoThisTrade.drawingsLateApproval.length,
+                     compareDrawingsLateStart: dataInfoThisTrade.drawingsLateStart.length,
+                     compareDrawingsLateConstruction: dataInfoThisTrade.drawingsLateConstruction.length,
+                  });
+               };
+            };
+         });
+      };
+
+
+      const subconGroup = drawingTypeTree.filter(x => x.treeLevel === 1 && x['Drawing Number'] !== 'Woh Hup Private Ltd');
+      let allIsSubconAndUnder = [];
+      subconGroup.forEach(sb => {
+         const allNodesUnderThisSubcon = getTreeFlattenOfNodeInArray(drawingTypeTree, sb);
+         const allIdsNode = [...new Set(allNodesUnderThisSubcon.map(x => x.id))];
+         allIsSubconAndUnder = [...allIsSubconAndUnder, ...allIdsNode];
+      });
+      allIsSubconAndUnder = [...new Set(allIsSubconAndUnder)];
+      const rowsOfSubcon = rowsAllInProject.filter(x => allIsSubconAndUnder.find(id => id === x._parentRow));
+      const rowsHistoriesSubcon = dataRowHistoriesThisProject.filter(r => rowsOfSubcon.find(x => x._id === r.row));
+      const dataInfoSubcon = convertToInputDataForChart(rowsOfSubcon, rowsHistoriesSubcon, headersArrayText);
+      projectOutput.push({
+         panel: 'SUBCON',
+         dataInfo: dataInfoSubcon
+      });
+
+      const foundSubcon = arrComparison.find(x => x.name === 'SUBCON');
+      if (foundSubcon) {
+         foundSubcon.data.push({
+            projectName,
+            projectId: _id,
+            compareDrawingStatus: dataInfoSubcon.pieDrawingStatusCount,
+
+            compareDrawingsLateSubmission: dataInfoSubcon.drawingsLateSubmission.length,
+            compareDrawingsLateApproval: dataInfoSubcon.drawingsLateApproval.length,
+            compareDrawingsLateStart: dataInfoSubcon.drawingsLateStart.length,
+            compareDrawingsLateConstruction: dataInfoSubcon.drawingsLateConstruction.length,
+         });
+      };
+
+
+
+      output.projectSplit.push({
+         projectId: _id,
+         projectName,
+         dataProject: projectOutput
+      });
+   });
+
+   output.projectComparison = arrComparison;
+   return output;
+};
+
+export const getRandomIntInclusive = (min, max) => {
+   min = Math.ceil(min);
+   max = Math.floor(max);
+   return Math.floor(Math.random() * (max - min + 1) + min);
+};
+

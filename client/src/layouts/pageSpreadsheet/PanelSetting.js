@@ -389,7 +389,7 @@ const PanelSetting = (props) => {
       let row = rowsAll.find(r => r.id === rowId);
 
       Object.keys(dateAutomation).forEach(key => {
-         const cellTempId = `${rowId}-${key}`;
+         const cellTempId = `${rowId}~#&&#~${key}`;
          const dateConverted = moment(dateAutomation[key]).format('DD/MM/YY');
          getCellModifiedTemp({ [cellTempId]: dateConverted });
          row[key] = dateConverted;
@@ -413,7 +413,7 @@ const PanelSetting = (props) => {
       let rowOldVersiontoSave = { ...row };
 
       arrHeadersGoBlank.forEach(hd => {
-         const cellTempId = `${rowId}-${hd}`;
+         const cellTempId = `${rowId}~#&&#~${hd}`;
          getCellModifiedTemp({ [cellTempId]: '' });
          row[hd] = '';
       });
@@ -767,7 +767,13 @@ const PanelSetting = (props) => {
          )}
 
          {panelSettingType === 'filter-ICON' && (
-            <FormFilter applyFilter={applyFilter} onClickCancelModal={onClickCancelModal} />
+            <FormFilter 
+               applyFilter={applyFilter} 
+               onClickCancelModal={onClickCancelModal} 
+               headers={stateProject.userData.headersShown}
+               modeFilter={stateRow.modeFilter}
+               rowsAll={stateRow.rowsAll}
+            />
          )}
 
          {panelSettingType === 'swap-ICON-1' && (
@@ -781,6 +787,9 @@ const PanelSetting = (props) => {
             <PanelConfirmResetMode
                onClickCancel={onClickCancelModal}
                applyResetMode={applyResetMode}
+               modeFilter={stateRow.modeFilter}
+               modeSort={stateRow.modeSort}
+               modeSearch={stateRow.modeSearch}
             />
          )}
 
@@ -798,12 +807,21 @@ const PanelSetting = (props) => {
 
 
          {panelSettingType === 'sort-ICON' && (
-            <FormSort applySort={applySort} onClickCancel={onClickCancelModal} />
+            <FormSort 
+               applySort={applySort} 
+               onClickCancel={onClickCancelModal} 
+               headers={stateProject.userData.headersShown}
+               modeSort={stateRow.modeSort}
+            />
          )}
 
 
          {panelSettingType === 'group-ICON' && (
-            <FormGroup applyGroup={applyGroup} onClickCancelModal={onClickCancelModal} />
+            <FormGroup 
+               applyGroup={applyGroup} 
+               onClickCancelModal={onClickCancelModal} 
+               headers={stateProject.userData.headersShown}
+            />
          )}
 
 
