@@ -127,11 +127,11 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
          {inputStack.length > 0 && (
             <ChartPanel title={title} panel={panel}>
                <div style={{
-                  margin: '0 auto', overflow: 'auto'
+                  margin: '0 auto', overflow: 'auto',
                   // display: 'table', 
                }}>
                   <BarChart
-                     width={type === 'resubmit' ? 320 : 450}
+                     width={type === 'resubmit' ? 300 : 420}
                      height={type === 'resubmit' ? 300 : 350}
                      data={barDrawingCount}
                      margin={{ top: 35, right: 15, left: 0, bottom: 20 }}
@@ -173,21 +173,18 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
                            >
                               <LabelList dataKey={item} position='left' content={<LabelCustomStacked item={item} />} />
                            </Bar>
-                        )
+                        );
                      })}
 
                   </BarChart>
 
                   {type === 'resubmit' && (
-                     <div style={{ transform: 'translateY(-15px)', display: 'flex' }}>
-                        <div style={{ marginRight: 10 }}>
-                           <StyledBadge
-                              size='small'
-                              color={pieChartColors2['Reject, to resubmit']}
-                              text={'Reject, to resubmit'}
-                           />
-                        </div>
-
+                     <div style={{ transform: 'translateY(-15px)', paddingLeft: 10 }}>
+                        <StyledBadge
+                           size='small'
+                           color={pieChartColors2['Reject, to resubmit']}
+                           text={'Reject, to resubmit'}
+                        />
                         <StyledBadge
                            size='small'
                            color={pieChartColors2['Approved in previous version but need resubmit']}
@@ -209,6 +206,9 @@ const StyledBadge = styled(Badge)`
         width: 15px;
         height: 15px;
         border-radius: 0;
+    }
+    .ant-badge-status-text {
+       width: 100%;
     }
 `;
 

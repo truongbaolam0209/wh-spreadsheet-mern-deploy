@@ -588,10 +588,13 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
    data.forEach(projectData => {
 
       let { publicSettings: { headers, drawingTypeTree }, rows: rowsAllInProject, _id } = projectData;
+
+      rowsAllInProject = rowsAllInProject.filter(x => x['Drawing Number'] || x['Drawing Name']);
+
       const headersArrayText = headers.map(x => x.text);
       const projectName = projectsArray.find(dt => dt.id === _id).name;
 
-
+      
       const historiesThisProject = dataRowHistories.find(x => x.projectId === _id).histories || [];
 
       const dataRowHistoriesThisProject = converHistoryData(historiesThisProject, headers);
@@ -599,16 +602,20 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
       let projectOutput = [{ panel: 'OVERALL', dataInfo: dataInfoOverAll }];
 
       const found = arrComparison.find(x => x.name === 'OVERALL');
-      found.data.push({
-         projectName,
-         projectId: _id,
-         compareDrawingStatus: dataInfoOverAll.pieDrawingStatusCount,
-   
-         compareDrawingsLateSubmission: dataInfoOverAll.drawingsLateSubmission.length,
-         compareDrawingsLateApproval: dataInfoOverAll.drawingsLateApproval.length,
-         compareDrawingsLateStart: dataInfoOverAll.drawingsLateStart.length,
-         compareDrawingsLateConstruction: dataInfoOverAll.drawingsLateConstruction.length,
-      });
+
+      if (rowsAllInProject.length > 0) {
+         found.data.push({
+            projectName,
+            projectId: _id,
+            compareDrawingStatus: dataInfoOverAll.pieDrawingStatusCount,
+      
+            compareDrawingsLateSubmission: dataInfoOverAll.drawingsLateSubmission.length,
+            compareDrawingsLateApproval: dataInfoOverAll.drawingsLateApproval.length,
+            compareDrawingsLateStart: dataInfoOverAll.drawingsLateStart.length,
+            compareDrawingsLateConstruction: dataInfoOverAll.drawingsLateConstruction.length,
+         });
+      };
+      
 
       let objTradeStatus = {};
       let arrTradeCount = [];
@@ -635,7 +642,8 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
                });
 
                const foundTrade = arrComparison.find(x => x.name === 'WH - ' + trade);
-               if (foundTrade) {
+
+               if (foundTrade && rowsAllInProject.length > 0) {
                   foundTrade.data.push({
                      projectName,
                      projectId: _id,
@@ -673,7 +681,8 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
       });
 
       const foundSubcon = arrComparison.find(x => x.name === 'SUBCON');
-      if (foundSubcon) {
+
+      if (foundSubcon && rowsAllInProject.length > 0) {
          foundSubcon.data.push({
             projectName,
             projectId: _id,
