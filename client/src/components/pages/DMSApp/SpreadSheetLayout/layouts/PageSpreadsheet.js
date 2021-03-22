@@ -430,19 +430,6 @@ const PageSpreadsheet = (props) => {
             setLoading(true);
             const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
 
-            // const resDataCheck = await Axios.get(`${SERVER_URL}/sheet/get-all-collections?user=truongbaolam0209`);
-            // const { rows } = resDataCheck.data;
-
-            // const projectIdsArray = [...new Set(rows.map(x => x.sheet))];
-            // let objCheck = {};
-            // projectIdsArray.forEach(projectId => {
-            //    const rowsChildren = rows.filter(x => x.sheet === projectId);
-            //    console.log('rowsChildren', rowsChildren, projectId);
-            //    objCheck[projectId] = rowsChildren;
-            // });
-            // console.log('CHECK ROWS ALL PROJECTS', objCheck);
-
-
             fetchDataOneSheet({
                ...res.data,
                email, projectId, projectName, role, token, company, companies, roleTradeCompany
