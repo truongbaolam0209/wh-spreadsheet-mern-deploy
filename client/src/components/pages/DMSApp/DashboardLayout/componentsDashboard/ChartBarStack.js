@@ -3,12 +3,12 @@ import React, { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, LabelList, Tooltip, XAxis, YAxis } from 'recharts';
 import styled from 'styled-components';
 import { chartWidth, colorType, pieChartColors2 } from '../assets/constantDashboard';
-import { getRandomIntInclusive, inputStackData } from '../utils/functionDashboard';
+import { inputStackData } from '../utils/functionDashboard';
 import CardPanel from './CardPanel';
 
 
 
-const getInputData = (data, title) => {
+const getInputData = (data, title, dummyProductivity) => {
    if (!data) return {};
    if (title === 'Drawing Status') {
       return data.map(project => {
@@ -17,22 +17,22 @@ const getInputData = (data, title) => {
             ...project.compareDrawingStatus
          };
       })
-   } else if (title === 'Productivity - (days per drawing)') {
-      return data.map(project => {
+   } else if (title === 'Productivity - (days per drawing)' && dummyProductivity) {
+
+      return data.map((project, i) => {
          return {
             name: project.projectName,
-            'Consultant review and reply': getRandomIntInclusive(3, 7),
-            'Create update drawing': getRandomIntInclusive(3, 5),
-            'Create update model': getRandomIntInclusive(2, 5),
+            'Consultant review and reply': dummyProductivity[i]['Consultant review and reply'],
+            'Create update drawing': dummyProductivity[i]['Create update drawing'],
+            'Create update model': dummyProductivity[i]['Create update model'],
          };
       })
    };
 };
 
-const ChartBarStack = ({ data, title }) => {
+const ChartBarStack = ({ data, title, dummyProductivity }) => {
 
-
-   let inputData = getInputData(data, title);
+   let inputData = getInputData(data, title, dummyProductivity);
 
    let inputStack = title === 'Drawing Status' ? inputStackData :
       title === 'Productivity - (days per drawing)' ? [

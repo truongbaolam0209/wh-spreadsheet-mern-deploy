@@ -11,18 +11,33 @@ import ChartPieDrawing from './componentsDashboard/ChartPieDrawing';
 import ChartProgress from './componentsDashboard/ChartProgress';
 import FormPivot from './componentsDashboard/FormPivot';
 import TableDrawingList from './componentsDashboard/TableDrawingList';
-import { convertDataFromDB, createDummyRecords, inputStackData } from './utils/functionDashboard';
+import { convertDataFromDB, createDummyRecords, getRandomIntInclusive, inputStackData } from './utils/functionDashboard';
+
 
 
 const { TabPane } = Tabs;
 
 
-
+const createDummyProductivity = () => {
+   const arr = Array.from(Array(20).keys());
+   let obj = {};
+   arr.forEach((item, i) => {
+      obj[i] = {
+         'Consultant review and reply': getRandomIntInclusive(3, 7),
+         'Create update drawing': getRandomIntInclusive(3, 5),
+         'Create update model': getRandomIntInclusive(2, 5),
+      };
+   });
+   return obj;
+};
 
 const PageDashboard = ({ projectsArray, token }) => {
 
    const [dataDB, setDataDB] = useState(null);
    const [loading, setLoading] = useState(false);
+
+
+   const dummyProductivity = createDummyProductivity();
 
 
    useEffect(() => {
@@ -33,7 +48,9 @@ const PageDashboard = ({ projectsArray, token }) => {
             const resRows = await Axios.post(`${SERVER_URL}/row/history/find-row-histories-many-project`, { token, sheetIds: projectsArray.map(x => x.id) });
             const resDB = await Axios.post(`${SERVER_URL}/sheet/find-many`, { token, sheetIds: projectsArray.map(x => x.id) });
 
+
             setDataDB(convertDataFromDB(resDB.data, resRows.data, projectsArray));
+
 
             setLoading(false);
          } catch (err) {
@@ -122,13 +139,13 @@ const PageDashboard = ({ projectsArray, token }) => {
                   borderRadius: 20, overflow: 'hidden',
                }}>
                   <Tabs onChange={() => { }} type='card'>
-                     {dataDB.projectComparison.map(item => {
+                     {dataDB.projectComparison.map((item, i) => {
                         return (
                            <TabPane tab={item.name} key={item.name}>
                               <ChartBarDrawingLate data={item.data} title='No Of Drawing Late Construction' />
                               <ChartBarDrawingLate data={item.data} title='No Of Drawing Late Approval' />
                               <ChartBarStack data={item.data} title='Drawing Status' />
-                              <ChartBarStack data={item.data} title='Productivity - (days per drawing)' />
+                              <ChartBarStack data={item.data} title='Productivity - (days per drawing)' dummyProductivity={dummyProductivity} />
                            </TabPane>
                         );
                      })}
@@ -334,11 +351,11 @@ const SkeletonCard = () => {
    );
 };
 const StyledBadge = styled(Badge)`
-    .ant-badge-status-dot {
-        width: 15px;
-        height: 15px;
-        border-radius: 0;
-    }
+   .ant-badge-status-dot {
+      width: 15px;
+      height: 15px;
+      border-radius: 0;
+   }
 `;
 
 

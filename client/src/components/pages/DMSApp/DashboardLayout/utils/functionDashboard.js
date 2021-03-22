@@ -19,7 +19,7 @@ const inputStackResubmit = [
 ];
 
 export const converToInputStack = (data) => {
-   
+
    let output = [];
    data.forEach(item => {
       let arr = { ...item };
@@ -55,7 +55,7 @@ const checkDiffDates = (dateInput1, dateInput2) => {
    if (dateInput2 && dateInput2.length === 8 && dateInput2.includes('/')) date2 = moment(dateInput2, 'DD/MM/YY').format('YYYY-MM-DD');
 
    if (date1 && date2) {
-      return  moment(date1).diff(moment(date2), 'days');
+      return moment(date1).diff(moment(date2), 'days');
    } else if (date1 && !date2) {
       return moment(date1).diff(moment(), 'days');
    };
@@ -76,38 +76,38 @@ export const getDrawingLateNow1 = (drawings, type) => {
    let rowsLateOutput;
 
 
-   
+
    if (type === 'drawingsLateStart') {
       rowsLateOutput = drawings.filter(r => {
-         return conditionArray1.indexOf(r.Status) === -1 && 
-         r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (T)']) < 0 &&
-         (
-            !r['Drawing Start (A)'] ||
-            (r['Drawing Start (A)'] && r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (A)'], r['Drawing Start (T)']) > 0)
-         );
+         return conditionArray1.indexOf(r.Status) === -1 &&
+            r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (T)']) < 0 &&
+            (
+               !r['Drawing Start (A)'] ||
+               (r['Drawing Start (A)'] && r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (A)'], r['Drawing Start (T)']) > 0)
+            );
       });
    } else if (type === 'drawingsLateSubmission') {
       rowsLateOutput = drawings.filter(r => {
-         return conditionArray1.indexOf(r.Status) === -1 && 
-         r['Drg To Consultant (T)'] && checkDiffDates(r['Drg To Consultant (T)']) < 0 &&
-         !r['Drg To Consultant (A)'];
+         return conditionArray1.indexOf(r.Status) === -1 &&
+            r['Drg To Consultant (T)'] && checkDiffDates(r['Drg To Consultant (T)']) < 0 &&
+            !r['Drg To Consultant (A)'];
       });
    } else if (type === 'drawingsLateApproval') {
       rowsLateOutput = drawings.filter(r => {
-         return conditionArray2.indexOf(r.Status) === -1 && 
-         r['Get Approval (T)'] && checkDiffDates(r['Get Approval (T)']) < 0 &&
-         (
-            !r['Get Approval (A)'] ||
-            (r['Get Approval (A)'] && r['Get Approval (T)'] && checkDiffDates(r['Get Approval (A)'], r['Get Approval (T)']) > 0)
-         );
+         return conditionArray2.indexOf(r.Status) === -1 &&
+            r['Get Approval (T)'] && checkDiffDates(r['Get Approval (T)']) < 0 &&
+            (
+               !r['Get Approval (A)'] ||
+               (r['Get Approval (A)'] && r['Get Approval (T)'] && checkDiffDates(r['Get Approval (A)'], r['Get Approval (T)']) > 0)
+            );
       });
    } else if (type === 'drawingsLateConstruction') {
       rowsLateOutput = drawings.filter(r => {
-         return conditionArray2.indexOf(r.Status) === -1 && 
-         (
-            !r['Drg To Consultant (A)'] ||
-            (r['Get Approval (A)'] && r['Construction Issuance Date'] && checkDiffDates(r['Get Approval (A)'], r['Construction Issuance Date']) > 0)
-         );
+         return conditionArray2.indexOf(r.Status) === -1 &&
+            (
+               !r['Drg To Consultant (A)'] ||
+               (r['Get Approval (A)'] && r['Construction Issuance Date'] && checkDiffDates(r['Get Approval (A)'], r['Construction Issuance Date']) > 0)
+            );
       });
    };
    return rowsLateOutput;
@@ -508,7 +508,7 @@ const convertToInputDataForChart = (rows, rowsHistory, headers) => {
          'Reject, to resubmit': rejectToResubmit.length,
          name: cl
       });
-      barDrawingResubmitDrawings[cl] = { 
+      barDrawingResubmitDrawings[cl] = {
          'Approved in previous version but need resubmit': approvedPreviousVersion,
          'Reject, to resubmit': rejectToResubmit
       };
@@ -594,7 +594,7 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
       const headersArrayText = headers.map(x => x.text);
       const projectName = projectsArray.find(dt => dt.id === _id).name;
 
-      
+
       const historiesThisProject = dataRowHistories.find(x => x.projectId === _id).histories || [];
 
       const dataRowHistoriesThisProject = converHistoryData(historiesThisProject, headers);
@@ -608,14 +608,14 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
             projectName,
             projectId: _id,
             compareDrawingStatus: dataInfoOverAll.pieDrawingStatusCount,
-      
+
             compareDrawingsLateSubmission: dataInfoOverAll.drawingsLateSubmission.length,
             compareDrawingsLateApproval: dataInfoOverAll.drawingsLateApproval.length,
             compareDrawingsLateStart: dataInfoOverAll.drawingsLateStart.length,
             compareDrawingsLateConstruction: dataInfoOverAll.drawingsLateConstruction.length,
          });
       };
-      
+
 
       let objTradeStatus = {};
       let arrTradeCount = [];
