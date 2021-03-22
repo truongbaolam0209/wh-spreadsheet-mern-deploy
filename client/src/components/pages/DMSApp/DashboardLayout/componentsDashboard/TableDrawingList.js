@@ -39,7 +39,7 @@ const TableDrawingList = ({ data }) => {
       headers: isShowSelectedOnly
          ? headers.filter(hd => hd === 'Drawing Number' || hd === 'Drawing Name' || headersGroup.indexOf(hd) !== -1)
          : headers,
-      nosColumnFixed: 2,
+      nosColumnFixed: 1,
       rowsAll: rows,
       modeFilter: [],
       modeSort: {},
@@ -47,7 +47,7 @@ const TableDrawingList = ({ data }) => {
       modeGroup: headersGroup,
    });
 
-
+   
    const [cellSearchFound, setCellSearchFound] = useState(null);
 
    const [panelSettingType, setPanelSettingType] = useState(null);
@@ -62,6 +62,9 @@ const TableDrawingList = ({ data }) => {
 
    const commandAction = (update) => {
       if (update.type === 'sort-data' || update.type === 'filter-by-columns' || update.type === 'reorder-columns' || update.type === 'group-columns') {
+         if (update.type === 'sort-data') {
+            update.data.modeSort.isIncludedParent = 'not included';
+         };
          setTableData({ ...tableData, ...update.data });
 
       } else if (update.type === 'reset-filter-sort') {

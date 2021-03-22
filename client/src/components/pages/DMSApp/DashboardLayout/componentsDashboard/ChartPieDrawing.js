@@ -1,11 +1,12 @@
 import React from 'react';
 import { Cell, Pie, PieChart, Tooltip } from 'recharts';
 import { pieChartColors2 } from '../assets/constantDashboard';
+import { ChartPanel } from '../PageDashboard';
 
 
 
 
-const ChartPieDrawing = ({ data, openDrawingTable, projectId }) => {
+const ChartPieDrawing = ({ data, openDrawingTable, projectId, title }) => {
 
    const { panel, dataInfo: { pieDrawingStatusCount } } = data;
 
@@ -15,7 +16,6 @@ const ChartPieDrawing = ({ data, openDrawingTable, projectId }) => {
          value: pieDrawingStatusCount[key]
       };
    });
-
 
 
    const onClick = (portion) => {
@@ -51,28 +51,33 @@ const ChartPieDrawing = ({ data, openDrawingTable, projectId }) => {
 
    return (
       <>
-         <PieChart width={300} height={300} style={{ margin: '0 auto' }}>
-            <Pie
-               data={dataChart}
-               cx={150}
-               cy={150}
-               dataKey='value'
-               outerRadius={100}
-               onClick={onClick}
-               labelLine
-               label={<LabelCustom />}
-            >
-               {Object.keys(pieDrawingStatusCount).map(item => {
-                  return (
-                  <Cell
-                     key={`cell-${item}`}
-                     cursor='pointer'
-                     fill={pieChartColors2[item]}
-                  />
-               )})}
-            </Pie>
-            <Tooltip />
-         </PieChart>
+         {dataChart.length > 0 && (
+            <ChartPanel title={title} panel={panel}>
+               <PieChart width={300} height={300} style={{ margin: '0 auto' }}>
+                  <Pie
+                     data={dataChart}
+                     cx={150}
+                     cy={150}
+                     dataKey='value'
+                     outerRadius={100}
+                     onClick={onClick}
+                     labelLine
+                     label={<LabelCustom />}
+                  >
+                     {Object.keys(pieDrawingStatusCount).map(item => {
+                        return (
+                           <Cell
+                              key={`cell-${item}`}
+                              cursor='pointer'
+                              fill={pieChartColors2[item]}
+                           />
+                        )
+                     })}
+                  </Pie>
+                  <Tooltip />
+               </PieChart>
+            </ChartPanel>
+         )}
       </>
    );
 };

@@ -204,7 +204,7 @@ const PanelSetting = (props) => {
       newRows.forEach(row => {
          headers.forEach(hd => {
             if (row[hd.text]) {
-               cellsModifiedTempObj[`${row.id}-${hd.text}`] = row[hd.text];
+               cellsModifiedTempObj[`${row.id}~#&&#~${hd.text}`] = row[hd.text];
             };
          });
          updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
@@ -243,7 +243,8 @@ const PanelSetting = (props) => {
       };
 
       Object.keys(cellsModifiedTemp).forEach(key => {
-         if (key.slice(0, 24) === rowId) {  // deleted cells modified temporary...
+         const { rowId: rowIdExtract } = extractCellInfo(key);
+         if (rowIdExtract === rowId) {  // deleted cells modified temporary...
             delete cellsModifiedTemp[key];
          };
       });
@@ -326,7 +327,8 @@ const PanelSetting = (props) => {
                };
 
                Object.keys(cellsModifiedTemp).forEach(key => {
-                  if (key.slice(0, 24) === rrr.id) {  // deleted cells modified temporary...
+                  const { rowId: rowIdExtract } = extractCellInfo(key);
+                  if (rowIdExtract === rrr.id) {  // deleted cells modified temporary...
                      delete cellsModifiedTemp[key];
                   };
                });
@@ -593,7 +595,7 @@ const PanelSetting = (props) => {
             if (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) {
                delete cellsModifiedTemp[key];
             } else {
-               let rowId = key.slice(0, 24);
+               let rowId = extractCellInfo(key).rowId;
                if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
                   delete cellsModifiedTemp[key];
                };
@@ -767,9 +769,9 @@ const PanelSetting = (props) => {
          )}
 
          {panelSettingType === 'filter-ICON' && (
-            <FormFilter 
-               applyFilter={applyFilter} 
-               onClickCancelModal={onClickCancelModal} 
+            <FormFilter
+               applyFilter={applyFilter}
+               onClickCancelModal={onClickCancelModal}
                headers={stateProject.userData.headersShown}
                modeFilter={stateRow.modeFilter}
                rowsAll={stateRow.rowsAll}
@@ -807,9 +809,9 @@ const PanelSetting = (props) => {
 
 
          {panelSettingType === 'sort-ICON' && (
-            <FormSort 
-               applySort={applySort} 
-               onClickCancel={onClickCancelModal} 
+            <FormSort
+               applySort={applySort}
+               onClickCancel={onClickCancelModal}
                headers={stateProject.userData.headersShown}
                modeSort={stateRow.modeSort}
             />
@@ -817,9 +819,9 @@ const PanelSetting = (props) => {
 
 
          {panelSettingType === 'group-ICON' && (
-            <FormGroup 
-               applyGroup={applyGroup} 
-               onClickCancelModal={onClickCancelModal} 
+            <FormGroup
+               applyGroup={applyGroup}
+               onClickCancelModal={onClickCancelModal}
                headers={stateProject.userData.headersShown}
             />
          )}

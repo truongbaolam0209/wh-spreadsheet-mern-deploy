@@ -35,8 +35,8 @@ export const colorType = {
 
 
 export const pieChartColors2 = {
-   'Approved with Comment, no submission Required': colorType.green,
-   'Approved for Construction': colorType.blue,
+   'Approved with Comment, no submission Required': colorType.blue,
+   'Approved for Construction': colorType.green,
 
    'Approved with comments, to Resubmit': colorType.orange2,
    'Reject and resubmit': colorType.red,

@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { convertCellTempToHistory, debounceFnc, genId, mongoObjectId } from '../../utils';
+import { convertCellTempToHistory, debounceFnc, extractCellInfo, genId, mongoObjectId } from '../../utils';
 import FormFilter from '../generalComponents/FormFilter';
 import FormGroup from '../generalComponents/FormGroup';
 import FormSort from '../generalComponents/FormSort';
@@ -204,7 +204,7 @@ const PanelSetting2 = (props) => {
       newRows.forEach(row => {
          headers.forEach(hd => {
             if (row[hd.text]) {
-               cellsModifiedTempObj[`${row.id}-${hd.text}`] = row[hd.text];
+               cellsModifiedTempObj[`${row.id}~#&&#~${hd.text}`] = row[hd.text];
             };
          });
          updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
@@ -243,7 +243,9 @@ const PanelSetting2 = (props) => {
       };
 
       Object.keys(cellsModifiedTemp).forEach(key => {
-         if (key.slice(0, 24) === rowId) {  // deleted cells modified temporary...
+         
+         const { rowId: rowIdExtract } = extractCellInfo(key);
+         if (rowIdExtract === rowId) {  // deleted cells modified temporary...
             delete cellsModifiedTemp[key];
          };
       });
@@ -348,7 +350,8 @@ const PanelSetting2 = (props) => {
                      idRowsNew.splice(idRowsNew.indexOf(rrr.id), 1);
                   };
                   Object.keys(cellsModifiedTemp).forEach(key => {
-                     if (key.slice(0, 24) === rrr.id) {  // deleted cells modified temporary...
+                     const { rowId: rowIdExtract } = extractCellInfo(key);
+                     if (rowIdExtract === rrr.id) {  // deleted cells modified temporary...
                         delete cellsModifiedTemp[key];
                      };
                   });
@@ -612,7 +615,8 @@ const PanelSetting2 = (props) => {
    //          if (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) {
    //             delete cellsModifiedTemp[key];
    //          } else {
-   //             let rowId = key.slice(0, 24);
+      
+   //             let rowId = extractCellInfo(key).rowId;
    //             if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
    //                delete cellsModifiedTemp[key];
    //             };

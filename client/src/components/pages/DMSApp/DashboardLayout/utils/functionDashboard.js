@@ -80,27 +80,25 @@ export const getDrawingLateNow1 = (drawings, type) => {
    if (type === 'drawingsLateStart') {
       rowsLateOutput = drawings.filter(r => {
          return conditionArray1.indexOf(r.Status) === -1 && 
+         r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (T)']) < 0 &&
          (
-            ((r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (T)']) < 0) ||
             !r['Drawing Start (A)'] ||
-            ((r['Drawing Start (A)'] && r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (A)'], r['Drawing Start (T)']) < 0)))
+            (r['Drawing Start (A)'] && r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (A)'], r['Drawing Start (T)']) > 0)
          );
       });
    } else if (type === 'drawingsLateSubmission') {
       rowsLateOutput = drawings.filter(r => {
          return conditionArray1.indexOf(r.Status) === -1 && 
-         (
-            ((r['Drg To Consultant (T)'] && checkDiffDates(r['Drg To Consultant (T)']) < 0)) ||
-            !r['Drg To Consultant (A)']
-         );
+         r['Drg To Consultant (T)'] && checkDiffDates(r['Drg To Consultant (T)']) < 0 &&
+         !r['Drg To Consultant (A)'];
       });
    } else if (type === 'drawingsLateApproval') {
       rowsLateOutput = drawings.filter(r => {
          return conditionArray2.indexOf(r.Status) === -1 && 
+         r['Get Approval (T)'] && checkDiffDates(r['Get Approval (T)']) < 0 &&
          (
-            ((r['Get Approval (T)'] && checkDiffDates(r['Get Approval (T)']) < 0)) ||
             !r['Get Approval (A)'] ||
-            ((r['Get Approval (A)'] && r['Get Approval (T)'] && checkDiffDates(r['Get Approval (A)'], r['Get Approval (T)']) < 0))
+            (r['Get Approval (A)'] && r['Get Approval (T)'] && checkDiffDates(r['Get Approval (A)'], r['Get Approval (T)']) > 0)
          );
       });
    } else if (type === 'drawingsLateConstruction') {
@@ -108,7 +106,7 @@ export const getDrawingLateNow1 = (drawings, type) => {
          return conditionArray2.indexOf(r.Status) === -1 && 
          (
             !r['Drg To Consultant (A)'] ||
-            ((r['Get Approval (A)'] && r['Construction Issuance Date'] && checkDiffDates(r['Get Approval (A)'], r['Construction Issuance Date']) < 0))
+            (r['Get Approval (A)'] && r['Construction Issuance Date'] && checkDiffDates(r['Get Approval (A)'], r['Construction Issuance Date']) > 0)
          );
       });
    };
@@ -355,17 +353,33 @@ const countDrawingsByColumnAndStatus = (rows, column) => {
    let arrCount = [];
    let objDrawings = {};
    valueArray.forEach(columnValue => {
-      let rowsFilter = rows.filter(r => r[column] === columnValue);
-      let obj = {};
-      let objDwgs = {};
-      rowsFilter.forEach(r => {
-         obj[r.Status] = (obj[r.Status] || 0) + 1;
-         objDwgs[r.Status] = [...objDwgs[r.Status] || [], r];
-      });
-      obj.name = columnValue;
-      arrCount.push(obj);
-      objDrawings[columnValue] = objDwgs;
+      if (columnValue !== 'NOT ASSIGNED') {
+         let rowsFilter = rows.filter(r => r[column] === columnValue);
+         let obj = {};
+         let objDwgs = {};
+         rowsFilter.forEach(r => {
+            obj[r.Status] = (obj[r.Status] || 0) + 1;
+            objDwgs[r.Status] = [...objDwgs[r.Status] || [], r];
+         });
+         obj.name = columnValue;
+         arrCount.push(obj);
+         objDrawings[columnValue] = objDwgs;
+      };
    });
+
+   let rowsFilterNA = rows.filter(r => r[column] === 'NOT ASSIGNED');
+   let objNA = {};
+   let objDwgsNA = {};
+   rowsFilterNA.forEach(r => {
+      objNA[r.Status] = (objNA[r.Status] || 0) + 1;
+      objDwgsNA[r.Status] = [...objDwgsNA[r.Status] || [], r];
+   });
+   objNA.name = 'NOT ASSIGNED';
+
+   arrCount.unshift(objNA);
+   objDrawings['NOT ASSIGNED'] = objDwgsNA;
+
+
    return { arrCount, objDrawings };
 };
 
@@ -411,10 +425,10 @@ const convertToInputDataForChart = (rows, rowsHistory, headers) => {
 
       if (!r.Status) r.Status = 'Not Started';
 
-      if (!r.Modeller) r.Modeller = 'No data';
+      if (!r.Modeller) r.Modeller = 'Not assigned';
       r.Modeller = r.Modeller.toUpperCase();
 
-      if (!r['Coordinator In Charge']) r['Coordinator In Charge'] = 'No data';
+      if (!r['Coordinator In Charge']) r['Coordinator In Charge'] = 'Not assigned';
       r['Coordinator In Charge'] = r['Coordinator In Charge'].toUpperCase();
    });
 
@@ -429,12 +443,12 @@ const convertToInputDataForChart = (rows, rowsHistory, headers) => {
    let { arrCount: barDrawingModellerCount, objDrawings: barDrawingModellerDrawings } = countDrawingsByColumnAndStatus(rows, 'Modeller');
    let { arrCount: barDrawingCoordinatorCount, objDrawings: barDrawingCoordinatorDrawings } = countDrawingsByColumnAndStatus(rows, 'Coordinator In Charge');
 
-   let itemNoData1 = barDrawingModellerCount.filter(x => x.name === 'No data');
-   let itemRest1 = barDrawingModellerCount.filter(x => x.name !== 'No data');
+   let itemNoData1 = barDrawingModellerCount.filter(x => x.name === 'Not assigned');
+   let itemRest1 = barDrawingModellerCount.filter(x => x.name !== 'Not assigned');
    barDrawingModellerCount = [...itemNoData1, ...itemRest1];
 
-   let itemNoData2 = barDrawingCoordinatorCount.filter(x => x.name === 'No data');
-   let itemRest2 = barDrawingCoordinatorCount.filter(x => x.name !== 'No data');
+   let itemNoData2 = barDrawingCoordinatorCount.filter(x => x.name === 'Not assigned');
+   let itemRest2 = barDrawingCoordinatorCount.filter(x => x.name !== 'Not assigned');
    barDrawingCoordinatorCount = [...itemNoData2, ...itemRest2];
 
 
@@ -465,6 +479,7 @@ const convertToInputDataForChart = (rows, rowsHistory, headers) => {
       return x['Status'] === 'Approved with comments, to Resubmit' || x['Status'] === 'Reject and resubmit';
    });
 
+
    let objData = {};
    allDwgsToResubmit.forEach(r => {
       const columnIndex = revArray.indexOf(r['Rev'] || '0') + 1;
@@ -474,6 +489,7 @@ const convertToInputDataForChart = (rows, rowsHistory, headers) => {
 
    let barDrawingResubmitDrawings = {};
    let barDrawingResubmitCount = [];
+
    Object.keys(objData).forEach(cl => {
       const rows = objData[cl];
       let rejectToResubmit = [];
@@ -497,7 +513,6 @@ const convertToInputDataForChart = (rows, rowsHistory, headers) => {
          'Reject, to resubmit': rejectToResubmit
       };
    });
-
 
 
    return {
@@ -689,7 +704,7 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
    });
 
    output.projectComparison = arrComparison;
-   console.log('output--->>>', output);
+   // console.log('output--->>>', output);
    return output;
 };
 

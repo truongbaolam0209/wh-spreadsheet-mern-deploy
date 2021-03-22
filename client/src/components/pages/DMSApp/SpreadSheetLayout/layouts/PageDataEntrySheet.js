@@ -53,7 +53,7 @@ const PageDataEntrySheet = (props) => {
       cellsHistoryInCurrentSheet, cellOneHistory,
       saveDataToServerCallback, outputDataType
    } = props;
-   
+
    let sheetDataInput = convertSheetInputRaw(sheetDataInputRaw);
    const handlerBeforeUnload = (e) => {
       if (window.location.pathname === '/data-entry-sheet') {
@@ -406,11 +406,11 @@ const PageDataEntrySheet = (props) => {
       const result = resolveDataFromProps({ data: sheetDataInput });
 
       fetchDataOneSheet({ ...result, email, projectId, projectName, role, token });
-      
+
       setUserData(getHeadersData(result));
-   
+
       getSheetRows(getInputDataInitially(result));
-   
+
       setExpandedRows(getRowsKeyExpanded(
          result.publicSettings.drawingTypeTree,
          result.userSettings ? result.userSettings.viewTemplateNodeId : null
@@ -418,7 +418,7 @@ const PageDataEntrySheet = (props) => {
    }, [sheetDataInput]);
    // }, []);
 
-   
+
 
 
 
@@ -439,7 +439,7 @@ const PageDataEntrySheet = (props) => {
 
 
 
-   
+
 
    useEffect(() => {
       if (stateProject.userData) {
@@ -562,7 +562,6 @@ const PageDataEntrySheet = (props) => {
 
 
    const renderColumns = (headerArr, nosColumnFixed) => {
-      console.log('headerArr----------------', headerArr);
       const widthColumn = (headers, hd) => {
          const type = headers.find(x => x.text === hd).type;
          return type === 'date' ? 95 : type === 'checkbox' ? 50 : hd.length * 25
@@ -679,7 +678,7 @@ const PageDataEntrySheet = (props) => {
                onRowExpand={onRowExpand}
             />
          )}
-         
+
 
 
 
@@ -1151,7 +1150,7 @@ export const resolveDataFromProps = ({ data }) => {
 
    let { rows, publicSettings, userSettings } = data;
    const { headers } = publicSettings;
-   
+
    headers.forEach(hd => {
       if (!hd.text && !hd.key) {
          hd.text = hd.name;
@@ -1177,7 +1176,7 @@ const convertSheetInputRaw = (data) => {
    data.publicSettings.headers = data.publicSettings.headers || [];
    data.publicSettings.drawingTypeTree = data.publicSettings.drawingTypeTree || [];
    data.publicSettings.activityRecorded = data.publicSettings.activityRecorded || [];
-   
+
    return data;
 };
 

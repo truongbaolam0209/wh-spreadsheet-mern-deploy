@@ -12,18 +12,14 @@ import PageSpreadsheet from './components/pages/DMSApp/SpreadSheetLayout/layouts
 
 const App = () => {
 
-
     const saveDataToServerCallback = (dataToSave) => {
         // console.log('dataToSave', dataToSave);
     };
-
-
 
     return (
         <BrowserRouter>
 
             <Switch>
-
                 <ProjectProvider>
                     <RowProvider>
                         <CellProvider>

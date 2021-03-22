@@ -75,8 +75,8 @@ const colorTextCode = {
  
  
  export const colorTextRow = {
-    'Approved with Comment, no submission Required': colorTextCode.green,
-    'Approved for Construction': colorTextCode.blue,
+    'Approved with Comment, no submission Required': colorTextCode.blue,
+    'Approved for Construction': colorTextCode.green,
     'Approved with comments, to Resubmit': colorTextCode.orange2,
     'Reject and resubmit': colorTextCode.red,
     'Revise In-Progress': colorTextCode.yellow,

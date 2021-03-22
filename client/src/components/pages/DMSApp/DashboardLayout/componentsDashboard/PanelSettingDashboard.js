@@ -12,7 +12,7 @@ const PanelSettingDashboard = (props) => {
 
    const {
       panelSettingType, commandAction, onClickCancelModal,
-      rowsAll, modeFilter, modeGroup, modeSort, modeSearch, headers
+      rowsAll, modeFilter, modeSort, modeSearch, headers
    } = props;
 
    const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
@@ -91,9 +91,9 @@ const PanelSettingDashboard = (props) => {
 
 
          {panelSettingType === 'group-ICON' && (
-            <FormGroup 
-               applyGroup={applyGroup} 
-               onClickCancelModal={onClickCancelModal} 
+            <FormGroup
+               applyGroup={applyGroup}
+               onClickCancelModal={onClickCancelModal}
                headers={headers}
             />
          )}

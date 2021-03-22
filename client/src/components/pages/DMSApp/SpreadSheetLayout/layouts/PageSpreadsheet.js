@@ -330,14 +330,14 @@ const PageSpreadsheet = (props) => {
 
    const commandAction = (update) => {
       if (
-         update.type === 'add-view-templates' || update.type === 'sort-data' || update.type === 'filter-by-columns' ||
-         update.type === 'drawing-data-automation' || update.type === 'create-new-drawing-revisions'
+         update.type === 'add-view-templates' || update.type === 'sort-data' || update.type === 'filter-by-columns'
       ) {
          getSheetRows({ ...stateRow, ...update.data });
 
       } else if (
          update.type === 'insert-drawings' || update.type === 'insert-drawings-by-folder' ||
-         update.type === 'duplicate-drawings' || update.type === 'delete-drawing'
+         update.type === 'duplicate-drawings' || update.type === 'delete-drawing' ||
+         update.type === 'drawing-data-automation' || update.type === 'create-new-drawing-revisions'
       ) {
          getSheetRows({ ...stateRow, ...update.data, modeFilter: [], modeSort: {} });
 
@@ -429,8 +429,6 @@ const PageSpreadsheet = (props) => {
          try {
             setLoading(true);
             const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
-
-
 
             fetchDataOneSheet({
                ...res.data,

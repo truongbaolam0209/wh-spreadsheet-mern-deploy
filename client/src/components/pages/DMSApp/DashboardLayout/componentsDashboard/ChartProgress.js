@@ -2,14 +2,15 @@ import { Modal, Progress } from 'antd';
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../assets/constantDashboard';
+import { ChartPanel } from '../PageDashboard';
 
 
-const ChartProgress = ({ data, openDrawingTable, projectId }) => {
+const ChartProgress = ({ data, openDrawingTable, projectId, title }) => {
 
    const { panel, dataInfo } = data;
 
-   const { 
-      rows, 
+   const {
+      rows,
       drawingsLateSubmission,
       drawingsLateApproval,
       drawingsLateStart,
@@ -20,18 +21,22 @@ const ChartProgress = ({ data, openDrawingTable, projectId }) => {
    const dataInput = [
       {
          name: `Drawing late start ${drawingsLateStart.length}/${rows.length}`,
+         // name: '1',
          value: drawingsLateStart.length
       },
       {
          name: `Drawing late submission ${drawingsLateSubmission.length}/${rows.length}`,
+         // name: '2',
          value: drawingsLateSubmission.length
       },
       {
          name: `Drawing late approval ${drawingsLateApproval.length}/${rows.length}`,
+         // name: '3',
          value: drawingsLateApproval.length
       },
       {
          name: `Late for construction ${drawingsLateConstruction.length}/${rows.length}`,
+         // name: '4',
          value: drawingsLateConstruction.length
       }
    ];
@@ -71,8 +76,8 @@ const ChartProgress = ({ data, openDrawingTable, projectId }) => {
 
 
    return (
-      <>
-         <div style={{ width: '80%', margin: '25px auto' }}>
+      <ChartPanel title={title} panel={panel}>
+         <div style={{ width: '100%', margin: '25px auto' }}>
 
             {dataInput.map(item => (
                <Container key={item.name} onClick={() => progressBarClick(item.name)}>
@@ -99,7 +104,7 @@ const ChartProgress = ({ data, openDrawingTable, projectId }) => {
             <h1>{`Total drawing x}`}</h1>
             <h2>{`Overdue date of approval x`}</h2>
          </Modal>
-      </>
+      </ChartPanel>
 
    );
 };

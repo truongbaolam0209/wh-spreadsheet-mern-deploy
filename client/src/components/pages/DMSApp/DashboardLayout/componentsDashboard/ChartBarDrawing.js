@@ -3,12 +3,13 @@ import React, { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, LabelList, Tooltip, XAxis, YAxis } from 'recharts';
 import styled from 'styled-components';
 import { pieChartColors2 } from '../assets/constantDashboard';
+import { ChartPanel } from '../PageDashboard';
 import { converToInputStack, sortStatusOrder } from '../utils/functionDashboard';
 
 
 
 
-const ChartBarDrawing = ({ type, data, openDrawingTable, projectId }) => {
+const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => {
 
    const { panel, dataInfo } = data;
 
@@ -19,6 +20,7 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId }) => {
       barDrawingResubmitCount,
       barDrawingTradeCount
    } = dataInfo;
+
 
 
    const barDrawingCount = type === 'rev' ? barDrawingRevCount :
@@ -121,77 +123,82 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId }) => {
 
 
    return (
-      <div style={{
-         margin: '0 auto', overflow: 'auto'
-         // display: 'table', 
-      }}>
-         <BarChart
-            width={type === 'resubmit' ? 400 : 480}
-            height={type === 'resubmit' ? 300 : 350}
-            data={barDrawingCount}
-            margin={{ top: 35, right: 15, left: 0, bottom: 20 }}
-            padding={{ top: 5 }}
-            barSize={20}
-         >
-            <CartesianGrid strokeDasharray='3 3' />
-            {type === 'rev' || type === 'resubmit' ? (
-               <XAxis
-                  style={{ cursor: 'pointer' }}
-                  onClick={onClickXAxis}
-                  tickSize={3} dataKey='name' textAnchor='middle' interval={0} scale='point'
-                  padding={{ left: 20, right: 20 }}
-               />
-            ) : (
-               <XAxis
-                  style={{ cursor: 'pointer' }}
-                  onClick={onClickXAxis}
-                  fontSize={11} tickSize={3} dataKey='name' textAnchor='end' angle={-25} interval={0} scale='point'
-                  padding={{ left: 20, right: 20 }}
-               />
-            )}
-
-            <YAxis />
-            <Tooltip content={<TooltipCustom />} />
-
-            {sortStatusOrder(inputStack).reverse().map((item, i) => {
-               return (
-                  <Bar
-                     style={{ cursor: 'pointer' }}
-                     key={item}
-                     dataKey={item}
-                     stackId='a'
-                     fill={pieChartColors2[item]}
-                     isAnimationActive={false}
-                     onClick={(e) => onClick(e, item)}
-                     onMouseOver={() => setTooltip(item)}
-                     label={<LabelCustomStackedTotal topBar={i === inputStack.length - 1} />}
+      <>
+         {inputStack.length > 0 && (
+            <ChartPanel title={title} panel={panel}>
+               <div style={{
+                  margin: '0 auto', overflow: 'auto'
+                  // display: 'table', 
+               }}>
+                  <BarChart
+                     width={type === 'resubmit' ? 320 : 450}
+                     height={type === 'resubmit' ? 300 : 350}
+                     data={barDrawingCount}
+                     margin={{ top: 35, right: 15, left: 0, bottom: 20 }}
+                     padding={{ top: 5 }}
+                     barSize={18}
                   >
-                     <LabelList dataKey={item} position='left' content={<LabelCustomStacked item={item} />} />
-                  </Bar>
-               )
-            })}
+                     <CartesianGrid strokeDasharray='3 3' />
+                     {type === 'rev' || type === 'resubmit' ? (
+                        <XAxis
+                           style={{ cursor: 'pointer' }}
+                           onClick={onClickXAxis}
+                           tickSize={3} dataKey='name' textAnchor='middle' interval={0} scale='point'
+                           padding={{ left: 20, right: 20 }}
+                        />
+                     ) : (
+                        <XAxis
+                           style={{ cursor: 'pointer' }}
+                           onClick={onClickXAxis}
+                           fontSize={11} tickSize={3} dataKey='name' textAnchor='end' angle={-25} interval={0} scale='point'
+                           padding={{ left: 20, right: 20 }}
+                        />
+                     )}
 
-         </BarChart>
+                     <YAxis />
+                     <Tooltip content={<TooltipCustom />} />
 
-         {type === 'resubmit' && (
-            <div style={{ transform: 'translateY(-15px)', display: 'flex' }}>
-               <div style={{ marginRight: 10 }}>
-                  <StyledBadge
-                     size='small'
-                     color={pieChartColors2['Reject, to resubmit']}
-                     text={'Reject, to resubmit'}
-                  />
+                     {sortStatusOrder(inputStack).reverse().map((item, i) => {
+                        return (
+                           <Bar
+                              style={{ cursor: 'pointer' }}
+                              key={item}
+                              dataKey={item}
+                              stackId='a'
+                              fill={pieChartColors2[item]}
+                              isAnimationActive={false}
+                              onClick={(e) => onClick(e, item)}
+                              onMouseOver={() => setTooltip(item)}
+                              label={<LabelCustomStackedTotal topBar={i === inputStack.length - 1} />}
+                           >
+                              <LabelList dataKey={item} position='left' content={<LabelCustomStacked item={item} />} />
+                           </Bar>
+                        )
+                     })}
+
+                  </BarChart>
+
+                  {type === 'resubmit' && (
+                     <div style={{ transform: 'translateY(-15px)', display: 'flex' }}>
+                        <div style={{ marginRight: 10 }}>
+                           <StyledBadge
+                              size='small'
+                              color={pieChartColors2['Reject, to resubmit']}
+                              text={'Reject, to resubmit'}
+                           />
+                        </div>
+
+                        <StyledBadge
+                           size='small'
+                           color={pieChartColors2['Approved in previous version but need resubmit']}
+                           text={'Approved in previous version but need resubmit'}
+                        />
+                     </div>
+                  )}
                </div>
-
-               <StyledBadge
-                  size='small'
-                  color={pieChartColors2['Approved in previous version but need resubmit']}
-                  text={'Approved in previous version but need resubmit'}
-               />
-            </div>
+            </ChartPanel>
          )}
-
-      </div>
+      </>
    );
 };
 
