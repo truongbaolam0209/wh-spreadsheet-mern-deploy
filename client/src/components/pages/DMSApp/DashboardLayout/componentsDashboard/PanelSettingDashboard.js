@@ -1,10 +1,10 @@
 import React from 'react';
-import FormFilter from '../../layouts/generalComponents/FormFilter';
-import FormGroup from '../../layouts/generalComponents/FormGroup';
-import FormSort from '../../layouts/generalComponents/FormSort';
-import PanelConfirm from '../../layouts/generalComponents/PanelConfirm';
-import PanelConfirmResetMode from '../../layouts/generalComponents/PanelConfirmResetMode';
-import ReorderColumnForm from '../../layouts/generalComponents/ReorderColumnForm';
+import FormFilter from '../../SpreadSheetLayout/layouts/generalComponents/FormFilter';
+import FormGroup from '../../SpreadSheetLayout/layouts/generalComponents/FormGroup';
+import FormSort from '../../SpreadSheetLayout/layouts/generalComponents/FormSort';
+import PanelConfirm from '../../SpreadSheetLayout/layouts/generalComponents/PanelConfirm';
+import PanelConfirmResetMode from '../../SpreadSheetLayout/layouts/generalComponents/PanelConfirmResetMode';
+import ReorderColumnForm from '../../SpreadSheetLayout/layouts/generalComponents/ReorderColumnForm';
 
 
 

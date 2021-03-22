@@ -385,6 +385,10 @@ const PageSpreadsheet = (props) => {
          OverwriteCellsModified({});
          setCellActive(null);
          setLoading(false);
+
+         setCellSearchFound(null);
+         setCellHistoryFound(null);
+         setSearchInputShown(false);
       };
       setPanelSettingVisible(false);
       setPanelSettingType(null);

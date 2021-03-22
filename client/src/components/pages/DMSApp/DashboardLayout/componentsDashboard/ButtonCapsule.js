@@ -13,12 +13,12 @@ const ButtonCapsule = props => {
 
 export default ButtonCapsule;
 
-// const Container = styled(Button)`
+
 const Container = styled.div`
     &:hover {
         cursor: pointer;
         background: #bdc3c7;
-    }
+    };
     transition: 0.3s;
     line-height: 13px;
     font-size: 12px;

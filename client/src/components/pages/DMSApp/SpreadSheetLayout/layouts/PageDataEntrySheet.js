@@ -562,6 +562,7 @@ const PageDataEntrySheet = (props) => {
 
 
    const renderColumns = (headerArr, nosColumnFixed) => {
+      console.log('headerArr----------------', headerArr);
       const widthColumn = (headers, hd) => {
          const type = headers.find(x => x.text === hd).type;
          return type === 'date' ? 95 : type === 'checkbox' ? 50 : hd.length * 25

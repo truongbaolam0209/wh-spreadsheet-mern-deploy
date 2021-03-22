@@ -16,7 +16,8 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId }) => {
       barDrawingRevCount,
       barDrawingModellerCount,
       barDrawingCoordinatorCount,
-      barDrawingResubmitCount
+      barDrawingResubmitCount,
+      barDrawingTradeCount
    } = dataInfo;
 
 
@@ -24,7 +25,8 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId }) => {
       type === 'modeller' ? barDrawingModellerCount :
          type === 'coordinator' ? barDrawingCoordinatorCount :
             type === 'resubmit' ? barDrawingResubmitCount :
-               [];
+               type === 'trade' ? barDrawingTradeCount :
+                  [];
 
 
    const inputStack = converToInputStack(barDrawingCount);
@@ -36,7 +38,8 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId }) => {
          type: type === 'rev' ? 'Bar Drawing Rev' :
             type === 'modeller' ? 'Bar Drawing Modeller' :
                type === 'coordinator' ? 'Bar Drawing Coordinator' :
-                  type === 'resubmit' ? 'Bar Drawing Resubmit' : null,
+                  type === 'resubmit' ? 'Bar Drawing Resubmit' :
+                     type === 'trade' ? 'Bar Drawing Trade' : null,
          category: portion.name,
          categorySub1: status
       });
@@ -50,7 +53,8 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId }) => {
          type: type === 'rev' ? 'Bar Drawing Rev' :
             type === 'modeller' ? 'Bar Drawing Modeller' :
                type === 'coordinator' ? 'Bar Drawing Coordinator' :
-                  type === 'resubmit' ? 'Bar Drawing Resubmit' : null,
+                  type === 'resubmit' ? 'Bar Drawing Resubmit' :
+                     type === 'trade' ? 'Bar Drawing Trade' : null,
          category: value,
       });
    };
@@ -123,7 +127,7 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId }) => {
       }}>
          <BarChart
             width={type === 'resubmit' ? 400 : 480}
-            height={350}
+            height={type === 'resubmit' ? 300 : 350}
             data={barDrawingCount}
             margin={{ top: 35, right: 15, left: 0, bottom: 20 }}
             padding={{ top: 5 }}
@@ -170,12 +174,15 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId }) => {
          </BarChart>
 
          {type === 'resubmit' && (
-            <div style={{ transform: 'translateY(-15px)' }}>
-               <StyledBadge
-                  size='small'
-                  color={pieChartColors2['Reject, to resubmit']}
-                  text={'Reject, to resubmit'}
-               />
+            <div style={{ transform: 'translateY(-15px)', display: 'flex' }}>
+               <div style={{ marginRight: 10 }}>
+                  <StyledBadge
+                     size='small'
+                     color={pieChartColors2['Reject, to resubmit']}
+                     text={'Reject, to resubmit'}
+                  />
+               </div>
+
                <StyledBadge
                   size='small'
                   color={pieChartColors2['Approved in previous version but need resubmit']}

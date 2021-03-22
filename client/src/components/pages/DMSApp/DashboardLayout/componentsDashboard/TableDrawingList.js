@@ -4,12 +4,12 @@ import React, { useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import 'react-base-table/styles.css';
 import styled from 'styled-components';
-import { colorType } from '../../constants';
-import CellHeader from '../../layouts/generalComponents/CellHeader';
-import { sortFnc } from '../../layouts/generalComponents/FormSort';
-import IconTable from '../../layouts/generalComponents/IconTable';
-import InputSearch from '../../layouts/generalComponents/InputSearch';
-import { debounceFnc, getActionName, getHeaderWidth, groupByHeaders } from '../../utils';
+import { colorType } from '../../SpreadSheetLayout/constants';
+import CellHeader from '../../SpreadSheetLayout/layouts/generalComponents/CellHeader';
+import { sortFnc } from '../../SpreadSheetLayout/layouts/generalComponents/FormSort';
+import IconTable from '../../SpreadSheetLayout/layouts/generalComponents/IconTable';
+import InputSearch from '../../SpreadSheetLayout/layouts/generalComponents/InputSearch';
+import { debounceFnc, getActionName, getHeaderWidth, groupByHeaders } from '../../SpreadSheetLayout/utils';
 import PanelSettingDashboard from './PanelSettingDashboard';
 
 
@@ -20,7 +20,7 @@ const Table = (props) => {
          {({ width }) => <BaseTable
             {...props}
             width={width}
-            height={window.innerHeight * 0.6}
+            height={window.innerHeight * 0.7}
          />}
       </AutoResizer>
    );
@@ -39,7 +39,7 @@ const TableDrawingList = ({ data }) => {
       headers: isShowSelectedOnly
          ? headers.filter(hd => hd === 'Drawing Number' || hd === 'Drawing Name' || headersGroup.indexOf(hd) !== -1)
          : headers,
-      nosColumnFixed: 0,
+      nosColumnFixed: 2,
       rowsAll: rows,
       modeFilter: [],
       modeSort: {},
@@ -220,13 +220,13 @@ const TableDrawingList = ({ data }) => {
 
       <div style={{
          background: 'white',
-         height: window.innerHeight * 0.7,
+         height: window.innerHeight * 0.8,
       }}>
          <div style={{ fontWeight: 'bold', margin: 15, fontSize: 17 }}>
             {panel} / {typeTitle} / {category} / {categorySub1 ? categorySub1 + '/' : ''} ({rows.length} nos)
          </div>
          <ButtonBox>
-            <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
+            {/* <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} /> */}
             <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
             <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
             <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
@@ -269,6 +269,10 @@ const TableDrawingList = ({ data }) => {
          />
 
 
+         
+
+
+
          <ModalStyledSetting
             title={tableData.modeGroup.length > 0 ? 'Quit Grouping Mode' : getActionName(panelSettingType)}
             visible={panelSettingVisible}
@@ -302,6 +306,17 @@ const TableDrawingList = ({ data }) => {
    );
 };
 export default TableDrawingList;
+
+const generateColumns = (count = 10, prefix = 'column-', props) =>
+   new Array(count).fill(0).map((column, columnIndex) => ({
+      ...props,
+      key: `${prefix}${columnIndex}`,
+      dataKey: `${prefix}${columnIndex}`,
+      title: `Column ${columnIndex}`,
+      width: 150,
+   }));
+
+
 
 
 const TableStyled = styled(Table)`

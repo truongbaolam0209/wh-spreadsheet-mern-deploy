@@ -419,6 +419,9 @@ const convertToInputDataForChart = (rows, rowsHistory, headers) => {
    });
 
 
+
+
+
    let inputStack = getUniqueValueByColumns(rows, 'Status');
 
 
@@ -539,6 +542,21 @@ const converHistoryData = (rowsHistory, headers) => {
    });
 };
 
+const splitRowsStatusByTrade = (rows, title) => {
+   const statusArray = [...new Set(rows.map(x => x['Status']))];
+   let obj = {};
+   let objCount = {};
+   statusArray.forEach(stt => {
+      const rowsFound = rows.filter(r => r['Status'] === stt);
+      obj[stt] = rowsFound;
+      objCount[stt] = rowsFound.length;
+   });
+   return {
+      objDrawings: obj,
+      objCount: { ...objCount, name: title }
+   }
+};
+
 
 export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
 
@@ -562,10 +580,8 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
       const historiesThisProject = dataRowHistories.find(x => x.projectId === _id).histories || [];
 
       const dataRowHistoriesThisProject = converHistoryData(historiesThisProject, headers);
-
       const dataInfoOverAll = convertToInputDataForChart(rowsAllInProject, dataRowHistoriesThisProject, headersArrayText);
       let projectOutput = [{ panel: 'OVERALL', dataInfo: dataInfoOverAll }];
-
 
       const found = arrComparison.find(x => x.name === 'OVERALL');
       found.data.push({
@@ -579,6 +595,8 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
          compareDrawingsLateConstruction: dataInfoOverAll.drawingsLateConstruction.length,
       });
 
+      let objTradeStatus = {};
+      let arrTradeCount = [];
       const wohhupNode = drawingTypeTree.find(x => x.treeLevel === 1 && x['Drawing Number'] === 'Woh Hup Private Ltd');
       if (wohhupNode) {
          const arrWHTrade = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
@@ -590,8 +608,12 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
                const allNodesUnderThisTrade = getTreeFlattenOfNodeInArray(drawingTypeTree, tradeNode);
                const allIdsNode = [...new Set(allNodesUnderThisTrade.map(x => x.id))];
                const rowsInThisTrade = rowsAllInProject.filter(x => allIdsNode.find(id => id === x._parentRow));
+
+
                const rowsHistoriesThisTrade = dataRowHistoriesThisProject.filter(r => rowsInThisTrade.find(x => x._id === r.row));
+
                const dataInfoThisTrade = convertToInputDataForChart(rowsInThisTrade, rowsHistoriesThisTrade, headersArrayText);
+
                projectOutput.push({
                   panel: 'WH - ' + trade,
                   dataInfo: dataInfoThisTrade
@@ -610,6 +632,10 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
                      compareDrawingsLateConstruction: dataInfoThisTrade.drawingsLateConstruction.length,
                   });
                };
+
+               const { objCount: objCountTrade, objDrawings: rowsTradeSplitStatus } = splitRowsStatusByTrade(rowsInThisTrade, 'WH - ' + trade);
+               objTradeStatus['WH - ' + trade] = rowsTradeSplitStatus;
+               arrTradeCount.push(objCountTrade);
             };
          });
       };
@@ -646,6 +672,14 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
       };
 
 
+      const { objCount: objCountSubcon, objDrawings: rowsSubconSplitStatus } = splitRowsStatusByTrade(rowsOfSubcon, 'SUBCON');
+      objTradeStatus['SUBCON'] = rowsSubconSplitStatus;
+      arrTradeCount.push(objCountSubcon);
+
+      const overAllObj = projectOutput.find(x => x.panel === 'OVERALL');
+      overAllObj.dataInfo['Bar Drawing Trade'] = objTradeStatus;
+      overAllObj.dataInfo['barDrawingTradeCount'] = arrTradeCount;
+
 
       output.projectSplit.push({
          projectId: _id,
@@ -655,6 +689,7 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
    });
 
    output.projectComparison = arrComparison;
+   console.log('output--->>>', output);
    return output;
 };
 
