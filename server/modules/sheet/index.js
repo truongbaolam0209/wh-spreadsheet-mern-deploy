@@ -118,7 +118,6 @@ const updateSettingPublic = async (req, res, next) => {
 
       if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
       if (!userId) throw new HTTP(400, 'Invalid sheet id!');
-
       let setting = await updatePublicSettings(sheetId, userId, publicSettings);
 
       return res.json(setting);

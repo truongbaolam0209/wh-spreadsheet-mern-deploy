@@ -47,7 +47,7 @@ const TableDrawingList = ({ data }) => {
       modeGroup: headersGroup,
    });
 
-   
+
    const [cellSearchFound, setCellSearchFound] = useState(null);
 
    const [panelSettingType, setPanelSettingType] = useState(null);
@@ -78,7 +78,6 @@ const TableDrawingList = ({ data }) => {
 
 
    const [expandedRows, setExpandedRows] = useState([]);
-   const [expandColumnKey, setExpandColumnKey] = useState('Drawing Number');
 
    const onRowExpand = (props) => {
       const { rowKey, expanded } = props;
@@ -181,13 +180,14 @@ const TableDrawingList = ({ data }) => {
             frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
             headerRenderer: <CellHeader />,
             cellRenderer: (props) => {
-               let { cellData, column } = props;
+               let { cellData, column, rowData } = props;
 
                if ((column.key.includes('(A)') || column.key.includes('(T)') ||
                   column.key === 'Construction Issuance Date' || column.key === 'Construction Start') &&
                   cellData && cellData.length === 10 && cellData.includes('-')) {
                   cellData = moment(cellData, 'YYYY-MM-DD').format('DD/MM/YY');
                };
+
                return (
                   <div style={{
                      padding: 5,
@@ -196,7 +196,7 @@ const TableDrawingList = ({ data }) => {
                      whiteSpace: 'nowrap',
                      color: 'black'
                   }}>
-                     {cellData}
+                     {rowData._rowLevel < 1 && column.key === 'Drawing Number' ? rowData.title : cellData}
                   </div>
                );
             },
@@ -263,16 +263,17 @@ const TableDrawingList = ({ data }) => {
             overscanRowCount={0}
             rowClassName={rowClassName}
 
-
             expandedRowKeys={expandedRows}
-            expandColumnKey={expandColumnKey}
+
+            expandColumnKey={headers[0]}
+
             expandIconProps={expandIconProps}
             components={{ ExpandIcon }}
             onRowExpand={onRowExpand}
          />
 
 
-         
+
 
 
 
@@ -438,7 +439,7 @@ const arrangeDrawingTypeFinal = ({ rowsAll, modeFilter, modeSort, modeSearch, mo
 
 
    if (modeGroup.length > 0) {
-      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup, false);
+      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup);
       return rows;
    };
 

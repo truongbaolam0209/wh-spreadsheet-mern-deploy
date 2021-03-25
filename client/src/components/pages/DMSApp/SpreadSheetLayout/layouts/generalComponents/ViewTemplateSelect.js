@@ -100,7 +100,7 @@ const SelectStyled = styled(Select)`
 
 const getListOfStringFolder = (tree, viewTemplates) => {
    
-   const wohhup = tree.find(x => x.treeLevel === 1 && x['Drawing Number'] === 'Woh Hup Private Ltd');
+   const wohhup = tree.find(x => x.treeLevel === 1 && x.title === 'Woh Hup Private Ltd');
    if (!wohhup) return [];
 
    const wohhupId = wohhup.id;
@@ -123,11 +123,11 @@ const getListOfStringFolder = (tree, viewTemplates) => {
 export const getStringFolder = (drawingTypeTree, treeNode) => {
    const dwgTypeTree = drawingTypeTree.map(x => ({ ...x }));
    const node = { ...treeNode };
-   let text = node['Drawing Number'];
+   let text = node.title;
    const findParent = (tree, node) => {
       const parent = tree.find(x => x.id === node.parentId);
       if (parent) {
-         text = parent['Drawing Number'] + ' / ' + text;
+         text = parent.title + ' / ' + text;
          findParent(tree, parent);
       };
    };

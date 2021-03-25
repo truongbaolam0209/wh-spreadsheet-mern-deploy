@@ -89,7 +89,8 @@ export const getDrawingLateNow1 = (drawings, type) => {
    } else if (type === 'drawingsLateSubmission') {
       rowsLateOutput = drawings.filter(r => {
          return conditionArray1.indexOf(r.Status) === -1 &&
-            r['Drg To Consultant (T)'] && checkDiffDates(r['Drg To Consultant (T)']) < 0 &&
+            r['Drg To Consultant (T)'] && 
+            checkDiffDates(r['Drg To Consultant (T)']) < 0 &&
             !r['Drg To Consultant (A)'];
       });
    } else if (type === 'drawingsLateApproval') {
@@ -619,12 +620,12 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
 
       let objTradeStatus = {};
       let arrTradeCount = [];
-      const wohhupNode = drawingTypeTree.find(x => x.treeLevel === 1 && x['Drawing Number'] === 'Woh Hup Private Ltd');
+      const wohhupNode = drawingTypeTree.find(x => x.treeLevel === 1 && x.title === 'Woh Hup Private Ltd');
       if (wohhupNode) {
          const arrWHTrade = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
          arrWHTrade.forEach(trade => {
             const tradeNode = drawingTypeTree.find(x => {
-               return x.treeLevel === 2 && x['Drawing Number'] === trade && x.parentId === wohhupNode.id;
+               return x.treeLevel === 2 && x.title === trade && x.parentId === wohhupNode.id;
             });
             if (tradeNode) {
                const allNodesUnderThisTrade = getTreeFlattenOfNodeInArray(drawingTypeTree, tradeNode);
@@ -664,7 +665,7 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
       };
 
 
-      const subconGroup = drawingTypeTree.filter(x => x.treeLevel === 1 && x['Drawing Number'] !== 'Woh Hup Private Ltd');
+      const subconGroup = drawingTypeTree.filter(x => x.treeLevel === 1 && x.title === 'SUBCON');
       let allIsSubconAndUnder = [];
       subconGroup.forEach(sb => {
          const allNodesUnderThisSubcon = getTreeFlattenOfNodeInArray(drawingTypeTree, sb);

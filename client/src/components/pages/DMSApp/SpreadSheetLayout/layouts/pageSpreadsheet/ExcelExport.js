@@ -57,7 +57,7 @@ const prepareDataToExport = (stateProject, stateRow) => {
    const getAllChildren = (arr) => {
       arr.forEach(node => {
          let newObj = {};
-         newObj['Drawing Number'] = node['Drawing Number'];
+         newObj.title = node.title;
          finalArr.push(newObj);
          if (node.children && node.children.length > 0) {
             getAllChildren(node.children);

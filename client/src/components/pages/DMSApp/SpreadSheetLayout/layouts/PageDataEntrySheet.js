@@ -644,7 +644,7 @@ const PageDataEntrySheet = (props) => {
             <DividerRibbon />
             {isAdmin && (
                <div style={{ display: 'flex' }}>
-                  <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
+                  {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} /> */}
                </div>
             )}
          </ButtonBox>
@@ -1030,7 +1030,7 @@ const arrangeDrawingTypeFinal = (stateRow) => {
 
 
    if (modeGroup.length > 0) {
-      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup, true);
+      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup);
       return rows;
    };
 

@@ -1,23 +1,20 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import styled from 'styled-components';
-import { Context as CellContext } from '../../contexts/cellContext';
-import { Context as ProjectContext } from '../../contexts/projectContext';
-import { Context as RowContext } from '../../contexts/rowContext';
-import { addZero } from '../../utils';
 import { rowLocked } from './Cell';
 
 
-const CellIndex = ({ rowData }) => {
+const CellIndex = (props) => {
 
-   const { state: stateRow, getSheetRows } = useContext(RowContext);
-   const { state: stateCell, setCellActive } = useContext(CellContext);
-   const { state: stateProject } = useContext(ProjectContext);
+   const { rowData, contextInput, rowIndex } = props;
+   const { contextCell, contextRow, contextProject } = contextInput;
+   const { setCellActive } = contextCell;
+   const { stateRow, getSheetRows } = contextRow;
+   const { stateProject } = contextProject;
 
    const { drawingTypeTree, rowsAll, modeGroup, rowsSelected } = stateRow;
    const { roleTradeCompany } = stateProject.allDataOneSheet;
 
    const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
-
 
    const onClickCellIndex = () => {
       setCellActive(null);
@@ -34,7 +31,8 @@ const CellIndex = ({ rowData }) => {
 
    return (
       <Styled onClick={onClickCellIndex}>
-         {rowData._rowLevel === 1 ? addZero(rowsAll.indexOf(rowsAll.find(r => r.id === rowData.id)) + 1) : ''}
+         {rowData._rowLevel === 1 ? rowsAll.indexOf(rowsAll.find(r => r.id === rowData.id)) + 1 : ''}
+         {/* {rowIndex + 1} */}
       </Styled>
    );
 };

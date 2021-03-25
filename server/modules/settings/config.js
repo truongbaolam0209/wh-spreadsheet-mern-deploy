@@ -1,4 +1,6 @@
 const uuidv1 = require('uuid').v1;
+const { mongoObjectId } = require('../utils');
+
 
 const SHEET_PUBLIC_FIELDS_MAP = {
    headers: {
@@ -24,6 +26,8 @@ const SHEET_PUBLIC_FIELDS = Object.keys(SHEET_PUBLIC_FIELDS_MAP);
 
 
 const createTemplatePublicSettings = (sheetId) => {
+   const idWohhup = mongoObjectId();
+   const idSubcon = mongoObjectId();
    return {
       sheet: sheetId,
       headers: [
@@ -156,7 +160,78 @@ const createTemplatePublicSettings = (sheetId) => {
             text: 'Drawing',
          },
       ],
-      drawingTypeTree: [],
+      drawingTypeTree: [
+         {
+            id: idWohhup,
+            parentId: 'node-project-level-sheet-id',
+            treeLevel: 1,
+            expanded: true,
+            title: 'Woh Hup Private Ltd'
+         },
+         {
+            id: mongoObjectId(),
+            parentId: idWohhup,
+            treeLevel: 2,
+            expanded: true,
+            title: 'ARCHI'
+         },
+         {
+            id: mongoObjectId(),
+            parentId: idWohhup,
+            treeLevel: 2,
+            expanded: true,
+            title: 'C&S'
+         },
+         {
+            id: mongoObjectId(),
+            parentId: idWohhup,
+            treeLevel: 2,
+            expanded: true,
+            title: 'M&E'
+         },
+         {
+            id: mongoObjectId(),
+            parentId: idWohhup,
+            treeLevel: 2,
+            expanded: true,
+            title: 'PRECAST'
+         },
+         {
+            id: idSubcon,
+            parentId: 'node-project-level-sheet-id',
+            treeLevel: 1,
+            expanded: true,
+            title: 'SUBCON'
+         },
+         {
+            id: mongoObjectId(),
+            parentId: idSubcon,
+            treeLevel: 2,
+            expanded: true,
+            title: 'ARCHI (SUBCON)'
+         },
+         {
+            id: mongoObjectId(),
+            parentId: idSubcon,
+            treeLevel: 2,
+            expanded: true,
+            title: 'C&S (SUBCON)'
+         },
+         {
+            id: mongoObjectId(),
+            parentId: idSubcon,
+            treeLevel: 2,
+            expanded: true,
+            title: 'M&E (SUBCON)'
+         },
+         {
+            id: mongoObjectId(),
+            parentId: idSubcon,
+            treeLevel: 2,
+            expanded: true,
+            title: 'PRECAST (SUBCON)'
+         }
+      ],
       sheetSettings: {},
       rowSettings: {},
       colSettings: {},

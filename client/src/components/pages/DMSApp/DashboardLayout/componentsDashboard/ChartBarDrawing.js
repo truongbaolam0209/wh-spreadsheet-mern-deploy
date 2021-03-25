@@ -99,7 +99,7 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
 
    const [tooltip, setTooltip] = useState(false);
    const TooltipCustom = (props) => {
-      const { active, payload } = props;
+      const { active, payload, label } = props;
       if (!active || !tooltip) return null;
       for (const bar of payload)
          if (bar.dataKey === tooltip) {
@@ -112,7 +112,7 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
                   padding: '3px',
                   maxWidth: '170px'
                }}>
-                  {bar.name}
+                  {bar.name} - ({label})
                   <br />
                   <mark style={{ backgroundColor: bar.fill }}>({bar.value})</mark>
                </div>
@@ -132,9 +132,9 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
                }}>
                   <BarChart
                      width={type === 'resubmit' ? 300 : 420}
-                     height={type === 'resubmit' ? 300 : 350}
+                     height={type === 'resubmit' ? 230 : 290}
                      data={barDrawingCount}
-                     margin={{ top: 35, right: 15, left: 0, bottom: 20 }}
+                     margin={{ top: 15, right: 15, left: 0, bottom: 20 }}
                      padding={{ top: 5 }}
                      barSize={18}
                   >
@@ -179,7 +179,7 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
                   </BarChart>
 
                   {type === 'resubmit' && (
-                     <div style={{ transform: 'translateY(-15px)', paddingLeft: 10 }}>
+                     <div style={{ transform: 'translateY(-20px)', paddingLeft: 10 }}>
                         <StyledBadge
                            size='small'
                            color={pieChartColors2['Reject, to resubmit']}

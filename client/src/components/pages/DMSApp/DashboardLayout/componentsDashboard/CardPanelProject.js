@@ -28,7 +28,7 @@ const CardPanelProject = ({ children, title, projectsCount }) => {
                 lineHeight: '15px'
             }}
         >
-            <div style={{ margin: '20px' }}>
+            <div style={{ margin: '10px 15px' }}>
                 <Row justify='space-around'>
                     {children}
                 </Row>

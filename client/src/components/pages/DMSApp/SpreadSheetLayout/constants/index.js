@@ -70,11 +70,11 @@ const colorTextCode = {
     pp: '#9b59b6',
     pp2: '#bf95d0',
     grey9: '#b3cccc',
-};
-
-
-
-export const colorTextRow = {
+ };
+ 
+ 
+ 
+ export const colorTextRow = {
     'Approved with Comment, no submission Required': colorTextCode.blue,
     'Approved for Construction': colorTextCode.green,
     'Approved with comments, to Resubmit': colorTextCode.orange2,
@@ -82,13 +82,13 @@ export const colorTextRow = {
     'Revise In-Progress': colorTextCode.yellow,
 
     'Consultant reviewing': colorTextCode.grey2,
-
+ 
     'Not Started': colorTextCode.orange,
-
+ 
     '1st cut of drawing in-progress': colorTextCode.pp2,
     '1st cut of model in-progress': colorTextCode.pp,
     'Pending design': colorTextCode.grey9,
-};
+ };
 
 
 // export const SERVER_URL = 'http://localhost:9000/api';

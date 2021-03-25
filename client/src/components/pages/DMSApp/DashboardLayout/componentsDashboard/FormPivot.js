@@ -103,7 +103,7 @@ const FormPivot = ({ projectName, data, openDrawingTable, dataRecordedDummy, pro
             ))}
          </Select>
 
-         <div style={{ display: 'flex', paddingBottom: '20px' }}>
+         <div style={{ display: 'flex', paddingBottom: '15px' }}>
             <Button
                style={{ background: colorType.grey0, width: '100%', margin: '10px auto' }}
                onClick={sortedTableOpen}
@@ -117,11 +117,11 @@ const FormPivot = ({ projectName, data, openDrawingTable, dataRecordedDummy, pro
 
          <Divider type='horizontal' style={{ padding: '3px 0' }} />
 
-         <div style={{ fontSize: '18px', fontWeight: 'bold', width: '100%', textAlign: 'center', paddingBottom: '15px' }}>Chart report</div>
+         <div style={{ fontSize: '18px', fontWeight: 'bold', width: '100%', textAlign: 'center', paddingBottom: '10px' }}>Chart report</div>
          <Button
             style={{ background: colorType.grey4, width: '100%' }}
             onClick={() => setChartRecord(true)}
-         >Chart Report</Button>
+         >Chart Report (Experiment)</Button>
 
 
          <Modal

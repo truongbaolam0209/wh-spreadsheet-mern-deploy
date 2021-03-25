@@ -3,7 +3,8 @@ import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { columnLocked, getCompanyNameTextFnc, getTradeNameTextFnc, rowLocked } from './Cell';
+import { columnLocked, rowLocked } from './Cell';
+import { getCompanyNameFnc, getTradeNameFnc } from './FormDrawingTypeOrder';
 
 
 
@@ -27,10 +28,10 @@ const PanelFunction = (props) => {
 
    let company, trade;
    if (rowData.treeLevel >= 1) {
-      company = getCompanyNameTextFnc(dwgType, drawingTypeTree);
+      company = getCompanyNameFnc(dwgType, drawingTypeTree);
    };
    if (rowData.treeLevel >= 2) {
-      trade = getTradeNameTextFnc(dwgType, drawingTypeTree);
+      trade = getTradeNameFnc(dwgType, drawingTypeTree);
    };
 
    const isLockedByCompanyOrTrade =
@@ -126,7 +127,7 @@ const disabledBtn = ({ panelType }, btn, rowsSelectedToMove, roleTradeCompany, i
       (_rowLevel === 1 && rowsSelected.length > 0 && rowsSelectedToMove.length > 0 && btn !== 'Paste Drawings') ||
       (_rowLevel === 1 && (roleTradeCompany.role === 'View-Only User' || roleTradeCompany.role === 'Production') && btnLocked_2.indexOf(btn) !== -1) ||
 
-      (treeLevel === 1 && rowData['Drawing Number'] === 'Woh Hup Private Ltd' && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
+      (treeLevel === 1 && rowData.title === 'Woh Hup Private Ltd' && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
       (treeLevel > 1 && drawingTypeTree.find(x => x.parentId === id) && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
       (treeLevel > 1 && !drawingTypeTree.find(x => x.parentId === id) && rowsSelectedToMove.length === 0 && btn === 'Paste Drawings')
       ||

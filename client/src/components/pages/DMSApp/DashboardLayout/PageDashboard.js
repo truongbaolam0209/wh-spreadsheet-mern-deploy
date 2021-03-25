@@ -14,8 +14,8 @@ import TableDrawingList from './componentsDashboard/TableDrawingList';
 import { convertDataFromDB, createDummyRecords, getRandomIntInclusive, inputStackData } from './utils/functionDashboard';
 
 
-
 const { TabPane } = Tabs;
+
 
 
 const createDummyProductivity = () => {
@@ -124,7 +124,7 @@ const PageDashboard = ({ projectsArray, token }) => {
       });
    };
 
-   const arrBreak = Array.from(Array(20).keys());
+   const arrBreak = Array.from(Array(17).keys());
 
    return (
       <div style={{ marginTop: 10 }}>
@@ -172,7 +172,7 @@ const PageDashboard = ({ projectsArray, token }) => {
                         key={projectName}
                         projectsCount={dataDB.projectSplit.length}
                      >
-                        <Tabs onChange={() => { }} type='card'>
+                        <TabsStyled type='card'>
                            {dataProject.map(item => {
 
                               return (
@@ -274,7 +274,7 @@ const PageDashboard = ({ projectsArray, token }) => {
                                  </TabPane>
                               )
                            })}
-                        </Tabs>
+                        </TabsStyled>
                      </CardPanelProject>
 
                   );
@@ -305,6 +305,13 @@ const PageDashboard = ({ projectsArray, token }) => {
 };
 
 export default PageDashboard;
+
+
+const TabsStyled = styled(Tabs)`
+   .ant-tabs-top-bar {
+      margin-bottom: 5px;
+   }
+`;
 
 
 export const ChartPanel = ({ title, children, panel }) => {

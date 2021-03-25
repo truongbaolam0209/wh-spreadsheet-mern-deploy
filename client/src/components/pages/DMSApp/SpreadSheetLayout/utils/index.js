@@ -150,7 +150,7 @@ const _newParent = (level, iddd) => {
       children: []
    };
 };
-export const groupByHeaders = (data, headers, isDataEntry) => {
+export const groupByHeaders = (data, headers) => {
    let res = [];
    let _map = {};
    // push all rowIds have children in here
@@ -180,11 +180,9 @@ export const groupByHeaders = (data, headers, isDataEntry) => {
 
          levelParent.count++;
 
-         if (isDataEntry) {
-            levelParent.title = `${item[header] || 'No data'}: (${levelParent.count} nos)`;
-         } else {
-            levelParent['Drawing Number'] = `${item[header] || 'No data'}: (${levelParent.count} nos)`;
-         };
+
+         levelParent.title = `${item[header] || 'No data'}: (${levelParent.count} nos)`;
+
 
          if (!_mapParentIds[levelParent.id]) { // levelParent id not yet been push to parentIdsArr
             parentIdsArr.push(levelParent.id);

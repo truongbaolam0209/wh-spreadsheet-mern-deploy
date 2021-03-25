@@ -14,8 +14,8 @@ const CardPanel = ({ children, title, headColor }) => {
             style={{
                // margin: 0, boxShadow: '5px 15px 24px 5px #d2dae2',
                // border: 'none',
-               paddingBottom: 20,
-               marginBottom: 20,
+               paddingBottom: 5,
+               marginBottom: 5,
                // borderRadius: 20, 
                overflow: 'hidden'
             }}

@@ -1,24 +1,34 @@
 import { message, Tooltip, Upload } from 'antd';
 import moment from 'moment';
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { colorTextRow, colorType, imgLink } from '../../constants';
-import { Context as CellContext } from '../../contexts/cellContext';
-import { Context as ProjectContext } from '../../contexts/projectContext';
-import { Context as RowContext } from '../../contexts/rowContext';
 import PanelCalendar from '../generalComponents/PanelCalendar';
-import { getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
+import { getCompanyNameFnc, getTradeNameFnc, getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
+
 
 
 const Cell = (props) => {
 
-   const {
-      rowData, column, rowIndex, columnIndex, onRightClickCell,
-      setPosition, getCurrentDOMCell
+   let {
+      cellData, rowData, column, columns, rowIndex, columnIndex,
+      onRightClickCell, setPosition, getCurrentDOMCell, contextInput
    } = props;
 
 
-   let cellData = props.cellData;
+   const { contextCell, contextRow, contextProject } = contextInput;
+   const { stateCell, getCellModifiedTemp, setCellActive } = contextCell;
+   const { stateRow, getSheetRows } = contextRow;
+   const { stateProject } = contextProject;
+
+   const { drawingTypeTree, rowsAll, modeGroup, rowsSelected, rowsSelectedToMove, modeFilter } = stateRow;
+
+   let columnKeyToPutFolderName;
+   if (rowData.treeLevel || rowData._rowLevel < 1) {
+      columnKeyToPutFolderName = columns[1].key;
+   };
+
+
 
    if ((column.key.includes('(A)') || column.key.includes('(T)') ||
       column.key === 'Construction Issuance Date' || column.key === 'Construction Start') &&
@@ -28,16 +38,11 @@ const Cell = (props) => {
 
 
 
-   const { state: stateCell, getCellModifiedTemp, setCellActive } = useContext(CellContext);
-   const { state: stateProject } = useContext(ProjectContext);
-   const { state: stateRow, getSheetRows } = useContext(RowContext);
-   let { drawingTypeTree, rowsAll, modeGroup, rowsSelected, rowsSelectedToMove, modeFilter } = stateRow;
-
    const { roleTradeCompany } = stateProject.allDataOneSheet;
 
 
    let info = '';
-   if (rowData.treeLevel && column.key === 'Drawing Number') {
+   if (rowData.treeLevel && column.key === columnKeyToPutFolderName) {
       const node = drawingTypeTree.find(x => x.id === rowData.id);
       const branches = getTreeFlattenOfNodeInArray(drawingTypeTree, node);
 
@@ -59,7 +64,6 @@ const Cell = (props) => {
          } else {
             obj[row['Status']] = (obj[row['Status']] || 0) + 1;
          }
-
       });
 
       let str = '';
@@ -104,20 +108,30 @@ const Cell = (props) => {
 
    const cellDataTypeBtn = checkCellDateFormat(column.key);
 
-
    const getCellTempId = () => `${rowData['id']}~#&&#~${column.key}`;
 
    const cellEditDone = (value) => {
       if (rowData._rowLevel === 1) {
+
+         const parentNode = drawingTypeTree.find(x => x.id === rowData._parentRow);
+         const tradeName = getTradeNameFnc(parentNode, drawingTypeTree);
+         let cellDrgTypeFormatArrText;
+         if (tradeName.includes('(SUBCON)')) {
+            cellDrgTypeFormatArrText = ['Other'];
+         } else {
+            cellDrgTypeFormatArrText = cellDrgTypeFormat[tradeName];
+         };
+
          if (
             (cellDataTypeBtn === 'cell-type-date' && !(moment(value, 'DD/MM/YY').format('DD/MM/YY') === value) && value !== '') ||
             (column.key === 'Status' && cellStatusFormat.indexOf(value) === -1 && value !== '') ||
             (column.key === 'Use For' && cellUseForFormat.indexOf(value) === -1 && value !== '') ||
-            (column.key === 'Drg Type' && cellDrgTypeFormat.indexOf(value) === -1 && value !== '') ||
-            ((column.key === 'Model Progress' || column.key === 'Drawing Progress') && cellProgressFormatData.indexOf(value) === -1 && value !== '')
+            ((column.key === 'Model Progress' || column.key === 'Drawing Progress') && cellProgressFormatData.indexOf(value) === -1 && value !== '') ||
+            (column.key === 'Drg Type' && cellDrgTypeFormatArrText.indexOf(value) === -1 && value !== '')
          ) {
             setValueInput({ ...valueInput, current: valueInput.init });
             message.info('Data input should be in correct format', 1);
+
          } else {
             setValueInput({ ...valueInput, current: value });
 
@@ -163,6 +177,7 @@ const Cell = (props) => {
       document.addEventListener('click', EventClickToHidePanelAndInput);
       return () => document.removeEventListener('click', EventClickToHidePanelAndInput);
    }, []);
+
    const EventClickToHidePanelAndInput = (e) => {
       if (!buttonRef.current && panelRef.current) {
          setPanelData(false);
@@ -232,13 +247,20 @@ const Cell = (props) => {
       };
    }, [stateCell.cellAppliedAction]);
 
+
    useEffect(() => { // FOCUS right after press ENTER...
-      if (inputRender) inputRef.current.focus();
+      if (inputRender) {
+         inputRef.current.focus();
+      };
    }, [inputRender]);
 
+
    useEffect(() => { // Hide Button after pick on PANEL (setBtnShown fasle in pickDataSelect doesn't work)
-      setBtnShown(false);
+      if (btnShown) {
+         setBtnShown(false);
+      };
    }, [valueInput]);
+
 
    const onKeyDown = (e) => { // ENTER to hide input after finishing typing ...
       if (
@@ -270,14 +292,9 @@ const Cell = (props) => {
             onMouseLeave={onMouseLeave}
             onMouseDown={onMouseDown}
             style={{
-               width: '100%',
-               height: '100%',
-               padding: 5,
+               width: '100%', height: '100%', padding: 5, position: 'relative', color: 'black', background: 'transparent',
                paddingLeft: cellDataTypeBtn === 'cell-type-upload' ? 30 : 5,
-               position: 'relative',
-               color: 'black',
-               background: 'transparent',
-               overflow: !rowData.treeLevel && column.key === 'Drawing Number' ? 'hidden' : 'visible' // fix bug frozen panel move to the left
+               overflow: !rowData.treeLevel && column.key === columnKeyToPutFolderName ? 'hidden' : 'visible' // fix bug frozen panel move to the left
             }}
          >
             {inputRender ? (
@@ -297,18 +314,17 @@ const Cell = (props) => {
 
             ) : (
                <div style={{
-                  textOverflow: column.key === 'Drawing Number' ? 'unset' : 'ellipsis',
-                  overflow: column.key === 'Drawing Number' ? 'visible' : 'hidden',
+                  textOverflow: column.key === columnKeyToPutFolderName ? 'unset' : 'ellipsis',
+                  overflow: column.key === columnKeyToPutFolderName ? 'visible' : 'hidden',
                   whiteSpace: 'nowrap',
                   width: column.width - 30,
-                  color: colorTextRow[rowData['Status']] || 'black'
+                  color: (rowData['Status'] === 'Revise In-Progress' ? '#DAA520' : colorTextRow[rowData['Status']]) || 'black'
                }}>
                   {
                      ((column.key === 'Model Progress' || column.key === 'Drawing Progress') && <BtnProgress type={cellData} />) ||
                      (
-                        column.key === 'Drawing Number' && 
-                        (rowData.treeLevel || rowData._rowLevel < 1) && 
-                        <><span style={{ fontWeight: 'bold' }}>{cellData}</span><span>{info}</span></>
+                        columnKeyToPutFolderName && columnKeyToPutFolderName === column.key &&
+                        <><span style={{ fontWeight: 'bold' }}>{rowData.title}</span><span>{info}</span></>
                      ) ||
                      stateCell.cellsModifiedTemp[getCellTempId()] ||  // there is modified data
                      (getCellTempId() in stateCell.cellsModifiedTemp && ' ') || // there is modified data === empty, MUST BE ' ', not ''
@@ -333,14 +349,10 @@ const Cell = (props) => {
                      >
                         <Tooltip placement='topRight' title='Upload Drawing'>
                            <div style={{
-                              cursor: 'pointer',
-                              position: 'absolute',
-                              left: 4,
-                              top: 5,
-                              height: 17,
-                              width: 17,
-                              backgroundImage: `url(${imgLink.btnFileUpload})`,
-                              backgroundSize: 17
+                              cursor: 'pointer', position: 'absolute',
+                              left: 4, top: 5, height: 17, width: 17,
+                              backgroundSize: 17,
+                              backgroundImage: `url(${imgLink.btnFileUpload})`
                            }}
                               ref={buttonRef}
                            />
@@ -348,16 +360,12 @@ const Cell = (props) => {
                      </Upload>
                   ) : (
                      <div style={{
-                        cursor: 'pointer',
-                        position: 'absolute',
-                        right: 4,
-                        top: 5,
-                        height: 17,
-                        width: 17,
+                        cursor: 'pointer', position: 'absolute',
+                        right: 4, top: 5, height: 17, width: 17,
+                        backgroundSize: 17,
                         backgroundImage: cellDataTypeBtn === 'cell-type-date' ? `url(${imgLink.btnDate})`
                            : cellDataTypeBtn === 'cell-type-text' ? `url(${imgLink.btnText})`
-                              : null,
-                        backgroundSize: 17
+                              : null
                      }}
                         onMouseDown={(e) => {
                            e.stopPropagation();
@@ -373,24 +381,17 @@ const Cell = (props) => {
 
             {panelData && (
                <div style={{
-                  position: 'absolute',
-                  background: 'white',
-                  top: 30,
-                  left: 0,
-                  minWidth: column.width,
-                  zIndex: 999,
+                  position: 'absolute', background: 'white', top: 30, left: 0, zIndex: 999,
                   padding: '3px 5px 3px 7px',
                   boxShadow: 'rgba(0, 0, 0, 0.09) 0px 2px 1px, rgba(0, 0, 0, 0.09) 0px 4px 2px, rgba(0, 0, 0, 0.09) 0px 8px 4px, rgba(0, 0, 0, 0.09) 0px 16px 8px, rgba(0, 0, 0, 0.09) 0px 32px 16px',
-
-                  maxHeight: 400,
-                  overflowY: 'scroll'
-
+                  minWidth: column.width,
+                  maxHeight: 400, overflowY: 'scroll',
                }}
                   ref={panelRef}
                >
                   {cellDataTypeBtn === 'cell-type-date' ? (
                      <PanelCalendar pickDate={(item) => pickDataSelect('date', item)} />
-                  ) : getColumnsValue(rowsAll, column.key).map(item => {
+                  ) : getColumnsValue(rowsAll, column.key, { rowData, drawingTypeTree }).map(item => {
                      return (
                         <SelectStyled
                            key={(column.key === 'Drawing Progress' || column.key === 'Model Progress') ? item.key : item}
@@ -471,7 +472,25 @@ const checkCellDateFormat = (header) => {
 const cellBtnDisabled = (headerId) => {
    if (headerId === 'Index' || headerId === 'Drawing Number' || headerId === 'Drawing Name') return true;
 };
-const getColumnsValue = (rows, headerKey) => {
+const getColumnsValue = (rows, headerKey, drgTypeCheckData) => {
+   if (headerKey === 'Status') return cellStatusFormat;
+   if (headerKey === 'Use For') return cellUseForFormat;
+   if (headerKey === 'Model Progress' || headerKey === 'Drawing Progress') return cellProgressFormat;
+
+
+   if (headerKey === 'Drg Type') {
+      const { rowData, drawingTypeTree } = drgTypeCheckData;
+      const parentNode = drawingTypeTree.find(x => x.id === rowData._parentRow);
+      const tradeName = getTradeNameFnc(parentNode, drawingTypeTree);
+
+      if (tradeName.includes('(SUBCON)')) {
+         return ['Other'];
+      } else {
+         return cellDrgTypeFormat[tradeName];
+      };
+   };
+
+
    let valueArr = [];
    rows.filter(r => r._rowLevel === 1).forEach(row => {
       valueArr.push(row[headerKey]);
@@ -479,10 +498,6 @@ const getColumnsValue = (rows, headerKey) => {
    valueArr = [...new Set(valueArr)].filter(e => e);
    valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
 
-   if (headerKey === 'Status') return cellStatusFormat;
-   if (headerKey === 'Use For') return cellUseForFormat;
-   if (headerKey === 'Drg Type') return cellDrgTypeFormat;
-   if (headerKey === 'Model Progress' || headerKey === 'Drawing Progress') return cellProgressFormat;
    return valueArr;
 };
 
@@ -503,26 +518,46 @@ const cellStatusFormat = [
 
 const cellUseForFormat = [
    'Coordination',
-	'Issue for Construction',
-	'Request for Approval',
-	'Request for Confirmation',
+   'Issue for Construction',
+   'Request for Approval',
+   'Request for Confirmation',
 ];
-const cellDrgTypeFormat = [
-   'Key plan',
-   'Column wall setting out',
-   'Tile layout & detail',
-   'Reflected celing plan',
-   'Finishing layout',
-   'Door layout',
-   'Core layout & detail',
-   'Toilet',
-   'Edeck layout & detail',
-   'Staircase layout & detail',
-   'Surface drain',
-   'Lift lobby/ corridor',
-   'Material schedule',
-   'Other'
-];
+
+const cellDrgTypeFormat = {
+   'ARCHI': [
+      'Key plan',
+      'Wall setting out',
+      'Column wall setting out',
+      'Tile layout & detail',
+      'Reflected celing plan',
+      'Finishing layout',
+      'Door layout',
+      'Core layout & detail',
+      'Toilet',
+      'Edeck layout & detail',
+      'Staircase layout & detail',
+      'Surface drain',
+      'Lift lobby/ corridor',
+      'Material schedule',
+      'Other'
+   ],
+   'C&S': [
+      'CBP',
+      'Piling layout',
+      'Rebar shop drawing',
+      'Temporary work'
+   ],
+   'M&E': [
+      'CSD',
+      'Penetration drawing',
+      'M&E trade shop drawing'
+   ],
+   'PRECAST': [
+      'Precast layout',
+      'Precast detail',
+      'Precast shop drawing'
+   ],
+};
 
 const columnsLockedModeller = [
    'Model Start (T)',
@@ -561,7 +596,7 @@ export const rowLocked = (roleTradeCompany, rowData, modeGroup, drawingTypeTree)
 
    let companyName;
    if (dwgType.treeLevel >= 1) {
-      companyName = getCompanyNameTextFnc(dwgType, drawingTypeTreeClone);
+      companyName = getCompanyNameFnc(dwgType, drawingTypeTreeClone);
    };
 
    if (roleTradeCompany.role === 'Production' && companyName === 'Woh Hup Private Ltd') return false;
@@ -570,7 +605,7 @@ export const rowLocked = (roleTradeCompany, rowData, modeGroup, drawingTypeTree)
    let tradeName;
    if (companyName === 'Woh Hup Private Ltd' && dwgType.treeLevel >= 2) {
 
-      tradeName = getTradeNameTextFnc(dwgType, drawingTypeTreeClone);
+      tradeName = getTradeNameFnc(dwgType, drawingTypeTreeClone);
 
       return companyName !== roleTradeCompany.company || tradeName !== roleTradeCompany.trade;
    } else {
@@ -578,37 +613,5 @@ export const rowLocked = (roleTradeCompany, rowData, modeGroup, drawingTypeTree)
    };
 };
 
-
-export const getCompanyNameTextFnc = (dwgType, drawingTypeTreeClone) => {
-   if (dwgType.treeLevel === 1) return dwgType['Drawing Number'];
-   let result;
-   const getCompanyFnc = (dwgType, dwgTypeTree) => {
-      const parent = dwgTypeTree.find(x => x.id === dwgType.parentId);
-      if (parent.treeLevel === 1) {
-         result = parent['Drawing Number'];
-      } else {
-         getCompanyFnc(parent, dwgTypeTree);
-      };
-      return result;
-   };
-   getCompanyFnc(dwgType, drawingTypeTreeClone);
-   return result;
-};
-export const getTradeNameTextFnc = (dwgType, drawingTypeTreeClone) => {
-   const tree = drawingTypeTreeClone.filter(x => x.treeLevel !== 1);
-   if (dwgType.treeLevel === 2) return dwgType['Drawing Number'];
-   let result;
-   const getTradeFnc = (dwgType, dwgTypeTree) => {
-      const parent = dwgTypeTree.find(x => x.id === dwgType.parentId);
-      if (parent.treeLevel === 2) {
-         result = parent['Drawing Number'];
-      } else {
-         getTradeFnc(parent, dwgTypeTree);
-      };
-      return result;
-   };
-   getTradeFnc(dwgType, tree);
-   return result;
-};
 
 

@@ -1,6 +1,5 @@
 import { Divider, Icon, message, Modal } from 'antd';
 import Axios from 'axios';
-import moment from 'moment';
 import React, { forwardRef, useContext, useEffect, useRef, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import 'react-base-table/styles.css';
@@ -9,7 +8,7 @@ import { colorType, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { debounceFnc, ExcelDateToJSDate, getActionName, getHeaderWidth, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
+import { debounceFnc, getActionName, getHeaderWidth, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
 import CellHeader from './generalComponents/CellHeader';
 import { sortFnc } from './generalComponents/FormSort';
 import IconTable from './generalComponents/IconTable';
@@ -18,6 +17,7 @@ import ViewTemplateSelect from './generalComponents/ViewTemplateSelect';
 import ButtonAdminCreateAndUpdateRows from './pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
 import ButtonAdminCreateAndUpdateRowsHistory from './pageSpreadsheet/ButtonAdminCreateAndUpdateRowsHistory';
 import ButtonAdminDeleteRowsHistory from './pageSpreadsheet/ButtonAdminDeleteRowsHistory';
+import ButtonAdminUpdateProjectSettings from './pageSpreadsheet/ButtonAdminUpdateProjectSettings';
 import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
 import ButtonAdminUploadDataPDD from './pageSpreadsheet/ButtonAdminUploadDataPDD';
 import Cell, { columnLocked, rowLocked } from './pageSpreadsheet/Cell';
@@ -211,7 +211,7 @@ const PageSpreadsheet = (props) => {
 
 
 
-   const { state: stateCell, setCellActive, OverwriteCellsModified, copyTempData, applyActionOnCell } = useContext(CellContext);
+   const { state: stateCell, setCellActive, getCellModifiedTemp, OverwriteCellsModified, copyTempData, applyActionOnCell } = useContext(CellContext);
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
@@ -431,6 +431,7 @@ const PageSpreadsheet = (props) => {
             const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
 
 
+
             fetchDataOneSheet({
                ...res.data,
                email, projectId, projectName, role, token, company, companies, roleTradeCompany
@@ -463,7 +464,6 @@ const PageSpreadsheet = (props) => {
 
 
    const [expandedRows, setExpandedRows] = useState([]);
-   const [expandColumnKey, setExpandColumnKey] = useState('Drawing Number');
    const [cellSearchFound, setCellSearchFound] = useState(null);
    const [cellHistoryFound, setCellHistoryFound] = useState(null);
 
@@ -564,7 +564,15 @@ const PageSpreadsheet = (props) => {
       let headersObj = [{
          key: 'Index', dataKey: 'Index', title: '', width: 50,
          frozen: Column.FrozenDirection.LEFT,
-         cellRenderer: <CellIndex />,
+         cellRenderer: (
+            <CellIndex
+               contextInput={{
+                  contextCell: { setCellActive },
+                  contextRow: { stateRow, getSheetRows },
+                  contextProject: { stateProject },
+               }}
+            />
+         ),
          style: { padding: 0, margin: 0 }
       }];
       arr.forEach((hd, index) => {
@@ -583,6 +591,12 @@ const PageSpreadsheet = (props) => {
                   setPosition={setPosition}
                   onRightClickCell={onRightClickCell}
                   getCurrentDOMCell={getCurrentDOMCell}
+
+                  contextInput={{
+                     contextCell: { stateCell, getCellModifiedTemp, setCellActive },
+                     contextRow: { stateRow, getSheetRows },
+                     contextProject: { stateProject },
+                  }}
                />
             ),
             className: (props) => {
@@ -644,6 +658,7 @@ const PageSpreadsheet = (props) => {
                   <ButtonAdminCreateAndUpdateRows />
                   <ButtonAdminDeleteRowsHistory />
                   <ButtonAdminCreateAndUpdateRowsHistory />
+                  <ButtonAdminUpdateProjectSettings />
                   <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                </div>
             )}
@@ -672,7 +687,7 @@ const PageSpreadsheet = (props) => {
                data={arrangeDrawingTypeFinal(stateRow)}
                expandedRowKeys={expandedRows}
 
-               expandColumnKey={expandColumnKey}
+               expandColumnKey={stateProject.userData.headersShown[0]}
 
                expandIconProps={expandIconProps}
                components={{ ExpandIcon }}
@@ -776,7 +791,6 @@ const TableStyled = styled(Table)`
    };
    .row-drawing-type {
       background-color: ${colorType.grey3};
-      /* font-weight: bold; */
    };
    .row-selected {
       background-color: ${colorType.cellHighlighted};
@@ -1032,7 +1046,7 @@ const arrangeDrawingTypeFinal = (stateRow) => {
 
 
    if (modeGroup.length > 0) {
-      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup, false);
+      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup);
       return rows;
    };
 
@@ -1126,7 +1140,7 @@ const rearrangeRowsNotMatchTreeNode = (rows, rowsArranged, drawingTypeTree) => {
       if (nodeInTree) {
          const newId = mongoObjectId();
          treeNodesToAdd.push({
-            'Drawing Number': 'New Drawing Type',
+            title: 'New Drawing Type',
             id: newId,
             parentId: nodeInTree.id,
             treeLevel: nodeInTree.treeLevel + 1,
@@ -1206,64 +1220,6 @@ const getUserRoleTradeCompany = (role, company) => {
 
    return { role, trade: null, company };
 };
-
-
-
-
-
-
-
-
-
-
-const compareDataExcelVsDB = (db, excel) => {
-
-   const { rows, rowHistories, settings } = db;
-   const settingsPDD = settings.find(x => x.sheet === 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q' && x.drawingTypeTree);
-   const { headers } = settingsPDD;
-
-   const dwgNumberKey = headers.find(hd => hd.text === 'Drawing Number').key;
-
-   let rowsToUpdate = [];
-   let rowsToDeleteHistory = [];
-   let rowsHistoryIdToDelete = [];
-   excel.forEach((dt, i) => {
-      const { data } = dt;
-
-      if (data['Drawing Number']) {
-         const row = rows.find(r => r.data && r.data[dwgNumberKey] === data['Drawing Number']);
-         if (row) {
-
-            if (data['Delete history'] === 'Delete history') {
-               rowsToDeleteHistory.push(row._id);
-            };
-            let obj = { _id: row._id };
-
-            let dataObj = {};
-            headers.forEach(hd => {
-               dataObj[hd.key] = data[hd.text] || '';
-               if (
-                  Number.isInteger(dataObj[hd.key]) &&
-                  dataObj[hd.key] >= 10000 &&
-                  dataObj[hd.key] <= 99999
-               ) {
-                  dataObj[hd.key] = moment(ExcelDateToJSDate(dataObj[hd.key])).format('DD/MM/YY')
-               };
-            });
-            obj.data = dataObj;
-            rowsToUpdate.push(obj);
-         };
-      };
-   });
-
-   rowsToDeleteHistory.forEach(id => {
-      const rowsHistory = rowHistories.filter(x => x.row === id);
-      rowsHistoryIdToDelete = [...rowsHistoryIdToDelete, ...rowsHistory.map(x => x._id)];
-   });
-};
-// checkData(db, excel);
-
-
 
 
 

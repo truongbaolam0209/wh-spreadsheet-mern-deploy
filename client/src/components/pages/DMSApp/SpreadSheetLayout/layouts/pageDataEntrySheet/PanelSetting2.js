@@ -875,7 +875,7 @@ const PanelSetting2 = (props) => {
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={deleteDrawing}
-               content={`Are you sure to delete the: ${panelType.cellProps.rowData['Drawing Number'] || ' '} - ${panelType.cellProps.rowData['Drawing Name'] || ' '} ?`}
+               content={`Are you sure to delete this drawing ?`}
             />
          )}
 

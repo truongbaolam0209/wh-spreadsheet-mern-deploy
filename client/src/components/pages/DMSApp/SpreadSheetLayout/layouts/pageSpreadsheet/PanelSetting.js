@@ -292,8 +292,6 @@ const PanelSetting = (props) => {
 
       let drawingTypeTreeUpdate = flattenAllTreeChildNode1(drawingTypeTreeNew);
       drawingTypeTreeUpdate.forEach(item => {
-         item['Drawing Number'] = item.title;
-         delete item.title;
          delete item.children;
       });
 
@@ -548,7 +546,7 @@ const PanelSetting = (props) => {
                const treeNode = treeDBModifiedToSave.find(x => x.id === idP);
                const newIdParent = mongoObjectId();
                treeDBModifiedToSave.push({
-                  'Drawing Number': 'New Drawing Type',
+                  title: 'New Drawing Type',
                   id: newIdParent,
                   parentId: treeNode.id,
                   treeLevel: treeNode.treeLevel + 1,
@@ -636,7 +634,7 @@ const PanelSetting = (props) => {
             nodesToRemoveFromDB.forEach(fd => {
                activityRecordedArr.push({
                   id: fd.id, email, createdAt: new Date(), action: 'Delete Drawing Type',
-                  [headerKeyDrawingNumber]: fd['Drawing Number'],
+                  [headerKeyDrawingNumber]: fd.title,
                });
             });
          };
@@ -644,7 +642,7 @@ const PanelSetting = (props) => {
             nodesToAddToDB.forEach(fd => {
                activityRecordedArr.push({
                   id: fd.id, email, createdAt: new Date(), action: 'Create Drawing Type',
-                  [headerKeyDrawingNumber]: fd['Drawing Number'],
+                  [headerKeyDrawingNumber]: fd.title,
                });
             });
          };

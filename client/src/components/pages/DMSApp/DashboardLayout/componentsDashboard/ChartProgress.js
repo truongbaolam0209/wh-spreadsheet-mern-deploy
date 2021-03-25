@@ -21,22 +21,18 @@ const ChartProgress = ({ data, openDrawingTable, projectId, title }) => {
    const dataInput = [
       {
          name: `Drawing late start ${drawingsLateStart.length}/${rows.length}`,
-         // name: '1',
          value: drawingsLateStart.length
       },
       {
          name: `Drawing late submission ${drawingsLateSubmission.length}/${rows.length}`,
-         // name: '2',
          value: drawingsLateSubmission.length
       },
       {
          name: `Drawing late approval ${drawingsLateApproval.length}/${rows.length}`,
-         // name: '3',
          value: drawingsLateApproval.length
       },
       {
          name: `Late for construction ${drawingsLateConstruction.length}/${rows.length}`,
-         // name: '4',
          value: drawingsLateConstruction.length
       }
    ];
@@ -77,7 +73,7 @@ const ChartProgress = ({ data, openDrawingTable, projectId, title }) => {
 
    return (
       <ChartPanel title={title} panel={panel}>
-         <div style={{ width: '100%', margin: '25px auto' }}>
+         <div style={{ width: '100%', margin: '20px auto' }}>
 
             {dataInput.map(item => (
                <Container key={item.name} onClick={() => progressBarClick(item.name)}>
@@ -86,7 +82,7 @@ const ChartProgress = ({ data, openDrawingTable, projectId, title }) => {
                      trailColor='#eee'
                      strokeColor={colorType.red}
                      percent={Math.round(item.value / rows.length * 100)}
-                     style={{ paddingBottom: 29 }}
+                     style={{ paddingBottom: 15, paddingRight: 30 }}
                      format={e => `${e}%`}
                   />
                </Container>
@@ -119,6 +115,7 @@ const Container = styled.div`
          font-weight: bold;
       }
    }
+   padding-left: 10px;
 `;
 
 
