@@ -51,7 +51,6 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
          let nodeTitle = node.title;
          const trade = nodeTitle.slice(0, nodeTitle.length - 9);
          const listCompany = companies.filter(x => x.companyType === 'Sub-con' && x.trade === trade);
-         console.log('listCompany', listCompany);
          setTradeAndCompanyAndType({ node, dataTreeArray: listCompany.map(x => x.company) });
 
       } else {

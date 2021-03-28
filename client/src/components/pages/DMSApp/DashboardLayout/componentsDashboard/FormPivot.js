@@ -107,7 +107,7 @@ const FormPivot = ({ projectName, data, openDrawingTable, dataRecordedDummy, pro
             <Button
                style={{ background: colorType.grey0, width: '100%', margin: '10px auto' }}
                onClick={sortedTableOpen}
-            >Go to sorted table</Button>
+            >Sorted table</Button>
 
             <Button
                style={{ background: colorType.grey0, width: '100%', margin: '10px auto' }}
@@ -121,6 +121,7 @@ const FormPivot = ({ projectName, data, openDrawingTable, dataRecordedDummy, pro
          <Button
             style={{ background: colorType.grey4, width: '100%' }}
             onClick={() => setChartRecord(true)}
+            disabled={true}
          >Chart Report (Experiment)</Button>
 
 

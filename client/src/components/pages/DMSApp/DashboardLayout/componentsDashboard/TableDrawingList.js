@@ -252,6 +252,7 @@ const TableDrawingList = ({ data }) => {
             dataForStyled={{ cellSearchFound }}
             fixed
             columns={renderColumns(tableData.headers, tableData.nosColumnFixed)}
+
             data={arrangeDrawingTypeFinal({
                rowsAll: tableData.rowsAll,
                modeFilter: tableData.modeFilter,

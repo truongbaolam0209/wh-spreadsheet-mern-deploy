@@ -28,7 +28,7 @@ const drawingLateInputChart = (data, title) => {
 
 const ChartBarDrawingLate = ({ data, title }) => {
 
-   
+
    const inputData = drawingLateInputChart(data, title);
 
    const LabelCustomStackedTotal = (props) => {
@@ -51,6 +51,7 @@ const ChartBarDrawingLate = ({ data, title }) => {
    const totalHeight = 552;
    const chartHeight = 320;
 
+
    return (
 
       <CardPanel
@@ -65,7 +66,7 @@ const ChartBarDrawingLate = ({ data, title }) => {
                   height={chartHeight}
                   margin={{ top: 35, right: 20, left: 15, bottom: 60 }}
                   padding={{ top: 10 }}
-                  barSize={20}
+                  barSize={17}
                >
                   <XAxis dataKey='name' textAnchor='end' angle={-25} interval={0} scale='point' padding={{ left: 50, right: 50 }} />
                   <YAxis />

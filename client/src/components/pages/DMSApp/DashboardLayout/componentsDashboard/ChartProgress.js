@@ -20,19 +20,19 @@ const ChartProgress = ({ data, openDrawingTable, projectId, title }) => {
 
    const dataInput = [
       {
-         name: `Drawing late start ${drawingsLateStart.length}/${rows.length}`,
+         name: `Drawing late start`,
          value: drawingsLateStart.length
       },
       {
-         name: `Drawing late submission ${drawingsLateSubmission.length}/${rows.length}`,
+         name: `Drawing late submission`,
          value: drawingsLateSubmission.length
       },
       {
-         name: `Drawing late approval ${drawingsLateApproval.length}/${rows.length}`,
+         name: `Drawing late approval`,
          value: drawingsLateApproval.length
       },
       {
-         name: `Late for construction ${drawingsLateConstruction.length}/${rows.length}`,
+         name: `Late for construction`,
          value: drawingsLateConstruction.length
       }
    ];
@@ -77,13 +77,14 @@ const ChartProgress = ({ data, openDrawingTable, projectId, title }) => {
 
             {dataInput.map(item => (
                <Container key={item.name} onClick={() => progressBarClick(item.name)}>
-                  <span>{item.name}</span>
+                  <span>{item.name}: </span><span style={{ fontWeight: 'bold', color: '#b33939' }}>{item.value}</span><span>{`/${rows.length}`}</span>
                   <Progress
                      trailColor='#eee'
                      strokeColor={colorType.red}
                      percent={Math.round(item.value / rows.length * 100)}
                      style={{ paddingBottom: 15, paddingRight: 30 }}
-                     format={e => `${e}%`}
+                     // format={e => `${e}%`}
+                     format={e => null}
                   />
                </Container>
             ))}
@@ -110,12 +111,12 @@ export default ChartProgress;
 const Container = styled.div`
    :hover {
       cursor: pointer;
-      span {
+      /* span {
          color: #b33939;
          font-weight: bold;
-      }
+      } */
    }
-   padding-left: 10px;
+   padding-left: 0;
 `;
 
 

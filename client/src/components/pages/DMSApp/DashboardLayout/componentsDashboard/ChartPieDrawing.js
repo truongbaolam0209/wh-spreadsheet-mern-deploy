@@ -70,7 +70,7 @@ const ChartPieDrawing = ({ data, openDrawingTable, projectId, title }) => {
                <PieChart width={290} height={260} style={{ margin: '0 auto' }}>
                   <Pie
                      data={dataChart}
-                     cx={150}
+                     cx={140}
                      cy={130}
                      dataKey='value'
                      outerRadius={90}

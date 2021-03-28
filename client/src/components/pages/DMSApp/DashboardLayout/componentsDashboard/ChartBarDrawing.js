@@ -121,6 +121,29 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
       return null;
    };
 
+   const windowSize = window.innerWidth >= 1200 && window.innerWidth < 1600
+      ? 'xl'
+      : window.innerWidth >= 1600
+         ? 'xxl'
+         : null;
+
+   const chartWidth = windowSize === 'xl' && (type === 'trade' || type === 'rev')
+      ? 350
+      : windowSize === 'xxl' && (type === 'trade' || type === 'rev')
+         ? 320
+         : windowSize === 'xl' && type === 'resubmit'
+            ? 350
+            : windowSize === 'xxl' && type === 'resubmit'
+               ? 270
+               : windowSize === 'xl' && type === 'coordinator'
+                  ? 340
+                  : windowSize === 'xxl' && type === 'coordinator'
+                     ? 390
+                     : windowSize === 'xl' && type === 'modeller'
+                        ? 600
+                        : windowSize === 'xxl' && type === 'modeller'
+                           ? 600
+                           : 500
 
    return (
       <>
@@ -131,12 +154,23 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
                   // display: 'table', 
                }}>
                   <BarChart
-                     width={type === 'resubmit' ? 300 : 420}
+                     width={type === 'resubmit'
+                        ? 300
+                        : type === 'modeller'
+                           ? 520
+                           : type === 'rev'
+                              ? 350
+                              : type === 'coordinator'
+                                 ? 420
+                                 : 500
+                     }
+                     width={chartWidth}
+
                      height={type === 'resubmit' ? 230 : 290}
                      data={barDrawingCount}
-                     margin={{ top: 15, right: 15, left: 0, bottom: 20 }}
+                     margin={{ top: 15, right: 0, left: 0, bottom: 20 }}
                      padding={{ top: 5 }}
-                     barSize={18}
+                     barSize={15}
                   >
                      <CartesianGrid strokeDasharray='3 3' />
                      {type === 'rev' || type === 'resubmit' ? (
@@ -180,11 +214,13 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
 
                   {type === 'resubmit' && (
                      <div style={{ transform: 'translateY(-20px)', paddingLeft: 10 }}>
-                        <StyledBadge
-                           size='small'
-                           color={pieChartColors2['Reject, to resubmit']}
-                           text={'Reject, to resubmit'}
-                        />
+                        <div style={{ marginRight: 10 }}>
+                           <StyledBadge
+                              size='small'
+                              color={pieChartColors2['Reject, to resubmit']}
+                              text={'Reject, to resubmit'}
+                           />
+                        </div>
                         <StyledBadge
                            size='small'
                            color={pieChartColors2['Approved in previous version but need resubmit']}

@@ -126,7 +126,7 @@ const ChartBarStack = ({ data, title, dummyProductivity }) => {
                   height={chartHeight}
                   margin={{ top: 35, right: 20, left: 15, bottom: 60 }}
                   padding={{ top: 10 }}
-                  barSize={title === 'Drawing Status' ? 20 : 10}
+                  barSize={title === 'Drawing Status' ? 17 : 9}
                >
                   <CartesianGrid strokeDasharray='3 3' />
                   <XAxis tickSize={3} dataKey='name' textAnchor='end' angle={-25} interval={0} scale='point' padding={{ left: 50, right: 50 }} />

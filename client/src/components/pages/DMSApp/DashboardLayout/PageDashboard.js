@@ -126,7 +126,10 @@ const PageDashboard = ({ projectsArray, token }) => {
 
    const arrBreak = Array.from(Array(17).keys());
 
+
    return (
+      // <div style={{ display: 'flex' }}>
+      //    <div style={{ width: 180, background: 'red', height: 800 }}></div>
       <div style={{ marginTop: 10 }}>
          <Row justify='space-around' style={{ margin: '10px 0 5px 0' }}>
             {dataDB && dataDB.projectSplit.length > 1 && (
@@ -193,7 +196,18 @@ const PageDashboard = ({ projectsArray, token }) => {
                                        projectId={projectId}
                                     />
 
-                                    {window.innerWidth < 1200 && arrBreak.map((n, i) => <br key={i} />)}
+                                    <ChartPanel title='Sorted table by category' panel={item.panel}>
+                                       <FormPivot
+                                          data={item}
+                                          openDrawingTable={openDrawingTable}
+                                          projectName={projectName}
+                                          projectId={projectId}
+                                          dataRecordedDummy={createDummyRecords()}
+                                       />
+                                    </ChartPanel>
+
+
+                                    {(window.innerWidth >= 1600 && item.panel === 'OVERALL') && arrBreak.map((n, i) => <br key={i} />)}
 
                                     <ChartPieDrawing
                                        title='Drawing Status'
@@ -201,6 +215,7 @@ const PageDashboard = ({ projectsArray, token }) => {
                                        openDrawingTable={openDrawingTable}
                                        projectId={projectId}
                                     />
+
 
                                     <ChartPanel title='Status Legend' panel={item.panel}>
                                        <div style={{ paddingTop: 25 }}>
@@ -217,38 +232,27 @@ const PageDashboard = ({ projectsArray, token }) => {
                                     </ChartPanel>
 
 
-                                    {item.panel === 'OVERALL' && (
+                                    {item.panel === 'OVERALL' ? (
+                                       <ChartBarDrawing
+                                          title='Status of drawing per trade'
+                                          type='trade'
+                                          data={item}
+                                          openDrawingTable={openDrawingTable}
+                                          projectId={projectId}
+                                       />
+                                    ) : (
                                        <>
-                                          {arrBreak.map((n, i) => <br key={i} />)}
+                                          {(window.innerWidth >= 1600 && item.panel !== 'OVERALL') && arrBreak.map((n, i) => <br key={i} />)}
                                           <ChartBarDrawing
-                                             title='Status of drawing per trade'
-                                             type='trade'
+                                             title='Status of drawing per revision'
+                                             type='rev'
                                              data={item}
                                              openDrawingTable={openDrawingTable}
                                              projectId={projectId}
                                           />
-                                       </>
-                                    )}
-
-                                    {(window.innerWidth < 1200 && item.panel !== 'OVERALL') && arrBreak.map((n, i) => <br key={i} />)}
-                                    <ChartPanel title='Sorted table by category' panel={item.panel}>
-                                       <FormPivot
-                                          data={item}
-                                          openDrawingTable={openDrawingTable}
-                                          projectName={projectName}
-                                          projectId={projectId}
-                                          dataRecordedDummy={createDummyRecords()}
-                                       />
-                                    </ChartPanel>
-
-
-                                    {item.panel !== 'OVERALL' && (
-                                       <>
-                                          {arrBreak.map((n, i) => <br key={i} />)}
-
                                           <ChartBarDrawing
-                                             title='Status of drawing per revision'
-                                             type='rev'
+                                             title='Drawing by coordinator'
+                                             type='coordinator'
                                              data={item}
                                              openDrawingTable={openDrawingTable}
                                              projectId={projectId}
@@ -257,14 +261,6 @@ const PageDashboard = ({ projectsArray, token }) => {
                                           <ChartBarDrawing
                                              title='Drawing by modeller'
                                              type='modeller'
-                                             data={item}
-                                             openDrawingTable={openDrawingTable}
-                                             projectId={projectId}
-                                          />
-
-                                          <ChartBarDrawing
-                                             title='Drawing by coordinator'
-                                             type='coordinator'
                                              data={item}
                                              openDrawingTable={openDrawingTable}
                                              projectId={projectId}
@@ -301,6 +297,8 @@ const PageDashboard = ({ projectsArray, token }) => {
             </Modal>
          )}
       </div>
+
+      // </div>
    );
 };
 
@@ -316,30 +314,73 @@ const TabsStyled = styled(Tabs)`
 
 export const ChartPanel = ({ title, children, panel }) => {
 
-   const xl = panel !== 'OVERALL' ? (
+   const xxl = panel !== 'OVERALL' ? (
       title === 'Overdue submissions'
          ? 4
-         : title === 'Status Legend'
-            ? 4
-            : title === 'Sorted table by category' || title === 'Drawing Status'
+         : title === 'No of drawing to resubmit'
+            ? 6
+            : title === 'Drawing Status'
                ? 5
-               : title === 'No of drawing to resubmit'
-                  ? 6
-                  : 8
+               : title === 'Status Legend'
+                  ? 5
+                  : title === 'Status of drawing per revision'
+                     ? 6
+                     : title === 'Drawing by coordinator'
+                        ? 7
+                        : title === 'Drawing by modeller'
+                           ? 11
+                           : 4
    ) : (
-      title === 'Overdue submissions' ||
-         title === 'Drawing Status' ||
-         title === 'Status Legend' ||
-         title === 'No of drawing to resubmit'
-         ? 6
-         : title === 'Status of drawing per trade'
-            ? 10
-            : 5
+      title === 'Overdue submissions'
+         ? 7
+         : title === 'No of drawing to resubmit'
+            ? 9
+            : title === 'Drawing Status'
+               ? 7
+               : title === 'Status of drawing per trade'
+                  ? 7
+                  : title === 'Status Legend'
+                     ? 7
+                     : 6
    );
 
 
+   const xl = panel !== 'OVERALL' ? (
+      title === 'Overdue submissions'
+         ? 8
+         : title === 'No of drawing to resubmit'
+            ? 10
+            : title === 'Drawing Status'
+               ? 8
+               : title === 'Status Legend'
+                  ? 7
+                  : title === 'Status of drawing per revision'
+                     ? 9
+                     : title === 'Drawing by coordinator'
+                        ? 9
+                        : title === 'Drawing by modeller'
+                           ? 15
+                           : 6
+   ) : (
+      title === 'Overdue submissions'
+         ? 8
+         : title === 'No of drawing to resubmit'
+            ? 10
+            : title === 'Drawing Status'
+               ? 8
+               : title === 'Status of drawing per trade'
+                  ? 9
+                  : title === 'Status Legend'
+                     ? 7
+                     : 6
+   );
+
+
+
+
+
    return (
-      <Col style={{ marginBottom: 10, padding: 5 }} xs={24} md={12} xl={xl}>
+      <Col style={{ marginBottom: 10, padding: 5 }} xs={24} md={12} xl={xl} xxl={xxl}>
          <div style={{ fontSize: '18px', textAlign: 'center', fontWeight: 'bold' }}>{title}</div>
          {children}
       </Col>
