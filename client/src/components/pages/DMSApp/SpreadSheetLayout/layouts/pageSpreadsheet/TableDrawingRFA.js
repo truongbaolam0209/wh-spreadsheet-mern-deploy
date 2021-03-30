@@ -5,7 +5,7 @@ import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { getHeaderWidth } from '../../utils';
-import ButtonGroupComp from './ButtonGroupComp';
+import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
 
 
 const Table = (props) => {

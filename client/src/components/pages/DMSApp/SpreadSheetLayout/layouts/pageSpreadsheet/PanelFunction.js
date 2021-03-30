@@ -22,6 +22,7 @@ const PanelFunction = (props) => {
    const { rowData, column } = panelType.cellProps;
 
    const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key);
+
    const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
 
    const dwgType = drawingTypeTree.find(x => x.id === rowData.id);

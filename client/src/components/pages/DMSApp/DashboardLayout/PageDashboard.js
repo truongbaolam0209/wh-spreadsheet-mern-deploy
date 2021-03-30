@@ -182,7 +182,7 @@ const PageDashboard = ({ projectsArray, token }) => {
                                  <TabPane tab={item.panel} key={item.panel}>
 
                                     <ChartProgress
-                                       title='Overdue submissions'
+                                       title='Summary of submissions'
                                        data={item}
                                        openDrawingTable={openDrawingTable}
                                        projectId={projectId}
@@ -315,7 +315,7 @@ const TabsStyled = styled(Tabs)`
 export const ChartPanel = ({ title, children, panel }) => {
 
    const xxl = panel !== 'OVERALL' ? (
-      title === 'Overdue submissions'
+      title === 'Summary of submissions'
          ? 4
          : title === 'No of drawing to resubmit'
             ? 6
@@ -331,7 +331,7 @@ export const ChartPanel = ({ title, children, panel }) => {
                            ? 11
                            : 4
    ) : (
-      title === 'Overdue submissions'
+      title === 'Summary of submissions'
          ? 7
          : title === 'No of drawing to resubmit'
             ? 9
@@ -346,7 +346,7 @@ export const ChartPanel = ({ title, children, panel }) => {
 
 
    const xl = panel !== 'OVERALL' ? (
-      title === 'Overdue submissions'
+      title === 'Summary of submissions'
          ? 8
          : title === 'No of drawing to resubmit'
             ? 10
@@ -362,7 +362,7 @@ export const ChartPanel = ({ title, children, panel }) => {
                            ? 15
                            : 6
    ) : (
-      title === 'Overdue submissions'
+      title === 'Summary of submissions'
          ? 8
          : title === 'No of drawing to resubmit'
             ? 10

@@ -2,24 +2,23 @@ import moment from 'moment';
 
 
 export const inputStackData = [
-   'Approved for Construction',
-   'Approved with Comment, no submission Required',
-   'Revise In-Progress',
-   'Approved with comments, to Resubmit',
-   'Reject and resubmit',
+   'Approved, no resubmission required',
+   'Approved with comments, no resubmission required',
+   'Approved with comments, resubmission required',
+   'Rejected, to resubmit',
    'Consultant reviewing',
    'Pending design',
+   'Revision in progress',
    '1st cut of drawing in-progress',
    '1st cut of model in-progress',
    'Not Started',
 ];
 const inputStackResubmit = [
    'Approved in previous version but need resubmit',
-   'Reject, to resubmit',
+   'Rejected, to resubmit',
 ];
 
 export const converToInputStack = (data) => {
-
    let output = [];
    data.forEach(item => {
       let arr = { ...item };
@@ -32,12 +31,8 @@ export const converToInputStack = (data) => {
    });
    return [...new Set(output)];
 };
-
-
 export const sortStatusOrder = (data) => {
-
    const statusArr = [...data];
-
    let arr = [];
    inputStackData.forEach(element => {
       statusArr.forEach(e => {
@@ -47,8 +42,7 @@ export const sortStatusOrder = (data) => {
    if (arr.length === 0) return statusArr;
    return arr;
 };
-
-const checkDiffDates = (dateInput1, dateInput2) => {
+export const checkDiffDates = (dateInput1, dateInput2) => {
    let date1 = dateInput1;
    let date2 = dateInput2;
    if (dateInput1 && dateInput1.length === 8 && dateInput1.includes('/')) date1 = moment(dateInput1, 'DD/MM/YY').format('YYYY-MM-DD');
@@ -60,75 +54,10 @@ const checkDiffDates = (dateInput1, dateInput2) => {
       return moment(date1).diff(moment(), 'days');
    };
 };
-
-
-export const getDrawingLateNow1 = (drawings, type) => {
-   const conditionArray1 = [
-      'Approved for Construction',
-      'Approved with Comment, no submission Required',
-      'Consultant reviewing'
-   ];
-   const conditionArray2 = [
-      'Approved for Construction',
-      'Approved with Comment, no submission Required',
-   ];
-
-   let rowsLateOutput;
-
-
-
-   if (type === 'drawingsLateStart') {
-      rowsLateOutput = drawings.filter(r => {
-         return conditionArray1.indexOf(r.Status) === -1 &&
-            r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (T)']) < 0 &&
-            (
-               !r['Drawing Start (A)'] ||
-               (r['Drawing Start (A)'] && r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (A)'], r['Drawing Start (T)']) > 0)
-            );
-      });
-   } else if (type === 'drawingsLateSubmission') {
-      rowsLateOutput = drawings.filter(r => {
-         return conditionArray1.indexOf(r.Status) === -1 &&
-            r['Drg To Consultant (T)'] && 
-            checkDiffDates(r['Drg To Consultant (T)']) < 0 &&
-            !r['Drg To Consultant (A)'];
-      });
-   } else if (type === 'drawingsLateApproval') {
-      rowsLateOutput = drawings.filter(r => {
-         return conditionArray2.indexOf(r.Status) === -1 &&
-            r['Get Approval (T)'] && checkDiffDates(r['Get Approval (T)']) < 0 &&
-            (
-               !r['Get Approval (A)'] ||
-               (r['Get Approval (A)'] && r['Get Approval (T)'] && checkDiffDates(r['Get Approval (A)'], r['Get Approval (T)']) > 0)
-            );
-      });
-   } else if (type === 'drawingsLateConstruction') {
-      rowsLateOutput = drawings.filter(r => {
-         return conditionArray2.indexOf(r.Status) === -1 &&
-            (
-               !r['Drg To Consultant (A)'] ||
-               (r['Get Approval (A)'] && r['Construction Issuance Date'] && checkDiffDates(r['Get Approval (A)'], r['Construction Issuance Date']) > 0)
-            );
-      });
-   };
-   return rowsLateOutput;
-};
-
-
-
-
-
 export const formatStringNameToId = (str) => {
    let mystring = str.replace(/ /g, '').replace(/\(|\)/g, '');
    return mystring.charAt(0).toLowerCase() + mystring.slice(1);
 };
-
-
-
-
-
-
-
 const randomInteger = (min, max) => {
    return Math.floor(Math.random() * (max - min + 1)) + min;
 };
@@ -178,12 +107,6 @@ export const createDummyRecords = () => {
    });
    return recordArray;
 };
-
-
-
-
-
-
 const getRandomInt = (min, max) => {
    min = Math.ceil(min);
    max = Math.floor(max);
@@ -384,194 +307,10 @@ const countDrawingsByColumnAndStatus = (rows, column) => {
    return { arrCount, objDrawings };
 };
 
-const countDrawingsByRevAndStatus = (rows) => {
-   let valueArray = getUniqueValueByColumns(rows, 'Rev').sort();
-   valueArray.unshift('NS');
-
-   let arrCount = [];
-   let objDrawings = {};
-   valueArray.forEach(columnValue => {
-      let obj = {};
-      let objDwgs = {};
-      let rowsFilter;
-      if (columnValue !== 'NS') {
-         rowsFilter = rows.filter(r => {
-            return r['Rev'] === columnValue &&
-               r.Status !== 'Not Started' &&
-               r.Status !== '1st cut of model in-progress' &&
-               r.Status !== '1st cut of drawing in-progress';
-         });
-      } else {
-         rowsFilter = rows.filter(r => {
-            return r.Status === 'Not Started' ||
-               r.Status === '1st cut of model in-progress' ||
-               r.Status === '1st cut of drawing in-progress';
-         });
-      };
-      rowsFilter.forEach(r => {
-         obj[r.Status] = (obj[r.Status] || 0) + 1;
-         objDwgs[r.Status] = [...objDwgs[r.Status] || [], r];
-      });
-      obj.name = columnValue;
-      arrCount.push(obj);
-      objDrawings[columnValue] = objDwgs;
-   });
-   return { arrCount, objDrawings };
-};
-const convertToInputDataForChart = (rows, rowsHistory, headers) => {
-
-   rows.forEach(r => {
-      if (!r.Rev) r.Rev = '0';
-      r.Rev = r.Rev.toUpperCase();
-
-      if (!r.Status) r.Status = 'Not Started';
-
-      if (!r.Modeller) r.Modeller = 'Not assigned';
-      r.Modeller = r.Modeller.toUpperCase();
-
-      if (!r['Coordinator In Charge']) r['Coordinator In Charge'] = 'Not assigned';
-      r['Coordinator In Charge'] = r['Coordinator In Charge'].toUpperCase();
-   });
 
 
 
 
-
-   let inputStack = getUniqueValueByColumns(rows, 'Status');
-
-
-   const { arrCount: barDrawingRevCount, objDrawings: barDrawingRevDrawings } = countDrawingsByRevAndStatus(rows);
-   let { arrCount: barDrawingModellerCount, objDrawings: barDrawingModellerDrawings } = countDrawingsByColumnAndStatus(rows, 'Modeller');
-   let { arrCount: barDrawingCoordinatorCount, objDrawings: barDrawingCoordinatorDrawings } = countDrawingsByColumnAndStatus(rows, 'Coordinator In Charge');
-
-   let itemNoData1 = barDrawingModellerCount.filter(x => x.name === 'Not assigned');
-   let itemRest1 = barDrawingModellerCount.filter(x => x.name !== 'Not assigned');
-   barDrawingModellerCount = [...itemNoData1, ...itemRest1];
-
-   let itemNoData2 = barDrawingCoordinatorCount.filter(x => x.name === 'Not assigned');
-   let itemRest2 = barDrawingCoordinatorCount.filter(x => x.name !== 'Not assigned');
-   barDrawingCoordinatorCount = [...itemNoData2, ...itemRest2];
-
-
-
-
-   let pieDrawingStatusCount = {};
-   let pieDrawingStatusDrawings = {};
-   inputStack.forEach(stt => {
-      let rowArr = rows.filter(r => r.Status === stt);
-      rowArr.forEach(r => {
-         pieDrawingStatusCount[stt] = (pieDrawingStatusCount[stt] || 0) + 1;
-      });
-      pieDrawingStatusDrawings[stt] = rowArr;
-   });
-
-
-   const drawingsLateSubmission = getDrawingLateNow1(rows, 'drawingsLateSubmission');
-   const drawingsLateApproval = getDrawingLateNow1(rows, 'drawingsLateApproval');
-   const drawingsLateStart = getDrawingLateNow1(rows, 'drawingsLateStart');
-   const drawingsLateConstruction = getDrawingLateNow1(rows, 'drawingsLateConstruction');
-
-
-
-
-
-   const revArray = ['0', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-   const allDwgsToResubmit = rows.filter(x => {
-      return x['Status'] === 'Approved with comments, to Resubmit' || x['Status'] === 'Reject and resubmit';
-   });
-
-
-   let objData = {};
-   allDwgsToResubmit.forEach(r => {
-      const columnIndex = revArray.indexOf(r['Rev'] || '0') + 1;
-      objData[columnIndex] = [...objData[columnIndex] || [], r];
-   });
-
-
-   let barDrawingResubmitDrawings = {};
-   let barDrawingResubmitCount = [];
-
-   Object.keys(objData).forEach(cl => {
-      const rows = objData[cl];
-      let rejectToResubmit = [];
-      let approvedPreviousVersion = [];
-      rows.forEach(row => {
-         const histories = rowsHistory.filter(r => r.row === row.id);
-         const found = histories.find(x => x['Status'] === 'Approved for Construction' || x['Status'] === 'Approved with Comment, no submission Required');
-         if (found) {
-            approvedPreviousVersion.push(row);
-         } else {
-            rejectToResubmit.push(row);
-         };
-      });
-      barDrawingResubmitCount.push({
-         'Approved in previous version but need resubmit': approvedPreviousVersion.length,
-         'Reject, to resubmit': rejectToResubmit.length,
-         name: cl
-      });
-      barDrawingResubmitDrawings[cl] = {
-         'Approved in previous version but need resubmit': approvedPreviousVersion,
-         'Reject, to resubmit': rejectToResubmit
-      };
-   });
-
-
-   return {
-      rows,
-      headers,
-
-      'Bar Drawing Rev': barDrawingRevDrawings,
-      barDrawingRevCount,
-      'Bar Drawing Modeller': barDrawingModellerDrawings,
-      barDrawingModellerCount,
-      'Bar Drawing Coordinator': barDrawingCoordinatorDrawings,
-      barDrawingCoordinatorCount,
-      'Bar Drawing Resubmit': barDrawingResubmitDrawings,
-      barDrawingResubmitCount,
-
-
-      'Pie Drawing Status': pieDrawingStatusDrawings,
-      pieDrawingStatusCount,
-
-
-      drawingsLateSubmission,
-      drawingsLateApproval,
-      drawingsLateStart,
-      drawingsLateConstruction
-
-   };
-};
-
-
-const converHistoryData = (rowsHistory, headers) => {
-   return rowsHistory.map(rowH => {
-      let obj = {
-         row: rowH.row
-      };
-      const { history } = rowH;
-      if (history) {
-         headers.forEach(hd => {
-            if (history[hd.key]) obj[hd.text] = history[hd.key];
-         });
-      };
-      return obj;
-   });
-};
-
-const splitRowsStatusByTrade = (rows, title) => {
-   const statusArray = [...new Set(rows.map(x => x['Status']))];
-   let obj = {};
-   let objCount = {};
-   statusArray.forEach(stt => {
-      const rowsFound = rows.filter(r => r['Status'] === stt);
-      obj[stt] = rowsFound;
-      objCount[stt] = rowsFound.length;
-   });
-   return {
-      objDrawings: obj,
-      objCount: { ...objCount, name: title }
-   }
-};
 
 
 export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
@@ -591,6 +330,32 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
       let { publicSettings: { headers, drawingTypeTree }, rows: rowsAllInProject, _id } = projectData;
 
       rowsAllInProject = rowsAllInProject.filter(x => x['Drawing Number'] || x['Drawing Name']);
+
+      rowsAllInProject.forEach(r => {
+         if (!r.Rev) r.Rev = '0';
+         r.Rev = r.Rev.toUpperCase();
+
+         if (!r.Status) r.Status = 'Not Started';
+
+         if (r.Status === 'Revise In-Progress') {
+            r.Status = 'Revision in progress';
+         } else if (r.Status === 'Reject and resubmit') {
+            r.Status = 'Rejected, to resubmit';
+         } else if (r.Status === 'Approved with comments, to Resubmit') {
+            r.Status = 'Approved with comments, resubmission required';
+         } else if (r.Status === 'Approved with Comment, no submission Required') {
+            r.Status = 'Approved with comments, no resubmission required';
+         } else if (r.Status === 'Approved for Construction') {
+            r.Status = 'Approved, no resubmission required';
+         };
+
+
+         if (!r['Modeller']) r['Modeller'] = 'Not assigned';
+         r['Modeller'] = r['Modeller'].toUpperCase();
+
+         if (!r['Coordinator In Charge']) r['Coordinator In Charge'] = 'Not assigned';
+         r['Coordinator In Charge'] = r['Coordinator In Charge'].toUpperCase();
+      });
 
       const headersArrayText = headers.map(x => x.text);
       const projectName = projectsArray.find(dt => dt.id === _id).name;
@@ -717,6 +482,181 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
    // console.log('output--->>>', output);
    return output;
 };
+const convertToInputDataForChart = (rows, rowsHistory, headers) => {
+
+   let inputStack = getUniqueValueByColumns(rows, 'Status');
+
+   const { arrCount: barDrawingRevCount, objDrawings: barDrawingRevDrawings } = countDrawingsByRevAndStatus(rows);
+   let { arrCount: barDrawingModellerCount, objDrawings: barDrawingModellerDrawings } = countDrawingsByColumnAndStatus(rows, 'Modeller');
+   let { arrCount: barDrawingCoordinatorCount, objDrawings: barDrawingCoordinatorDrawings } = countDrawingsByColumnAndStatus(rows, 'Coordinator In Charge');
+
+   let itemNoData1 = barDrawingModellerCount.filter(x => x.name === 'Not assigned');
+   let itemRest1 = barDrawingModellerCount.filter(x => x.name !== 'Not assigned');
+   barDrawingModellerCount = [...itemNoData1, ...itemRest1];
+
+   let itemNoData2 = barDrawingCoordinatorCount.filter(x => x.name === 'Not assigned');
+   let itemRest2 = barDrawingCoordinatorCount.filter(x => x.name !== 'Not assigned');
+   barDrawingCoordinatorCount = [...itemNoData2, ...itemRest2];
+
+
+
+   let pieDrawingStatusCount = {};
+   let pieDrawingStatusDrawings = {};
+   inputStack.forEach(stt => {
+      let rowArr = rows.filter(r => r.Status === stt);
+      rowArr.forEach(r => {
+         pieDrawingStatusCount[stt] = (pieDrawingStatusCount[stt] || 0) + 1;
+      });
+      pieDrawingStatusDrawings[stt] = rowArr;
+   });
+
+
+   const drawingsLateSubmission = getDrawingLateNow1(rows, 'drawingsLateSubmission');
+   const drawingsLateApproval = getDrawingLateNow1(rows, 'drawingsLateApproval');
+   const drawingsLateStart = getDrawingLateNow1(rows, 'drawingsLateStart');
+   const drawingsLateConstruction = getDrawingLateNow1(rows, 'drawingsLateConstruction');
+
+   const { rowsToSubmitTarget: rowsToSubmitTargetWeek, rowsToSubmitActual: rowsToSubmitActualWeek } = getDrawingsToSubmitBy(rows, 'week');
+   const { rowsToSubmitTarget: rowsToSubmitTargetMonth, rowsToSubmitActual: rowsToSubmitActualMonth } = getDrawingsToSubmitBy(rows, 'month');
+
+
+
+   const revArray = ['0', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+   const allDwgsToResubmit = rows.filter(x => {
+      return x['Status'] === 'Approved with comments, resubmission required' || x['Status'] === 'Rejected, to resubmit';
+   });
+
+
+   let objData = {};
+   allDwgsToResubmit.forEach(r => {
+      const columnIndex = revArray.indexOf(r['Rev'] || '0') + 1;
+      objData[columnIndex] = [...objData[columnIndex] || [], r];
+   });
+
+
+   let barDrawingResubmitDrawings = {};
+   let barDrawingResubmitCount = [];
+
+   Object.keys(objData).forEach(cl => {
+      const rows = objData[cl];
+      let rejectToResubmit = [];
+      let approvedPreviousVersion = [];
+      rows.forEach(row => {
+         const histories = rowsHistory.filter(r => r.row === row.id);
+         const found = histories.find(x => x['Status'] === 'Approved, no resubmission required' || x['Status'] === 'Approved with comments, no resubmission required');
+         if (found) {
+            approvedPreviousVersion.push(row);
+         } else {
+            rejectToResubmit.push(row);
+         };
+      });
+      barDrawingResubmitCount.push({
+         'Approved in previous version but need resubmit': approvedPreviousVersion.length,
+         'Rejected, to resubmit': rejectToResubmit.length,
+         name: cl
+      });
+      barDrawingResubmitDrawings[cl] = {
+         'Approved in previous version but need resubmit': approvedPreviousVersion,
+         'Rejected, to resubmit': rejectToResubmit
+      };
+   });
+
+
+   return {
+      rows,
+      headers,
+
+      'Bar Drawing Rev': barDrawingRevDrawings,
+      barDrawingRevCount,
+      'Bar Drawing Modeller': barDrawingModellerDrawings,
+      barDrawingModellerCount,
+      'Bar Drawing Coordinator': barDrawingCoordinatorDrawings,
+      barDrawingCoordinatorCount,
+      'Bar Drawing Resubmit': barDrawingResubmitDrawings,
+      barDrawingResubmitCount,
+
+
+      'Pie Drawing Status': pieDrawingStatusDrawings,
+      pieDrawingStatusCount,
+
+
+      drawingsLateSubmission,
+      drawingsLateApproval,
+      drawingsLateStart,
+      drawingsLateConstruction,
+      rowsToSubmitTargetWeek,
+      rowsToSubmitActualWeek,
+      rowsToSubmitTargetMonth,
+      rowsToSubmitActualMonth,
+   };
+};
+const countDrawingsByRevAndStatus = (rows) => {
+   let valueArray = getUniqueValueByColumns(rows, 'Rev').sort();
+   valueArray.unshift('NS');
+
+   let arrCount = [];
+   let objDrawings = {};
+   valueArray.forEach(columnValue => {
+      let obj = {};
+      let objDwgs = {};
+      let rowsFilter;
+      if (columnValue !== 'NS') {
+         rowsFilter = rows.filter(r => {
+            return r['Rev'] === columnValue &&
+               r.Status !== 'Not Started' &&
+               r.Status !== '1st cut of model in-progress' &&
+               r.Status !== '1st cut of drawing in-progress';
+         });
+      } else {
+         rowsFilter = rows.filter(r => {
+            return r.Status === 'Not Started' ||
+               r.Status === '1st cut of model in-progress' ||
+               r.Status === '1st cut of drawing in-progress';
+         });
+      };
+      rowsFilter.forEach(r => {
+         obj[r.Status] = (obj[r.Status] || 0) + 1;
+         objDwgs[r.Status] = [...objDwgs[r.Status] || [], r];
+      });
+      obj.name = columnValue;
+      arrCount.push(obj);
+      objDrawings[columnValue] = objDwgs;
+   });
+   return { arrCount, objDrawings };
+};
+
+const converHistoryData = (rowsHistory, headers) => {
+   return rowsHistory.map(rowH => {
+      let obj = {
+         row: rowH.row
+      };
+      const { history } = rowH;
+      if (history) {
+         headers.forEach(hd => {
+            if (history[hd.key]) obj[hd.text] = history[hd.key];
+         });
+      };
+      return obj;
+   });
+};
+
+const splitRowsStatusByTrade = (rows, title) => {
+   const statusArray = [...new Set(rows.map(x => x['Status']))];
+   let obj = {};
+   let objCount = {};
+   statusArray.forEach(stt => {
+      const rowsFound = rows.filter(r => r['Status'] === stt);
+      obj[stt] = rowsFound;
+      objCount[stt] = rowsFound.length;
+   });
+   return {
+      objDrawings: obj,
+      objCount: { ...objCount, name: title }
+   }
+};
+
+
+
 
 export const getRandomIntInclusive = (min, max) => {
    min = Math.ceil(min);
@@ -724,3 +664,108 @@ export const getRandomIntInclusive = (min, max) => {
    return Math.floor(Math.random() * (max - min + 1) + min);
 };
 
+const getDrawingLateNow1 = (drawings, type) => {
+   const conditionArray1 = [
+      'Approved, no resubmission required',
+      'Approved with comments, no resubmission required',
+      'Consultant reviewing'
+   ];
+   const conditionArray2 = [
+      'Approved, no resubmission required',
+      'Approved with comments, no resubmission required',
+   ];
+
+   let rowsLateOutput;
+
+
+
+   if (type === 'drawingsLateStart') {
+      rowsLateOutput = drawings.filter(r => {
+         return conditionArray1.indexOf(r.Status) === -1 &&
+            r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (T)']) < 0 &&
+            (
+               !r['Drawing Start (A)'] ||
+               (r['Drawing Start (A)'] && r['Drawing Start (T)'] && checkDiffDates(r['Drawing Start (A)'], r['Drawing Start (T)']) > 0)
+            );
+      });
+   } else if (type === 'drawingsLateSubmission') {
+      rowsLateOutput = drawings.filter(r => {
+         return conditionArray1.indexOf(r.Status) === -1 &&
+            r['Drg To Consultant (T)'] &&
+            checkDiffDates(r['Drg To Consultant (T)']) < 0 &&
+            !r['Drg To Consultant (A)'];
+      });
+   } else if (type === 'drawingsLateApproval') {
+      rowsLateOutput = drawings.filter(r => {
+         return conditionArray2.indexOf(r.Status) === -1 &&
+            r['Get Approval (T)'] && checkDiffDates(r['Get Approval (T)']) < 0 &&
+            (
+               !r['Get Approval (A)'] ||
+               (r['Get Approval (A)'] && r['Get Approval (T)'] && checkDiffDates(r['Get Approval (A)'], r['Get Approval (T)']) > 0)
+            );
+      });
+   } else if (type === 'drawingsLateConstruction') {
+      rowsLateOutput = drawings.filter(r => {
+         return conditionArray2.indexOf(r.Status) === -1 && 
+            r['Construction Start'] &&
+            checkDiffDates(r['Construction Start']) < 0 &&
+            (
+               !r['Drg To Consultant (A)'] ||
+               !r['Get Approval (A)'] ||
+               (r['Get Approval (A)'] && r['Construction Start'] && checkDiffDates(r['Get Approval (A)'], r['Construction Start']) > 0)
+            );
+      });
+   };
+
+   return rowsLateOutput;
+};
+
+export const getfirstAndLastDayOf = (duration) => {
+   let firstday, lastday;
+   if (duration === 'week') {
+      let curr = new Date;
+      let first = curr.getDate() - curr.getDay();
+      let last = first + 6;
+
+      firstday = moment(new Date(curr.setDate(first))).format('DD/MM/YY');
+      lastday = moment(new Date(curr.setDate(last))).format('DD/MM/YY');
+   } else if (duration === 'month') {
+      let date = new Date();
+
+      firstday = moment(new Date(date.getFullYear(), date.getMonth(), 1)).format('DD/MM/YY');
+      lastday = moment(new Date(date.getFullYear(), date.getMonth() + 1, 0)).format('DD/MM/YY');
+   };
+   return { firstday, lastday };
+};
+
+const getDrawingsToSubmitBy = (rows, duration) => {
+   let firstday, lastday;
+   if (duration === 'week') {
+      const { firstday: first, lastday: last } = getfirstAndLastDayOf('week');
+      firstday = first;
+      lastday = last;
+   } else if (duration === 'month') {
+      const { firstday: first, lastday: last } = getfirstAndLastDayOf('month');
+      firstday = first;
+      lastday = last;
+   };
+
+   const rowsToSubmitTarget = rows.filter(r => {
+      return r['Drg To Consultant (T)'] &&
+         r['Drg To Consultant (T)'].length === 8 &&
+         checkDiffDates(r['Drg To Consultant (T)'], firstday) >= 0 &&
+         checkDiffDates(r['Drg To Consultant (T)'], lastday) <= 0;
+   });
+
+   const rowsToSubmitActual = rowsToSubmitTarget.filter(r => {
+      return r['Drg To Consultant (A)'] &&
+         checkDiffDates(r['Drg To Consultant (A)'], firstday) >= 0 &&
+         checkDiffDates(r['Drg To Consultant (A)'], lastday) <= 0;
+   });
+
+
+   return {
+      rowsToSubmitTarget,
+      rowsToSubmitActual
+   };
+};

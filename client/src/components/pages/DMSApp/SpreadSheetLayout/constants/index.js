@@ -61,6 +61,7 @@ const colorTextCode = {
     grey4: '#f1f2f6',
     red: '#b33939',
     green: '#009432',
+    greenDark: '#006400',
     blue: '#0984e3',
     orange: '#cc8e35',
     orange2: '#ff6600',
@@ -75,19 +76,22 @@ const colorTextCode = {
  
  
  export const colorTextRow = {
-    'Approved with Comment, no submission Required': colorTextCode.blue,
+    'Approved with Comment, no submission Required': colorTextCode.greenDark,
     'Approved for Construction': colorTextCode.green,
     'Approved with comments, to Resubmit': colorTextCode.orange2,
     'Reject and resubmit': colorTextCode.red,
     'Revise In-Progress': colorTextCode.yellow,
 
-    'Consultant reviewing': colorTextCode.grey2,
+    'Consultant reviewing': colorTextCode.blue,
  
     'Not Started': colorTextCode.orange,
  
     '1st cut of drawing in-progress': colorTextCode.pp2,
     '1st cut of model in-progress': colorTextCode.pp,
     'Pending design': colorTextCode.grey9,
+
+
+
  };
 
 

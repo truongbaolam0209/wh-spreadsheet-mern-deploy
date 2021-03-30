@@ -15,7 +15,6 @@ const Cell = (props) => {
       onRightClickCell, setPosition, getCurrentDOMCell, contextInput
    } = props;
 
-
    const { contextCell, contextRow, contextProject } = contextInput;
    const { stateCell, getCellModifiedTemp, setCellActive } = contextCell;
    const { stateRow, getSheetRows } = contextRow;
@@ -601,12 +600,9 @@ export const rowLocked = (roleTradeCompany, rowData, modeGroup, drawingTypeTree)
 
    if (roleTradeCompany.role === 'Production' && companyName === 'Woh Hup Private Ltd') return false;
 
-
    let tradeName;
    if (companyName === 'Woh Hup Private Ltd' && dwgType.treeLevel >= 2) {
-
       tradeName = getTradeNameFnc(dwgType, drawingTypeTreeClone);
-
       return companyName !== roleTradeCompany.company || tradeName !== roleTradeCompany.trade;
    } else {
       return companyName !== roleTradeCompany.company;

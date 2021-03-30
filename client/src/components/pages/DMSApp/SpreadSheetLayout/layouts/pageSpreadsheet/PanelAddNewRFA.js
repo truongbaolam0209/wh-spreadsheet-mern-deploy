@@ -6,8 +6,8 @@ import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { debounceFnc } from '../../utils';
-import ButtonGroupComp from './ButtonGroupComp';
-import ButtonStyle from './ButtonStyle';
+import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
+import ButtonStyle from '../generalComponents/ButtonStyle';
 import TableDrawingRFA from './TableDrawingRFA';
 
 
@@ -42,7 +42,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const { state: stateProject } = useContext(ProjectContext);
 
    const { roleTradeCompany: { role, company, trade } } = stateProject.allDataOneSheet;
-   const { rowsAll, currentRFAToAddNew, rowsRFAAll } = stateRow;
+   const { rowsAll, currentRFAToAddNew, rowsRfaAll } = stateRow;
 
    const [rfaName, setRfaName] = useState('');
    const [rfaNameRev, setRfaNameRev] = useState('');
@@ -54,13 +54,12 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const [commentText, setCommentText] = useState('');
 
    const [files, setFiles] = useState(null);
-
-
+   
    let formType = role === 'Consultant' ? 'form-reply' : 'form-submit';
    let arrayRFA;
    let rfa;
    if (currentRFAToAddNew) {
-      rfa = rowsRFAAll.find(rfa => rfa.id === currentRFAToAddNew);
+      rfa = rowsRfaAll.find(rfa => rfa.id === currentRFAToAddNew);
       arrayRFA = [...new Set(rfa.children.map(x => x['RFA Ref']))];
    };
 
@@ -72,8 +71,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    }, []);
 
 
-
-
    const onClickApplyModalPickDrawing = (dwgIds) => {
       if (dwgIds && dwgIds.length > 0) {
          setDwgsToAddNewRFA(rowsAll.filter(r => dwgIds.indexOf(r.id) !== -1));
@@ -81,9 +78,9 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       setTablePickDrawingRFA(false);
    };
    const setRevisionDwg = (id, rev) => {
-      // const row = dwgsToAddNewRFA.find(x => x.id === id);
-      // row['Rev'] = rev;
-      // setDwgsToAddNewRFA([...dwgsToAddNewRFA]);
+      const row = dwgsToAddNewRFA.find(x => x.id === id);
+      row['Rev'] = rev;
+      setDwgsToAddNewRFA([...dwgsToAddNewRFA]);
    };
    const removeDrawingToAddRFA = debounceFnc((id) => {
       setDwgsToAddNewRFA(dwgsToAddNewRFA.filter(x => x.id !== id));
@@ -106,7 +103,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             setValueInputRFACreateNew('');
          };
       } else {
-         if (rowsRFAAll.find(rfa => rfa.id.toLowerCase() === valueInputRFACreateNew.toLowerCase())) {
+         if (rowsRfaAll.find(rfa => rfa.id.toLowerCase() === valueInputRFACreateNew.toLowerCase())) {
             message.info('This RFA Number Has Already Existed, Please Choose A New Number!');
             setValueInputRFACreateNew(valueInputRFACreateNew.slice(0, valueInputRFACreateNew.length - 1));
          };
@@ -212,6 +209,13 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
    const onClickApplyDoneFormRFA = () => {
+      console.log({
+         type: role === 'Consultant' ? 'reply' : 'submission',
+         trade,
+         files: Object.values(files),
+         dwgsToAddNewRFA,
+         rfaToSave: valueInputRFACreateNew
+      });
       onClickApplyAddNewRFA({
          type: role === 'Consultant' ? 'reply' : 'submission',
          trade,

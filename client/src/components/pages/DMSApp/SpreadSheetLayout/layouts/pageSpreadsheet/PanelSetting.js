@@ -18,11 +18,12 @@ import ColorizedForm from './ColorizedForm';
 import FormCellColorizedCheck from './FormCellColorizedCheck';
 import FormDateAutomation from './FormDateAutomation';
 import FormDrawingTypeOrder, { compareCurrentTreeAndTreeFromDB, flattenAllTreeChildNode1, getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
+import PanelAddNewRFA from './PanelAddNewRFA';
 import TableActivityHistory from './TableActivityHistory';
 import TableCellHistory from './TableCellHistory';
 import TableDrawingDetail from './TableDrawingDetail';
 
-
+const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
 
 
 const PanelSetting = (props) => {
@@ -755,6 +756,133 @@ const PanelSetting = (props) => {
    };
 
 
+   const saveDataToServerAndRedirectToViewRFA = async () => {
+      const { isRfaView } = stateRow;
+      const { projectId, token, email } = stateProject.allDataOneSheet;
+
+      try {
+         await saveDataToServer();
+
+         const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+         const { rows: dataRows } = res.data;
+         const { data: dataRowsHistory } = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
+
+         const { rowsDataRFA, expandedRowIdsRFA } = getDataForRFASheet([...dataRows, ...dataRowsHistory]);
+
+         commandAction({
+            type: 'redirect-to-view-rfa',
+            data: {
+               dbReloadFromServer: res.data,
+               isRfaView: true,
+               rowsRfaAll: rowsDataRFA,
+               expandedRowIdsRFA
+            }
+         });
+      } catch (err) {
+         commandAction({ type: 'save-data-failure' });
+         console.log(err);
+      };
+   };
+
+
+   const onClickApplyAddNewRFA = async (dataDwg) => {
+      const { email, projectId, token, role, projectName, publicSettings } = stateProject.allDataOneSheet;
+      const { headers } = publicSettings;
+      let { rowsRfaAll, rowsAll } = stateRow;
+      const { files, type, dwgsToAddNewRFA, trade, rfaToSave } = dataDwg;
+      
+      let data = new FormData();
+      files.forEach(file => {
+         data.append('files', file.originFileObj);
+      });
+      data.append('projectId', projectId);
+      data.append('trade', trade);
+      data.append('rfa', rfaToSave);
+      data.append('rfaNumber', '-');
+      data.append('type', type);
+
+      try {
+         if (data !== undefined || data !== null) {
+            const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
+
+            const listFileName = res.data;
+
+            const arrayFileName = listFileName.map(link => ({
+               fileName: getFileNameFromLinkResponse(link),
+               fileLink: link
+            }));
+
+            let rowsToUpdate = [];
+            let rowsHistoryToUpdate = [];
+            dwgsToAddNewRFA.forEach(r => {
+
+               r['RFA Ref'] = rfaToSave;
+               r['Status'] = 'Consultant reviewing';
+               r['Drg To Consultant (A)'] = moment(new Date()).format('DD/MM/YY');
+               r['Drawing'] = arrayFileName.find(fl => fl.fileName === r['Drawing']).fileLink;
+
+               if (r.row) rowsHistoryToUpdate.push(r);
+               else rowsToUpdate.push(r);
+            });
+
+
+            const arrHeadersSubmit = [
+               'RFA Ref', 'Status', 'Drg To Consultant (A)', 'Drawing', 'Rev'
+            ];
+
+            const rowsToUpdateOutput = rowsToUpdate.map(row => {
+               let rowToSave = { _id: row.id };
+               headers.forEach(hd => {
+                  if ((row[hd.text] || row[hd.text] === '') && arrHeadersSubmit.indexOf(hd.text) !== -1) {
+                     rowToSave.data = { ...rowToSave.data || {}, [hd.key]: row[hd.text] };
+                  };
+               });
+               return rowToSave;
+            });
+
+            if (rowsToUpdateOutput.length > 0) {
+               await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdateOutput });
+            };
+
+
+            // let objCellHistory = {};
+            // resCellsHistory.data.map(cell => {
+            //    const headerText = headers.find(hd => hd.key === cell.headerKey).text;
+            //    if (cell.histories.length > 0) {
+            //       const latestHistoryText = cell.histories[cell.histories.length - 1].text;
+            //       objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
+            //    };
+            // });
+            // Object.keys(cellsModifiedTemp).forEach(key => {
+            //    if (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) {
+            //       delete cellsModifiedTemp[key];
+            //    } else {
+            //       let rowId = key.slice(0, 24);
+            //       if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
+            //          delete cellsModifiedTemp[key];
+            //       };
+            //    };
+            // });
+            // if (Object.keys(cellsModifiedTemp).length > 0) {
+            //    await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject) });
+            // };
+
+         };
+
+
+         commandAction({
+            type: 'add-new-rfa-submit',
+            data: {
+               rowsRfaAll,
+               expandedRowIds: rowsRfaAll.map(x => x.id)
+            }
+         });
+      } catch (err) {
+         commandAction({ type: 'save-file-failure' });
+         console.log(err);
+      };
+   };
+
 
    return (
       <>
@@ -890,6 +1018,20 @@ const PanelSetting = (props) => {
          )}
 
 
+         {panelSettingType === 'addNewRFA-ICON' && (
+            <PanelAddNewRFA
+               onClickCancelModal={onClickCancelModal}
+               onClickApplyAddNewRFA={onClickApplyAddNewRFA}
+            />
+         )}
+         
+         {panelSettingType === 'goToViewRFA-ICON' && (
+            <PanelConfirm
+               onClickCancel={onClickCancelModal}
+               onClickApply={saveDataToServerAndRedirectToViewRFA}
+               content={'Do you want to save and redirect to RFA View ?'}
+            />
+         )}
 
       </>
    );
@@ -985,9 +1127,6 @@ const _processChainRowsLossHeadFnc2 = (rows, rowsProcessed) => {
 const _filterRowLossPreRowFnc = (row, rows) => {
    return rows.every(r => String(row._preRow) != String(r.id));
 };
-
-
-
 export const updatePreRowParentRowToState = (objState, row) => {
    objState[row.id] = {
       id: row.id,
@@ -998,5 +1137,145 @@ export const updatePreRowParentRowToState = (objState, row) => {
 
 
 
+
+
+
+const getDataForRFASheet = (rowsCurrentAndHistories) => {
+
+   const rowsRFA = rowsCurrentAndHistories.filter(r => r['rfaNumber']);
+
+   const allRfaCode = [...new Set(rowsRFA.map(x => x['rfaNumber']))];
+   const parentArray = [];
+
+
+   allRfaCode.forEach(rfaNumb => {
+      let allDwgs = rowsRFA.filter(dwg => dwg['rfaNumber'] === rfaNumb);
+      const allRfaRef = [...new Set(rowsRFA.map(x => x['RFA Ref']))];
+      const btnTextArray = allRfaRef.map(rfa => {
+         return rfa.slice(rfaNumb.length, rfa.length) || '-';
+      });
+      parentArray.push({
+         id: rfaNumb,
+         'rfaNumber': rfaNumb,
+         'btn': btnTextArray,
+         rfaRowLevel: 0,
+         children: allDwgs
+      });
+   });
+
+   return {
+      rowsDataRFA: parentArray,
+      expandedRowIdsRFA: allRfaCode
+   };
+};
+
+
+export const getDataForRFA = () => {
+   const rowCurrentRFA = [
+      {
+         id: 'r-1',
+         'Drawing Number': 'SUM_WH_A-_WSO_ESS_001',
+         'Drawing Name': 'Switch Room Facade',
+         'RFA Ref': 'RFA/SUM/ARC/069A',
+         'rfaNumber': 'RFA/SUM/ARC/069',
+         'Rev': 'B',
+
+         'Consultant (1)': 'DCA',
+         'Date Reply (1)': '12/02/2021',
+         'Status (1)': 'Approved for Construction',
+         'Comment (1)': 'need to update',
+
+         'Consultant (2)': 'TYLIN',
+         'Date Reply (2)': '07/01/2021',
+         'Status (2)': 'Reject and resubmit',
+         'Comment (2)': 'need to update',
+
+         'Drawing': '',
+         _rowLevel: 1
+      },
+      {
+         id: 'r-2',
+         'Drawing Number': 'SUM_WH_S-_FRS_RC_025',
+         'Drawing Name': 'Blk 22 - Typical Lift Lobby Finishing',
+         'RFA Ref': 'RFA/SUM/ARC/069B',
+         'rfaNumber': 'RFA/SUM/ARC/069',
+         'Rev': 'B',
+         'Consultant (1)': 'TYLIN',
+         'Date Reply (1)': '',
+         'Status (1)': 'Reject and resubmit',
+         'Drawing': '',
+         _rowLevel: 1
+      }
+   ];
+   const rowHistoryRFA = [
+      {
+         id: 'rhh-1',
+         'Drawing Number': 'SUM_WH_A-_WSO_ESS_001',
+         'Drawing Name': 'Switch Room Facade',
+         'RFA Ref': 'RFA/SUM/ARC/069',
+         'rfaNumber': 'RFA/SUM/ARC/069',
+         'Rev': '0',
+         'Consultant (1)': 'DCA',
+         'Date Reply (1)': '',
+         'Status (1)': 'Reject and resubmit',
+         'Drawing': '',
+         _rowLevel: 1,
+         row: 'r-1'
+      },
+      {
+         id: 'rhh-2',
+         'Drawing Number': 'SUM_WH_S-_FRS_RC_025',
+         'Drawing Name': 'Blk 22 - Typical Lift Lobby Finishing',
+         'RFA Ref': 'RFA/SUM/ARC/069',
+         'rfaNumber': 'RFA/SUM/ARC/069',
+         'Rev': '0',
+         'Consultant (1)': 'TYLIN',
+         'Date Reply (1)': '',
+         'Status (1)': 'Approved with comments, to Resubmit',
+         'Drawing': '',
+         _rowLevel: 1,
+         row: 'r-2'
+      },
+      {
+         id: 'rhh-22222',
+         'Drawing Number': 'SUM_WH_S-_FRS_RC_025',
+         'Drawing Name': 'Blk 22 - Typical Lift Lobby Finishing',
+         'RFA Ref': 'RFA/SUM/ARC/069A',
+         'rfaNumber': 'RFA/SUM/ARC/069',
+         'Rev': 'A',
+         'Consultant (1)': 'TYLIN',
+         'Date Reply (1)': '',
+         'Status (1)': 'Approved with comments, to Resubmit',
+         'Drawing': '',
+         _rowLevel: 1,
+         row: 'r-2'
+      },
+   ];
+
+
+   const arr = [...rowCurrentRFA, ...rowHistoryRFA];
+   const allRfaCode = [...new Set(arr.map(x => x['rfaNumber']))];
+   const parentArray = [];
+
+
+   allRfaCode.forEach(rfaNumb => {
+      let allDwgs = arr.filter(dwg => dwg['rfaNumber'] === rfaNumb);
+      const allRfaRef = [...new Set(arr.map(x => x['RFA Ref']))];
+      const btnTextArray = allRfaRef.map(rfa => {
+         return rfa.slice(rfaNumb.length, rfa.length) || '-';
+      });
+      parentArray.push({
+         id: rfaNumb,
+         'rfaNumber': rfaNumb,
+         'btn': btnTextArray,
+         rfaRowLevel: 0,
+         children: allDwgs
+      });
+   });
+   return {
+      rowsData: parentArray,
+      expandedRowIds: allRfaCode
+   };
+};
 
 

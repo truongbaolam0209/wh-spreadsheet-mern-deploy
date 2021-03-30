@@ -11,6 +11,8 @@ const CellRFA = (props) => {
 
    const { rowData, cellData, column, buttonPanelFunction } = props;
 
+   
+
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
@@ -20,9 +22,9 @@ const CellRFA = (props) => {
 
    const onClickRfaDrawing = (rfaCode, btn) => {
       let arrayOutput = [];
-      const { rowsRFAAll, rowsRFAAllInit } = stateRow;
+      const { rowsRfaAll } = stateRow;
 
-      rowsRFAAllInit.forEach(rfa => {
+      rowsRfaAll.forEach(rfa => {
          if (rfa.id !== rfaCode) {
             arrayOutput.push(rfa);
          } else {
@@ -37,13 +39,10 @@ const CellRFA = (props) => {
          };
       });
 
-      getSheetRows({ ...stateRow, rowsRFAAll: arrayOutput });
+      getSheetRows({ ...stateRow, rowsRfaAll: arrayOutput });
    };
 
 
-   const onClickReplyRFA = () => {
-
-   };
 
    const onClickSubmitOrReplyRFA = () => {
       buttonPanelFunction('addNewRFA-ICON');

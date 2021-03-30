@@ -18,7 +18,8 @@ export const colorType = {
    grey3: '#dfe4ea',
    grey4: '#f1f2f6',
    red: '#b33939',
-   green: '#009432',
+   green: '#90EE90',
+   greenDark: '#006400',
    blue: '#0984e3',
    orange: '#cc8e35',
    orange2: '#ff6600',
@@ -35,20 +36,18 @@ export const colorType = {
 
 
 export const pieChartColors2 = {
-   'Approved with Comment, no submission Required': colorType.blue,
-   'Approved for Construction': colorType.green,
+   'Approved, no resubmission required': colorType.green,
+   'Approved with comments, no resubmission required': colorType.greenDark,
+   'Approved with comments, resubmission required': colorType.orange2,
 
-   'Approved with comments, to Resubmit': colorType.orange2,
-   'Reject and resubmit': colorType.red,
-   'Revise In-Progress': colorType.yellow,
-
-   'Consultant reviewing': colorType.grey2,
-
-   'Not Started': colorType.orange,
-
+   'Rejected, to resubmit': colorType.red,
+   'Consultant reviewing': colorType.blue,
+   'Pending design': colorType.grey9,
+   'Revision in progress': colorType.yellow,
+   
    '1st cut of drawing in-progress': colorType.pp2,
    '1st cut of model in-progress': colorType.pp,
-   'Pending design': colorType.grey9,
+   'Not Started': colorType.orange,
 
 
 
@@ -56,7 +55,7 @@ export const pieChartColors2 = {
 
    // color resubmit chart
    'Approved in previous version but need resubmit': colorType.orange2,
-   'Reject, to resubmit': colorType.red,
+
 
 
 

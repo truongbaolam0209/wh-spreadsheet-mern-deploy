@@ -10,6 +10,7 @@ import { sortFnc } from '../../SpreadSheetLayout/layouts/generalComponents/FormS
 import IconTable from '../../SpreadSheetLayout/layouts/generalComponents/IconTable';
 import InputSearch from '../../SpreadSheetLayout/layouts/generalComponents/InputSearch';
 import { debounceFnc, getActionName, getHeaderWidth, groupByHeaders } from '../../SpreadSheetLayout/utils';
+import { checkDiffDates, getfirstAndLastDayOf } from '../utils/functionDashboard';
 import PanelSettingDashboard from './PanelSettingDashboard';
 
 
@@ -118,6 +119,28 @@ const TableDrawingList = ({ data }) => {
       const { rowData } = props;
       if (!rowData._rowLevel || rowData._rowLevel < 1) {
          return 'row-drawing-type';
+      };
+
+      if (category === 'Drawings to submit (week)') {
+         const { firstday, lastday } = getfirstAndLastDayOf('week');
+         if (
+            rowData._rowLevel && 
+            rowData['Drg To Consultant (A)'] &&
+            checkDiffDates(rowData['Drg To Consultant (A)'], firstday) >= 0 &&
+            checkDiffDates(rowData['Drg To Consultant (A)'], lastday) <= 0
+         ) {
+            return 'row-submit-actual';
+         };
+      } else if (category === 'Drawings to submit (month)') {
+         const { firstday, lastday } = getfirstAndLastDayOf('month');
+         if (
+            rowData._rowLevel && 
+            rowData['Drg To Consultant (A)'] &&
+            checkDiffDates(rowData['Drg To Consultant (A)'], firstday) >= 0 &&
+            checkDiffDates(rowData['Drg To Consultant (A)'], lastday) <= 0
+         ) {
+            return 'row-submit-actual';
+         };
       };
    };
 
@@ -325,6 +348,10 @@ const generateColumns = (count = 10, prefix = 'column-', props) =>
 
 
 const TableStyled = styled(Table)`
+
+   .row-submit-actual {
+      background-color: ${colorType.cellHighlighted};
+   }
 
    .row-drawing-type {
       background-color: ${colorType.grey3};

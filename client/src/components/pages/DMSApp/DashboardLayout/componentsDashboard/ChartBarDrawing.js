@@ -168,7 +168,7 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
 
                      height={type === 'resubmit' ? 230 : 290}
                      data={barDrawingCount}
-                     margin={{ top: 15, right: 0, left: 0, bottom: 20 }}
+                     margin={{ top: 15, right: 0, left: 0, bottom: type === 'resubmit' ? 20 : 70 }}
                      padding={{ top: 5 }}
                      barSize={15}
                   >
@@ -184,7 +184,7 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
                         <XAxis
                            style={{ cursor: 'pointer' }}
                            onClick={onClickXAxis}
-                           fontSize={11} tickSize={3} dataKey='name' textAnchor='end' angle={-25} interval={0} scale='point'
+                           fontSize={11} tickSize={3} dataKey='name' textAnchor='end' angle={-90} interval={0} scale='point'
                            padding={{ left: 20, right: 20 }}
                         />
                      )}
@@ -217,8 +217,8 @@ const ChartBarDrawing = ({ type, data, openDrawingTable, projectId, title }) => 
                         <div style={{ marginRight: 10 }}>
                            <StyledBadge
                               size='small'
-                              color={pieChartColors2['Reject, to resubmit']}
-                              text={'Reject, to resubmit'}
+                              color={pieChartColors2['Rejected, to resubmit']}
+                              text={'Rejected, to resubmit'}
                            />
                         </div>
                         <StyledBadge

@@ -22,10 +22,11 @@ import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
 import ButtonAdminUploadDataPDD from './pageSpreadsheet/ButtonAdminUploadDataPDD';
 import Cell, { columnLocked, rowLocked } from './pageSpreadsheet/Cell';
 import CellIndex from './pageSpreadsheet/CellIndex';
+import CellRFA from './pageSpreadsheet/CellRFA';
 import ExcelExport from './pageSpreadsheet/ExcelExport';
 import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from './pageSpreadsheet/FormDrawingTypeOrder';
 import PanelFunction, { getPanelPosition } from './pageSpreadsheet/PanelFunction';
-import PanelSetting, { updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from './pageSpreadsheet/PanelSetting';
+import PanelSetting, { getDataForRFA, updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from './pageSpreadsheet/PanelSetting';
 
 
 
@@ -53,7 +54,7 @@ let addedEvent = false;
 const PageSpreadsheet = (props) => {
 
 
-   let { email, role, isAdmin, projectId, projectName, token, company, companies } = props;
+   let { email, role, isAdmin, projectId, projectName, token, company, companies, projectIsAppliedRfaView } = props;
    const roleTradeCompany = getUserRoleTradeCompany(role, company);
 
    const tableRef = useRef();
@@ -369,6 +370,25 @@ const PageSpreadsheet = (props) => {
          setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
 
 
+      } else if (update.type === 'redirect-to-view-rfa') {
+         getSheetRows({
+            ...getInputDataInitially(update.data.dbReloadFromServer, { roleTradeCompany, projectIsAppliedRfaView }),
+            rowsRfaAll: update.data.rowsRfaAll,
+            isRfaView: update.data.isRfaView
+         });
+         setExpandedRows(update.data.expandedRowIds);
+         OverwriteCellsModified({});
+         setCellActive(null);
+         setLoading(false);
+
+      } else if (update.type === 'add-new-rfa-submit') {
+         getSheetRows({
+            ...stateRow,
+            rowsRfaAll: update.data.rowsRFAAll,
+         });
+         setExpandedRows(update.data.expandedRowIds);
+
+
       } else if (update.type === 'save-data-successfully') {
          message.success('Save Data Successfully', 1.5);
       } else if (update.type === 'save-data-failure') {
@@ -377,10 +397,10 @@ const PageSpreadsheet = (props) => {
       } else if (update.type === 'reload-data-from-server') {
          fetchDataOneSheet({
             ...update.data,
-            email, projectId, projectName, role, token, company, companies, roleTradeCompany
+            email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView
          });
          setUserData(getHeadersData(update.data));
-         getSheetRows(getInputDataInitially(update.data, roleTradeCompany));
+         getSheetRows(getInputDataInitially(update.data, { roleTradeCompany, projectIsAppliedRfaView }));
          setExpandedRows(getRowsKeyExpanded(update.data.publicSettings.drawingTypeTree, update.data.userSettings.viewTemplateNodeId));
          OverwriteCellsModified({});
          setCellActive(null);
@@ -431,14 +451,22 @@ const PageSpreadsheet = (props) => {
             const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
 
 
-
             fetchDataOneSheet({
                ...res.data,
-               email, projectId, projectName, role, token, company, companies, roleTradeCompany
+               email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView
             });
             setUserData(getHeadersData(res.data));
-            getSheetRows(getInputDataInitially(res.data));
-            setExpandedRows(getRowsKeyExpanded(res.data.publicSettings.drawingTypeTree, res.data.userSettings ? res.data.userSettings.viewTemplateNodeId : null));
+            getSheetRows(getInputDataInitially(res.data, { roleTradeCompany, projectIsAppliedRfaView }));
+
+            if (roleTradeCompany.role === 'Consultant') {
+               setExpandedRows(getDataForRFA().expandedRowIds);
+            } else {
+               setExpandedRows(getRowsKeyExpanded(
+                  res.data.publicSettings.drawingTypeTree,
+                  res.data.userSettings ? res.data.userSettings.viewTemplateNodeId : null
+               ));
+            };
+
 
             setLoading(false);
          } catch (err) {
@@ -503,12 +531,15 @@ const PageSpreadsheet = (props) => {
    const rowClassName = (props) => {
       const { rowData } = props;
       const { colorization } = stateProject.userData;
-      const { rowsSelected, modeGroup, drawingTypeTree } = stateRow;
+      const { rowsSelected, modeGroup, drawingTypeTree, isRfaView } = stateRow;
 
       const valueArr = colorization.value;
       const value = rowData[colorization.header];
 
-      const isRowLocked = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
+      let isRowLocked;
+      if (!isRfaView) {
+         isRowLocked = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
+      };
 
 
       if (rowsSelected.find(x => x.id === rowData.id)) {
@@ -564,7 +595,7 @@ const PageSpreadsheet = (props) => {
       let headersObj = [{
          key: 'Index', dataKey: 'Index', title: '', width: 50,
          frozen: Column.FrozenDirection.LEFT,
-         cellRenderer: (
+         cellRenderer: !stateRow.isRfaView ? (
             <CellIndex
                contextInput={{
                   contextCell: { setCellActive },
@@ -572,13 +603,13 @@ const PageSpreadsheet = (props) => {
                   contextProject: { stateProject },
                }}
             />
-         ),
+         ) : null,
          style: { padding: 0, margin: 0 }
       }];
       arr.forEach((hd, index) => {
          headersObj.push({
             key: hd, dataKey: hd, title: hd,
-            width: getHeaderWidth(hd),
+            width: (projectIsAppliedRfaView && stateRow.isRfaView && hd === 'RFA Ref') ? 400 : getHeaderWidth(hd),
             resizable: true,
             frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
             headerRenderer: (
@@ -586,7 +617,7 @@ const PageSpreadsheet = (props) => {
                   onMouseDownColumnHeader={onMouseDownColumnHeader}
                />
             ),
-            cellRenderer: (
+            cellRenderer: !stateRow.isRfaView ? (
                <Cell
                   setPosition={setPosition}
                   onRightClickCell={onRightClickCell}
@@ -598,6 +629,10 @@ const PageSpreadsheet = (props) => {
                      contextProject: { stateProject },
                   }}
                />
+            ) : (
+               <CellRFA
+                  buttonPanelFunction={buttonPanelFunction}
+               />
             ),
             className: (props) => {
                const { rowData, column: { key } } = props;
@@ -607,7 +642,7 @@ const PageSpreadsheet = (props) => {
                   ? 'cell-found'
                   : (cellHistoryFound && cellHistoryFound.find(cell => cell.rowId === id && cell.header === key))
                      ? 'cell-history-highlight'
-                     : (columnLocked(roleTradeCompany, rowData, stateRow.modeGroup, key) && rowData._rowLevel)
+                     : (columnLocked(roleTradeCompany, rowData, stateRow.modeGroup, key) && rowData._rowLevel === 1)
                         ? 'cell-locked'
                         : '';
             }
@@ -623,34 +658,49 @@ const PageSpreadsheet = (props) => {
          onContextMenu={(e) => e.preventDefault()}
       >
          <ButtonBox>
-            <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
-            <DividerRibbon />
-            <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
-            <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
-            <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
-            <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
+            {((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && !stateRow.isRfaView)) && (
+               <>
+                  <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
+                  <DividerRibbon />
+                  <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
+                  <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
+                  <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
+                  <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
 
-            {searchInputShown
-               ? <InputSearch searchGlobal={searchGlobal} stateRow={stateRow} getSheetRows={getSheetRows} />
-               : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
+                  {searchInputShown
+                     ? <InputSearch searchGlobal={searchGlobal} stateRow={stateRow} getSheetRows={getSheetRows} />
+                     : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
-            {stateRow && stateRow.modeGroup.length > 0 ? (
-               <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-1')} />
-            ) : (
-               <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-2')} />
+                  {stateRow && stateRow.modeGroup.length > 0 ? (
+                     <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-1')} />
+                  ) : (
+                     <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-2')} />
+                  )}
+
+                  <DividerRibbon />
+                  <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
+                  <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
+                  <DividerRibbon />
+                  <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
+                  <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
+                  <ExcelExport fileName={projectName} />
+                  <DividerRibbon />
+                  <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
+                  <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
+                  <DividerRibbon />
+               </>
             )}
 
-            <DividerRibbon />
-            <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
-            <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
-            <DividerRibbon />
-            <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
-            <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
-            <ExcelExport fileName={projectName} />
-            <DividerRibbon />
-            <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
-            <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
-            <DividerRibbon />
+
+            {stateRow && projectIsAppliedRfaView && !stateRow.isRfaView && (
+               <IconTable type='rfa-button' onClick={() => buttonPanelFunction('goToViewRFA-ICON')} />
+            )}
+
+            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && (
+               <IconTable type='plus-square' onClick={() => buttonPanelFunction('addNewRFA-ICON')} />
+            )}
+
+
             {isAdmin && (
                <div style={{ display: 'flex' }}>
                   <ButtonAdminUploadData />
@@ -680,14 +730,16 @@ const PageSpreadsheet = (props) => {
                }}
                ref={tableRef}
                fixed
+
                columns={renderColumns(
-                  stateProject.userData.headersShown,
-                  stateProject.userData.nosColumnFixed
+                  projectIsAppliedRfaView && stateRow.isRfaView ? headersRfaView : stateProject.userData.headersShown,
+                  projectIsAppliedRfaView && stateRow.isRfaView ? 0 : stateProject.userData.nosColumnFixed
                )}
+
                data={arrangeDrawingTypeFinal(stateRow)}
                expandedRowKeys={expandedRows}
 
-               expandColumnKey={stateProject.userData.headersShown[0]}
+               expandColumnKey={projectIsAppliedRfaView && stateRow.isRfaView ? 'RFA Ref' : stateProject.userData.headersShown[0]}
 
                expandIconProps={expandIconProps}
                components={{ ExpandIcon }}
@@ -700,24 +752,26 @@ const PageSpreadsheet = (props) => {
          ) : <LoadingIcon />}
 
 
-         <ModalStyleFunction
-            visible={panelFunctionVisible}
-            footer={null}
-            onCancel={() => setPanelFunctionVisible(false)}
-            destroyOnClose={true}
-            style={{
-               position: 'fixed',
-               left: cursor && getPanelPosition(cursor).x,
-               top: cursor && getPanelPosition(cursor).y
-            }}
-            mask={false}
-            width={250}
-         >
-            <PanelFunction
-               panelType={panelType}
-               buttonPanelFunction={buttonPanelFunction}
-            />
-         </ModalStyleFunction>
+         {((stateRow && !stateRow.isRfaView) || !projectIsAppliedRfaView) && (
+            <ModalStyleFunction
+               visible={panelFunctionVisible}
+               footer={null}
+               onCancel={() => setPanelFunctionVisible(false)}
+               destroyOnClose={true}
+               style={{
+                  position: 'fixed',
+                  left: cursor && getPanelPosition(cursor).x,
+                  top: cursor && getPanelPosition(cursor).y
+               }}
+               mask={false}
+               width={250}
+            >
+               <PanelFunction
+                  panelType={panelType}
+                  buttonPanelFunction={buttonPanelFunction}
+               />
+            </ModalStyleFunction>
+         )}
 
 
          <ModalStyledSetting
@@ -734,8 +788,10 @@ const PageSpreadsheet = (props) => {
 
             width={
                panelSettingType === 'addDrawingType-ICON' ? window.innerWidth * 0.8 :
-                  panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
-                     520
+                  panelSettingType === 'addNewRFA-ICON' ? window.innerWidth * 0.7 :
+                     panelSettingType === 'pickTypeTemplate-ICON' ? window.innerWidth * 0.6 :
+                        panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
+                           520
             }
          >
             <PanelSetting
@@ -915,7 +971,9 @@ const SpinStyled = styled.div`
 
 
 
-const getInputDataInitially = (data) => {
+const getInputDataInitially = (data, { roleTradeCompany, projectIsAppliedRfaView }) => {
+
+
 
    const { rows, publicSettings, userSettings } = data;
    const { drawingTypeTree } = publicSettings;
@@ -935,38 +993,59 @@ const getInputDataInitially = (data) => {
    const { treeNodesToAdd, rowsToAdd, rowsUpdatePreOrParent } = rearrangeRowsNotMatchTreeNode(rows, rowsAllOutput, drawingTypeTree);
 
 
+   let objRfaView = {};
+   let objDmsView = {};
+   if (projectIsAppliedRfaView && roleTradeCompany.role === 'Consultant') {
+      objRfaView = {
+         isRfaView: roleTradeCompany.role === 'Consultant',
+         rowsRfaAll: getDataForRFA().rowsData,
+         currentRfaToAddNew: null
+      };
+   } else {
+      objDmsView = {
+         rowsAll: [...rowsAllOutput, ...rowsToAdd], // handle rows can not match parent
+         rowsVersionsToSave: [],
+
+         viewTemplates,
+         viewTemplateNodeId,
+         drawingTypeTree: [...drawingTypeTree, ...treeNodesToAdd], // handle rows can not match parent
+         drawingTypeTreeInit: drawingTypeTree,
+         drawingsTypeDeleted: [],
+         drawingsTypeNewIds: [...treeNodesToAdd.map(x => x.id)], // handle rows can not match parent
+
+         rowsDeleted: [],
+         idRowsNew: [],
+         rowsUpdatePreRowOrParentRow: { ...rowsUpdatePreOrParent }, // handle rows can not match parent
+
+
+         rowsSelectedToMove: [],
+
+
+      };
+   };
+
    return {
-      rowsAll: [...rowsAllOutput, ...rowsToAdd], // handle rows can not match parent
-      rowsVersionsToSave: [],
-
-      viewTemplates,
-      viewTemplateNodeId,
-      drawingTypeTree: [...drawingTypeTree, ...treeNodesToAdd], // handle rows can not match parent
-      drawingTypeTreeInit: drawingTypeTree,
-      drawingsTypeDeleted: [],
-      drawingsTypeNewIds: [...treeNodesToAdd.map(x => x.id)], // handle rows can not match parent
-
-      rowsDeleted: [],
-      idRowsNew: [],
-      rowsUpdatePreRowOrParentRow: { ...rowsUpdatePreOrParent }, // handle rows can not match parent
-
       rowsSelected: [],
-      rowsSelectedToMove: [],
 
       modeFilter,
       modeSort,
       modeSearch: {},
       modeGroup: [],
 
-
+      ...objDmsView,
+      ...objRfaView
    };
 };
 
 const arrangeDrawingTypeFinal = (stateRow) => {
    const {
       rowsAll, drawingTypeTree, viewTemplateNodeId,
-      modeFilter, modeGroup, modeSort, modeSearch
+      modeFilter, modeGroup, modeSort, modeSearch,
+
+      isRfaView, rowsRfaAll
    } = stateRow;
+
+   if (isRfaView) return rowsRfaAll;
 
 
    let drawingTypeTreeTemplate;
@@ -1066,7 +1145,6 @@ const arrangeDrawingTypeFinal = (stateRow) => {
 };
 
 const getRowsKeyExpanded = (drawingTypeTree, viewTemplateNodeId) => {
-
    const templateNode = drawingTypeTree.find(x => x.id === viewTemplateNodeId);
    if (templateNode) {
       const drawingTypeTreeTemplate = getTreeFlattenOfNodeInArray(drawingTypeTree, templateNode).filter(x => x.id !== templateNode.id);
@@ -1221,14 +1299,16 @@ const getUserRoleTradeCompany = (role, company) => {
    return { role, trade: null, company };
 };
 
-
-
-
-
-
-
-
-
+const headersRfaView = [
+   'RFA Ref',
+   'Drawing Number',
+   'Drawing Name',
+   'Consultant (1)',
+   'Consultant (2)',
+   'Consultant (3)',
+   'Consultant (4)',
+   'Consultant (5)',
+];
 
 
 

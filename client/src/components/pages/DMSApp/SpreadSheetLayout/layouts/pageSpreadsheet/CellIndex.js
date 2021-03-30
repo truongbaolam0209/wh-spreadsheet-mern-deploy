@@ -13,7 +13,7 @@ const CellIndex = (props) => {
 
    const { drawingTypeTree, rowsAll, modeGroup, rowsSelected } = stateRow;
    const { roleTradeCompany } = stateProject.allDataOneSheet;
-
+   
    const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
 
    const onClickCellIndex = () => {

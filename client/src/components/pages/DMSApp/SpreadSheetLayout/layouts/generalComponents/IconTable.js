@@ -26,18 +26,21 @@ const IconTable = (props) => {
    return (
       <Tooltip placement={type === 'menu' ? 'topLeft' : 'top'} title={toolTipBtn(type)}>
          <DivStyled>
-            <IconStyled
-               style={{
-                  background: modeFilter && modeFilter.length > 0 && type === 'filter' && !isActivityTable ? colorType.grey1 :
-                     modeSort && Object.keys(modeSort).length === 3 && type === 'sort-ascending' ? colorType.grey1 :
-                        modeGroup && modeGroup.length > 0 && type === 'apartment' ? colorType.grey1 :
-                           null
-               }}
-               type={type}
-               onClick={onClick}
-               disabled={disabled}
-            />
-
+            {type === 'rfa-button' ? (
+               <IconRFA onClick={onClick}>RFA</IconRFA>
+            ) : (
+               <IconStyled
+                  style={{
+                     background: modeFilter && modeFilter.length > 0 && type === 'filter' && !isActivityTable ? colorType.grey1 :
+                        modeSort && Object.keys(modeSort).length === 3 && type === 'sort-ascending' ? colorType.grey1 :
+                           modeGroup && modeGroup.length > 0 && type === 'apartment' ? colorType.grey1 :
+                              null
+                  }}
+                  type={type}
+                  onClick={onClick}
+                  disabled={disabled}
+               />
+            )}
 
          </DivStyled>
       </Tooltip>

@@ -14,25 +14,37 @@ const ChartProgress = ({ data, openDrawingTable, projectId, title }) => {
       drawingsLateSubmission,
       drawingsLateApproval,
       drawingsLateStart,
-      drawingsLateConstruction
+      drawingsLateConstruction,
+      rowsToSubmitTargetWeek,
+      rowsToSubmitActualWeek,
+      rowsToSubmitTargetMonth,
+      rowsToSubmitActualMonth,
    } = dataInfo;
 
 
    const dataInput = [
       {
-         name: `Drawing late start`,
-         value: drawingsLateStart.length
+         name: 'Drawings to submit (week)',
+         value: rowsToSubmitActualWeek.length
       },
       {
-         name: `Drawing late submission`,
+         name: 'Drawings to submit (month)',
+         value: rowsToSubmitActualMonth.length
+      },
+      // {
+      //    name: 'Drawings late start',
+      //    value: drawingsLateStart.length
+      // },
+      {
+         name: 'Late submission',
          value: drawingsLateSubmission.length
       },
       {
-         name: `Drawing late approval`,
+         name: 'Late approval',
          value: drawingsLateApproval.length
       },
       {
-         name: `Late for construction`,
+         name: 'Late for construction',
          value: drawingsLateConstruction.length
       }
    ];
@@ -41,18 +53,24 @@ const ChartProgress = ({ data, openDrawingTable, projectId, title }) => {
    const progressBarClick = (name) => {
       let category;
       let progressRows;
-      if (name.includes('Drawing late start')) {
-         category = 'Drawing late start';
+      if (name.includes('Drawings late start')) {
+         category = 'Drawings late start';
          progressRows = drawingsLateStart;
-      } else if (name.includes('Drawing late submission')) {
-         category = 'Drawing late submission';
+      } else if (name.includes('Late submission')) {
+         category = 'Late submission';
          progressRows = drawingsLateSubmission;
-      } else if (name.includes('Drawing late approval')) {
-         category = 'Drawing late approval';
+      } else if (name.includes('Late approval')) {
+         category = 'Late approval';
          progressRows = drawingsLateApproval;
       } else if (name.includes('Late for construction')) {
          category = 'Late for construction';
          progressRows = drawingsLateConstruction;
+      } else if (name.includes('Drawings to submit (week)')) {
+         category = 'Drawings to submit (week)';
+         progressRows = rowsToSubmitTargetWeek;
+      } else if (name.includes('Drawings to submit (month)')) {
+         category = 'Drawings to submit (month)';
+         progressRows = rowsToSubmitTargetMonth;
       };
 
       openDrawingTable({
@@ -73,16 +91,34 @@ const ChartProgress = ({ data, openDrawingTable, projectId, title }) => {
 
    return (
       <ChartPanel title={title} panel={panel}>
-         <div style={{ width: '100%', margin: '20px auto' }}>
+         <div style={{ width: '100%', margin: '5px auto' }}>
 
             {dataInput.map(item => (
                <Container key={item.name} onClick={() => progressBarClick(item.name)}>
-                  <span>{item.name}: </span><span style={{ fontWeight: 'bold', color: '#b33939' }}>{item.value}</span><span>{`/${rows.length}`}</span>
-                  <Progress
+
+                  <span>{item.name} : </span>
+                  <span style={{ fontWeight: 'bold', color: '#b33939' }}>{item.value}</span>
+                  <span>/</span>
+                  <span style={{ fontWeight: 'bold' }}>
+                     {`${item.name === 'Drawings to submit (week)'
+                        ? rowsToSubmitTargetWeek.length
+                        : item.name === 'Drawings to submit (month)'
+                           ? rowsToSubmitTargetMonth.length
+                           : rows.length}`}
+                  </span>
+
+                  <ProgressStyled
                      trailColor='#eee'
                      strokeColor={colorType.red}
-                     percent={Math.round(item.value / rows.length * 100)}
-                     style={{ paddingBottom: 15, paddingRight: 30 }}
+                     style={{ paddingBottom: 10, paddingRight: 30 }}
+                     percent={Math.round(
+                        item.value /
+                        (item.name === 'Drawings to submit (week)'
+                           ? rowsToSubmitTargetWeek.length
+                           : item.name === 'Drawings to submit (month)'
+                              ? rowsToSubmitTargetMonth.length
+                              : rows.length)
+                        * 100)}
                      // format={e => `${e}%`}
                      format={e => null}
                   />
@@ -119,5 +155,12 @@ const Container = styled.div`
    padding-left: 0;
 `;
 
+const ProgressStyled = styled(Progress)`
+   .ant-progress .ant-progress-line .ant-progress-status-normal .ant-progress-show-info {
+      padding-bottom: 0;
+      margin: 0;
+   }
+
+`;
 
 
