@@ -1,3 +1,4 @@
+import React from 'react';
 import { Provider as CellProvider } from "./cellContext";
 import { Provider as ProjectProvider } from "./projectContext";
 import { Provider as RowProvider } from "./rowContext";

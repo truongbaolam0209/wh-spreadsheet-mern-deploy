@@ -205,9 +205,9 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
                   ) {
                      return false;
                   } else if (companyNodePrevParent === 'SUBCON' && companyNodePrevParent === companyNodeNextParent) {
-                     const companySubconNodePrevParent = getCompanySubconNameFnc(nodePrevParentInTree, treeFlatten);
-                     const companySubconNodeNextParent = getCompanySubconNameFnc(nodeNextParentInTree, treeFlatten);
-                     if (companySubconNodePrevParent !== companySubconNodeNextParent) {
+                     const subconTradePrevText = nodePrevParentInTree.title.slice(0, nodePrevParentInTree.title.length - 9);
+                     const subconTradeNextText = nodeNextParentInTree.title.slice(0, nodeNextParentInTree.title.length - 9);
+                     if (subconTradePrevText !== subconTradeNextText) {
                         return false;
                      };
                   };
