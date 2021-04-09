@@ -1,12 +1,15 @@
 
+import { Icon, Timeline } from 'antd';
 import Axios from 'axios';
 import React, { useContext, useEffect, useState } from 'react';
 import BaseTable, { AutoResizer } from 'react-base-table';
 import styled from 'styled-components';
-import { colorType, imgLink, SERVER_URL } from '../../constants';
+import { colorType, SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { getHeaderWidth, mongoObjectId } from '../../utils';
+import { mongoObjectId } from '../../utils';
+
+
 
 
 const Table = (props) => {
@@ -26,8 +29,8 @@ const Table = (props) => {
 };
 
 
-const TableDrawingDetail = (props) => {
 
+const TableDrawingDetail = (props) => {
 
    const { rowData } = props;
    const { id: rowId } = rowData;
@@ -52,8 +55,10 @@ const TableDrawingDetail = (props) => {
                if (history) {
                   let data = { id: mongoObjectId() };
                   Object.keys(history).forEach(key => {
-                     const hdText = headers.find(hd => hd.key === key).text;
-                     data[hdText] = history[key];
+                     if (key !== 'rfaNumber' && !key.includes('reply-$$$-')) {
+                        const hdText = headers.find(hd => hd.key === key).text;
+                        data[hdText] = history[key];
+                     };
                   });
                   rowsHistory.push(data);
                };
@@ -83,18 +88,22 @@ const TableDrawingDetail = (props) => {
       fetchRowsHistory();
    }, []);
 
-   let data;
+   let data, input, columnsData;
    if (rowsHistoryDatabase && rowCurrent) {
-      data = [
+      input = [
          ...rowsHistoryDatabase,
          ...rowsHistoryPrevious,
          rowCurrent
       ];
+      data = convertToVerticalTable(input, headers);
+      columnsData = ['Info', ...input.map((hd, i) => `Version ${i + 1}`)];
    };
 
-   const panelWidth = window.innerWidth * 0.8;
-   const panelHeight = window.innerHeight * 0.8;
 
+
+   const panelHeight = window.innerHeight * 0.8;
+   const columnWidth = 120;
+   const columnHeaderWidth = 190;
 
    return (
       <div style={{
@@ -103,54 +112,54 @@ const TableDrawingDetail = (props) => {
          padding: 10,
          display: 'flex',
          justifyContent: 'center',
-         flexDirection: 'column',
+         // flexDirection: 'column',
       }}>
-
          {rowsHistoryDatabase && rowCurrent && (
             <>
                <div style={{
-                  width: panelWidth,
-                  height: 100 + data.length * 30,
+                  width: columnHeaderWidth + columnWidth * input.length + 17,
+                  height: panelHeight - 100,
                   margin: '0 auto',
                   textAlign: 'center'
                }}>
                   <div style={{ fontSize: 20, fontWeight: 'bold' }}>DRAWING HISTORY</div>
                   <TableStyled
                      fixed
-                     columns={generateColumns(getHeadersText(stateProject.allDataOneSheet.publicSettings.headers))}
+                     columns={generateColumns(columnsData, { columnWidth, columnHeaderWidth })}
                      data={data}
                      rowHeight={28}
                   />
-
                </div>
 
-               <div style={{
-                  margin: '0 auto',
-                  textAlign: 'center',
-                  marginTop: 100
-               }}>
-                  <img src={imgLink.timeline} alt='visualize' height={panelHeight - (100 + data.length * 30) - 100} />
+               <div style={{ display: 'flex', padding: '15px 30px' }}>
+                  {input.map((item, i) => (
+
+                     <TimeLineDrawing
+                        key={i}
+                        data={item}
+                        version={i + 1}
+                     />
+
+                  ))}
                </div>
             </>
          )}
-
-
-
       </div>
-
    );
 };
 
 export default TableDrawingDetail;
 
 
-const generateColumns = (headers) => headers.map((column, columnIndex) => ({
 
+
+const generateColumns = (headers, { columnWidth, columnHeaderWidth }) => headers.map((column, columnIndex) => ({
    key: column,
    dataKey: column,
-   title: column,
+   title: column === 'Info' ? '' : column,
    resizable: true,
-   width: getHeaderWidth(column),
+   width: columnIndex === 0 ? columnHeaderWidth : columnWidth,
+   className: columnIndex === 0 ? 'column-header' : 'column-data'
 }));
 
 const getHeadersText = (headersData) => {
@@ -160,14 +169,34 @@ const getHeadersText = (headersData) => {
 };
 
 
+const convertToVerticalTable = (data, headers) => {
+   let dwgArray = [];
+   headers.forEach(hd => {
+      let obj = {
+         id: mongoObjectId(),
+         Info: hd.text
+      };
+      data.forEach((row, i) => {
+         obj[`Version ${i + 1}`] = row[hd.text] || '';
+      });
+      dwgArray.push(obj);
+   });
+   return dwgArray;
+};
+
+
 
 
 const TableStyled = styled(Table)`
-
-
    .BaseTable__row-cell-text {
-      color: black
+      /* color: black; */
    }
+   .column-header {
+      background: ${colorType.primary};
+      color: white;
+      font-weight: bold;
+   }
+   
 
    .BaseTable__table .BaseTable__body {
       /* -webkit-touch-callout: none;
@@ -180,9 +209,8 @@ const TableStyled = styled(Table)`
    .BaseTable__header-cell {
       padding: 10px;
       border-right: 1px solid #DCDCDC;
-
-      background: ${colorType.grey1};
-      color: black
+      background: ${colorType.primary};
+      color: white
    }
 
    .BaseTable__row-cell {
@@ -192,4 +220,39 @@ const TableStyled = styled(Table)`
       overflow: visible !important;
    }
 `;
+
+
+
+const TimeLineDrawing = ({ data, version }) => {
+
+
+   const { state: stateProject } = useContext(ProjectContext);
+   const { headers } = stateProject.allDataOneSheet.publicSettings;
+
+   const headersForTimeline = headers.filter(hd => {
+      return hd.text.includes('(A)') ||
+         hd.text.includes('(T)') ||
+         hd.text === 'Construction Issuance Date' ||
+         hd.text === 'Construction Start';
+   });
+
+   return (
+      <div style={{ width: 350 }}>
+         <div style={{ marginBottom: 15, fontSize: 17, fontWeight: 'bold' }}>Version {version}</div>
+         <Timeline>
+            {headersForTimeline.map((hd, i) => {
+               return (
+                  <Timeline.Item
+                     dot={<Icon type='clock-circle-o' style={{ fontSize: '16px' }} />}
+                     color={colorType.primary}
+                     key={i}
+                  >
+                     ({data[hd.text] || 'n/a'}) - (<span style={{ fontWeight: 'bold' }}>{hd.text}</span>)
+                  </Timeline.Item>
+               );
+            })}
+         </Timeline>
+      </div>
+   );
+};
 

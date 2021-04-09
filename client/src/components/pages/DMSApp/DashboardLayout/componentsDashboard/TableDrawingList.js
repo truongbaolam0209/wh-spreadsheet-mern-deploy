@@ -175,7 +175,7 @@ const TableDrawingList = ({ data }) => {
       });
    }, 500);
 
-   const setTableDataXXX = (isFoundShownOnly) => {
+   const setTableAction = (isFoundShownOnly) => {
       setTableData({
          ...tableData,
          modeSearch: { ...tableData.modeSearch, isFoundShownOnly }
@@ -258,7 +258,7 @@ const TableDrawingList = ({ data }) => {
             <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
 
             {searchInputShown
-               ? <InputSearch searchGlobal={searchGlobal} isDashboard={true} tableData={tableData} setTableDataXXX={setTableDataXXX} />
+               ? <InputSearch searchGlobal={searchGlobal} isDashboard={true} tableData={tableData} setTableAction={setTableAction} />
                : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
             {tableData.modeGroup.length > 0 ? (
@@ -334,15 +334,6 @@ const TableDrawingList = ({ data }) => {
    );
 };
 export default TableDrawingList;
-
-const generateColumns = (count = 10, prefix = 'column-', props) =>
-   new Array(count).fill(0).map((column, columnIndex) => ({
-      ...props,
-      key: `${prefix}${columnIndex}`,
-      dataKey: `${prefix}${columnIndex}`,
-      title: `Column ${columnIndex}`,
-      width: 150,
-   }));
 
 
 

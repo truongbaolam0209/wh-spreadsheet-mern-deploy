@@ -28,6 +28,8 @@ const IconTable = (props) => {
          <DivStyled>
             {type === 'rfa-button' ? (
                <IconRFA onClick={onClick}>RFA</IconRFA>
+            ) : type === 'dms-button' ? (
+               <IconRFA onClick={onClick}>DMS</IconRFA>
             ) : (
                <IconStyled
                   style={{
@@ -75,9 +77,10 @@ const toolTipBtn = (type) => {
                                                                   type === 'plus' ? 'Save View Template' :
                                                                      type === 'edit' ? 'Change User Name To Check Multi-User' :
                                                                         type === 'upload' ? 'Upload Data To Server' :
-                                                                           type === 'rfa-button' ? 'Go To RFA View' :
-                                                                              type === 'plus-square' ? 'Add New RFA' :
-                                                                                 'No Title';
+                                                                           type === 'rfa-button' ? 'Go To RFA Sheet' :
+                                                                              type === 'dms-button' ? 'Go To DMS Sheet' :
+                                                                                 type === 'plus-square' ? 'Add New RFA' :
+                                                                                    'No Title';
 };
 
 const DivStyled = styled.div`

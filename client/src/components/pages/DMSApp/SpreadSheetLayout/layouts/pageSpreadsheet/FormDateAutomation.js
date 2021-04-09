@@ -21,7 +21,7 @@ const FormDateAutomation = ({ applyDateAutomation }) => {
 
 
     const onClickCalculate = () => {
-        setDefaultDate(ttttttttttt(state, date, arrHeaders));
+        setDefaultDate(addDatesCalculation(state, date, arrHeaders));
     };
 
     const onChangePickdate = (e) => {
@@ -148,7 +148,7 @@ const getInitObj = (arr) => {
 };
 
 
-const ttttttttttt = (state, e, arrHeaders) => {
+const addDatesCalculation = (state, e, arrHeaders) => {
     let obj = {};
     let days = 0;
     arrHeaders.forEach((hd, i) => {

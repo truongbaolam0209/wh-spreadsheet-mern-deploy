@@ -8,7 +8,7 @@ import { colorType, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { debounceFnc, getActionName, getHeaderWidth, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
+import { debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
 import CellHeader from './generalComponents/CellHeader';
 import { sortFnc } from './generalComponents/FormSort';
 import IconTable from './generalComponents/IconTable';
@@ -22,11 +22,11 @@ import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
 import ButtonAdminUploadDataPDD from './pageSpreadsheet/ButtonAdminUploadDataPDD';
 import Cell, { columnLocked, rowLocked } from './pageSpreadsheet/Cell';
 import CellIndex from './pageSpreadsheet/CellIndex';
-import CellRFA from './pageSpreadsheet/CellRFA';
+import CellRFA, { getConsultantReplyData } from './pageSpreadsheet/CellRFA';
 import ExcelExport from './pageSpreadsheet/ExcelExport';
 import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from './pageSpreadsheet/FormDrawingTypeOrder';
 import PanelFunction, { getPanelPosition } from './pageSpreadsheet/PanelFunction';
-import PanelSetting, { getDataForRFA, updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from './pageSpreadsheet/PanelSetting';
+import PanelSetting, { convertRowHistoryData, getDataForRFASheet, updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from './pageSpreadsheet/PanelSetting';
 
 
 
@@ -54,7 +54,7 @@ let addedEvent = false;
 const PageSpreadsheet = (props) => {
 
 
-   let { email, role, isAdmin, projectId, projectName, token, company, companies, projectIsAppliedRfaView } = props;
+   let { email, role, isAdmin, projectId, projectName, token, company, companies, projectIsAppliedRfaView, listUser, listGroup } = props;
    const roleTradeCompany = getUserRoleTradeCompany(role, company);
 
    const tableRef = useRef();
@@ -241,16 +241,12 @@ const PageSpreadsheet = (props) => {
             getSheetRows({
                ...stateRow,
                rowsSelectedToMove: [...rowsSelected],
-               // modeFilter: [], 
-               // modeSort: {}
             });
          } else {
             const row = rowsAll.find(x => x.id === panelType.cellProps.rowData.id);
             getSheetRows({
                ...stateRow,
                rowsSelectedToMove: [row],
-               // modeFilter: [], 
-               // modeSort: {}
             });
          };
       } else if (btn === 'Paste Drawings') {
@@ -312,9 +308,11 @@ const PageSpreadsheet = (props) => {
          setPanelSettingType(btn);
          setPanelSettingVisible(true);
       };
+
       setCellActive(null);
       if (currentDOMCell) currentDOMCell.cell.classList.remove('cell-current');
       currentDOMCell = null;
+
    };
 
 
@@ -370,23 +368,14 @@ const PageSpreadsheet = (props) => {
          setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
 
 
-      } else if (update.type === 'redirect-to-view-rfa') {
-         getSheetRows({
-            ...getInputDataInitially(update.data.dbReloadFromServer, { roleTradeCompany, projectIsAppliedRfaView }),
-            rowsRfaAll: update.data.rowsRfaAll,
-            isRfaView: update.data.isRfaView
-         });
-         setExpandedRows(update.data.expandedRowIds);
+
+      } else if (update.type === 'reload-data-view-rfa') {
+         getSheetRows(getInputDataInitially(update.data.dataAllFromServer, update.data.dataRowsHistoryFromServer));
+         setExpandedRows(update.data.expandedRowsIdArr);
+
          OverwriteCellsModified({});
          setCellActive(null);
          setLoading(false);
-
-      } else if (update.type === 'add-new-rfa-submit') {
-         getSheetRows({
-            ...stateRow,
-            rowsRfaAll: update.data.rowsRFAAll,
-         });
-         setExpandedRows(update.data.expandedRowIds);
 
 
       } else if (update.type === 'save-data-successfully') {
@@ -397,11 +386,14 @@ const PageSpreadsheet = (props) => {
       } else if (update.type === 'reload-data-from-server') {
          fetchDataOneSheet({
             ...update.data,
-            email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView
+            email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
          });
          setUserData(getHeadersData(update.data));
-         getSheetRows(getInputDataInitially(update.data, { roleTradeCompany, projectIsAppliedRfaView }));
-         setExpandedRows(getRowsKeyExpanded(update.data.publicSettings.drawingTypeTree, update.data.userSettings.viewTemplateNodeId));
+         getSheetRows(getInputDataInitially(update.data, null));
+         setExpandedRows(getRowsKeyExpanded(
+            update.data.publicSettings.drawingTypeTree,
+            update.data.userSettings ? update.data.userSettings.viewTemplateNodeId : null
+         ));
          OverwriteCellsModified({});
          setCellActive(null);
          setLoading(false);
@@ -448,25 +440,37 @@ const PageSpreadsheet = (props) => {
       const fetchOneProject = async () => {
          try {
             setLoading(true);
-            const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
-
-
-            fetchDataOneSheet({
-               ...res.data,
-               email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView
-            });
-            setUserData(getHeadersData(res.data));
-            getSheetRows(getInputDataInitially(res.data, { roleTradeCompany, projectIsAppliedRfaView }));
 
             if (roleTradeCompany.role === 'Consultant') {
-               setExpandedRows(getDataForRFA().expandedRowIds);
+               const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+               const resRowHistory = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
+               const { rows } = res.data;
+
+               fetchDataOneSheet({
+                  ...res.data,
+                  email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
+               });
+               getSheetRows(getInputDataInitially(res.data, resRowHistory.data));
+
+               setExpandedRows([
+                  'ARCHI', 'C&S', 'M&E', 'PRECAST',
+                  ...rows.filter(x => x.rfaNumber).map(x => x.rfaNumber)
+               ]);
+
             } else {
+               const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+               fetchDataOneSheet({
+                  ...res.data,
+                  email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
+               });
+               setUserData(getHeadersData(res.data));
+               getSheetRows(getInputDataInitially(res.data, null));
+
                setExpandedRows(getRowsKeyExpanded(
                   res.data.publicSettings.drawingTypeTree,
                   res.data.userSettings ? res.data.userSettings.viewTemplateNodeId : null
                ));
             };
-
 
             setLoading(false);
          } catch (err) {
@@ -529,34 +533,38 @@ const PageSpreadsheet = (props) => {
       return ({ expanding: !props.expanded });
    };
    const rowClassName = (props) => {
-      const { rowData } = props;
-      const { colorization } = stateProject.userData;
       const { rowsSelected, modeGroup, drawingTypeTree, isRfaView } = stateRow;
-
-      const valueArr = colorization.value;
-      const value = rowData[colorization.header];
+      const { rowData } = props;
+      if (
+         (!isRfaView && (!rowData._rowLevel || rowData._rowLevel < 1)) ||
+         (isRfaView && rowData.treeLevel)
+      ) {
+         return 'row-drawing-type';
+      };
 
       let isRowLocked;
       if (!isRfaView) {
          isRowLocked = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
+         if (isRowLocked) {
+            return 'row-locked';
+         };
       };
 
 
-      if (rowsSelected.find(x => x.id === rowData.id)) {
+      if (rowsSelected && rowsSelected.find(x => x.id === rowData.id)) {
          return 'row-selected';
       };
-      if (!rowData._rowLevel || rowData._rowLevel < 1) {
-         return 'row-drawing-type';
-      };
-      if (isRowLocked) {
-         return 'row-locked';
-      };
 
-      if (colorization !== null && colorization.header !== 'No Colorization' &&
-         valueArr && valueArr.length > 0 && valueArr.indexOf(value) !== -1
-      ) {
-         if (rowData[colorization.header]) {
-            return `colorization-${colorization.header.replace(/\s/g, '').replace(/,/g, '')}-${rowData[colorization.header].replace(/\s/g, '').replace(/,/g, '')}-styled`;
+      if (stateProject.userData) {
+         const { colorization } = stateProject.userData;
+         const valueArr = colorization.value;
+         const value = rowData[colorization.header];
+         if (colorization !== null && colorization.header !== 'No Colorization' &&
+            valueArr && valueArr.length > 0 && valueArr.indexOf(value) !== -1
+         ) {
+            if (rowData[colorization.header]) {
+               return `colorization-${colorization.header.replace(/\s/g, '').replace(/,/g, '')}-${rowData[colorization.header].replace(/\s/g, '').replace(/,/g, '')}-styled`;
+            };
          };
       };
    };
@@ -564,31 +572,51 @@ const PageSpreadsheet = (props) => {
 
 
    const [searchInputShown, setSearchInputShown] = useState(false);
-   const searchGlobal = debounceFnc((textSearch) => {
-      let searchDataObj = {};
-      if (textSearch !== '') {
-         stateRow.rowsAll.forEach(row => {
-            let obj = {};
-            Object.keys(row).forEach(key => {
-               if (
-                  key !== 'id' && key !== '_preRow' && key !== '_parentRow' &&
-                  row[key] &&
-                  row[key].toString().toLowerCase().includes(textSearch.toLowerCase())
-               ) {
-                  obj[row.id] = [...obj[row.id] || [], key];
-               };
+   const searchGlobal = debounceFnc((textSearch, isRfaView) => {
+      if (!isRfaView) {
+         let searchDataObj = {};
+         if (textSearch !== '') {
+            stateRow.rowsAll.forEach(row => {
+               let obj = {};
+               Object.keys(row).forEach(key => {
+                  if (
+                     key !== 'id' && key !== '_preRow' && key !== '_parentRow' &&
+                     row[key] &&
+                     row[key].toString().toLowerCase().includes(textSearch.toLowerCase())
+                  ) {
+                     obj[row.id] = [...obj[row.id] || [], key];
+                  };
+               });
+               if (Object.keys(obj).length > 0) searchDataObj = { ...searchDataObj, [row.id]: obj[row.id] };
             });
-            if (Object.keys(obj).length > 0) searchDataObj = { ...searchDataObj, [row.id]: obj[row.id] };
+         };
+         setCellSearchFound(searchDataObj);
+         setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
+         setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
+         getSheetRows({
+            ...stateRow,
+            modeSearch: { searchDataObj, isFoundShownOnly: 'show all' }
          });
+      } else {
+         let searchDataObj = {};
+         // if (textSearch !== '') {
+         //    stateRow.rowsAll.forEach(row => {
+         //       let obj = {};
+         //       Object.keys(row).forEach(key => {
+         //          if (
+         //             key !== 'id' && key !== '_preRow' && key !== '_parentRow' &&
+         //             row[key] &&
+         //             row[key].toString().toLowerCase().includes(textSearch.toLowerCase())
+         //          ) {
+         //             obj[row.id] = [...obj[row.id] || [], key];
+         //          };
+         //       });
+         //       if (Object.keys(obj).length > 0) searchDataObj = { ...searchDataObj, [row.id]: obj[row.id] };
+         //    });
+         // };
+
       };
-      setCellSearchFound(searchDataObj);
-      setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed + 1 });
-      setUserData({ ...stateProject.userData, nosColumnFixed: stateProject.userData.nosColumnFixed });
-      getSheetRows({
-         ...stateRow,
-         modeSearch: { searchDataObj, isFoundShownOnly: 'show all' }
-      });
-   }, 500);
+   }, 400);
 
    const renderColumns = (arr, nosColumnFixed) => {
 
@@ -606,10 +634,28 @@ const PageSpreadsheet = (props) => {
          ) : null,
          style: { padding: 0, margin: 0 }
       }];
-      arr.forEach((hd, index) => {
+
+      let AdditionalHeadersForProjectRFA = [];
+      if (projectIsAppliedRfaView && !stateRow.isRfaView) {
+         AdditionalHeadersForProjectRFA = [
+            'Consultant (1)',
+            'Consultant (2)',
+            'Consultant (3)',
+            'Consultant (4)',
+            'Consultant (5)',
+         ];
+      };
+      let headerArrayForTable = [...arr, ...AdditionalHeadersForProjectRFA];
+      headerArrayForTable = headerArrayForTable.filter(hd => hd !== 'Drawing');
+
+      headerArrayForTable.forEach((hd, index) => {
          headersObj.push({
-            key: hd, dataKey: hd, title: hd,
-            width: (projectIsAppliedRfaView && stateRow.isRfaView && hd === 'RFA Ref') ? 400 : getHeaderWidth(hd),
+            key: hd,
+            dataKey: hd,
+            title: hd,
+            width: stateRow.isRfaView
+               ? getHeaderWidthForRFAView(hd)
+               : getHeaderWidth(hd),
             resizable: true,
             frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
             headerRenderer: (
@@ -617,7 +663,12 @@ const PageSpreadsheet = (props) => {
                   onMouseDownColumnHeader={onMouseDownColumnHeader}
                />
             ),
-            cellRenderer: !stateRow.isRfaView ? (
+            cellRenderer: stateRow.isRfaView || (!stateRow.isRfaView && hd.includes('Consultant (') && !hd.includes('Drg To Consultant (')) ? (
+               <CellRFA
+                  buttonPanelFunction={buttonPanelFunction}
+                  onRightClickCell={onRightClickCell}
+               />
+            ) : (
                <Cell
                   setPosition={setPosition}
                   onRightClickCell={onRightClickCell}
@@ -629,10 +680,6 @@ const PageSpreadsheet = (props) => {
                      contextProject: { stateProject },
                   }}
                />
-            ) : (
-               <CellRFA
-                  buttonPanelFunction={buttonPanelFunction}
-               />
             ),
             className: (props) => {
                const { rowData, column: { key } } = props;
@@ -642,7 +689,7 @@ const PageSpreadsheet = (props) => {
                   ? 'cell-found'
                   : (cellHistoryFound && cellHistoryFound.find(cell => cell.rowId === id && cell.header === key))
                      ? 'cell-history-highlight'
-                     : (columnLocked(roleTradeCompany, rowData, stateRow.modeGroup, key) && rowData._rowLevel === 1)
+                     : (columnLocked(roleTradeCompany, rowData, stateRow.modeGroup, key, projectIsAppliedRfaView) && rowData._rowLevel === 1)
                         ? 'cell-locked'
                         : '';
             }
@@ -652,25 +699,39 @@ const PageSpreadsheet = (props) => {
    };
 
 
+   const buttonRibbonMode = ((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && !stateRow.isRfaView));
+
    return (
 
       <div
          onContextMenu={(e) => e.preventDefault()}
       >
          <ButtonBox>
-            {((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && !stateRow.isRfaView)) && (
+
+            {buttonRibbonMode && (
                <>
                   <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
                   <DividerRibbon />
                   <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
-                  <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
                   <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
                   <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
+               </>
+            )}
 
-                  {searchInputShown
-                     ? <InputSearch searchGlobal={searchGlobal} stateRow={stateRow} getSheetRows={getSheetRows} />
-                     : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
+            <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
+            {searchInputShown
+               ? <InputSearch
+                  searchGlobal={searchGlobal}
+                  stateRow={stateRow}
+                  getSheetRows={getSheetRows}
+                  isRfaView={stateRow.isRfaView}
+               />
+               : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
+
+
+            {buttonRibbonMode && (
+               <>
                   {stateRow && stateRow.modeGroup.length > 0 ? (
                      <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-1')} />
                   ) : (
@@ -691,9 +752,11 @@ const PageSpreadsheet = (props) => {
                </>
             )}
 
-
             {stateRow && projectIsAppliedRfaView && !stateRow.isRfaView && (
                <IconTable type='rfa-button' onClick={() => buttonPanelFunction('goToViewRFA-ICON')} />
+            )}
+            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && (
+               <IconTable type='dms-button' onClick={() => buttonPanelFunction('goToViewDMS-ICON')} />
             )}
 
             {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && (
@@ -736,7 +799,7 @@ const PageSpreadsheet = (props) => {
                   projectIsAppliedRfaView && stateRow.isRfaView ? 0 : stateProject.userData.nosColumnFixed
                )}
 
-               data={arrangeDrawingTypeFinal(stateRow)}
+               data={arrangeDrawingTypeFinal(stateRow, companies)}
                expandedRowKeys={expandedRows}
 
                expandColumnKey={projectIsAppliedRfaView && stateRow.isRfaView ? 'RFA Ref' : stateProject.userData.headersShown[0]}
@@ -775,7 +838,7 @@ const PageSpreadsheet = (props) => {
 
 
          <ModalStyledSetting
-            title={stateRow && stateRow.modeGroup.length > 0 ? 'Quit Grouping Mode' : getActionName(panelSettingType)}
+            title={stateRow && stateRow.modeGroup && stateRow.modeGroup.length > 0 ? 'Quit Grouping Mode' : getActionName(panelSettingType)}
             visible={panelSettingVisible}
             footer={null}
             onCancel={() => {
@@ -856,24 +919,26 @@ const TableStyled = styled(Table)`
    
    ${({ dataForStyled }) => {
       const { stateProject, randomColorRange, randomColorRangeStatus } = dataForStyled;
-      let colorization = stateProject.userData.colorization;
 
-      const value = colorization.value || [];
+      if (stateProject.userData) {
+         let { colorization } = stateProject.userData;
+         const value = colorization.value || [];
 
-      let res = [];
-      value.map(n => {
-         let color = stateProject.userData.colorization.header === 'Status' ?
-            randomColorRangeStatus[n] :
-            randomColorRange[value.indexOf(n)];
-         if (n) {
-            res.push(`.colorization-${stateProject.userData.colorization.header.replace(/\s/g, '').replace(/,/g, '')}-${n.replace(/\s/g, '').replace(/,/g, '')}-styled {
-               background-color: ${color};
-         }`);
-         };
-      });
-      const output = [...new Set(res)].join('\n');
+         let res = [];
+         value.map(n => {
+            let color = stateProject.userData.colorization.header === 'Status' ?
+               randomColorRangeStatus[n] :
+               randomColorRange[value.indexOf(n)];
+            if (n) {
+               res.push(`.colorization-${stateProject.userData.colorization.header.replace(/\s/g, '').replace(/,/g, '')}-${n.replace(/\s/g, '').replace(/,/g, '')}-styled {
+                  background-color: ${color};
+            }`);
+            };
+         });
+         const output = [...new Set(res)].join('\n');
 
-      return output;
+         return output;
+      };
    }}
 
    ${({ dataForStyled }) => {
@@ -971,38 +1036,51 @@ const SpinStyled = styled.div`
 
 
 
-const getInputDataInitially = (data, { roleTradeCompany, projectIsAppliedRfaView }) => {
-
-
+const getInputDataInitially = (data, dataRowsHistory) => {
 
    const { rows, publicSettings, userSettings } = data;
    const { drawingTypeTree } = publicSettings;
-   let viewTemplates = [];
-   let viewTemplateNodeId = null;
-   let modeFilter = [];
-   let modeSort = {};
-   if (userSettings) {
-      viewTemplates = userSettings.viewTemplates || [];
-      viewTemplateNodeId = userSettings.viewTemplateNodeId || null;
-      modeFilter = userSettings.modeFilter || [];
-      modeSort = userSettings.modeSort || {};
-   };
-
 
    let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);
    const { treeNodesToAdd, rowsToAdd, rowsUpdatePreOrParent } = rearrangeRowsNotMatchTreeNode(rows, rowsAllOutput, drawingTypeTree);
 
+   if (dataRowsHistory) {
+      const dataRowsHistoryConverted = convertRowHistoryData(dataRowsHistory, publicSettings.headers);
+      const { rowsDataRFA, TreeViewRFA } = getDataForRFASheet(rows, dataRowsHistoryConverted, drawingTypeTree);
 
-   let objRfaView = {};
-   let objDmsView = {};
-   if (projectIsAppliedRfaView && roleTradeCompany.role === 'Consultant') {
-      objRfaView = {
-         isRfaView: roleTradeCompany.role === 'Consultant',
-         rowsRfaAll: getDataForRFA().rowsData,
-         currentRfaToAddNew: null
+      return {
+
+         modeFilter: [],
+         modeSearch: {},
+         modeGroup: [],
+
+         drawingTypeTree: TreeViewRFA,
+         rowsAll: [...rowsAllOutput, ...rowsToAdd],
+         rowsRfaAll: rowsDataRFA,
+         rowsRfaAllInit: rowsDataRFA,
+         isRfaView: true,
+         currentRfaToAddNew: null,
       };
+
    } else {
-      objDmsView = {
+
+      let viewTemplates = [];
+      let viewTemplateNodeId = null;
+      let modeFilter = [];
+      let modeSort = {};
+      if (userSettings) {
+         viewTemplates = userSettings.viewTemplates || [];
+         viewTemplateNodeId = userSettings.viewTemplateNodeId || null;
+         modeFilter = userSettings.modeFilter || [];
+         modeSort = userSettings.modeSort || {};
+      };
+
+      return {
+         modeFilter,
+         modeSort,
+         modeSearch: {},
+         modeGroup: [],
+
          rowsAll: [...rowsAllOutput, ...rowsToAdd], // handle rows can not match parent
          rowsVersionsToSave: [],
 
@@ -1017,27 +1095,15 @@ const getInputDataInitially = (data, { roleTradeCompany, projectIsAppliedRfaView
          idRowsNew: [],
          rowsUpdatePreRowOrParentRow: { ...rowsUpdatePreOrParent }, // handle rows can not match parent
 
-
+         rowsSelected: [],
          rowsSelectedToMove: [],
 
-
+         isRfaView: false,
       };
-   };
-
-   return {
-      rowsSelected: [],
-
-      modeFilter,
-      modeSort,
-      modeSearch: {},
-      modeGroup: [],
-
-      ...objDmsView,
-      ...objRfaView
    };
 };
 
-const arrangeDrawingTypeFinal = (stateRow) => {
+const arrangeDrawingTypeFinal = (stateRow, companies) => {
    const {
       rowsAll, drawingTypeTree, viewTemplateNodeId,
       modeFilter, modeGroup, modeSort, modeSearch,
@@ -1045,103 +1111,141 @@ const arrangeDrawingTypeFinal = (stateRow) => {
       isRfaView, rowsRfaAll
    } = stateRow;
 
-   if (isRfaView) return rowsRfaAll;
-
-
-   let drawingTypeTreeTemplate;
-   let rowsAllInTemplate;
-   const templateNode = drawingTypeTree.find(x => x.id === viewTemplateNodeId);
-
-
-   if (templateNode) {
-      const nodeArray = getTreeFlattenOfNodeInArray(drawingTypeTree, templateNode);
-      if (nodeArray.length > 1) {
-         drawingTypeTreeTemplate = nodeArray.filter(x => x.id !== templateNode.id);
-         rowsAllInTemplate = rowsAll.filter(x => drawingTypeTreeTemplate.find(tr => tr.id === x._parentRow));
-      } else {
-         const parent = nodeArray[0];
-         return rowsAll.filter(x => x._parentRow === parent.id);
-      };
-   } else {
-      drawingTypeTreeTemplate = drawingTypeTree.map(x => ({ ...x }));
-      rowsAllInTemplate = rowsAll.map(x => ({ ...x }));
-   };
-
-
-
-   if (Object.keys(modeSearch).length === 2) {
-      const { isFoundShownOnly, searchDataObj } = modeSearch;
-      if (isFoundShownOnly === 'show found only') {
-         rowsAllInTemplate = rowsAllInTemplate.filter(row => row.id in searchDataObj);
-      };
-   };
-
-
-
-   if (modeFilter.length > 0) {
-      let filterObj = {};
-      modeFilter.forEach(filter => {
-         if (filter.header) {
-            filterObj[filter.header] = [...filterObj[filter.header] || [], filter.value];
-         };
-      });
-      Object.keys(filterObj).forEach(header => {
-         rowsAllInTemplate = rowsAllInTemplate.filter(r => filterObj[header].indexOf(r[header]) !== -1);
-      });
-      if (Object.keys(modeSort).length !== 3 && modeFilter.find(x => x.isIncludedParent === 'not included')) {
-         return rowsAllInTemplate;
-      };
-   };
-
-
-
-   if (Object.keys(modeSort).length === 3) {
-      const { isIncludedParent: isIncludedParentSort, column: columnSort, type: typeSort } = modeSort;
-      if (isIncludedParentSort === 'included') {
-         const listParentIds = [...new Set(rowsAllInTemplate.map(x => x._parentRow))];
-         let rowsSortedOutput = [];
-         listParentIds.forEach(parentId => {
-            let subRows = rowsAllInTemplate.filter(x => x._parentRow === parentId);
-            if (typeSort === 'ascending') {
-               subRows = sortFnc(subRows, columnSort, true);
-            } else if (typeSort === 'descending') {
-               subRows = sortFnc(subRows, columnSort, false);
+   console.log('isRfaView', isRfaView);
+   if (isRfaView) {
+      // RFA VIEW .......................................
+      let rowsAllFinalRFA = [...rowsRfaAll];
+      if (modeFilter.length > 0) {
+         let filterObj = {};
+         modeFilter.forEach(filter => {
+            if (filter.header) {
+               filterObj[filter.header] = [...filterObj[filter.header] || [], filter.value];
             };
-            rowsSortedOutput = [...rowsSortedOutput, ...subRows];
          });
-         rowsAllInTemplate = [...rowsSortedOutput];
+         Object.keys(filterObj).forEach(header => {
+            if (header.includes('Consultant (') && !header.includes('Drg To Consultant (')) {
+               rowsAllFinalRFA = rowsAllFinalRFA.filter(r => {
+                  const { replyCompany } = getConsultantReplyData(r, header, companies);
+                  return filterObj[header].indexOf(replyCompany) !== -1;
+               });
+            } else {
+               rowsAllFinalRFA = rowsAllFinalRFA.filter(r => filterObj[header].indexOf(r[header]) !== -1);
+            };
+         });
+      };
 
-         if (modeFilter.find(x => x.isIncludedParent === 'not included')) return rowsAllInTemplate;
 
-      } else if (isIncludedParentSort === 'not included') {
-         if (typeSort === 'ascending') {
-            rowsAllInTemplate = sortFnc(rowsAllInTemplate, columnSort, true);
-         } else if (typeSort === 'descending') {
-            rowsAllInTemplate = sortFnc(rowsAllInTemplate, columnSort, false);
+      let dataOutputRFA = [];
+      drawingTypeTree.forEach(item => {
+         let newItem = { ...item };
+         let rowsChildren = rowsAllFinalRFA.filter(r => r['rfaNumber'] === item.id);
+         if (rowsChildren.length > 0) {
+            newItem.children = rowsChildren;
          };
-         return rowsAllInTemplate;
+         dataOutputRFA.push(newItem);
+      });
+
+      const outputRFA = convertFlattenArraytoTree1(dataOutputRFA);
+
+      return outputRFA;
+
+   } else {
+      // DMS VIEW .......................................
+      let drawingTypeTreeTemplate;
+      let rowsAllInTemplate;
+      const templateNode = drawingTypeTree.find(x => x.id === viewTemplateNodeId);
+
+
+      if (templateNode) {
+         const nodeArray = getTreeFlattenOfNodeInArray(drawingTypeTree, templateNode);
+         if (nodeArray.length > 1) {
+            drawingTypeTreeTemplate = nodeArray.filter(x => x.id !== templateNode.id);
+            rowsAllInTemplate = rowsAll.filter(x => drawingTypeTreeTemplate.find(tr => tr.id === x._parentRow));
+         } else {
+            const parent = nodeArray[0];
+            return rowsAll.filter(x => x._parentRow === parent.id);
+         };
+      } else {
+         drawingTypeTreeTemplate = drawingTypeTree.map(x => ({ ...x }));
+         rowsAllInTemplate = rowsAll.map(x => ({ ...x }));
       };
-   };
 
 
-   if (modeGroup.length > 0) {
-      const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup);
-      return rows;
-   };
 
-
-   let dataOutput = [];
-   drawingTypeTreeTemplate.forEach(item => {
-      let newItem = { ...item };
-      let rowsChildren = rowsAllInTemplate.filter(r => r._parentRow === newItem.id);
-      if (rowsChildren.length > 0) {
-         newItem.children = rowsChildren;
+      if (Object.keys(modeSearch).length === 2) {
+         const { isFoundShownOnly, searchDataObj } = modeSearch;
+         if (isFoundShownOnly === 'show found only') {
+            rowsAllInTemplate = rowsAllInTemplate.filter(row => row.id in searchDataObj);
+         };
       };
-      dataOutput.push(newItem);
-   });
-   const output = convertFlattenArraytoTree1(dataOutput);
 
-   return output;
+
+      if (modeFilter.length > 0) {
+         let filterObj = {};
+         modeFilter.forEach(filter => {
+            if (filter.header) {
+               filterObj[filter.header] = [...filterObj[filter.header] || [], filter.value];
+            };
+         });
+         Object.keys(filterObj).forEach(header => {
+            rowsAllInTemplate = rowsAllInTemplate.filter(r => filterObj[header].indexOf(r[header]) !== -1);
+         });
+         if (Object.keys(modeSort).length !== 3 && modeFilter.find(x => x.isIncludedParent === 'not included')) {
+            return rowsAllInTemplate;
+         };
+      };
+
+
+
+      if (Object.keys(modeSort).length === 3) {
+         const { isIncludedParent: isIncludedParentSort, column: columnSort, type: typeSort } = modeSort;
+         if (isIncludedParentSort === 'included') {
+            const listParentIds = [...new Set(rowsAllInTemplate.map(x => x._parentRow))];
+            let rowsSortedOutput = [];
+            listParentIds.forEach(parentId => {
+               let subRows = rowsAllInTemplate.filter(x => x._parentRow === parentId);
+               if (typeSort === 'ascending') {
+                  subRows = sortFnc(subRows, columnSort, true);
+               } else if (typeSort === 'descending') {
+                  subRows = sortFnc(subRows, columnSort, false);
+               };
+               rowsSortedOutput = [...rowsSortedOutput, ...subRows];
+            });
+            rowsAllInTemplate = [...rowsSortedOutput];
+
+            if (modeFilter.find(x => x.isIncludedParent === 'not included')) return rowsAllInTemplate;
+
+         } else if (isIncludedParentSort === 'not included') {
+            if (typeSort === 'ascending') {
+               rowsAllInTemplate = sortFnc(rowsAllInTemplate, columnSort, true);
+            } else if (typeSort === 'descending') {
+               rowsAllInTemplate = sortFnc(rowsAllInTemplate, columnSort, false);
+            };
+            return rowsAllInTemplate;
+         };
+      };
+
+
+      if (modeGroup.length > 0) {
+         const { rows } = groupByHeaders(rowsAllInTemplate, modeGroup);
+         return rows;
+      };
+
+
+      let dataOutput = [];
+      drawingTypeTreeTemplate.forEach(item => {
+         let newItem = { ...item };
+         let rowsChildren = rowsAllInTemplate.filter(r => r._parentRow === newItem.id);
+         if (rowsChildren.length > 0) {
+            newItem.children = rowsChildren;
+         };
+         dataOutput.push(newItem);
+      });
+
+      const output = convertFlattenArraytoTree1(dataOutput);
+
+      return output;
+   };
 };
 
 const getRowsKeyExpanded = (drawingTypeTree, viewTemplateNodeId) => {
@@ -1299,16 +1403,26 @@ const getUserRoleTradeCompany = (role, company) => {
    return { role, trade: null, company };
 };
 
-const headersRfaView = [
+export const headersRfaView = [
    'RFA Ref',
+   'Rev',
    'Drawing Number',
    'Drawing Name',
+   'Due Date',
    'Consultant (1)',
    'Consultant (2)',
    'Consultant (3)',
    'Consultant (4)',
    'Consultant (5)',
 ];
+
+
+
+
+
+
+
+
 
 
 

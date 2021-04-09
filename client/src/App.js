@@ -7,13 +7,13 @@ import PageDataEntrySheet from './components/pages/DMSApp/SpreadSheetLayout/layo
 import PageSpreadsheet from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageSpreadsheet';
 
 
-const App = () => {
+const browserName = detectBrowser();
 
+const App = () => {
 
    const saveDataToServerCallback = (dataToSave) => {
       console.log('dataToSave', dataToSave);
    };
-
 
 
    return (
@@ -24,17 +24,25 @@ const App = () => {
                <Route path='/sheet'>
 
                   <PageSpreadsheet
-                     email='test1@wh5dapp.com'
-                     projectId='MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg'
 
+                     email='judy@wohhup.com'
+                     company='Woh Hup Private Ltd'
+                     role='Document Controller'
+
+
+                     // email='consultant_DCA_@wohhup.com'
+                     // company='DCA'
+                     // role='Consultant'
+
+
+
+                     projectId='MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q'
+
+                     projectIsAppliedRfaView={true}
                      projectName='PDD'
                      token='xxx-xxxxx-xxx-x-xxxxx'
                      isAdmin={true}
-                     // role='WH C&S Design Engineer'
-                     // role='WH Archi Coordinator'
-                     // role='WH Archi Modeller'
-                     role='Document Controller'
-                     // role='Consultant'
+
                      companies={[
                         { company: 'Woh Hup Private Ltd', companyType: 'Main con' },
 
@@ -52,11 +60,26 @@ const App = () => {
                         { company: 'AECOM', companyType: 'Sub-con', trade: 'M&E' },
                         { company: 'HHH ME', companyType: 'Sub-con', trade: 'M&E' },
 
-                        { company: 'AAA', companyType: 'Consultant' },
-                        { company: 'BBB', companyType: 'Consultant' },
+
+                        { company: 'DCA', companyType: 'Consultant', isLeadConsultant: true },
+                        { company: 'RSP', companyType: 'Consultant' },
+                        { company: 'HYLA', companyType: 'Consultant' },
+                        { company: 'K2LD', companyType: 'Consultant' },
+                        { company: 'ONG & ONG', companyType: 'Consultant' },
                      ]}
-                     company='Woh Hup Private Ltd'
-                  // company='MAXBOND'
+
+                     listUser={[
+                        'bql@gmail.com',
+                        'pmq@wohhup.com',
+                        'tbl_1@gmail.com'
+                     ]}
+                     listGroup={[
+                        'Group 1',
+                        'Group 2',
+                        'WH Group 2',
+                        'Sumang Email Group',
+                     ]}
+
                   />
                </Route>
 
@@ -81,20 +104,21 @@ const App = () => {
                </Route>
 
             </SheetContext>
-            <Route path='/dashboard'>
-                  <PageDashboard
-                     projectsArray={[
-                        { name: 'Handy', id: 'MTU5MTY3NDI0ODUyMy1IYW5keQ' },
-                        { name: 'Punggol Digital District', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q' },
-                        { name: 'Sumang', id: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc' },
-                        { name: 'The Reef', id: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg' },
-                        { name: 'Kim Chuan Depot', id: 'MTU3NDgyNTY5OTYwMi1LaW0gQ2h1YW4gRGVwb3Q' },
-                        { name: 'Test', id: 'ETU3NDgyNTY5cTYwMi1LaW0gQ2h1YW4gRGVwb3F' },
-                        { name: 'Test-2', id: 'MTU3NzA2Njg5MTczOTEST' },
-                     ]}
-                  />
-               </Route>
 
+            <Route path='/dashboard'>
+               <PageDashboard
+                  projectsArray={[
+                     { name: 'Handy', id: 'MTU5MTY3NDI0ODUyMy1IYW5keQ' },
+                     { name: 'Punggol Digital District', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q' },
+                     { name: 'Sumang', id: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc' },
+                     { name: 'The Reef', id: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg' },
+                     { name: 'Kim Chuan Depot', id: 'MTU3NDgyNTY5OTYwMi1LaW0gQ2h1YW4gRGVwb3Q' },
+                     { name: 'Test', id: 'ETU3NDgyNTY5cTYwMi1LaW0gQ2h1YW4gRGVwb3F' },
+                     { name: 'Test-2', id: 'MTU3NzA2Njg5MTczOTEST' },
+                     { name: 'Test-3', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q5' },
+                  ]}
+               />
+            </Route>
 
          </Switch>
       </BrowserRouter>
@@ -103,4 +127,6 @@ const App = () => {
 
 
 export default App;
+
+
 

@@ -60,7 +60,7 @@ const colorTextCode = {
     grey3: '#dfe4ea',
     grey4: '#f1f2f6',
     red: '#b33939',
-    green: '#009432',
+    green: '#90EE90',
     greenDark: '#006400',
     blue: '#0984e3',
     orange: '#cc8e35',

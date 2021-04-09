@@ -10,6 +10,7 @@ const HISTORY_LIMIT = 10;
 const saveRowHistory = async (req, res, next) => {
    try {
       const { projectId: sheetId, email: userId, rowsHistory } = req.body;
+
       if (!(rowsHistory instanceof Array)) throw new HTTP(400, 'Body data must be array info of cell history!');
       for (let d of rowsHistory) {
          d.sheet = sheetId;
@@ -134,6 +135,7 @@ const updateOrCreateHistories = async (req, res, next) => {
 
 
 const findHistories = async (sheetId) => {
+
    let histories = await model.find({ sheet: sheetId })
       .sort([['row', 1]])
       .exec();

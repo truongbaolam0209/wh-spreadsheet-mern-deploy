@@ -68,8 +68,10 @@ const _processSaveCellHistories = async (sheetId, data) => {
 
       let { rowId: qRowId, headerKey: qHeaderKey, history: qHistory } = d;
 
+
       let rowId = toObjectId(qRowId, null);
       let headerKey = String(qHeaderKey);
+
 
       if (!sheetId) throw new HTTP(400, 'Missing sheet id!');
       if (!rowId) throw new HTTP(400, 'Missing row id!');
@@ -89,10 +91,8 @@ const _processSaveCellHistories = async (sheetId, data) => {
          };
          _map[_key] = cellHistoryData;
       };
-
       cellHistoryData.histories.push(qHistory);
    };
-
    let cellHistoryData = Object.values(_map);
 
    await Promise.all(cellHistoryData.map(_updateCellHistories));
@@ -101,6 +101,7 @@ const _processSaveCellHistories = async (sheetId, data) => {
 const _updateCellHistories = async (cellHistoryData) => {
 
    let { sheet, row, headerKey, histories: newHistories } = cellHistoryData;
+
    let cellHistory = await _findCellHistory(sheet, row, headerKey);
 
    if (!(cellHistory.histories instanceof Array)) {
@@ -126,6 +127,7 @@ const _findCellHistory = async (sheetId, rowId, headerKey) => {
          histories: []
       });
    };
+
    return history;
 };
 

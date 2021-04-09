@@ -154,11 +154,7 @@ const createTemplatePublicSettings = (sheetId) => {
          {
             key: uuidv1(),
             text: 'Remark',
-         },
-         {
-            key: uuidv1(),
-            text: 'Drawing',
-         },
+         }
       ],
       drawingTypeTree: [
          {

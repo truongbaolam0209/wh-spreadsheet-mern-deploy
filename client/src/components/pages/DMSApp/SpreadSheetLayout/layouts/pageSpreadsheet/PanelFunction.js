@@ -15,13 +15,13 @@ const PanelFunction = (props) => {
    const { state: stateRow } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { roleTradeCompany } = stateProject.allDataOneSheet;
+   const { roleTradeCompany, projectIsAppliedRfaView, companies } = stateProject.allDataOneSheet;
 
    const { rowsSelectedToMove, rowsSelected, drawingTypeTree, modeGroup } = stateRow;
 
    const { rowData, column } = panelType.cellProps;
 
-   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key);
+   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key, projectIsAppliedRfaView);
 
    const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
 
@@ -89,7 +89,9 @@ const PanelFunction = (props) => {
                   roleTradeCompany,
                   isLockedByCompanyOrTrade,
                   rowsSelected,
-                  drawingTypeTree
+                  drawingTypeTree,
+                  projectIsAppliedRfaView,
+                  companies
                )}
             >
                {btn}
@@ -115,12 +117,31 @@ const Container = styled.div`
 `;
 
 
-const disabledBtn = ({ panelType }, btn, rowsSelectedToMove, roleTradeCompany, isLockedByCompanyOrTrade, rowsSelected, drawingTypeTree) => {
+const disabledBtn = (
+   { panelType }, 
+   btn, 
+   rowsSelectedToMove, 
+   roleTradeCompany, 
+   isLockedByCompanyOrTrade, 
+   rowsSelected, 
+   drawingTypeTree, 
+   projectIsAppliedRfaView,
+   companies
+) => {
    const { rowData } = panelType.cellProps;
-   const { _rowLevel, children, treeLevel, id } = rowData;
+   const { _rowLevel, treeLevel, id } = rowData;
 
+   const listConsultant = companies.filter(x => x.companyType === 'Consultant');
+   let consultantLead = listConsultant.find(x => x.isLeadConsultant);
+   if (!consultantLead) {
+      consultantLead = listConsultant[0];
+   };
+   const consultantLeadName = consultantLead.company;
+
+   
 
    if (
+      (projectIsAppliedRfaView && !rowData[`reply-$$$-status-${consultantLeadName}`] && btn === 'Create New Drawing Revision') ||
       (rowsSelectedToMove.length === 0 && btn === 'Paste Drawings') ||
       (_rowLevel === 1 && roleTradeCompany.role === 'Modeller' && btnLocked_1.indexOf(btn) !== -1) ||
 
@@ -130,8 +151,7 @@ const disabledBtn = ({ panelType }, btn, rowsSelectedToMove, roleTradeCompany, i
 
       (treeLevel === 1 && rowData.title === 'Woh Hup Private Ltd' && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
       (treeLevel > 1 && drawingTypeTree.find(x => x.parentId === id) && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
-      (treeLevel > 1 && !drawingTypeTree.find(x => x.parentId === id) && rowsSelectedToMove.length === 0 && btn === 'Paste Drawings')
-      ||
+      (treeLevel > 1 && !drawingTypeTree.find(x => x.parentId === id) && rowsSelectedToMove.length === 0 && btn === 'Paste Drawings') ||
       (treeLevel >= 1 && isLockedByCompanyOrTrade)
 
    ) return {

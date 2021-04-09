@@ -706,7 +706,7 @@ const getDrawingLateNow1 = (drawings, type) => {
       });
    } else if (type === 'drawingsLateConstruction') {
       rowsLateOutput = drawings.filter(r => {
-         return conditionArray2.indexOf(r.Status) === -1 && 
+         return conditionArray2.indexOf(r.Status) === -1 &&
             r['Construction Start'] &&
             checkDiffDates(r['Construction Start']) < 0 &&
             (
@@ -721,20 +721,10 @@ const getDrawingLateNow1 = (drawings, type) => {
 };
 
 export const getfirstAndLastDayOf = (duration) => {
-   let firstday, lastday;
-   if (duration === 'week') {
-      let curr = new Date;
-      let first = curr.getDate() - curr.getDay();
-      let last = first + 6;
 
-      firstday = moment(new Date(curr.setDate(first))).format('DD/MM/YY');
-      lastday = moment(new Date(curr.setDate(last))).format('DD/MM/YY');
-   } else if (duration === 'month') {
-      let date = new Date();
+   const firstday = moment(moment().startOf(duration).toDate()).format('DD/MM/YY');
+   const lastday = moment(moment().endOf(duration).toDate()).format('DD/MM/YY');
 
-      firstday = moment(new Date(date.getFullYear(), date.getMonth(), 1)).format('DD/MM/YY');
-      lastday = moment(new Date(date.getFullYear(), date.getMonth() + 1, 0)).format('DD/MM/YY');
-   };
    return { firstday, lastday };
 };
 
@@ -752,7 +742,6 @@ const getDrawingsToSubmitBy = (rows, duration) => {
 
    const rowsToSubmitTarget = rows.filter(r => {
       return r['Drg To Consultant (T)'] &&
-         r['Drg To Consultant (T)'].length === 8 &&
          checkDiffDates(r['Drg To Consultant (T)'], firstday) >= 0 &&
          checkDiffDates(r['Drg To Consultant (T)'], lastday) <= 0;
    });
@@ -762,7 +751,6 @@ const getDrawingsToSubmitBy = (rows, duration) => {
          checkDiffDates(r['Drg To Consultant (A)'], firstday) >= 0 &&
          checkDiffDates(r['Drg To Consultant (A)'], lastday) <= 0;
    });
-
 
    return {
       rowsToSubmitTarget,

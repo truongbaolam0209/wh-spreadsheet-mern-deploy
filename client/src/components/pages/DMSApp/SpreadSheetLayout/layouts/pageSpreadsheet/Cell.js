@@ -1,4 +1,4 @@
-import { message, Tooltip, Upload } from 'antd';
+import { message, Tooltip } from 'antd';
 import moment from 'moment';
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
@@ -20,7 +20,7 @@ const Cell = (props) => {
    const { stateRow, getSheetRows } = contextRow;
    const { stateProject } = contextProject;
 
-   const { drawingTypeTree, rowsAll, modeGroup, rowsSelected, rowsSelectedToMove, modeFilter } = stateRow;
+   const { drawingTypeTree, rowsAll, modeGroup, rowsSelected, rowsSelectedToMove, modeFilter, isRfaView } = stateRow;
 
    let columnKeyToPutFolderName;
    if (rowData.treeLevel || rowData._rowLevel < 1) {
@@ -37,7 +37,7 @@ const Cell = (props) => {
 
 
 
-   const { roleTradeCompany } = stateProject.allDataOneSheet;
+   const { roleTradeCompany, projectIsAppliedRfaView } = stateProject.allDataOneSheet;
 
 
    let info = '';
@@ -90,7 +90,7 @@ const Cell = (props) => {
    };
 
 
-   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key);
+   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key, projectIsAppliedRfaView);
    const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
 
 
@@ -104,8 +104,9 @@ const Cell = (props) => {
 
    const [btnShown, setBtnShown] = useState(false);
    const [panelData, setPanelData] = useState(false);
+   const [btnDrawingShown, setBtnDrawingShown] = useState(false);
 
-   const cellDataTypeBtn = checkCellDateFormat(column.key);
+   const cellDataTypeBtn = checkCellDataFormat(column.key);
 
    const getCellTempId = () => `${rowData['id']}~#&&#~${column.key}`;
 
@@ -185,7 +186,8 @@ const Cell = (props) => {
 
 
    const onMouseLeave = () => {
-      setBtnShown(false);
+      if (btnShown) setBtnShown(false);
+      if (btnDrawingShown) setBtnDrawingShown(false);
    };
    const onMouseDown = (e) => {
       if (e.button === 2) { // check mouse RIGHT CLICK ...
@@ -194,6 +196,7 @@ const Cell = (props) => {
          if (isLockedColumn || isLockedRow) return;
       };
    };
+
    const pickDataSelect = (type, value) => {
       setBtnShown(false);
       setPanelData(false);
@@ -216,6 +219,10 @@ const Cell = (props) => {
       setValueInput({ ...valueInput, current: e.target.value });
    };
 
+   const onClickDrawingOpen = () => {
+
+   };
+
    useEffect(() => { // after keydown ENTER to show input ...
       if (
          !inputRender &&
@@ -227,7 +234,6 @@ const Cell = (props) => {
          setInputRender(true);
       };
    }, [stateCell.cellActive]);
-
 
    useEffect(() => {
       if (
@@ -245,7 +251,6 @@ const Cell = (props) => {
          };
       };
    }, [stateCell.cellAppliedAction]);
-
 
    useEffect(() => { // FOCUS right after press ENTER...
       if (inputRender) {
@@ -277,9 +282,26 @@ const Cell = (props) => {
 
 
 
-   const onChangeUploadFile = (info) => {
 
-   };
+   const cellStatusFormat = projectIsAppliedRfaView ? [
+      'Not Started',
+      '1st cut of model in-progress',
+      '1st cut of drawing in-progress',
+      'Pending design',
+   ] : [
+      'Not Started',
+      '1st cut of model in-progress',
+      '1st cut of drawing in-progress',
+      'Pending design',
+
+      
+      'Consultant reviewing',
+      'Reject and resubmit',
+      'Approved with comments, to Resubmit',
+      'Revise In-Progress',
+      'Approved with Comment, no submission Required',
+      'Approved for Construction',
+   ];
 
 
    return (
@@ -290,9 +312,10 @@ const Cell = (props) => {
             onClick={onClick}
             onMouseLeave={onMouseLeave}
             onMouseDown={onMouseDown}
+            onMouseEnter={() => setBtnDrawingShown(true)}
             style={{
                width: '100%', height: '100%', padding: 5, position: 'relative', color: 'black', background: 'transparent',
-               paddingLeft: cellDataTypeBtn === 'cell-type-upload' ? 30 : 5,
+               paddingLeft: 5,
                overflow: !rowData.treeLevel && column.key === columnKeyToPutFolderName ? 'hidden' : 'visible' // fix bug frozen panel move to the left
             }}
          >
@@ -330,50 +353,39 @@ const Cell = (props) => {
                      cellData // there is no modification
                   }
                </div>
-            )
-            }
+            )}
 
 
-            {btnShown && !cellBtnDisabled(column.key) && (
-               <>
-                  {cellDataTypeBtn === 'cell-type-upload' ? (
-                     <Upload
-                        name='file' accept='application/pdf' multiple={false}
-                        headers={{ authorization: 'authorization-text' }}
-                        showUploadList={false}
-                        beforeUpload={() => {
-                           return false;
-                        }}
-                        onChange={onChangeUploadFile}
-                     >
-                        <Tooltip placement='topRight' title='Upload Drawing'>
-                           <div style={{
-                              cursor: 'pointer', position: 'absolute',
-                              left: 4, top: 5, height: 17, width: 17,
-                              backgroundSize: 17,
-                              backgroundImage: `url(${imgLink.btnFileUpload})`
-                           }}
-                              ref={buttonRef}
-                           />
-                        </Tooltip>
-                     </Upload>
-                  ) : (
-                     <div style={{
+            {btnShown && !cellBtnDisabled(column.key) && !isRfaView && (
+               <div
+                  style={{
+                     cursor: 'pointer', position: 'absolute',
+                     right: 4, top: 5, height: 17, width: 17,
+                     backgroundSize: 17,
+                     backgroundImage: cellDataTypeBtn === 'cell-type-date' ? `url(${imgLink.btnDate})`
+                        : cellDataTypeBtn === 'cell-type-text' ? `url(${imgLink.btnText})`
+                           : null
+                  }}
+                  onMouseDown={(e) => {
+                     e.stopPropagation();
+                     setPanelData(!panelData);
+                  }}
+                  ref={buttonRef}
+               />
+            )}
+
+            {btnDrawingShown && column.key === 'RFA Ref' && !rowData.treeLevel && rowData['RFA Ref'] && (
+               <Tooltip key={'Open Drawing File'} placement='top' title={'Open Drawing File'}>
+                  <div
+                     style={{
                         cursor: 'pointer', position: 'absolute',
                         right: 4, top: 5, height: 17, width: 17,
                         backgroundSize: 17,
-                        backgroundImage: cellDataTypeBtn === 'cell-type-date' ? `url(${imgLink.btnDate})`
-                           : cellDataTypeBtn === 'cell-type-text' ? `url(${imgLink.btnText})`
-                              : null
+                        backgroundImage: `url(${imgLink.btnFileUpload})`
                      }}
-                        onMouseDown={(e) => {
-                           e.stopPropagation();
-                           setPanelData(!panelData);
-                        }}
-                        ref={buttonRef}
-                     />
-                  )}
-               </>
+                     onMouseDown={onClickDrawingOpen}
+                  />
+               </Tooltip>
             )}
 
 
@@ -390,7 +402,7 @@ const Cell = (props) => {
                >
                   {cellDataTypeBtn === 'cell-type-date' ? (
                      <PanelCalendar pickDate={(item) => pickDataSelect('date', item)} />
-                  ) : getColumnsValue(rowsAll, column.key, { rowData, drawingTypeTree }).map(item => {
+                  ) : getColumnsValue(rowsAll, column.key, { rowData, drawingTypeTree }, cellStatusFormat).map(item => {
                      return (
                         <SelectStyled
                            key={(column.key === 'Drawing Progress' || column.key === 'Model Progress') ? item.key : item}
@@ -457,21 +469,27 @@ const cellProgressFormatData = [
    'Empty', 'Quarter', 'Half', 'Third Quarter', 'Full'
 ];
 
-const checkCellDateFormat = (header) => {
+const checkCellDataFormat = (header) => {
    if (
       header.includes('(A)') ||
       header.includes('(T)') ||
       header === 'Construction Issuance Date' ||
       header === 'Construction Start'
    ) return 'cell-type-date';
-   else if (header === 'Drawing') return 'cell-type-upload';
-   else if (header === 'Index' || header === 'Drawing Number' || header === 'Drawing Name') return 'cell-type-none';
+
+   else if (
+      header === 'Index' ||
+      header === 'Drawing Number' ||
+      header === 'Drawing Name' ||
+      header === 'RFA Ref'
+   ) return 'cell-type-none';
+
    else return 'cell-type-text';
 };
 const cellBtnDisabled = (headerId) => {
    if (headerId === 'Index' || headerId === 'Drawing Number' || headerId === 'Drawing Name') return true;
 };
-const getColumnsValue = (rows, headerKey, drgTypeCheckData) => {
+const getColumnsValue = (rows, headerKey, drgTypeCheckData, cellStatusFormat) => {
    if (headerKey === 'Status') return cellStatusFormat;
    if (headerKey === 'Use For') return cellUseForFormat;
    if (headerKey === 'Model Progress' || headerKey === 'Drawing Progress') return cellProgressFormat;
@@ -500,18 +518,7 @@ const getColumnsValue = (rows, headerKey, drgTypeCheckData) => {
    return valueArr;
 };
 
-const cellStatusFormat = [
-   'Not Started',
-   '1st cut of model in-progress',
-   '1st cut of drawing in-progress',
-   'Pending design',
-   'Consultant reviewing',
-   'Reject and resubmit',
-   'Approved with comments, to Resubmit',
-   'Revise In-Progress',
-   'Approved with Comment, no submission Required',
-   'Approved for Construction',
-];
+
 
 
 
@@ -570,11 +577,18 @@ const columnsLockedModeller = [
    'Construction Start',
 ];
 
-export const columnLocked = (roleTradeCompany, rowData, modeGroup, column) => {
+export const columnLocked = (roleTradeCompany, rowData, modeGroup, column, projectIsAppliedRfaView) => {
    if (
-      column === 'Drawing' ||
+      (projectIsAppliedRfaView && (
+         column === 'RFA Ref' ||
+         column === 'Drg To Consultant (A)' ||
+         column === 'Rev' ||
+         column === 'Consultant Reply (T)' ||
+         column === 'Consultant Reply (A)'
+      )) ||
+      (column.includes('Consultant (') && !column.includes('Drg To Consultant (')) ||
       (rowData && !rowData._rowLevel) || // lock drawing type ...
-      modeGroup.length > 0 ||
+      (modeGroup && modeGroup.length > 0) ||
       (roleTradeCompany.role === 'Modeller' && columnsLockedModeller.includes(column)) ||
       (roleTradeCompany.role === 'View-Only User') ||
       (roleTradeCompany.role === 'Production' && column !== 'Construction Start')

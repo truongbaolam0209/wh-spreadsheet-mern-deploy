@@ -131,12 +131,12 @@ const TableStyled = styled(Table)`
    }
 
    .BaseTable__table .BaseTable__body {
-      -webkit-touch-callout: none;
+      /* -webkit-touch-callout: none;
       -webkit-user-select: none;
       -khtml-user-select: none;
       -moz-user-select: none;
       -ms-user-select: none;
-      user-select: none;
+      user-select: none; */
    }
 
    .BaseTable__header-cell {

@@ -1,3 +1,6 @@
+import moment from 'moment';
+
+
 export const colorTypeStatus = {
    yellow: '#fff200',
    dark: '#1e272e',
@@ -249,25 +252,39 @@ export const convertHistoryData = (data) => {
    return arr
 };
 
-export const convertDrawingVersionToHistory = (
-   rowsHistory,
-   stateProject
-) => {
+export const convertDrawingVersionToHistory = (rowsHistory, stateProject) => {
+
    const { publicSettings } = stateProject.allDataOneSheet;
 
    const rowsHistoryOutput = rowsHistory.map(rowsH => {
       let obj = {};
+
+      Object.keys(rowsH).forEach(key => {
+         if (key === 'rfaNumber' || key.includes('reply-$$$-')) {
+            obj[key] = rowsH[key];
+         };
+      });
+
       publicSettings.headers.forEach(hd => {
          if (rowsH[hd.text]) obj = { ...obj || {}, [hd.key]: rowsH[hd.text] };
       });
+
       return {
          row: rowsH.id,
          history: obj,
       };
    });
+
    return rowsHistoryOutput;
 };
-
+export const getHeaderWidthForRFAView = (header) => {
+   if (header === 'RFA Ref') return 400;
+   else if (header === 'Drawing Number') return 250;
+   else if (header === 'Drawing Name') return 400;
+   else if (header === 'Due Date') return 80;
+   else if (header === 'Rev') return 40;
+   return getHeaderWidth(header);
+};
 export const getHeaderWidth = (header) => {
 
    if (header === 'RFA Ref') return 200;
@@ -278,10 +295,9 @@ export const getHeaderWidth = (header) => {
       header === 'Coordinator In Charge' || header === 'Modeller' ||
       header === 'Construction Start'
    ) return 120;
-   else if (header === 'Model Progress' || header === 'Drawing Progress') return 70;
+   else if (header === 'Model Progress' || header === 'Drawing Progress') return 80;
    else if (header === 'Drg Type') return 180;
    else if (header === 'Construction Issuance Date') return 120;
-   else if (header === 'Drawing') return 300;
 
    else if (
       header === 'Drg To Consultant (A)' ||
@@ -297,6 +313,8 @@ export const getHeaderWidth = (header) => {
    else if (header === 'Remark') return 700;
    else if (header === 'Drawing Number') return 400;
    else if (header === 'Drawing Name') return 450;
+
+   else if (header.includes('Consultant (') && !header.includes('Drg To Consultant (')) return 180;
 
    else return 300;
 
@@ -349,4 +367,37 @@ export const ExcelDateToJSDate = (serial) => {
    let minutes = Math.floor(total_seconds / 60) % 60;
 
    return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
+};
+
+
+
+export const sortRfaDrawingNumber = (a, b) => {
+
+   if (a['RFA Ref'] > b['RFA Ref']) return -1;
+   if (a['RFA Ref'] < b['RFA Ref']) return 1;
+
+   if (a['Drawing Number'] > b['Drawing Number']) return 1;
+   if (a['Drawing Number'] < b['Drawing Number']) return -1;
+
+};
+
+
+export const compareDates = (dateInput1, dateInput2) => {
+   let date1 = dateInput1;
+   let date2 = dateInput2;
+   if (dateInput1 && dateInput1.length === 8 && dateInput1.includes('/')) date1 = moment(dateInput1, 'DD/MM/YY').format('YYYY-MM-DD');
+   if (dateInput2 && dateInput2.length === 8 && dateInput2.includes('/')) date2 = moment(dateInput2, 'DD/MM/YY').format('YYYY-MM-DD');
+
+   if (date1 && date2) {
+      return moment(date1).diff(moment(date2), 'days');
+   } else if (date1 && !date2) {
+      return moment(date1).diff(moment(), 'days');
+   };
+};
+
+
+
+export const validateEmailInput = (email) => {
+   const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+   return re.test(String(email).toLowerCase());
 };

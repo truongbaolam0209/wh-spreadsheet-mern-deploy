@@ -268,6 +268,7 @@ const _process_Rows_Data = async (rowsData, sheetId) => {
          };
       };
    };
+
    return { rowsToCreate, rowsToUpdate };
 };
 
@@ -283,11 +284,17 @@ const _process_Rows = (sheetHeaders, rows) => {
          _parentRow: parentRow,
          _preRow: preRow
       };
+
+
       if (data instanceof Object) {
-         for (let header of sheetHeaders) {
-            let { key, text } = header;
-            if (key && text) rowFormal[text] = data[key];
-         };
+         Object.keys(data).forEach(key => {
+            const headerFound = sheetHeaders.find(hd => hd.key === key);
+            if (headerFound) {
+               rowFormal[headerFound.text] = data[key];
+            } else if (!headerFound && (key === 'rfaNumber' || key.includes('reply-$$$-') || key.includes('submission-$$$-'))) {
+               rowFormal[key] = data[key];
+            };
+         });
       };
       return rowFormal;
    };

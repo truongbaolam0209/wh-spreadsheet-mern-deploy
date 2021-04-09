@@ -7,10 +7,11 @@ const rowReducer = (state, { type, payload }) => {
     switch (type) {
 
         case 'GET_SHEET_ROWS':
-            return {
-                ...state,
-                ...payload
-            };
+            // return {
+            //     ...state,
+            //     ...payload
+            // };
+            return payload;
         default:
             return state;
     };

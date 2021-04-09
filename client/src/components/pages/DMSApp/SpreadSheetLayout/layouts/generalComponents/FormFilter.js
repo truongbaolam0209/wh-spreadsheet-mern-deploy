@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { mongoObjectId } from '../../utils/index';
+import { getConsultantReplyData } from '../pageSpreadsheet/CellRFA';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
 
@@ -10,21 +11,36 @@ import ButtonStyle from './ButtonStyle';
 const { Option } = Select;
 
 
-const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFilter }) => {
+const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFilter, isRfaView, rowsRfaAll, companies }) => {
 
 
    const [filterColumn, setFilterColumn] = useState(
-      modeFilter.length > 1 ?
-         modeFilter : [
-            {
-               id: mongoObjectId(),
-               header: 'Status',
-               value: 'Select Value...'
-            },
-            {
-               isIncludedParent: 'included'
-            }
-         ]);
+      !isRfaView
+         ? (modeFilter.length > 1
+            ? modeFilter
+            : [
+               {
+                  id: mongoObjectId(),
+                  header: 'Status',
+                  value: 'Select Value...'
+               },
+               {
+                  isIncludedParent: 'included'
+               }
+            ])
+         : (modeFilter.length > 1
+            ? modeFilter
+            : [
+               {
+                  id: mongoObjectId(),
+                  header: 'Status',
+                  value: 'Select Value...'
+               },
+               {
+                  isIncludedParent: 'included'
+               }
+            ])
+   );
 
    const setFilterSelect = (dataFilter) => {
       let found = filterColumn.find(x => x.id === dataFilter.id);
@@ -79,8 +95,8 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
       } else {
          applyFilter(output);
       };
-
    };
+
 
    return (
       <div style={{
@@ -107,17 +123,23 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
                   setFilterSelect={setFilterSelect}
                   removeFilterTag={removeFilterTag}
                   headers={headers}
-                  rowsAll={rowsAll}
+                  rows={isRfaView ? rowsRfaAll : rowsAll}
+                  isRfaView={isRfaView}
+                  companies={companies}
                />
             ))}
-            <div>
-               <CheckboxStyled
-                  onChange={onChangeBox}
-                  checked={isChecked}
-               >
-                  Include Parent Rows
-               </CheckboxStyled>
-            </div>
+
+            {!isRfaView && (
+               <div>
+                  <CheckboxStyled
+                     onChange={onChangeBox}
+                     checked={isChecked}
+                  >
+                     Include Parent Rows
+                  </CheckboxStyled>
+               </div>
+            )}
+
          </div>
 
          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
@@ -155,9 +177,10 @@ const IconStyled = styled.div`
 
 
 
-const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rowsAll }) => {
+const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rows, isRfaView, companies }) => {
 
-   const columnsValueArr = getColumnsValue(rowsAll, headers);
+
+   const columnsValueArr = getColumnsValue(rows, headers, isRfaView, companies);
 
    const [column, setColumn] = useState(data.header);
 
@@ -235,17 +258,21 @@ const SelectStyled = styled(Select)`
 `;
 
 
-const getColumnsValue = (rows, headers) => {
+const getColumnsValue = (rows, headers, isRfaView, companies) => {
    let valueObj = {};
    headers.forEach(hd => {
       let valueArr = [];
-      rows.filter(r => r._rowLevel === 1).forEach(row => {
-         valueArr.push(row[hd] || '');
+      rows.forEach(row => {
+         if (isRfaView && hd.includes('Consultant (') && !hd.includes('Drg To Consultant (')) {
+            const { replyCompany } = getConsultantReplyData(row, hd, companies);
+            valueArr.push(replyCompany || '');
+         } else {
+            valueArr.push(row[hd] || '');
+         };
       });
       valueArr = [...new Set(valueArr)].filter(e => e);
       valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
       if (valueArr.length > 0) valueObj[hd] = valueArr;
    });
-
    return valueObj;
 };

@@ -5,7 +5,7 @@ import { SERVER_URL } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { convertCellTempToHistory, convertDrawingVersionToHistory, debounceFnc, extractCellInfo, genId, mongoObjectId } from '../../utils';
+import { convertCellTempToHistory, convertDrawingVersionToHistory, debounceFnc, extractCellInfo, genId, mongoObjectId, validateEmailInput } from '../../utils';
 import FormFilter from '../generalComponents/FormFilter';
 import FormGroup from '../generalComponents/FormGroup';
 import FormSort from '../generalComponents/FormSort';
@@ -13,24 +13,27 @@ import PanelConfirm from '../generalComponents/PanelConfirm';
 import PanelConfirmResetMode from '../generalComponents/PanelConfirmResetMode';
 import PanelPickNumber from '../generalComponents/PanelPickNumber';
 import ReorderColumnForm from '../generalComponents/ReorderColumnForm';
-import { getOutputRowsAllSorted } from '../PageSpreadsheet';
+import { getOutputRowsAllSorted, headersRfaView } from '../PageSpreadsheet';
 import ColorizedForm from './ColorizedForm';
 import FormCellColorizedCheck from './FormCellColorizedCheck';
 import FormDateAutomation from './FormDateAutomation';
-import FormDrawingTypeOrder, { compareCurrentTreeAndTreeFromDB, flattenAllTreeChildNode1, getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
+import FormDrawingTypeOrder, { compareCurrentTreeAndTreeFromDB, flattenAllTreeChildNode1, getTradeNameFnc, getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
 import PanelAddNewRFA from './PanelAddNewRFA';
 import TableActivityHistory from './TableActivityHistory';
 import TableCellHistory from './TableCellHistory';
 import TableDrawingDetail from './TableDrawingDetail';
 
-const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
 
+
+
+const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
 
 const PanelSetting = (props) => {
 
    const { state: stateRow } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateCell, getCellModifiedTemp, OverwriteCellsModified } = useContext(CellContext);
+   const { projectIsAppliedRfaView, companies } = stateProject.allDataOneSheet;
 
    const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading } = props;
 
@@ -402,10 +405,12 @@ const PanelSetting = (props) => {
       });
    };
    const createNewDrawingRevision = () => {
+
       const arrHeadersGoBlank = [
          'Model Start (T)', 'Model Start (A)', 'Model Finish (T)', 'Model Finish (A)', 'Drawing Start (T)', 'Drawing Start (A)',
          'Drawing Finish (T)', 'Drawing Finish (A)', 'Drg To Consultant (T)', 'Drg To Consultant (A)', 'Consultant Reply (T)',
-         'Consultant Reply (A)', 'Get Approval (T)', 'Get Approval (A)', 'Construction Issuance Date', 'Construction Start', 'Rev', 'Status'
+         'Consultant Reply (A)', 'Get Approval (T)', 'Get Approval (A)', 'Construction Issuance Date', 'Construction Start', 'Rev', 'Status',
+         'RFA Ref'
       ];
 
       let { rowsAll } = stateRow;
@@ -419,6 +424,14 @@ const PanelSetting = (props) => {
          row[hd] = '';
       });
 
+      if (projectIsAppliedRfaView) {
+         Object.keys(row).forEach(key => {
+            if (key.includes('reply-$$$-')) {
+               row[key] = '';
+            };
+         });
+      };
+
       commandAction({
          type: 'create-new-drawing-revisions',
          data: {
@@ -429,7 +442,7 @@ const PanelSetting = (props) => {
    };
 
    const saveDataToServer = async () => {
-      const { email, projectId, token, role, projectName } = stateProject.allDataOneSheet;
+      const { email, projectId, token, role, projectName, projectIsAppliedRfaView } = stateProject.allDataOneSheet;
       const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
       const { headers } = stateProject.allDataOneSheet.publicSettings;
       let { cellsModifiedTemp } = stateCell;
@@ -556,7 +569,10 @@ const PanelSetting = (props) => {
                needToSaveTree = true;
 
                activityRecordedArr.push({
-                  id: newIdParent, email, createdAt: new Date(), action: 'Create Drawing Type',
+                  id: newIdParent,
+                  email,
+                  createdAt: new Date(),
+                  action: 'Create Drawing Type',
                   [headerKeyDrawingNumber]: 'New Drawing Type',
                });
 
@@ -584,10 +600,13 @@ const PanelSetting = (props) => {
          // SAVE CELL HISTORY
          let objCellHistory = {};
          resCellsHistory.data.map(cell => {
-            const headerText = headers.find(hd => hd.key === cell.headerKey).text;
-            if (cell.histories.length > 0) {
-               const latestHistoryText = cell.histories[cell.histories.length - 1].text;
-               objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
+            const headerFound = headers.find(hd => hd.key === cell.headerKey);
+            if (headerFound) {
+               const headerText = headerFound.text;
+               if (cell.histories.length > 0) {
+                  const latestHistoryText = cell.histories[cell.histories.length - 1].text;
+                  objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
+               };
             };
          });
          Object.keys(cellsModifiedTemp).forEach(key => {
@@ -720,8 +739,19 @@ const PanelSetting = (props) => {
             } else {
                rowOutput = { ...row };
             };
+
+
             if (rowOutput) {
                let rowToSave = { _id: rowOutput.id, parentRow: rowOutput._parentRow, preRow: rowOutput._preRow };
+
+               if (projectIsAppliedRfaView && !rowOutput['RFA Ref']) {
+                  Object.keys(rowOutput).forEach(key => {
+                     if (key.includes('reply-$$$-')) {
+                        rowToSave.data = { ...rowToSave.data || {}, [key]: '' };
+                     };
+                  });
+               };
+
                headers.forEach(hd => {
                   if (rowOutput[hd.text] || rowOutput[hd.text] === '') {
                      rowToSave.data = { ...rowToSave.data || {}, [hd.key]: rowOutput[hd.text] };
@@ -730,6 +760,8 @@ const PanelSetting = (props) => {
                rowsToUpdateFinal.push(rowToSave);
             };
          });
+
+
 
          if (rowsToUpdateFinal.length > 0) {
             await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdateFinal });
@@ -741,7 +773,6 @@ const PanelSetting = (props) => {
          console.log(err);
       };
    };
-
    const saveDataToServerAndReloadData = async () => {
       const { projectId, token, email } = stateProject.allDataOneSheet;
       try {
@@ -756,26 +787,24 @@ const PanelSetting = (props) => {
    };
 
 
-   const saveDataToServerAndRedirectToViewRFA = async () => {
-      const { isRfaView } = stateRow;
+   const reloadDataFromServerViewRFA = async () => {
       const { projectId, token, email } = stateProject.allDataOneSheet;
-
       try {
-         await saveDataToServer();
-
          const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
-         const { rows: dataRows } = res.data;
-         const { data: dataRowsHistory } = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
+         const resRowHistory = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
+         const { rows } = res.data;
 
-         const { rowsDataRFA, expandedRowIdsRFA } = getDataForRFASheet([...dataRows, ...dataRowsHistory]);
+         const expandedRowsIdArr = [
+            'ARCHI', 'C&S', 'M&E', 'PRECAST',
+            ...rows.filter(x => x.rfaNumber).map(x => x.rfaNumber)
+         ];
 
          commandAction({
-            type: 'redirect-to-view-rfa',
+            type: 'reload-data-view-rfa',
             data: {
-               dbReloadFromServer: res.data,
-               isRfaView: true,
-               rowsRfaAll: rowsDataRFA,
-               expandedRowIdsRFA
+               dataAllFromServer: res.data,
+               dataRowsHistoryFromServer: resRowHistory.data,
+               expandedRowsIdArr
             }
          });
       } catch (err) {
@@ -785,12 +814,32 @@ const PanelSetting = (props) => {
    };
 
 
+   const saveDataToServerAndRedirectToViewRFA = async () => {
+      try {
+         setLoading(true);
+         commandAction({ type: '' });
+
+         await saveDataToServer();
+         await reloadDataFromServerViewRFA();
+      } catch (err) {
+         commandAction({ type: 'save-data-failure' });
+         console.log(err);
+      };
+   };
+
+
    const onClickApplyAddNewRFA = async (dataDwg) => {
-      const { email, projectId, token, role, projectName, publicSettings } = stateProject.allDataOneSheet;
+      const { email, projectId, token, publicSettings, roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
       const { headers } = publicSettings;
-      let { rowsRfaAll, rowsAll } = stateRow;
-      const { files, type, dwgsToAddNewRFA, trade, rfaToSave } = dataDwg;
-      
+      const { files, type, dwgsToAddNewRFA, trade, rfaToSave, rfaToSaveVersion, recipient } = dataDwg;
+
+      const listConsultant = companies.filter(x => x.companyType === 'Consultant');
+      let consultantLead = listConsultant.find(x => x.isLeadConsultant);
+      if (!consultantLead) {
+         consultantLead = listConsultant[0];
+      };
+      const rfaRefData = rfaToSaveVersion === '-' ? rfaToSave : (rfaToSave + rfaToSaveVersion);
+
       let data = new FormData();
       files.forEach(file => {
          data.append('files', file.originFileObj);
@@ -798,87 +847,202 @@ const PanelSetting = (props) => {
       data.append('projectId', projectId);
       data.append('trade', trade);
       data.append('rfa', rfaToSave);
-      data.append('rfaNumber', '-');
+      data.append('rfaNumber', rfaToSaveVersion); // CHECK...
       data.append('type', type);
 
+
       try {
+         setLoading(true);
+         commandAction({ type: '' });
+
          if (data !== undefined || data !== null) {
+
             const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
 
             const listFileName = res.data;
-
             const arrayFileName = listFileName.map(link => ({
                fileName: getFileNameFromLinkResponse(link),
                fileLink: link
             }));
 
             let rowsToUpdate = [];
-            let rowsHistoryToUpdate = [];
+
+
             dwgsToAddNewRFA.forEach(r => {
 
-               r['RFA Ref'] = rfaToSave;
-               r['Status'] = 'Consultant reviewing';
-               r['Drg To Consultant (A)'] = moment(new Date()).format('DD/MM/YY');
-               r['Drawing'] = arrayFileName.find(fl => fl.fileName === r['Drawing']).fileLink;
+               let rowOutput = { _id: r.id };
 
-               if (r.row) rowsHistoryToUpdate.push(r);
-               else rowsToUpdate.push(r);
-            });
+               if (type === 'submission' && !r['RFA Ref']) {
 
+                  r['RFA Ref'] = rfaRefData;
+                  r['rfaNumber'] = rfaToSave;
+                  r['Status'] = 'Consultant reviewing';
+                  r['Drg To Consultant (A)'] = moment(new Date()).format('DD/MM/YY');
+                  r['Consultant Reply (T)'] = moment().add(14, 'days').format('DD/MM/YY');
 
-            const arrHeadersSubmit = [
-               'RFA Ref', 'Status', 'Drg To Consultant (A)', 'Drawing', 'Rev'
-            ];
-
-            const rowsToUpdateOutput = rowsToUpdate.map(row => {
-               let rowToSave = { _id: row.id };
-               headers.forEach(hd => {
-                  if ((row[hd.text] || row[hd.text] === '') && arrHeadersSubmit.indexOf(hd.text) !== -1) {
-                     rowToSave.data = { ...rowToSave.data || {}, [hd.key]: row[hd.text] };
+                  const fileFound = arrayFileName.find(fl => fl.fileName === r[`submission-$$$-drawing-${company}`]);
+                  if (fileFound) {
+                     r[`submission-$$$-drawing-${company}`] = fileFound.fileLink;
                   };
-               });
-               return rowToSave;
+                  r[`submission-$$$-user-${company}`] = email;
+
+
+                  const arrHeadersSubmit = ['RFA Ref', 'Status', 'Drg To Consultant (A)', 'Consultant Reply (T)', 'Rev'];
+
+                  headers.forEach(hd => {
+                     if (r[hd.text] && arrHeadersSubmit.indexOf(hd.text) !== -1) {
+                        rowOutput.data = { ...rowOutput.data || {}, [hd.key]: r[hd.text] };
+                     };
+                  });
+                  rowOutput.data.rfaNumber = r['rfaNumber'];
+
+                  const listDataToAdd = ['drawing', 'status', 'date', 'comment', 'user'];
+                  listDataToAdd.forEach(txt => {
+                     rowOutput.data[`reply-$$$-${txt}-${consultantLead.company}`] = '';
+
+                     if (r[`submission-$$$-${txt}-${company}`]) {
+                        rowOutput.data[`submission-$$$-${txt}-${company}`] = r[`submission-$$$-${txt}-${company}`];
+                     };
+                  });
+
+
+               } else if (type === 'reply') {
+
+                  const fileFound = arrayFileName.find(fl => fl.fileName === r[`reply-$$$-drawing-${company}`]);
+                  if (fileFound) {
+                     r[`reply-$$$-drawing-${company}`] = fileFound.fileLink;
+                  };
+                  r[`reply-$$$-date-${company}`] = moment(new Date()).format('DD/MM/YY');
+                  r[`reply-$$$-user-${company}`] = email;
+
+                  let keyToSaveValue;
+                  if (r.row) keyToSaveValue = 'history';
+                  else keyToSaveValue = 'data';
+
+                  Object.keys(r).forEach(key => {
+                     if (key.includes('reply-$$$-') && key.includes(company)) {
+                        rowOutput[keyToSaveValue] = { ...rowOutput[keyToSaveValue] || {}, [key]: r[key] };
+                     };
+                  });
+
+                  if (consultantLead.company === company) {
+                     r['Consultant Reply (A)'] = moment(new Date()).format('DD/MM/YY');
+                     r['Status'] = r[`reply-$$$-status-${company}`]
+
+                     const arrHeadersSubmit = ['Status', 'Consultant Reply (A)'];
+
+                     arrHeadersSubmit.forEach(hd => {
+                        const header = headers.find(x => x.text === hd);
+                        rowOutput[keyToSaveValue] = { ...rowOutput[keyToSaveValue] || {}, [header.key]: r[hd] };
+                     });
+                  };
+               };
+               rowsToUpdate.push(rowOutput);
             });
 
-            if (rowsToUpdateOutput.length > 0) {
-               await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdateOutput });
+
+            if (rowsToUpdate.length > 0) {
+               await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdate });
+               let cellHistoriesToSave = [];
+               rowsToUpdate.forEach(row => {
+
+                  localStorage.setItem(`editLastTime-${type}-${rfaRefData}-${row._id}`, JSON.stringify(new Date()));
+
+                  if (row.data[`reply-$$$-status-${company}`]) {
+                     cellHistoriesToSave.push({
+                        rowId: row._id,
+                        headerKey: company,
+                        history: {
+                           text: company + '__' +
+                              row.data[`reply-$$$-status-${company}`] + '__' +
+                              moment(row.data[`reply-$$$-date-${company}`]).format('DD/MM/YY'),
+                           email,
+                           createdAt: new Date(),
+                        }
+                     });
+                  };
+
+                  headers.forEach(hd => {
+                     if (row.data[hd.key]) {
+                        cellHistoriesToSave.push({
+                           rowId: row._id,
+                           headerKey: hd.key,
+                           history: {
+                              text: row.data[hd.key],
+                              email,
+                              createdAt: new Date(),
+                           }
+                        });
+                     };
+                  });
+               });
+               await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: cellHistoriesToSave });
             };
+         };
+         function getRandomInt(min, max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min) + min);
+         };
+         const title = `test email title ${getRandomInt(1, 9999)}`;
+
+         let listUserOutput = {};
+         let listGroupOutput = {};
+
+         Object.keys(recipient).forEach(key => {
+            recipient[key].forEach(item => {
+               if (listUser.indexOf(item) !== -1) {
+                  listUserOutput[key] = [...listUserOutput[key] || [], item];
+               } else if (listGroup.indexOf(item) !== -1) {
+                  listGroupOutput[key] = [...listGroupOutput[key] || [], item];
+               } else if (validateEmailInput(item)) {
+                  listUserOutput[key] = [...listUserOutput[key] || [], item];
+               };
+            });
+         });
 
 
-            // let objCellHistory = {};
-            // resCellsHistory.data.map(cell => {
-            //    const headerText = headers.find(hd => hd.key === cell.headerKey).text;
-            //    if (cell.histories.length > 0) {
-            //       const latestHistoryText = cell.histories[cell.histories.length - 1].text;
-            //       objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
-            //    };
-            // });
-            // Object.keys(cellsModifiedTemp).forEach(key => {
-            //    if (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) {
-            //       delete cellsModifiedTemp[key];
-            //    } else {
-            //       let rowId = key.slice(0, 24);
-            //       if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
-            //          delete cellsModifiedTemp[key];
-            //       };
-            //    };
-            // });
-            // if (Object.keys(cellsModifiedTemp).length > 0) {
-            //    await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject) });
-            // };
 
+         const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
+
+
+         const getDrawingURLFromDB = async () => {
+            try {
+               return await Promise.all(dwgsNewRFAClone.map(async dwg => {
+                  const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${type}-$$$-drawing-${company}`], expire: 1000 } });
+                  dwg[`${type}-$$$-drawing-${company}`] = res.data;
+                  return dwg;
+               }));
+            } catch (err) {
+               console.log(err);
+            };
          };
 
+         const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
 
-         commandAction({
-            type: 'add-new-rfa-submit',
-            data: {
-               rowsRfaAll,
-               expandedRowIds: rowsRfaAll.map(x => x.id)
-            }
-         });
+         const contentEmail = generateEmailInnerHTML(company, type, dwgsToAddNewRFAGetDrawingURL);
+
+         await Axios.post(`/api/issue/rfa-mail`, { token, title, content: contentEmail, listUser: listUserOutput, listGroup: listGroupOutput, projectId });
+
+         await reloadDataFromServerViewRFA();
+
       } catch (err) {
          commandAction({ type: 'save-file-failure' });
+         console.log(err);
+      };
+   };
+
+
+   const redirectToViewDMS = async () => {
+      const { projectId, token, email } = stateProject.allDataOneSheet;
+      try {
+         setLoading(true);
+         commandAction({ type: '' });
+         const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+         commandAction({ type: 'reload-data-from-server', data: res.data });
+
+      } catch (err) {
+         commandAction({ type: 'save-data-failure' });
          console.log(err);
       };
    };
@@ -898,9 +1062,15 @@ const PanelSetting = (props) => {
             <FormFilter
                applyFilter={applyFilter}
                onClickCancelModal={onClickCancelModal}
-               headers={stateProject.userData.headersShown}
+               headers={stateRow.isRfaView
+                  ? headersRfaView
+                  : stateProject.userData.headersShown
+               }
                modeFilter={stateRow.modeFilter}
                rowsAll={stateRow.rowsAll}
+               rowsRfaAll={stateRow.rowsRfaAll}
+               isRfaView={stateRow.isRfaView}
+               companies={companies}
             />
          )}
 
@@ -1024,12 +1194,20 @@ const PanelSetting = (props) => {
                onClickApplyAddNewRFA={onClickApplyAddNewRFA}
             />
          )}
-         
+
          {panelSettingType === 'goToViewRFA-ICON' && (
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={saveDataToServerAndRedirectToViewRFA}
-               content={'Do you want to save and redirect to RFA View ?'}
+               content={'Do you want to save and redirect to RFA sheet ?'}
+            />
+         )}
+
+         {panelSettingType === 'goToViewDMS-ICON' && (
+            <PanelConfirm
+               onClickCancel={onClickCancelModal}
+               onClickApply={redirectToViewDMS}
+               content={'Do you want to go to DMS sheet ?'}
             />
          )}
 
@@ -1137,145 +1315,136 @@ export const updatePreRowParentRowToState = (objState, row) => {
 
 
 
+export const convertRowHistoryData = (dataRowsHistory, headers) => {
+   return dataRowsHistory.map(r => {
+      const { history } = r;
+      if (history) {
+         let data = { id: r._id, row: r.row };
+         Object.keys(history).forEach(key => {
+            if (key === 'rfaNumber' || key.includes('reply-$$$-')) {
+               data[key] = history[key];
+            } else {
+               const header = headers.find(hd => hd.key === key);
+               if (header) {
+                  data[header.text] = history[key];
+               };
+            };
+         });
+         return data;
+      };
+   });
+};
 
+export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree) => {
 
+   const nodeTitleArr = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
 
-const getDataForRFASheet = (rowsCurrentAndHistories) => {
+   const rowsWithRFA = rows.filter(x => x.rfaNumber);
+   const rowsHistoryWithRFA = rowsHistory.filter(x => x.rfaNumber);
 
-   const rowsRFA = rowsCurrentAndHistories.filter(r => r['rfaNumber']);
+   let TreeViewRFA = [];
 
-   const allRfaCode = [...new Set(rowsRFA.map(x => x['rfaNumber']))];
-   const parentArray = [];
+   nodeTitleArr.forEach(title => {
 
-
-   allRfaCode.forEach(rfaNumb => {
-      let allDwgs = rowsRFA.filter(dwg => dwg['rfaNumber'] === rfaNumb);
-      const allRfaRef = [...new Set(rowsRFA.map(x => x['RFA Ref']))];
-      const btnTextArray = allRfaRef.map(rfa => {
-         return rfa.slice(rfaNumb.length, rfa.length) || '-';
+      TreeViewRFA.push({
+         id: title,
+         treeLevel: 2,
+         expanded: true,
+         title
       });
-      parentArray.push({
-         id: rfaNumb,
-         'rfaNumber': rfaNumb,
-         'btn': btnTextArray,
-         rfaRowLevel: 0,
-         children: allDwgs
+
+      const rowsUnderThisTrade = rowsWithRFA.filter(row => {
+         const parentNode = drawingTypeTree.find(x => x.id === row._parentRow);
+         return getTradeNameFnc(parentNode, drawingTypeTree) === title;
       });
+
+      const allRfaCode = [...new Set(rowsUnderThisTrade.map(x => x['rfaNumber']))];
+      const rfaParentNodeArray = [];
+
+      allRfaCode.forEach(rfaNumb => {
+         let allDwgs = [...rowsUnderThisTrade, ...rowsHistoryWithRFA].filter(dwg => dwg['rfaNumber'] === rfaNumb);
+
+
+         const allRfaRef = [...new Set(allDwgs.map(x => x['RFA Ref']))];
+
+         let btnTextArray = allRfaRef.map(rfa => {
+            return rfa.slice(rfaNumb.length, rfa.length) || '-';
+         });
+         btnTextArray.push('-');
+
+
+         rfaParentNodeArray.push({
+            id: rfaNumb,
+            'rfaNumber': rfaNumb,
+            'btn': [...new Set(btnTextArray)],
+            treeLevel: 3,
+            expanded: true,
+            parentId: title
+         });
+      });
+      TreeViewRFA = [...TreeViewRFA, ...rfaParentNodeArray];
+   });
+
+   const allRowsForRFA = [...rowsWithRFA, ...rowsHistoryWithRFA];
+
+   allRowsForRFA.sort((a, b) => {
+      if (!b['RFA Ref']) return 1;
+
+      if (a['RFA Ref'] > b['RFA Ref']) return -1;
+      if (a['RFA Ref'] < b['RFA Ref']) return 1;
+
+      if (a['Drawing Number'] > b['Drawing Number']) return 1;
+      if (a['Drawing Number'] < b['Drawing Number']) return -1;
    });
 
    return {
-      rowsDataRFA: parentArray,
-      expandedRowIdsRFA: allRfaCode
+      rowsDataRFA: allRowsForRFA,
+      TreeViewRFA
    };
 };
 
 
-export const getDataForRFA = () => {
-   const rowCurrentRFA = [
-      {
-         id: 'r-1',
-         'Drawing Number': 'SUM_WH_A-_WSO_ESS_001',
-         'Drawing Name': 'Switch Room Facade',
-         'RFA Ref': 'RFA/SUM/ARC/069A',
-         'rfaNumber': 'RFA/SUM/ARC/069',
-         'Rev': 'B',
 
-         'Consultant (1)': 'DCA',
-         'Date Reply (1)': '12/02/2021',
-         'Status (1)': 'Approved for Construction',
-         'Comment (1)': 'need to update',
-
-         'Consultant (2)': 'TYLIN',
-         'Date Reply (2)': '07/01/2021',
-         'Status (2)': 'Reject and resubmit',
-         'Comment (2)': 'need to update',
-
-         'Drawing': '',
-         _rowLevel: 1
-      },
-      {
-         id: 'r-2',
-         'Drawing Number': 'SUM_WH_S-_FRS_RC_025',
-         'Drawing Name': 'Blk 22 - Typical Lift Lobby Finishing',
-         'RFA Ref': 'RFA/SUM/ARC/069B',
-         'rfaNumber': 'RFA/SUM/ARC/069',
-         'Rev': 'B',
-         'Consultant (1)': 'TYLIN',
-         'Date Reply (1)': '',
-         'Status (1)': 'Reject and resubmit',
-         'Drawing': '',
-         _rowLevel: 1
-      }
-   ];
-   const rowHistoryRFA = [
-      {
-         id: 'rhh-1',
-         'Drawing Number': 'SUM_WH_A-_WSO_ESS_001',
-         'Drawing Name': 'Switch Room Facade',
-         'RFA Ref': 'RFA/SUM/ARC/069',
-         'rfaNumber': 'RFA/SUM/ARC/069',
-         'Rev': '0',
-         'Consultant (1)': 'DCA',
-         'Date Reply (1)': '',
-         'Status (1)': 'Reject and resubmit',
-         'Drawing': '',
-         _rowLevel: 1,
-         row: 'r-1'
-      },
-      {
-         id: 'rhh-2',
-         'Drawing Number': 'SUM_WH_S-_FRS_RC_025',
-         'Drawing Name': 'Blk 22 - Typical Lift Lobby Finishing',
-         'RFA Ref': 'RFA/SUM/ARC/069',
-         'rfaNumber': 'RFA/SUM/ARC/069',
-         'Rev': '0',
-         'Consultant (1)': 'TYLIN',
-         'Date Reply (1)': '',
-         'Status (1)': 'Approved with comments, to Resubmit',
-         'Drawing': '',
-         _rowLevel: 1,
-         row: 'r-2'
-      },
-      {
-         id: 'rhh-22222',
-         'Drawing Number': 'SUM_WH_S-_FRS_RC_025',
-         'Drawing Name': 'Blk 22 - Typical Lift Lobby Finishing',
-         'RFA Ref': 'RFA/SUM/ARC/069A',
-         'rfaNumber': 'RFA/SUM/ARC/069',
-         'Rev': 'A',
-         'Consultant (1)': 'TYLIN',
-         'Date Reply (1)': '',
-         'Status (1)': 'Approved with comments, to Resubmit',
-         'Drawing': '',
-         _rowLevel: 1,
-         row: 'r-2'
-      },
+const generateEmailInnerHTML = (company, emailType, rowsData) => {
+   const headersArray = [
+      'Drawing Number',
+      'Drawing Name',
+      'RFA Ref',
+      'Drg To Consultant (A)',
+      'Consultant Reply (T)',
+      'Rev',
+      'Status',
+      'File'
    ];
 
 
-   const arr = [...rowCurrentRFA, ...rowHistoryRFA];
-   const allRfaCode = [...new Set(arr.map(x => x['rfaNumber']))];
-   const parentArray = [];
+   const th_td_style = `style='border: 1px solid #dddddd; text-align: left; padding: 8px; position: relative;'`;
 
-
-   allRfaCode.forEach(rfaNumb => {
-      let allDwgs = arr.filter(dwg => dwg['rfaNumber'] === rfaNumb);
-      const allRfaRef = [...new Set(arr.map(x => x['RFA Ref']))];
-      const btnTextArray = allRfaRef.map(rfa => {
-         return rfa.slice(rfaNumb.length, rfa.length) || '-';
+   let contentBody = '';
+   rowsData.forEach(rowData => {
+      let str = '';
+      headersArray.forEach(headerText => {
+         if (headerText === 'File') {
+            const btnHTMLContent = `<a href='${rowData[`${emailType}-$$$-drawing-${company}`]}'>BTN</a>`;
+            str += `<td ${th_td_style}>${btnHTMLContent}</td>`;
+         } else {
+            if (headerText === 'Status' && emailType === 'reply') {
+               str += `<td ${th_td_style}>${rowData[`reply-$$$-status-${company}`]}</td>`;
+            } else {
+               str += `<td ${th_td_style}>${rowData[headerText]}</td>`;
+            };
+         };
       });
-      parentArray.push({
-         id: rfaNumb,
-         'rfaNumber': rfaNumb,
-         'btn': btnTextArray,
-         rfaRowLevel: 0,
-         children: allDwgs
-      });
+      contentBody += `<tr>${str}</tr>`;
    });
-   return {
-      rowsData: parentArray,
-      expandedRowIds: allRfaCode
-   };
+
+
+   let contentHeader = '';
+   headersArray.forEach(headerText => {
+      contentHeader += `<th ${th_td_style}>${headerText}</th>`;
+   });
+   contentHeader = `<tr style='background: #34495e; color: white;'>${contentHeader}</tr>`;
+
+
+   return contentHeader + contentBody;
 };
-
-
