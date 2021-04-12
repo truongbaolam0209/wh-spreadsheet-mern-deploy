@@ -260,7 +260,7 @@ export const convertDrawingVersionToHistory = (rowsHistory, stateProject) => {
       let obj = {};
 
       Object.keys(rowsH).forEach(key => {
-         if (key === 'rfaNumber' || key.includes('reply-$$$-')) {
+         if (key === 'rfaNumber' || key.includes('reply-$$$-') || key.includes('submission-$$$-')) {
             obj[key] = rowsH[key];
          };
       });

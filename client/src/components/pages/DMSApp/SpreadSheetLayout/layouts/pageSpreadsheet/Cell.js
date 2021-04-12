@@ -1,4 +1,5 @@
 import { message, Tooltip } from 'antd';
+import Axios from 'axios';
 import moment from 'moment';
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
@@ -37,7 +38,7 @@ const Cell = (props) => {
 
 
 
-   const { roleTradeCompany, projectIsAppliedRfaView } = stateProject.allDataOneSheet;
+   const { roleTradeCompany, projectIsAppliedRfaView, company } = stateProject.allDataOneSheet;
 
 
    let info = '';
@@ -219,8 +220,15 @@ const Cell = (props) => {
       setValueInput({ ...valueInput, current: e.target.value });
    };
 
-   const onClickDrawingOpen = () => {
+   const onClickDrawingOpen = async () => {
+      const dwgLink = rowData[`submission-$$$-drawing-${company}`];
 
+      try {
+         const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
+         window.open(res.data);
+      } catch (err) {
+         console.log(err);
+      };
    };
 
    useEffect(() => { // after keydown ENTER to show input ...
@@ -294,7 +302,7 @@ const Cell = (props) => {
       '1st cut of drawing in-progress',
       'Pending design',
 
-      
+
       'Consultant reviewing',
       'Reject and resubmit',
       'Approved with comments, to Resubmit',

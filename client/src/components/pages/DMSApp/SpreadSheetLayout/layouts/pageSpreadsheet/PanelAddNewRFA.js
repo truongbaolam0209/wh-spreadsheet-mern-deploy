@@ -35,14 +35,19 @@ const Table = (props) => {
 const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
-
    const { state: stateRow } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
    const { roleTradeCompany: { role, company, trade }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
-   const { rowsAll, currentRFAToAddNew, rowsRfaAll, drawingTypeTree } = stateRow;
+   const { rowsAll, currentRfaToAddNewOrReply, rowsRfaAll, drawingTypeTree } = stateRow;
 
    const listRecipient = [...listUser, ...listGroup];
+
+   const listConsultant = companies.filter(x => x.companyType === 'Consultant');
+   let consultantLead = listConsultant.find(x => x.isLeadConsultant);
+   if (!consultantLead) {
+      consultantLead = listConsultant[0];
+   };
 
 
    const [tablePickDrawingRFA, setTablePickDrawingRFA] = useState(false);
@@ -56,29 +61,74 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const [listRecipientTo, setListRecipientTo] = useState([]);
    const [listRecipientCc, setListRecipientCc] = useState([]);
 
-   let formType = role === 'Consultant' ? 'form-reply' : 'form-submit';
-   let arrayRFA;
 
-   if (currentRFAToAddNew) {
-      const dwgNotReplyYet = rowsRfaAll.filter(dwg => {
-         return dwg.rfaNumber === currentRFAToAddNew &&
-            ['RFA Ref'] &&
-            !dwg[`reply-$$$-status-${company}`];
-      });
-      arrayRFA = [...new Set(dwgNotReplyYet.map(x => x['RFA Ref']))];
-   };
+   let formType = role === 'Consultant' ? 'form-reply' : 'form-submit';
+
+   const [arrayRFA, setArrayRFA] = useState(null);
+
+
+   console.log('arrayRFA-------->', currentRfaToAddNewOrReply, arrayRFA, dwgsToAddNewRFA);
 
 
    useEffect(() => {
-      if (currentRFAToAddNew) {
+      if (currentRfaToAddNewOrReply) {
+
          if (formType === 'form-submit') {
-            setDwgsToAddNewRFA(rowsRfaAll.filter(dwg => {
-               return dwg.rfaNumber === currentRFAToAddNew && !dwg['RFA Ref'];
-            }));
+
+            const dwgsAlreadySubmit = rowsRfaAll.filter(dwg => {
+               return dwg.rfaNumber === currentRfaToAddNewOrReply && dwg['RFA Ref'];
+            });
+
+            const dwgsToResubmit = rowsRfaAll.filter(dwg => {
+               return dwg.rfaNumber === currentRfaToAddNewOrReply &&
+                  !dwg['RFA Ref'] &&
+                  !dwg[`submission-$$$-drawing-${company}`];
+            });
+            const dwg = dwgsToResubmit[0];
+
+            
+            setArrayRFA([...new Set(dwgsAlreadySubmit.map(dwg => dwg['RFA Ref']))]);
+            setDwgsToAddNewRFA(dwgsToResubmit);
+
+            for (const key in dwg) {
+               if (key.includes(`submission-$$$-emailTo-`)) {
+                  setListRecipientTo(dwg[key]);
+               } else if (key.includes(`submission-$$$-emailCc-`)) {
+                  setListRecipientCc(dwg[key]);
+               };
+            };
+
          } else if (formType === 'form-reply') {
-            // setDwgsToAddNewRFA(getDwgsForConsultantView(rfa.children, { role, company, trade }));
-            setDwgsToAddNewRFA([]);
+
+            const dwgsNotReplyYet = rowsRfaAll.filter(dwg => {
+               return dwg.rfaNumber === currentRfaToAddNewOrReply &&
+                  dwg['RFA Ref'] &&
+                  !dwg[`reply-$$$-status-${company}`];
+            });
+
+            const arrRFADataNotReplyYet = [...new Set(dwgsNotReplyYet.map(x => x['RFA Ref']))];
+            setArrayRFA(arrRFADataNotReplyYet);
+
+            const latestRFAToReply = arrRFADataNotReplyYet[0];
+
+            setDwgsToAddNewRFA(dwgsNotReplyYet.filter(x => x['RFA Ref'] === latestRFAToReply));
+
+            const dwg = dwgsNotReplyYet.filter(x => x['RFA Ref'] === latestRFAToReply)[0];
+
+            let arrEmailCc = [];
+            console.log('dwg', dwg);
+            for (const key in dwg) {
+               if (key.includes(`submission-$$$-user-`)) {
+                  setListRecipientTo([dwg[key]]);
+               } else if (key.includes(`submission-$$$-emailTo-`) || key.includes(`submission-$$$-emailCc-`)) {
+                  arrEmailCc = [...arrEmailCc, ...dwg[key]];
+               };
+            };
+            setListRecipientCc(arrEmailCc);
          };
+      } else {
+         setArrayRFA(null);
+         setDwgsToAddNewRFA(null);
       };
    }, []);
 
@@ -108,16 +158,19 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
    const [valueInputRFACreateNew, setValueInputRFACreateNew] = useState('');
    const onBlurInputRFANameCreateNew = () => {
-      if (currentRFAToAddNew) {
+      if (currentRfaToAddNewOrReply) {
          const arr = arrayRFA.map(rev => rev.toLowerCase());
-         if (arr.indexOf(currentRFAToAddNew.toLowerCase() + valueInputRFACreateNew.toLowerCase()) !== -1) {
-            message.info('This RFA Number Has Already Existed, Please Choose A New Number!');
+         console.log('arr---', arr, currentRfaToAddNewOrReply.toLowerCase() + valueInputRFACreateNew.toLowerCase());
+         if (arr.indexOf(currentRfaToAddNewOrReply.toLowerCase() + valueInputRFACreateNew.toLowerCase()) !== -1) {
+            message.info('This RFA number has already existed, please choose a new number!');
             setValueInputRFACreateNew('');
          };
       } else {
-         if (drawingTypeTree.find(tree => tree.id.toLowerCase() === valueInputRFACreateNew.toLowerCase())) {
-            message.info('This RFA Number Has Already Existed, Please Choose A New Number!');
-            setValueInputRFACreateNew(valueInputRFACreateNew.slice(0, valueInputRFACreateNew.length - 1));
+         const arr = [...new Set(rowsRfaAll.map(x => (x['RFA Ref'] || '').toLowerCase()))];
+         if (arr.indexOf(valueInputRFACreateNew.toLowerCase()) !== -1) {
+            message.info('This RFA number has already existed, please choose a new number!');
+            setValueInputRFACreateNew('');
+            // setValueInputRFACreateNew(valueInputRFACreateNew.slice(0, valueInputRFACreateNew.length - 1));
          };
       };
    };
@@ -145,7 +198,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
    const onChangeConsultantPickRFAToReply = (rfaNumberValue) => {
-      const rows = rowsRfaAll.filter(r => r.rfaNumber === currentRFAToAddNew && r['RFA Ref'] === rfaNumberValue);
+      const rows = rowsRfaAll.filter(r => r.rfaNumber === currentRfaToAddNewOrReply && r['RFA Ref'] === rfaNumberValue);
       setDwgsToAddNewRFA(rows);
    };
 
@@ -170,8 +223,10 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             cellRenderer: (column === 'Rev' && formType === 'form-submit') ? (
                <CellInputRevision
                   setRevisionDwg={setRevisionDwg}
+                  rowsThisRFAWithRev={rowsRfaAll.filter(dwg => {
+                     return dwg.rfaNumber === currentRfaToAddNewOrReply && dwg['Rev'];
+                  })}
                />
-
             ) : (column === 'Comment' && formType === 'form-reply') ? (
                <CellAddCommentDrawing
                   onClickCommentBtn={onClickCommentBtn}
@@ -212,13 +267,53 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
    const onClickApplyDoneFormRFA = () => {
+      const rfaToSave = currentRfaToAddNewOrReply ? currentRfaToAddNewOrReply : valueInputRFACreateNew;
+      const rfaToSaveVersion = currentRfaToAddNewOrReply ? valueInputRFACreateNew : '-';
+
+
+      let isAllDataFilledIn = true;
+      if (role !== 'Consultant') {
+         dwgsToAddNewRFA && dwgsToAddNewRFA.forEach(r => {
+            if (!r['Rev'] || !r[`submission-$$$-drawing-${company}`]) {
+               isAllDataFilledIn = false;
+            };
+         });
+      };
+
+
+      files && Object.keys(files).forEach(key => {
+         let fileFound;
+         if (role === 'Consultant') {
+            fileFound = dwgsToAddNewRFA && dwgsToAddNewRFA.find(x => x[`reply-$$$-drawing-${company}`] === key);
+         } else {
+            fileFound = dwgsToAddNewRFA && dwgsToAddNewRFA.find(x => x[`submission-$$$-drawing-${company}`] === key);
+         };
+         if (!fileFound) {
+            delete files[key];
+         };
+      });
+
+      console.log({ trade, files, dwgsToAddNewRFA, listRecipientTo, listRecipientTo, rfaToSave, rfaToSaveVersion, isAllDataFilledIn });
+      if (
+         !files || !rfaToSave ||
+         (!rfaToSaveVersion && role !== 'Consultant') ||
+         !listRecipientTo || !dwgsToAddNewRFA ||
+         listRecipientTo.length === 0 ||
+         Object.keys(files).length !== dwgsToAddNewRFA.length ||
+         !isAllDataFilledIn
+      ) {
+         message.info('Please fill in necessary data for drawings to submit!');
+         return;
+      };
+
+
       onClickApplyAddNewRFA({
          type: role === 'Consultant' ? 'reply' : 'submission',
          trade,
          files: Object.values(files),
          dwgsToAddNewRFA,
-         rfaToSave: currentRFAToAddNew ? currentRFAToAddNew : valueInputRFACreateNew,
-         rfaToSaveVersion: currentRFAToAddNew ? valueInputRFACreateNew : '-',
+         rfaToSave,
+         rfaToSaveVersion,
          recipient: {
             to: listRecipientTo,
             cc: listRecipientCc
@@ -226,10 +321,11 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       });
    };
 
-
+   console.log('listRecipientTo---------------------------', listRecipientTo, listRecipientCc);
 
 
    const dateToReply = moment().add(14, 'days').format('DD/MM/YY');
+
 
    return (
       <>
@@ -248,9 +344,10 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                      <div style={{ display: 'flex' }}>
                         <div style={{ marginRight: 10, transform: 'translateY(5px)', fontWeight: 'bold' }}>RFA Number : </div>
-                        {currentRFAToAddNew ? (
+
+                        {currentRfaToAddNewOrReply ? (
                            <>
-                              <div style={{ marginRight: 10, transform: 'translateY(5px)' }}>{currentRFAToAddNew}</div>
+                              <div style={{ marginRight: 10, transform: 'translateY(5px)' }}>{currentRfaToAddNewOrReply}</div>
                               <Input
                                  style={{ width: 50, marginBottom: 10, borderRadius: 0 }}
                                  onChange={(e) => setValueInputRFACreateNew(e.target.value)}
@@ -279,15 +376,20 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                {(formType === 'form-reply' && arrayRFA) && (
                   <div style={{ display: 'flex', marginBottom: 10 }}>
                      <div style={{ marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>RFA Number : </div>
-                     <SelectRFAStyled
-                        showSearch
-                        placeholder='Select RFA...'
-                        onChange={onChangeConsultantPickRFAToReply}
-                     >
-                        {arrayRFA.map(rfaData => (
-                           <Select.Option key={rfaData} value={rfaData}>{rfaData}</Select.Option>
-                        ))}
-                     </SelectRFAStyled>
+                     {arrayRFA.length === 1 ? (
+                        <div>{arrayRFA[0]}</div>
+                     ) : (
+                        <SelectRFAStyled
+                           showSearch
+                           placeholder='Select RFA...'
+                           onChange={onChangeConsultantPickRFAToReply}
+                           defaultValue={arrayRFA[0]}
+                        >
+                           {arrayRFA.map(rfaData => (
+                              <Select.Option key={rfaData} value={rfaData}>{rfaData}</Select.Option>
+                           ))}
+                        </SelectRFAStyled>
+                     )}
                   </div>
                )}
 
@@ -297,7 +399,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   <SelectRecipientStyled
                      mode='tags'
                      placeholder='Please select...'
-                     defaultValue={[]}
+                     value={listRecipientTo}
                      onChange={(list) => setListRecipientTo(list)}
                   >
                      {listRecipient.map(cm => (
@@ -311,7 +413,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   <SelectRecipientStyled
                      mode='tags'
                      placeholder='Please select...'
-                     defaultValue={[]}
+                     value={listRecipientCc}
                      onChange={(list) => setListRecipientCc(list)}
                   >
                      {listRecipient.map(cm => (
@@ -322,7 +424,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
                <div style={{ display: 'flex', marginBottom: 20 }}>
-                  {!currentRFAToAddNew && (
+                  {!currentRfaToAddNewOrReply && (
                      <ButtonStyle
                         marginRight={10}
                         name='Add Drawing To RFA'
@@ -388,6 +490,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                <TableDrawingRFA
                   onClickCancelModalPickDrawing={() => setTablePickDrawingRFA(false)}
                   onClickApplyModalPickDrawing={onClickApplyModalPickDrawing}
+                  dwgsToAddNewRFA={dwgsToAddNewRFA}
                />
             </ModalPickDrawingRFAStyled>
          )}
@@ -505,7 +608,13 @@ const CellAddCommentDrawing = (props) => {
    );
 };
 
-const CellInputRevision = ({ setRevisionDwg, rowData, cellData }) => {
+const CellInputRevision = ({ setRevisionDwg, rowData, rowsThisRFAWithRev }) => {
+
+   // ROW or ID =======================>>>>
+   const allRevsExisting = [...new Set(rowsThisRFAWithRev.filter(dwg => dwg.row === rowData.id).map(x => x['Rev'].toLowerCase()))];
+
+   const [value, setValue] = useState('');
+
    return (
       <Tooltip title='Edit Revision Name'>
          <input
@@ -516,8 +625,17 @@ const CellInputRevision = ({ setRevisionDwg, rowData, cellData }) => {
                background: 'transparent',
                width: '80%'
             }}
-            placeholder={cellData || ''}
-            onChange={(e) => setRevisionDwg(rowData.id, e.target.value)}
+            onChange={(e) => setValue(e.target.value)}
+            value={value}
+            onBlur={(e) => {
+               if (allRevsExisting.indexOf(e.target.value.toLowerCase()) !== -1) {
+                  message.info('This rev has already existed, please choose a new number!');
+                  setValue('');
+               } else {
+                  setValue(e.target.value);
+                  setRevisionDwg(rowData.id, e.target.value);
+               };
+            }}
          />
       </Tooltip>
    );
@@ -540,30 +658,10 @@ const CellRemoveDrawing = (props) => {
 };
 
 
-const getDwgsForConsultantView = (rows, { role, company, trade }) => {
-
-   let rowsObjByRefNumber = {};
-
-   rows.forEach(r => {
-      const { reply } = r;
-      if (reply && reply[company]) {
-
-      } else {
-         const rfaNumber = r.rfaNumber;
-         const rfaREF = r['RFA Ref'];
-         const str = rfaREF.slice(rfaNumber.length, rfaREF.length) || '-';
-         rowsObjByRefNumber[str] = [...rowsObjByRefNumber[str] || [], r];
-      };
-   });
-
-   return rows;
-};
-
-
 
 const getHeaderWidthDwgRFA = (header) => {
    if (header === 'File') return 350;
-   else if (header === 'Rev') return 70;
+   else if (header === 'Rev') return 50;
    else if (header === 'Status') return 350;
    else if (header === 'Drawing Number') return 250;
    else if (header === 'Drawing Name') return 420;
@@ -680,7 +778,6 @@ const headersDwgRFA = (formType) => {
       'Drawing Number',
       'Drawing Name',
       'Rev',
-      'Status',
       'File'
    ];
 };

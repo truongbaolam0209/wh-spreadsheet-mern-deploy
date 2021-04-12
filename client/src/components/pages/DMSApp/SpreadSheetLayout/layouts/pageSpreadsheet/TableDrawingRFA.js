@@ -25,7 +25,7 @@ const Table = (props) => {
 };
 
 
-const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing }) => {
+const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA }) => {
 
 
    const { state: stateProject } = useContext(ProjectContext);
@@ -33,9 +33,12 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
    const { headers } = stateProject.allDataOneSheet.publicSettings;
    const { rowsAll } = stateRow;
 
-   const rowsTableInput = rowsAll.filter(r => r['Drawing Number'] || r['Drawing Name']);
+   const rowsTableInput = rowsAll.filter(r => {
+      return (r['Drawing Number'] || r['Drawing Name'])
+      && !r.rfaNumber;
+   });
 
-   const [selectedIdRows, setSelectedIdRows] = useState([]);
+   const [selectedIdRows, setSelectedIdRows] = useState(dwgsToAddNewRFA ? dwgsToAddNewRFA.map(x => x.id) : []);
 
 
    const generateColumnsRFA = (headers) => {
@@ -87,8 +90,8 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
          padding: 10,
          textAlign: 'center',
       }}>
-         <div>{`Number of drawings selected: ${selectedIdRows.length}`}</div>
-         <div style={{ width: '100%', height: window.innerHeight * 0.8 - 200 }}>
+         <div style={{ fontWeight: 'bold', marginBottom: 5 }}>{`Number of drawings selected: ${selectedIdRows.length}`}</div>
+         <div style={{ width: '100%', height: window.innerHeight * 0.8 - 150 }}>
             <TableStyled
                fixed
                columns={generateColumnsRFA(headers.map(hd => hd.text))}

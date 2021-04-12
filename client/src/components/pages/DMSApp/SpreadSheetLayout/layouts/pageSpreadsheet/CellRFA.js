@@ -1,7 +1,7 @@
 import { Icon, Modal, Tooltip } from 'antd';
 import Axios from 'axios';
 import moment from 'moment';
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorTextRow, colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
@@ -23,8 +23,6 @@ const CellRFA = (props) => {
 
    const [activeBtn, setActiveBtn] = useState('All');
    const [modalContent, setModalContent] = useState(null);
-
-   const { isRfaView } = stateRow;
 
    let isDueDate;
    if (column.key === 'Due Date' && !rowData.treeLevel) {
@@ -56,7 +54,7 @@ const CellRFA = (props) => {
       buttonPanelFunction('addNewRFA-ICON');
       getSheetRows({
          ...stateRow,
-         currentRFAToAddNew: rowData.id,
+         currentRfaToAddNewOrReply: rowData.id,
       });
    };
 
@@ -70,13 +68,22 @@ const CellRFA = (props) => {
 
 
 
-   let thereIsDrawingWithNoRfaRef = false;
-   if (rowData.treeLevel === 3 && column.key === 'RFA Ref') {
-      const allRowsChildren = rowData.children;
-      if (allRowsChildren.find(x => !x['RFA Ref'])) {
-         thereIsDrawingWithNoRfaRef = true;
+   const [thereIsDrawingWithNoReply, setThereIsDrawingWithNoReply] = useState(false);
+   const [thereIsDrawingWithNoRfaRef, setThereIsDrawingWithNoRfaRef] = useState(false);
+
+   useEffect(() => {
+      if (rowData.treeLevel === 3 && column.key === 'RFA Ref') {
+         const allRowsChildren = rowData.children;
+         if (roleTradeCompany.role === 'Consultant' && allRowsChildren.find(x => !x[`reply-$$$-status-${roleTradeCompany.company}`])) {
+            setThereIsDrawingWithNoReply(true);
+         };
+
+         if (roleTradeCompany.role !== 'Consultant' && allRowsChildren.find(x => !x['RFA Ref'])) {
+            setThereIsDrawingWithNoRfaRef(true);
+         };
       };
-   };
+   }, []);
+
 
 
    const onMouseDownCellButton = async (btn, replyCompany, rowData) => {
@@ -93,7 +100,7 @@ const CellRFA = (props) => {
          buttonPanelFunction('addNewRFA-ICON');
          getSheetRows({
             ...stateRow,
-            currentRFAToAddNew: rowData.id,
+            currentRfaToAddNewOrReply: rowData.id,
          });
       };
    };
@@ -145,7 +152,7 @@ const CellRFA = (props) => {
                const tempRowSavedTime = JSON.parse(localStorage.getItem(`editLastTime-submission-${rowData['RFA Ref']}-${rowData.id}`));
                if (tempRowSavedTime) {
                   const duration = moment.duration(moment(new Date()).diff(tempRowSavedTime)).asMinutes();
-                  if (duration <= 1500) {
+                  if (duration <= 15) {
                      setIsEdittingAllowed(true);
                   } else {
                      setIsEdittingAllowed(false);
@@ -174,8 +181,8 @@ const CellRFA = (props) => {
                </div>
 
                {(
-                  thereIsDrawingWithNoRfaRef ||
-                  roleTradeCompany.role === 'Consultant'
+                  (thereIsDrawingWithNoReply && roleTradeCompany.role === 'Consultant') ||
+                  (thereIsDrawingWithNoRfaRef && roleTradeCompany.role !== 'Consultant')
                ) && (
                      <Tooltip placement='top' title={roleTradeCompany.role === 'Consultant' ? 'Reply To This RFA' : 'Add New RFA For This RFA'} >
                         <Icon
@@ -235,7 +242,10 @@ const CellRFA = (props) => {
                               // backgroundImage: `url(${imgLink.btnDate})`,
                               // backgroundSize: 17
                            }}
-                           onMouseDown={() => onMouseDownCellButton(btn, replyCompany, rowData)}
+                           onMouseDown={() => {
+                              // console.log('AAAAAAAAAAAAAAAAA');
+                              onMouseDownCellButton(btn, replyCompany, rowData);
+                           }}
                         >
                            <Icon
                               type={btn === 'See Note' ? 'message' : btn === 'Open Drawing File' ? 'file' : 'edit'}

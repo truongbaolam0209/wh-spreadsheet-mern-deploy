@@ -100,7 +100,6 @@ const TableDrawingDetail = (props) => {
    };
 
 
-
    const panelHeight = window.innerHeight * 0.8;
    const columnWidth = 120;
    const columnHeaderWidth = 190;

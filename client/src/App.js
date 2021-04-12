@@ -25,9 +25,16 @@ const App = () => {
 
                   <PageSpreadsheet
 
-                     email='judy@wohhup.com'
-                     company='Woh Hup Private Ltd'
-                     role='Document Controller'
+
+                     email={browserName === 'Chrome' ? 'judy@wohhup.com' : 'consultant_user_@wohhup.com'}
+                     company={browserName === 'Chrome' ? 'Woh Hup Private Ltd' : consultantCompany}
+                     role={browserName === 'Chrome' ? 'Document Controller' : 'Consultant'}
+
+
+
+                     // email='judy@wohhup.com'
+                     // company='Woh Hup Private Ltd'
+                     // role='Document Controller'
 
 
                      // email='consultant_DCA_@wohhup.com'
@@ -35,14 +42,22 @@ const App = () => {
                      // role='Consultant'
 
 
+                     // email='emmylou_lopez@wohhup.com'
 
+                     // projectId='MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg'
                      projectId='MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q'
+                     // projectId='MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q'
 
                      projectIsAppliedRfaView={true}
+
                      projectName='PDD'
                      token='xxx-xxxxx-xxx-x-xxxxx'
                      isAdmin={true}
+                     // role='WH C&S Design Engineer'
+                     // role='WH Archi Coordinator'
+                     // role='WH Archi Modeller'
 
+                     // role='Sub-Con'
                      companies={[
                         { company: 'Woh Hup Private Ltd', companyType: 'Main con' },
 
@@ -68,6 +83,8 @@ const App = () => {
                         { company: 'ONG & ONG', companyType: 'Consultant' },
                      ]}
 
+
+
                      listUser={[
                         'bql@gmail.com',
                         'pmq@wohhup.com',
@@ -79,6 +96,8 @@ const App = () => {
                         'WH Group 2',
                         'Sumang Email Group',
                      ]}
+
+
 
                   />
                </Route>
@@ -102,6 +121,10 @@ const App = () => {
                      saveDataToServerCallback={saveDataToServerCallback}
                   />
                </Route>
+
+
+
+
 
             </SheetContext>
 
@@ -127,6 +150,5 @@ const App = () => {
 
 
 export default App;
-
 
 

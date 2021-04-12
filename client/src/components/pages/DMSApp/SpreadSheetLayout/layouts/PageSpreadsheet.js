@@ -217,7 +217,7 @@ const PageSpreadsheet = (props) => {
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
    // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
-   // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
+   useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
 
@@ -370,7 +370,7 @@ const PageSpreadsheet = (props) => {
 
 
       } else if (update.type === 'reload-data-view-rfa') {
-         getSheetRows(getInputDataInitially(update.data.dataAllFromServer, update.data.dataRowsHistoryFromServer));
+         getSheetRows(getInputDataInitially(update.data.dataAllFromServer, update.data.dataRowsHistoryFromServer, role));
          setExpandedRows(update.data.expandedRowsIdArr);
 
          OverwriteCellsModified({});
@@ -389,7 +389,7 @@ const PageSpreadsheet = (props) => {
             email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
          });
          setUserData(getHeadersData(update.data));
-         getSheetRows(getInputDataInitially(update.data, null));
+         getSheetRows(getInputDataInitially(update.data, null, role));
          setExpandedRows(getRowsKeyExpanded(
             update.data.publicSettings.drawingTypeTree,
             update.data.userSettings ? update.data.userSettings.viewTemplateNodeId : null
@@ -450,7 +450,7 @@ const PageSpreadsheet = (props) => {
                   ...res.data,
                   email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
                });
-               getSheetRows(getInputDataInitially(res.data, resRowHistory.data));
+               getSheetRows(getInputDataInitially(res.data, resRowHistory.data, role));
 
                setExpandedRows([
                   'ARCHI', 'C&S', 'M&E', 'PRECAST',
@@ -464,13 +464,34 @@ const PageSpreadsheet = (props) => {
                   email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
                });
                setUserData(getHeadersData(res.data));
-               getSheetRows(getInputDataInitially(res.data, null));
+               getSheetRows(getInputDataInitially(res.data, null, role));
 
                setExpandedRows(getRowsKeyExpanded(
                   res.data.publicSettings.drawingTypeTree,
                   res.data.userSettings ? res.data.userSettings.viewTemplateNodeId : null
                ));
             };
+
+
+
+            // const resDataCheck = await Axios.get(`${SERVER_URL}/sheet/get-all-collections?user=truongbaolam0209`);
+            // const { rows, settings } = resDataCheck.data;
+
+            // const projectIdsArray = [...new Set(rows.map(x => x.sheet))];
+            // let objCheck = {};
+            // projectIdsArray.forEach(projectId => {
+            //    const rowsChildren = rows.filter(x => x.sheet === projectId);
+            //    objCheck[projectId] = rowsChildren;
+            // });
+            // console.log(objCheck);
+            // let settingsUSER = [];
+            // let settingsPUBLIC = [];
+            // settings.forEach(setting => {
+            //    if (setting.user) settingsUSER.push(setting);
+            //    else settingsPUBLIC.push(setting);
+            // });
+
+
 
             setLoading(false);
          } catch (err) {
@@ -752,6 +773,10 @@ const PageSpreadsheet = (props) => {
                </>
             )}
 
+            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && role !== 'Consultant' && (
+               <IconTable type='plus-square' onClick={() => buttonPanelFunction('addNewRFA-ICON')} />
+            )}
+
             {stateRow && projectIsAppliedRfaView && !stateRow.isRfaView && (
                <IconTable type='rfa-button' onClick={() => buttonPanelFunction('goToViewRFA-ICON')} />
             )}
@@ -759,9 +784,7 @@ const PageSpreadsheet = (props) => {
                <IconTable type='dms-button' onClick={() => buttonPanelFunction('goToViewDMS-ICON')} />
             )}
 
-            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && (
-               <IconTable type='plus-square' onClick={() => buttonPanelFunction('addNewRFA-ICON')} />
-            )}
+            <DividerRibbon />
 
 
             {isAdmin && (
@@ -845,6 +868,7 @@ const PageSpreadsheet = (props) => {
                setPanelSettingVisible(false);
                setPanelSettingType(null);
                setPanelType(null);
+               getSheetRows({ ...stateRow, currentRfaToAddNewOrReply: null });
             }}
             destroyOnClose={true}
             centered={true}
@@ -1036,9 +1060,10 @@ const SpinStyled = styled.div`
 
 
 
-const getInputDataInitially = (data, dataRowsHistory) => {
+const getInputDataInitially = (data, dataRowsHistory, role) => {
 
    const { rows, publicSettings, userSettings } = data;
+
    const { drawingTypeTree } = publicSettings;
 
    let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);
@@ -1046,7 +1071,7 @@ const getInputDataInitially = (data, dataRowsHistory) => {
 
    if (dataRowsHistory) {
       const dataRowsHistoryConverted = convertRowHistoryData(dataRowsHistory, publicSettings.headers);
-      const { rowsDataRFA, TreeViewRFA } = getDataForRFASheet(rows, dataRowsHistoryConverted, drawingTypeTree);
+      const { rowsDataRFA, TreeViewRFA } = getDataForRFASheet(rows, dataRowsHistoryConverted, drawingTypeTree, role);
 
       return {
 
@@ -1059,7 +1084,7 @@ const getInputDataInitially = (data, dataRowsHistory) => {
          rowsRfaAll: rowsDataRFA,
          rowsRfaAllInit: rowsDataRFA,
          isRfaView: true,
-         currentRfaToAddNew: null,
+         currentRfaToAddNewOrReply: null,
       };
 
    } else {
@@ -1094,6 +1119,7 @@ const getInputDataInitially = (data, dataRowsHistory) => {
          rowsDeleted: [],
          idRowsNew: [],
          rowsUpdatePreRowOrParentRow: { ...rowsUpdatePreOrParent }, // handle rows can not match parent
+         rowsUpdateSubmissionOrReplyForNewDrawingRev: [],
 
          rowsSelected: [],
          rowsSelectedToMove: [],

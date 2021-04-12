@@ -30,7 +30,7 @@ const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
 
 const PanelSetting = (props) => {
 
-   const { state: stateRow } = useContext(RowContext);
+   const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateCell, getCellModifiedTemp, OverwriteCellsModified } = useContext(CellContext);
    const { projectIsAppliedRfaView, companies } = stateProject.allDataOneSheet;
@@ -405,6 +405,7 @@ const PanelSetting = (props) => {
       });
    };
    const createNewDrawingRevision = () => {
+      const { roleTradeCompany: { company } } = stateProject.allDataOneSheet;
 
       const arrHeadersGoBlank = [
          'Model Start (T)', 'Model Start (A)', 'Model Finish (T)', 'Model Finish (A)', 'Drawing Start (T)', 'Drawing Start (A)',
@@ -424,27 +425,40 @@ const PanelSetting = (props) => {
          row[hd] = '';
       });
 
+
+      let objForRFA = {};
       if (projectIsAppliedRfaView) {
+         let rowsUpdateSubmissionOrReplyForNewDrawingRev = stateRow.rowsUpdateSubmissionOrReplyForNewDrawingRev;
          Object.keys(row).forEach(key => {
-            if (key.includes('reply-$$$-')) {
+            if (
+               key.includes('reply-$$$-') || 
+               key.includes(`submission-$$$-drawing-${company}`) || 
+               key.includes(`submission-$$$-user-${company}`) 
+            ) {
                row[key] = '';
             };
          });
+         if (rowsUpdateSubmissionOrReplyForNewDrawingRev.indexOf(rowId) === -1) {
+            rowsUpdateSubmissionOrReplyForNewDrawingRev = [ ...rowsUpdateSubmissionOrReplyForNewDrawingRev, rowId ];
+            objForRFA = { rowsUpdateSubmissionOrReplyForNewDrawingRev };
+         };
       };
 
       commandAction({
          type: 'create-new-drawing-revisions',
          data: {
             rowsAll,
-            rowsVersionsToSave: [...stateRow.rowsVersionsToSave || [], rowOldVersiontoSave]
+            rowsVersionsToSave: [...stateRow.rowsVersionsToSave || [], rowOldVersiontoSave],
+            ...objForRFA
          }
       });
    };
 
    const saveDataToServer = async () => {
-      const { email, projectId, token, role, projectName, projectIsAppliedRfaView } = stateProject.allDataOneSheet;
+      const { email, projectId, token, role, projectName, projectIsAppliedRfaView, publicSettings, company } = stateProject.allDataOneSheet;
       const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
-      const { headers } = stateProject.allDataOneSheet.publicSettings;
+      const { headers } = publicSettings;
+
       let { cellsModifiedTemp } = stateCell;
       let {
          rowsVersionsToSave,
@@ -454,11 +468,19 @@ const PanelSetting = (props) => {
          drawingsTypeDeleted,
          rowsDeleted,
 
+         rowsAll,
+         rowsUpdateSubmissionOrReplyForNewDrawingRev,
+
          viewTemplateNodeId,
          viewTemplates,
          modeFilter,
          modeSort,
       } = stateRow;
+
+
+      // check new version reply go blank
+      const rowsGetNewRev = rowsAll.filter(r => rowsUpdateSubmissionOrReplyForNewDrawingRev.indexOf(r.id) !== -1);
+
 
       try {
          setLoading(true);
@@ -723,6 +745,7 @@ const PanelSetting = (props) => {
          // FILTER FINAL ROW TO UPDATE......
          let rowsToUpdateFinal = [];
          rowsFromDB.map(row => {
+            
             Object.keys(cellsModifiedTemp).forEach(key => {
                const { rowId, headerName } = extractCellInfo(key);
                if (rowId === row.id) row[headerName] = cellsModifiedTemp[key];
@@ -740,28 +763,30 @@ const PanelSetting = (props) => {
                rowOutput = { ...row };
             };
 
-
             if (rowOutput) {
                let rowToSave = { _id: rowOutput.id, parentRow: rowOutput._parentRow, preRow: rowOutput._preRow };
-
-               if (projectIsAppliedRfaView && !rowOutput['RFA Ref']) {
-                  Object.keys(rowOutput).forEach(key => {
-                     if (key.includes('reply-$$$-')) {
-                        rowToSave.data = { ...rowToSave.data || {}, [key]: '' };
-                     };
-                  });
-               };
-
                headers.forEach(hd => {
                   if (rowOutput[hd.text] || rowOutput[hd.text] === '') {
                      rowToSave.data = { ...rowToSave.data || {}, [hd.key]: rowOutput[hd.text] };
                   };
                });
+               
+               const rowFoundInRowsGetNewRev = rowsGetNewRev.find(x => x.id === rowToSave._id);
+               if (rowFoundInRowsGetNewRev) {
+                  Object.keys(rowFoundInRowsGetNewRev).forEach(key => {
+                     if (
+                        key.includes('reply-$$$-') || 
+                        key.includes(`submission-$$$-drawing-${company}`) || 
+                        key.includes(`submission-$$$-user-${company}`) 
+                     ) {
+                        rowToSave.data = { ...rowToSave.data || {}, [key]: '' };
+                     };
+                  });
+               };
+
                rowsToUpdateFinal.push(rowToSave);
             };
          });
-
-
 
          if (rowsToUpdateFinal.length > 0) {
             await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdateFinal });
@@ -832,7 +857,7 @@ const PanelSetting = (props) => {
       const { email, projectId, token, publicSettings, roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
       const { headers } = publicSettings;
       const { files, type, dwgsToAddNewRFA, trade, rfaToSave, rfaToSaveVersion, recipient } = dataDwg;
-
+      console.log('XXXXXXXXXXXXXXXXXXXX', dataDwg);
       const listConsultant = companies.filter(x => x.companyType === 'Consultant');
       let consultantLead = listConsultant.find(x => x.isLeadConsultant);
       if (!consultantLead) {
@@ -873,7 +898,7 @@ const PanelSetting = (props) => {
                let rowOutput = { _id: r.id };
 
                if (type === 'submission' && !r['RFA Ref']) {
-
+                  
                   r['RFA Ref'] = rfaRefData;
                   r['rfaNumber'] = rfaToSave;
                   r['Status'] = 'Consultant reviewing';
@@ -886,7 +911,7 @@ const PanelSetting = (props) => {
                   };
                   r[`submission-$$$-user-${company}`] = email;
 
-
+                  console.log('EEEEEEEEEEEEEEEEEEEE', r);
                   const arrHeadersSubmit = ['RFA Ref', 'Status', 'Drg To Consultant (A)', 'Consultant Reply (T)', 'Rev'];
 
                   headers.forEach(hd => {
@@ -904,7 +929,8 @@ const PanelSetting = (props) => {
                         rowOutput.data[`submission-$$$-${txt}-${company}`] = r[`submission-$$$-${txt}-${company}`];
                      };
                   });
-
+                  rowOutput.data[`submission-$$$-emailTo-${company}`] = recipient.to;
+                  rowOutput.data[`submission-$$$-emailCc-${company}`] = recipient.cc;
 
                } else if (type === 'reply') {
 
@@ -914,7 +940,7 @@ const PanelSetting = (props) => {
                   };
                   r[`reply-$$$-date-${company}`] = moment(new Date()).format('DD/MM/YY');
                   r[`reply-$$$-user-${company}`] = email;
-
+                  console.log('VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV', r);
                   let keyToSaveValue;
                   if (r.row) keyToSaveValue = 'history';
                   else keyToSaveValue = 'data';
@@ -947,7 +973,7 @@ const PanelSetting = (props) => {
                rowsToUpdate.forEach(row => {
 
                   localStorage.setItem(`editLastTime-${type}-${rfaRefData}-${row._id}`, JSON.stringify(new Date()));
-
+                  console.log('RRRRRRRRRRRRRRRRRRRRRRRRR', {...row});
                   if (row.data[`reply-$$$-status-${company}`]) {
                      cellHistoriesToSave.push({
                         rowId: row._id,
@@ -1001,7 +1027,7 @@ const PanelSetting = (props) => {
             });
          });
 
-
+         console.log('recipient', recipient);
 
          const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
 
@@ -1321,7 +1347,7 @@ export const convertRowHistoryData = (dataRowsHistory, headers) => {
       if (history) {
          let data = { id: r._id, row: r.row };
          Object.keys(history).forEach(key => {
-            if (key === 'rfaNumber' || key.includes('reply-$$$-')) {
+            if (key === 'rfaNumber' || key.includes('reply-$$$-') || key.includes('submission-$$$-')) {
                data[key] = history[key];
             } else {
                const header = headers.find(hd => hd.key === key);
@@ -1335,7 +1361,7 @@ export const convertRowHistoryData = (dataRowsHistory, headers) => {
    });
 };
 
-export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree) => {
+export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role) => {
 
    const nodeTitleArr = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
 
@@ -1364,7 +1390,6 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree) => {
       allRfaCode.forEach(rfaNumb => {
          let allDwgs = [...rowsUnderThisTrade, ...rowsHistoryWithRFA].filter(dwg => dwg['rfaNumber'] === rfaNumb);
 
-
          const allRfaRef = [...new Set(allDwgs.map(x => x['RFA Ref']))];
 
          let btnTextArray = allRfaRef.map(rfa => {
@@ -1385,18 +1410,22 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree) => {
       TreeViewRFA = [...TreeViewRFA, ...rfaParentNodeArray];
    });
 
-   const allRowsForRFA = [...rowsWithRFA, ...rowsHistoryWithRFA];
+   let allRowsForRFA = [...rowsWithRFA, ...rowsHistoryWithRFA];
 
-   allRowsForRFA.sort((a, b) => {
-      if (!b['RFA Ref']) return 1;
+   if (role === 'Consultant') {
+      allRowsForRFA = allRowsForRFA.filter(x => x['RFA Ref']);
+   };
+   
+   // allRowsForRFA.sort((a, b) => {
+   //    if (!b['RFA Ref']) return 1;
 
-      if (a['RFA Ref'] > b['RFA Ref']) return -1;
-      if (a['RFA Ref'] < b['RFA Ref']) return 1;
+   //    if (a['RFA Ref'] > b['RFA Ref']) return -1;
+   //    if (a['RFA Ref'] < b['RFA Ref']) return 1;
 
-      if (a['Drawing Number'] > b['Drawing Number']) return 1;
-      if (a['Drawing Number'] < b['Drawing Number']) return -1;
-   });
-
+   //    if (a['Drawing Number'] > b['Drawing Number']) return 1;
+   //    if (a['Drawing Number'] < b['Drawing Number']) return -1;
+   // });
+   console.log('111111------------2222222222222222222222222222222222222222', allRowsForRFA);
    return {
       rowsDataRFA: allRowsForRFA,
       TreeViewRFA
