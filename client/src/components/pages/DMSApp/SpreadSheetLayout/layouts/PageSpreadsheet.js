@@ -874,7 +874,7 @@ const PageSpreadsheet = (props) => {
             centered={true}
 
             width={
-               panelSettingType === 'addDrawingType-ICON' ? window.innerWidth * 0.8 :
+               panelSettingType === 'addDrawingType-ICON' ? window.innerWidth * 0.85 :
                   panelSettingType === 'addNewRFA-ICON' ? window.innerWidth * 0.7 :
                      panelSettingType === 'pickTypeTemplate-ICON' ? window.innerWidth * 0.6 :
                         panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
@@ -1080,8 +1080,9 @@ const getInputDataInitially = (data, dataRowsHistory, role) => {
          modeGroup: [],
 
          drawingTypeTree: TreeViewRFA,
+         drawingTypeTreeDmsView: drawingTypeTree,
          rowsAll: [...rowsAllOutput, ...rowsToAdd],
-         rowsRfaAll: rowsDataRFA,
+         rowsRfaAll: rowsDataRFA.filter(r => !r['row']),
          rowsRfaAllInit: rowsDataRFA,
          isRfaView: true,
          currentRfaToAddNewOrReply: null,
@@ -1137,7 +1138,6 @@ const arrangeDrawingTypeFinal = (stateRow, companies) => {
       isRfaView, rowsRfaAll
    } = stateRow;
 
-   console.log('isRfaView', isRfaView);
    if (isRfaView) {
       // RFA VIEW .......................................
       let rowsAllFinalRFA = [...rowsRfaAll];
@@ -1434,6 +1434,7 @@ export const headersRfaView = [
    'Rev',
    'Drawing Number',
    'Drawing Name',
+   'Submission Date',
    'Due Date',
    'Consultant (1)',
    'Consultant (2)',

@@ -3,10 +3,14 @@ import Axios from 'axios';
 import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { colorTextRow, colorType } from '../../constants';
+import { colorTextRow, colorType, imgLink } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { compareDates } from '../../utils';
+
+
+
+
 
 const CellRFA = (props) => {
 
@@ -15,7 +19,7 @@ const CellRFA = (props) => {
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { roleTradeCompany, companies } = stateProject.allDataOneSheet;
+   const { roleTradeCompany, companies, company } = stateProject.allDataOneSheet;
 
    const [btnShown, setBtnShown] = useState(false);
    const [isEdittingAllowed, setIsEdittingAllowed] = useState(false);
@@ -39,7 +43,7 @@ const CellRFA = (props) => {
             btn === '-'
                ? r['RFA Ref'] === rfaCode
                : btn === 'All'
-                  ? r['RFA Ref']
+                  ? !r['row']
                   : r['RFA Ref'] === rfaCode + btn
          );
       });
@@ -87,24 +91,40 @@ const CellRFA = (props) => {
 
 
    const onMouseDownCellButton = async (btn, replyCompany, rowData) => {
-      if (btn === 'See Note') {
-         const commentText = rowData[`reply-$$$-comment-${replyCompany}`] || ' ';
-         setModalContent(commentText);
+      try {
+         if (btn === 'See Note') {
+            const commentText = rowData[`reply-$$$-comment-${replyCompany}`] || ' ';
+            setModalContent(commentText);
 
-      } else if (btn === 'Open Drawing File') {
+         } else if (btn === 'Open Drawing File') {
+            const res = await Axios.get('/api/issue/get-public-url', { params: { key: rowData[`reply-$$$-drawing-${replyCompany}`], expire: 1000 } });
+            window.open(res.data);
 
-         const res = await Axios.get('/api/issue/get-public-url', { params: { key: rowData[`reply-$$$-drawing-${replyCompany}`], expire: 1000 } });
-         window.open(res.data);
-
-      } else if (btn === 'Edit') {
-         buttonPanelFunction('addNewRFA-ICON');
-         getSheetRows({
-            ...stateRow,
-            currentRfaToAddNewOrReply: rowData.id,
-         });
+         } else if (btn === 'Edit') {
+            buttonPanelFunction('addNewRFA-ICON');
+            getSheetRows({
+               ...stateRow,
+               currentRfaToAddNewOrReply: rowData.id,
+            });
+         };
+      } catch (err) {
+         console.log(err);
       };
    };
-
+   const onClickDrawingOpenRfaCell = async () => {
+      try {
+         let dwgLink;
+         Object.keys(rowData).forEach(key => {
+            if (key.includes('submission-$$$-drawing-')) {
+               dwgLink = rowData[key];
+            };
+         });
+         const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
+         window.open(res.data);
+      } catch (err) {
+         console.log(err);
+      };
+   };
 
    const onMouseDown = (e) => {
       if (e.button === 2) { // check mouse RIGHT CLICK ...
@@ -135,28 +155,14 @@ const CellRFA = (props) => {
                roleTradeCompany.role === 'Consultant'
             ) {
                const tempRowSavedTime = JSON.parse(localStorage.getItem(`editLastTime-reply-${rowData['RFA Ref']}-${rowData.id}`));
-               if (tempRowSavedTime) {
-                  const duration = moment.duration(moment(new Date()).diff(tempRowSavedTime)).asMinutes();
-                  if (duration <= 1500) {
-                     setIsEdittingAllowed(true);
-                  } else {
-                     setIsEdittingAllowed(false);
-                     // remove Local Storage
-                  };
-               };
-            } else if (
-               !rowData.treeLevel &&
-               column.key === 'RFA Ref' &&
-               !roleTradeCompany.role === 'Consultant'
-            ) {
-               const tempRowSavedTime = JSON.parse(localStorage.getItem(`editLastTime-submission-${rowData['RFA Ref']}-${rowData.id}`));
+               console.log('tempRowSavedTime', tempRowSavedTime);
                if (tempRowSavedTime) {
                   const duration = moment.duration(moment(new Date()).diff(tempRowSavedTime)).asMinutes();
                   if (duration <= 15) {
                      setIsEdittingAllowed(true);
                   } else {
+                     localStorage.removeItem(`editLastTime-reply-${rowData['RFA Ref']}-${rowData.id}`)
                      setIsEdittingAllowed(false);
-                     // remove Local Storage
                   };
                };
             };
@@ -176,7 +182,7 @@ const CellRFA = (props) => {
                         key={btn}
                         onClick={() => onClickRfaDrawing(rowData['rfaNumber'], btn)}
                         isActive={btn === activeBtn}
-                     >{btn}</ButtonRFA>
+                     >{btn === '-' ? '0' : btn}</ButtonRFA>
                   ))}
                </div>
 
@@ -198,7 +204,6 @@ const CellRFA = (props) => {
                         />
                      </Tooltip>
                   )}
-
             </div>
          ) : (rowData.treeLevel >= 2 && column.key === 'RFA Ref') ? rowData.title
             : (
@@ -216,36 +221,35 @@ const CellRFA = (props) => {
                }}>
                   {rowData['Consultant Reply (T)']}
                </span>
+            ) : (!rowData.treeLevel && column.key === 'Submission Date') ? (
+               <span style={{}}>
+                  {rowData['Drg To Consultant (A)']}
+               </span>
             ) : (!rowData.treeLevel && !column.key.includes('Consultant (')) ? cellData
                : ''}
 
 
          {(
-            btnShown &&
-            !rowData.treeLevel &&
+            btnShown && !rowData.treeLevel &&
             column.key.includes('Consultant (') &&
             !column.key.includes('Drg To Consultant (') &&
-            replyCompany
-         ) && (
+            replyCompany) && (
                <>
-                  {(isEdittingAllowed
-                     ? ['Edit', 'See Note', 'Open Drawing File']
-                     : ['See Note', 'Open Drawing File']
+                  {(
+                     (isEdittingAllowed && replyCompany === company)
+                        ? ['Edit', 'See Note', 'Open Drawing File']
+                        : ['See Note', 'Open Drawing File']
                   ).map(btn => (
                      <Tooltip key={btn} placement='top' title={btn}>
                         <div
                            style={{
-                              cursor: 'pointer',
-                              position: 'absolute',
+                              cursor: 'pointer', position: 'absolute',
                               right: btn === 'See Note' ? 4 : btn === 'Open Drawing File' ? 24 : 44,
                               top: 5, height: 17, width: 17,
                               // backgroundImage: `url(${imgLink.btnDate})`,
                               // backgroundSize: 17
                            }}
-                           onMouseDown={() => {
-                              // console.log('AAAAAAAAAAAAAAAAA');
-                              onMouseDownCellButton(btn, replyCompany, rowData);
-                           }}
+                           onMouseDown={() => onMouseDownCellButton(btn, replyCompany, rowData)}
                         >
                            <Icon
                               type={btn === 'See Note' ? 'message' : btn === 'Open Drawing File' ? 'file' : 'edit'}
@@ -255,6 +259,21 @@ const CellRFA = (props) => {
                      </Tooltip>
                   ))}
                </>
+            )}
+
+         {(btnShown && !rowData.treeLevel &&
+            column.key === 'RFA Ref' && rowData['RFA Ref']) && (
+               <Tooltip key={'Open Drawing File'} placement='top' title={'Open Drawing File'}>
+                  <div
+                     style={{
+                        cursor: 'pointer', position: 'absolute',
+                        right: 4, top: 5, height: 17, width: 17,
+                        backgroundSize: 17,
+                        backgroundImage: `url(${imgLink.btnFileUpload})`
+                     }}
+                     onMouseDown={onClickDrawingOpenRfaCell}
+                  />
+               </Tooltip>
             )}
 
 
@@ -325,7 +344,9 @@ export const getConsultantReplyData = (rowData, header, companies) => {
    let replyStatus, replyCompany, replyDate;
    if (header.includes('Consultant (') && !header.includes('Drg To Consultant (')) {
 
+      if (!companies) return {};
       const listConsultant = companies.filter(x => x.companyType === 'Consultant');
+      if (listConsultant.length === 0) return {};
 
       let listConsultantsReply = [];
       for (const key in rowData) {
@@ -350,9 +371,9 @@ export const getConsultantReplyData = (rowData, header, companies) => {
             if (replyStatus) {
                replyCompany = consultantLead.company;
                const dateData = rowData[`reply-$$$-date-${consultantLead.company}`];
-               replyDate = moment(dateData).format('DD/MM/YY');
+               // replyDate = moment(dateData).format('DD/MM/YY');
+               replyDate = dateData;
             };
-
          };
 
       } else if (consultantHeaderNumber > 1) {
@@ -364,7 +385,8 @@ export const getConsultantReplyData = (rowData, header, companies) => {
                   replyStatus = rowData[`reply-$$$-status-${cmp.company}`] || '';
                   replyCompany = cmp.company;
                   const dateData = rowData[`reply-$$$-date-${cmp.company}`];
-                  replyDate = dateData ? moment(dateData).format('DD/MM/YY') : '';
+                  // replyDate = dateData ? moment(dateData).format('DD/MM/YY') : '';
+                  replyDate = dateData || '';
                };
             };
          });

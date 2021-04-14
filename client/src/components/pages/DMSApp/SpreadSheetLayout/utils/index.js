@@ -282,6 +282,7 @@ export const getHeaderWidthForRFAView = (header) => {
    else if (header === 'Drawing Number') return 250;
    else if (header === 'Drawing Name') return 400;
    else if (header === 'Due Date') return 80;
+   else if (header === 'Submission Date') return 80;
    else if (header === 'Rev') return 40;
    return getHeaderWidth(header);
 };

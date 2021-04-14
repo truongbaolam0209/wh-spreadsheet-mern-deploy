@@ -9,8 +9,8 @@ import { Context as RowContext } from '../../contexts/rowContext';
 import { debounceFnc } from '../../utils';
 import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
 import ButtonStyle from '../generalComponents/ButtonStyle';
+import { getTradeNameFnc } from './FormDrawingTypeOrder';
 import TableDrawingRFA from './TableDrawingRFA';
-
 
 const { TextArea } = Input;
 
@@ -38,8 +38,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const { state: stateRow } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { roleTradeCompany: { role, company, trade }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
-   const { rowsAll, currentRfaToAddNewOrReply, rowsRfaAll, drawingTypeTree } = stateRow;
+   const { roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
+   const { rowsAll, currentRfaToAddNewOrReply, rowsRfaAll, drawingTypeTree, drawingTypeTreeDmsView } = stateRow;
 
    const listRecipient = [...listUser, ...listGroup];
 
@@ -62,12 +62,15 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const [listRecipientCc, setListRecipientCc] = useState([]);
 
 
+
+   const [textEmailTitle, setTextEmailTitle] = useState('');
+   const [textEmailContent, setTextEmailContent] = useState('');
+
+
    let formType = role === 'Consultant' ? 'form-reply' : 'form-submit';
 
    const [arrayRFA, setArrayRFA] = useState(null);
 
-
-   console.log('arrayRFA-------->', currentRfaToAddNewOrReply, arrayRFA, dwgsToAddNewRFA);
 
 
    useEffect(() => {
@@ -86,7 +89,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             });
             const dwg = dwgsToResubmit[0];
 
-            
+
             setArrayRFA([...new Set(dwgsAlreadySubmit.map(dwg => dwg['RFA Ref']))]);
             setDwgsToAddNewRFA(dwgsToResubmit);
 
@@ -116,7 +119,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             const dwg = dwgsNotReplyYet.filter(x => x['RFA Ref'] === latestRFAToReply)[0];
 
             let arrEmailCc = [];
-            console.log('dwg', dwg);
             for (const key in dwg) {
                if (key.includes(`submission-$$$-user-`)) {
                   setListRecipientTo([dwg[key]]);
@@ -160,7 +162,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const onBlurInputRFANameCreateNew = () => {
       if (currentRfaToAddNewOrReply) {
          const arr = arrayRFA.map(rev => rev.toLowerCase());
-         console.log('arr---', arr, currentRfaToAddNewOrReply.toLowerCase() + valueInputRFACreateNew.toLowerCase());
          if (arr.indexOf(currentRfaToAddNewOrReply.toLowerCase() + valueInputRFACreateNew.toLowerCase()) !== -1) {
             message.info('This RFA number has already existed, please choose a new number!');
             setValueInputRFACreateNew('');
@@ -267,15 +268,14 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
    const onClickApplyDoneFormRFA = () => {
-      const rfaToSave = currentRfaToAddNewOrReply ? currentRfaToAddNewOrReply : valueInputRFACreateNew;
-      const rfaToSaveVersion = currentRfaToAddNewOrReply ? valueInputRFACreateNew : '-';
 
+      
 
-      let isAllDataFilledIn = true;
+      let isAllDataInRowFilledIn = true;
       if (role !== 'Consultant') {
          dwgsToAddNewRFA && dwgsToAddNewRFA.forEach(r => {
             if (!r['Rev'] || !r[`submission-$$$-drawing-${company}`]) {
-               isAllDataFilledIn = false;
+               isAllDataInRowFilledIn = false;
             };
          });
       };
@@ -293,18 +293,48 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          };
       });
 
-      console.log({ trade, files, dwgsToAddNewRFA, listRecipientTo, listRecipientTo, rfaToSave, rfaToSaveVersion, isAllDataFilledIn });
+      let trade, rfaToSaveVersionOrToReply;
+
+      const rowFirstOfRfaId = dwgsToAddNewRFA[0];
+      if (role === 'Consultant') {
+         Object.keys(rowFirstOfRfaId).forEach(key => {
+            if (key.includes('submission-$$$-trade-')) {
+               trade = rowFirstOfRfaId[key];
+            };
+         });
+
+         const rfaNumber = rowFirstOfRfaId['rfaNumber'];
+         const rfaRef = rowFirstOfRfaId['RFA Ref'];
+
+         if (rfaNumber === rfaRef) {
+            rfaToSaveVersionOrToReply = '-';
+         } else {
+            rfaToSaveVersionOrToReply = rfaRef.slice(rfaNumber.length, rfaRef.length);
+         };
+
+      } else {
+         const parentRowInDms = drawingTypeTreeDmsView.find(node => node.id === rowFirstOfRfaId._parentRow);
+         trade = getTradeNameFnc(parentRowInDms, drawingTypeTreeDmsView);
+         rfaToSaveVersionOrToReply = currentRfaToAddNewOrReply ? valueInputRFACreateNew : '-';
+      };
+
+      const rfaToSave = currentRfaToAddNewOrReply ? currentRfaToAddNewOrReply : valueInputRFACreateNew;
+      
       if (
          !files || !rfaToSave ||
-         (!rfaToSaveVersion && role !== 'Consultant') ||
+         !rfaToSaveVersionOrToReply ||
          !listRecipientTo || !dwgsToAddNewRFA ||
          listRecipientTo.length === 0 ||
+         !textEmailTitle ||
+         !textEmailContent ||
          Object.keys(files).length !== dwgsToAddNewRFA.length ||
-         !isAllDataFilledIn
+         dwgsToAddNewRFA.length === 0 ||
+         !isAllDataInRowFilledIn
       ) {
          message.info('Please fill in necessary data for drawings to submit!');
          return;
       };
+
 
 
       onClickApplyAddNewRFA({
@@ -313,15 +343,17 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          files: Object.values(files),
          dwgsToAddNewRFA,
          rfaToSave,
-         rfaToSaveVersion,
+         rfaToSaveVersionOrToReply,
          recipient: {
             to: listRecipientTo,
             cc: listRecipientCc
-         }
+         },
+         emailTitle: textEmailTitle,
+         emailTextContent: textEmailContent,
       });
    };
 
-   console.log('listRecipientTo---------------------------', listRecipientTo, listRecipientCc);
+
 
 
    const dateToReply = moment().add(14, 'days').format('DD/MM/YY');
@@ -374,10 +406,10 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
                {(formType === 'form-reply' && arrayRFA) && (
-                  <div style={{ display: 'flex', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', marginBottom: 20 }}>
                      <div style={{ marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>RFA Number : </div>
                      {arrayRFA.length === 1 ? (
-                        <div>{arrayRFA[0]}</div>
+                        <div style={{ transform: 'translateY(5px)' }}>{arrayRFA[0]}</div>
                      ) : (
                         <SelectRFAStyled
                            showSearch
@@ -420,6 +452,40 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                         <Select.Option key={cm}>{cm}</Select.Option>
                      ))}
                   </SelectRecipientStyled>
+               </div>
+
+               <div style={{ display: 'flex', marginBottom: 20 }}>
+                  <div style={{ width: 65, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Title : </div>
+                  <Input
+                     style={{
+                        width: '90%',
+                        marginBottom: 10,
+                        borderRadius: 0,
+                        borderTop: 'none',
+                        borderRight: 'none',
+                        borderLeft: 'none',
+                     }}
+                     onChange={(e) => setTextEmailTitle(e.target.value)}
+                     onBlur={() => { }}
+                     value={textEmailTitle}
+                  />
+               </div>
+
+               <div style={{ display: 'flex', marginBottom: 20 }}>
+                  <div style={{ width: 65, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Content : </div>
+                  <TextArea
+                     style={{
+                        width: '90%',
+                        marginBottom: 10,
+                        borderRadius: 0,
+                        borderTop: 'none',
+                        borderRight: 'none',
+                        borderLeft: 'none',
+                     }}
+                     rows={4}
+                     onChange={(e) => setTextEmailContent(e.target.value)}
+                     value={textEmailContent}
+                  />
                </div>
 
 
@@ -471,6 +537,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                <ButtonGroupComp
                   onClickCancel={onClickCancelModal}
                   onClickApply={onClickApplyDoneFormRFA}
+                  isPanelAddNewRfa={true}
                />
             </div>
          </div>

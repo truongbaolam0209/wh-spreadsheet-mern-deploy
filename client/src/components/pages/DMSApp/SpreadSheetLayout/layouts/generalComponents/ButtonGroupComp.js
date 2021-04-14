@@ -4,7 +4,7 @@ import ButtonStyle from './ButtonStyle';
 
 
 
-const ButtonGroupComp = ({ onClickCancel, onClickApply }) => {
+const ButtonGroupComp = ({ onClickCancel, onClickApply, isPanelAddNewRfa }) => {
 
     return (
         <div>
@@ -20,7 +20,7 @@ const ButtonGroupComp = ({ onClickCancel, onClickApply }) => {
                 colorText='white'
                 background={colorType.primary}
                 onClick={onClickApply}
-                name='Apply'
+                name={isPanelAddNewRfa ? 'Submit' : 'Apply'}
             />
         </div>
     );
