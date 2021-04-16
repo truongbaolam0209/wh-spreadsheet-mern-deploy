@@ -420,13 +420,16 @@ const PanelSetting2 = (props) => {
          rowsDeleted,
       } = stateRow;
       const { cellsModifiedTemp } = stateCell;
-      const { headers } = stateProject.allDataOneSheet.publicSettings;
+      const { publicSettings, isOutputDataText } = stateProject.allDataOneSheet;
+      const { headers } = publicSettings;
+
 
       const rowToSaveArr = rowsAll.map(row => {
          let rowToSave = { _id: row.id, parentRow: row._parentRow, preRow: row._preRow };
          headers.forEach(hd => {
             if (row[hd.text] || row[hd.text] === '') {
-               rowToSave.data = { ...rowToSave.data || {}, [hd.key]: row[hd.text] };
+               const keyOfHeader = isOutputDataText ? hd.text : hd.key;
+               rowToSave.data = { ...rowToSave.data || {}, [keyOfHeader]: row[hd.text] };
             };
          });
          return rowToSave;
@@ -438,7 +441,7 @@ const PanelSetting2 = (props) => {
          rowsAll: rowToSaveArr,
          drawingsTypeDeleted,
          rowsDeleted,
-         cellHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject)
+         cellHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject, isOutputDataText)
       });
    };
 

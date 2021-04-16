@@ -231,6 +231,10 @@ const Cell = (props) => {
       };
    };
 
+
+
+
+
    useEffect(() => { // after keydown ENTER to show input ...
       if (
          !inputRender &&
@@ -266,13 +270,11 @@ const Cell = (props) => {
       };
    }, [inputRender]);
 
-
    useEffect(() => { // Hide Button after pick on PANEL (setBtnShown fasle in pickDataSelect doesn't work)
       if (btnShown) {
          setBtnShown(false);
       };
    }, [valueInput]);
-
 
    const onKeyDown = (e) => { // ENTER to hide input after finishing typing ...
       if (

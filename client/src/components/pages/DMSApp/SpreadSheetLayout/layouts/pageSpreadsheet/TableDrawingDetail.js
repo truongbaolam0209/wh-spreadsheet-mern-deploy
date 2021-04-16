@@ -8,6 +8,7 @@ import { colorType, SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { mongoObjectId } from '../../utils';
+import CellRFA, { getConsultantReplyData } from './CellRFA';
 
 
 
@@ -37,7 +38,7 @@ const TableDrawingDetail = (props) => {
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow } = useContext(RowContext);
    const { headers } = stateProject.allDataOneSheet.publicSettings;
-   const { _id: projectId, token } = stateProject.allDataOneSheet;
+   const { _id: projectId, token, companies } = stateProject.allDataOneSheet;
 
    const [rowsHistoryDatabase, setRowsHistoryDatabase] = useState(null);
    const [rowsHistoryPrevious, setRowsHistoryPrevious] = useState([]);
@@ -55,7 +56,7 @@ const TableDrawingDetail = (props) => {
                if (history) {
                   let data = { id: mongoObjectId() };
                   Object.keys(history).forEach(key => {
-                     if (key !== 'rfaNumber' && !key.includes('reply-$$$-')) {
+                     if (key !== 'rfaNumber' && !key.includes('reply-$$$-') && !key.includes('submission-$$$-')) {
                         const hdText = headers.find(hd => hd.key === key).text;
                         data[hdText] = history[key];
                      };
@@ -95,8 +96,8 @@ const TableDrawingDetail = (props) => {
          ...rowsHistoryPrevious,
          rowCurrent
       ];
-      data = convertToVerticalTable(input, headers);
-      columnsData = ['Info', ...input.map((hd, i) => `Version ${i + 1}`)];
+      data = convertToVerticalTable(input, headers, companies);
+      columnsData = ['Info', ...input.map((hd, i) => `Version ${i}`)];
    };
 
 
@@ -158,28 +159,64 @@ const generateColumns = (headers, { columnWidth, columnHeaderWidth }) => headers
    title: column === 'Info' ? '' : column,
    resizable: true,
    width: columnIndex === 0 ? columnHeaderWidth : columnWidth,
-   className: columnIndex === 0 ? 'column-header' : 'column-data'
+   className: columnIndex === 0 ? 'column-header' : 'column-data',
+   cellRenderer: (props) => {
+
+      const { cellData, rowData, column } = props;
+      const infoCol = rowData['Info'];
+      if (
+         (infoCol === 'Consultant (1)' ||
+         infoCol === 'Consultant (2)' ||
+         infoCol === 'Consultant (3)' ||
+         infoCol === 'Consultant (4)' ||
+         infoCol === 'Consultant (5)') && column.key !== 'Info'
+      ) return (
+         <CellRFA {...props} />
+      );
+      else return (
+         <div style={{ 
+            textOverflow: 'ellipsis',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap' 
+         }}>{cellData}</div>
+      );
+   }
 }));
 
-const getHeadersText = (headersData) => {
-   return headersData.map(hd => {
-      return hd.text;
-   });
-};
 
 
-const convertToVerticalTable = (data, headers) => {
+const convertToVerticalTable = (data, headers, companies) => {
    let dwgArray = [];
-   headers.forEach(hd => {
+   const headersArr = [
+      ...headers.filter(hd => hd.text !== 'Drawing'), 
+      { key: mongoObjectId(), text: 'Consultant (1)'},
+      { key: mongoObjectId(), text: 'Consultant (2)'},
+      { key: mongoObjectId(), text: 'Consultant (3)'},
+      { key: mongoObjectId(), text: 'Consultant (4)'},
+      { key: mongoObjectId(), text: 'Consultant (5)'},
+   ];
+   
+   headersArr.filter(hd => hd.text !== 'Drawing').forEach(hd => {
       let obj = {
          id: mongoObjectId(),
          Info: hd.text
       };
+
       data.forEach((row, i) => {
-         obj[`Version ${i + 1}`] = row[hd.text] || '';
+         if (hd.text.includes('Consultant (') && !hd.text.includes('Drg To Consultant (')) {
+            const { replyStatus, replyCompany, replyDate } = getConsultantReplyData(row, hd.text, companies);
+            console.log(hd.text, { replyStatus, replyCompany, replyDate });
+            if (replyStatus) {
+               obj[`reply-$$$-status-${replyCompany}`] = replyStatus;
+               obj[`reply-$$$-date-${replyCompany}`] = replyDate;
+            };
+         } else {
+            obj[`Version ${i}`] = row[hd.text] || '';
+         };
       });
       dwgArray.push(obj);
    });
+   console.log('dwgArray', dwgArray);
    return dwgArray;
 };
 
@@ -229,10 +266,10 @@ const TimeLineDrawing = ({ data, version }) => {
    const { headers } = stateProject.allDataOneSheet.publicSettings;
 
    const headersForTimeline = headers.filter(hd => {
-      return hd.text.includes('(A)') ||
-         hd.text.includes('(T)') ||
+      return (hd.text.includes('(A)') ||
          hd.text === 'Construction Issuance Date' ||
-         hd.text === 'Construction Start';
+         hd.text === 'Construction Start') &&
+         hd.text !== 'Model Start (A)' && hd.text !== 'Model Finish (A)';
    });
 
    return (

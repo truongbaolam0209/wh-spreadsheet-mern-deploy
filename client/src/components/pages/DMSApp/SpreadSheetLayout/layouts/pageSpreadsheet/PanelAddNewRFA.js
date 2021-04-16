@@ -32,14 +32,14 @@ const Table = (props) => {
 };
 
 
-const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
+const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA, isUpdateRfa }) => {
 
 
    const { state: stateRow } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
    const { roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
-   const { rowsAll, currentRfaToAddNewOrReply, rowsRfaAll, drawingTypeTree, drawingTypeTreeDmsView } = stateRow;
+   const { rowsAll, currentRfaToAddNewOrReply, rowsRfaAll, drawingTypeTreeDmsView } = stateRow;
 
    const listRecipient = [...listUser, ...listGroup];
 
@@ -67,7 +67,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const [textEmailContent, setTextEmailContent] = useState('');
 
 
-   let formType = role === 'Consultant' ? 'form-reply' : 'form-submit';
+   let formType = isUpdateRfa ? 'form-update' : role === 'Consultant' ? 'form-reply' : 'form-submit';
 
    const [arrayRFA, setArrayRFA] = useState(null);
 
@@ -127,6 +127,12 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                };
             };
             setListRecipientCc(arrEmailCc);
+
+         } else if (formType === 'form-update') {
+            const dwgsToEdit = rowsRfaAll.filter(dwg => dwg['RFA Ref'] === currentRfaToAddNewOrReply);
+            setArrayRFA([dwgsToEdit[0]['RFA Ref']]);
+            setDwgsToAddNewRFA(dwgsToEdit);
+            console.log('dwgsToEdit', dwgsToEdit);
          };
       } else {
          setArrayRFA(null);

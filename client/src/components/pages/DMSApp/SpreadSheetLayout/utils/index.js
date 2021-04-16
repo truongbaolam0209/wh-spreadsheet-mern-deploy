@@ -217,14 +217,15 @@ export const extractCellInfo = (key) => {
 };
 export const convertCellTempToHistory = (
    cellsModifiedTemp,
-   stateProject
+   stateProject,
+   isOutputDataText
 ) => {
    const { email, publicSettings } = stateProject.allDataOneSheet;
    const cellsHistoryData = Object.keys(cellsModifiedTemp).map(key => {
       const { rowId, headerName } = extractCellInfo(key);
       const dataOut = {
          rowId,
-         headerKey: getHeaderKey(publicSettings.headers, headerName),
+         headerKey: isOutputDataText ? headerName : getHeaderKey(publicSettings.headers, headerName),
          history: {
             text: cellsModifiedTemp[key],
             email,
@@ -343,6 +344,7 @@ export const getActionName = (type) => {
    if (type === 'colorized-ICON') return 'Drawing Colorization';
    if (type === 'viewTemplate-ICON') return 'View Template';
    if (type === 'addNewRFA-ICON') return 'Add New RFA';
+   if (type === 'updateRFA-ICON') return 'Update Submitted RFA';
    if (type && (type.includes('Insert Drawings') || type === 'Duplicate Drawings')) return 'Nos Of Drawings';
 
    else return '';

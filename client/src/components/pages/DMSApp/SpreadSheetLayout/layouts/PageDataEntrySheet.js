@@ -49,7 +49,7 @@ let addedEvent = false;
 const PageDataEntrySheet = (props) => {
 
    const {
-      role, email, isAdmin, token, sheetDataInput: sheetDataInputRaw, sheetId: projectId, sheetName: projectName,
+      role, email, isAdmin, token, sheetDataInput: sheetDataInputRaw, sheetId: projectId, sheetName: projectName, isOutputDataText,
       cellsHistoryInCurrentSheet, cellOneHistory,
       saveDataToServerCallback, outputDataType
    } = props;
@@ -70,6 +70,7 @@ const PageDataEntrySheet = (props) => {
 
 
    const tableRef = useRef();
+
    const getCurrentDOMCell = () => {
       isTyping = true;
       setCellActive(currentDOMCell);
@@ -88,6 +89,7 @@ const PageDataEntrySheet = (props) => {
       return () => window.removeEventListener('keydown', EventKeyDown);
    }, []);
    const EventKeyDown = (e) => {
+      if (e.key === 'Control') return;
       if (e.key === 'ArrowUp') {
          if (isTyping || !currentDOMCell) return;
          let cellTop = currentDOMCell.cell.parentElement.offsetTop;
@@ -231,7 +233,7 @@ const PageDataEntrySheet = (props) => {
    };
 
 
-   // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
+   useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
    // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
 
@@ -405,7 +407,7 @@ const PageDataEntrySheet = (props) => {
    useEffect(() => {
       const result = resolveDataFromProps({ data: sheetDataInput });
 
-      fetchDataOneSheet({ ...result, email, projectId, projectName, role, token });
+      fetchDataOneSheet({ ...result, email, projectId, projectName, role, token, isOutputDataText });
 
       setUserData(getHeadersData(result));
 

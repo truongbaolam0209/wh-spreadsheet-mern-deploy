@@ -8,18 +8,13 @@ import { colorType, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
+import { compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
 import CellHeader from './generalComponents/CellHeader';
 import { sortFnc } from './generalComponents/FormSort';
 import IconTable from './generalComponents/IconTable';
 import InputSearch from './generalComponents/InputSearch';
 import ViewTemplateSelect from './generalComponents/ViewTemplateSelect';
-import ButtonAdminCreateAndUpdateRows from './pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
-import ButtonAdminCreateAndUpdateRowsHistory from './pageSpreadsheet/ButtonAdminCreateAndUpdateRowsHistory';
-import ButtonAdminDeleteRowsHistory from './pageSpreadsheet/ButtonAdminDeleteRowsHistory';
-import ButtonAdminUpdateProjectSettings from './pageSpreadsheet/ButtonAdminUpdateProjectSettings';
 import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
-import ButtonAdminUploadDataPDD from './pageSpreadsheet/ButtonAdminUploadDataPDD';
 import Cell, { columnLocked, rowLocked } from './pageSpreadsheet/Cell';
 import CellIndex from './pageSpreadsheet/CellIndex';
 import CellRFA, { getConsultantReplyData } from './pageSpreadsheet/CellRFA';
@@ -93,6 +88,7 @@ const PageSpreadsheet = (props) => {
       return () => window.removeEventListener('keydown', EventKeyDown);
    }, []);
    const EventKeyDown = (e) => {
+      if (e.key === 'Control') return;
       if (e.key === 'ArrowUp') {
          if (isTyping || !currentDOMCell) return;
          let cellTop = currentDOMCell.cell.parentElement.offsetTop;
@@ -370,7 +366,7 @@ const PageSpreadsheet = (props) => {
 
 
       } else if (update.type === 'reload-data-view-rfa') {
-         getSheetRows(getInputDataInitially(update.data.dataAllFromServer, update.data.dataRowsHistoryFromServer, role));
+         getSheetRows(getInputDataInitially(update.data.dataAllFromServer, update.data.dataRowsHistoryFromServer, role, companies, company));
          setExpandedRows(update.data.expandedRowsIdArr);
 
          OverwriteCellsModified({});
@@ -389,7 +385,7 @@ const PageSpreadsheet = (props) => {
             email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
          });
          setUserData(getHeadersData(update.data));
-         getSheetRows(getInputDataInitially(update.data, null, role));
+         getSheetRows(getInputDataInitially(update.data, null, role, companies, company));
          setExpandedRows(getRowsKeyExpanded(
             update.data.publicSettings.drawingTypeTree,
             update.data.userSettings ? update.data.userSettings.viewTemplateNodeId : null
@@ -450,7 +446,7 @@ const PageSpreadsheet = (props) => {
                   ...res.data,
                   email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
                });
-               getSheetRows(getInputDataInitially(res.data, resRowHistory.data, role));
+               getSheetRows(getInputDataInitially(res.data, resRowHistory.data, role, companies, company));
 
                setExpandedRows([
                   'ARCHI', 'C&S', 'M&E', 'PRECAST',
@@ -464,7 +460,7 @@ const PageSpreadsheet = (props) => {
                   email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
                });
                setUserData(getHeadersData(res.data));
-               getSheetRows(getInputDataInitially(res.data, null, role));
+               getSheetRows(getInputDataInitially(res.data, null, role, companies, company));
 
                setExpandedRows(getRowsKeyExpanded(
                   res.data.publicSettings.drawingTypeTree,
@@ -620,22 +616,28 @@ const PageSpreadsheet = (props) => {
          });
       } else {
          let searchDataObj = {};
-         // if (textSearch !== '') {
-         //    stateRow.rowsAll.forEach(row => {
-         //       let obj = {};
-         //       Object.keys(row).forEach(key => {
-         //          if (
-         //             key !== 'id' && key !== '_preRow' && key !== '_parentRow' &&
-         //             row[key] &&
-         //             row[key].toString().toLowerCase().includes(textSearch.toLowerCase())
-         //          ) {
-         //             obj[row.id] = [...obj[row.id] || [], key];
-         //          };
-         //       });
-         //       if (Object.keys(obj).length > 0) searchDataObj = { ...searchDataObj, [row.id]: obj[row.id] };
-         //    });
-         // };
-
+         if (textSearch !== '') {
+            stateRow.rowsRfaAll.forEach(row => {
+               let obj = {};
+               Object.keys(row).forEach(key => {
+                  if (
+                     key !== 'id' && key !== '_preRow' && key !== '_parentRow' &&
+                     row[key] &&
+                     row[key].toString().toLowerCase().includes(textSearch.toLowerCase())
+                  ) {
+                     obj[row.id] = [...obj[row.id] || [], key];
+                  };
+               });
+               if (Object.keys(obj).length > 0) searchDataObj = { ...searchDataObj, [row.id]: obj[row.id] };
+            });
+         };
+         setCellSearchFound(searchDataObj);
+         setNosColumnFixedRfaView(1);
+         setNosColumnFixedRfaView(0);
+         getSheetRows({
+            ...stateRow,
+            modeSearch: { searchDataObj, isFoundShownOnly: 'show all' }
+         });
       };
    }, 400);
 
@@ -719,6 +721,22 @@ const PageSpreadsheet = (props) => {
       return headersObj;
    };
 
+   const [nosColumnFixedRfaView, setNosColumnFixedRfaView] = useState(0);
+   const onClickQuickFilter = (typeOfFilter) => {
+      const typeFilter = typeOfFilter === 'noOfRfaOverdue'
+         ? 'Overdue'
+         : typeOfFilter === 'noOfRfaOverdueNext3Days'
+            ? 'Due in 3 days'
+            : 'Drawings to review';
+
+      getSheetRows({
+         ...stateRow,
+         modeFilter: [
+            { id: mongoObjectId(), header: 'Due Date', value: typeFilter },
+            { isIncludedParent: 'included' }
+         ]
+      });
+   };
 
    const buttonRibbonMode = ((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && !stateRow.isRfaView));
 
@@ -749,16 +767,15 @@ const PageSpreadsheet = (props) => {
                />
                : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
+            {stateRow && stateRow.modeGroup.length > 0 ? (
+               <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-1')} />
+            ) : (
+               <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-2')} />
+            )}
 
 
             {buttonRibbonMode && (
                <>
-                  {stateRow && stateRow.modeGroup.length > 0 ? (
-                     <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-1')} />
-                  ) : (
-                     <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-2')} />
-                  )}
-
                   <DividerRibbon />
                   <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
                   <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
@@ -786,16 +803,30 @@ const PageSpreadsheet = (props) => {
 
             <DividerRibbon />
 
+            {stateRow && projectIsAppliedRfaView && stateRow.rfaStatistics && (
+               <>
+                  {Object.keys(stateRow.rfaStatistics).map((item, i) => {
+                     if (role === 'Consultant' && item === 'noOfDrawingsToReviewByLeadConsultant') return null;
+                     if (role !== 'Consultant' && item === 'noOfDrawingsToReview') return null;
+                     return (
+                        <DataStatisticRibbon item={item} key={i} onClickQuickFilter={onClickQuickFilter} />
+                     )
+                  })
+                  }
+               </>
+            )}
+
 
             {isAdmin && (
                <div style={{ display: 'flex' }}>
+                  <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                   <ButtonAdminUploadData />
-                  <ButtonAdminUploadDataPDD />
+                  {/* <ButtonAdminUploadDataPDD />
                   <ButtonAdminCreateAndUpdateRows />
                   <ButtonAdminDeleteRowsHistory />
                   <ButtonAdminCreateAndUpdateRowsHistory />
-                  <ButtonAdminUpdateProjectSettings />
-                  <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
+                  <ButtonAdminUpdateProjectSettings /> */}
+                  
                </div>
             )}
 
@@ -819,10 +850,10 @@ const PageSpreadsheet = (props) => {
 
                columns={renderColumns(
                   projectIsAppliedRfaView && stateRow.isRfaView ? headersRfaView : stateProject.userData.headersShown,
-                  projectIsAppliedRfaView && stateRow.isRfaView ? 0 : stateProject.userData.nosColumnFixed
+                  projectIsAppliedRfaView && stateRow.isRfaView ? nosColumnFixedRfaView : stateProject.userData.nosColumnFixed
                )}
 
-               data={arrangeDrawingTypeFinal(stateRow, companies)}
+               data={arrangeDrawingTypeFinal(stateRow, companies, company)}
                expandedRowKeys={expandedRows}
 
                expandColumnKey={projectIsAppliedRfaView && stateRow.isRfaView ? 'RFA Ref' : stateProject.userData.headersShown[0]}
@@ -875,7 +906,7 @@ const PageSpreadsheet = (props) => {
 
             width={
                panelSettingType === 'addDrawingType-ICON' ? window.innerWidth * 0.85 :
-                  panelSettingType === 'addNewRFA-ICON' ? window.innerWidth * 0.7 :
+                  (panelSettingType === 'addNewRFA-ICON' || panelSettingType === 'updateRFA-ICON') ? window.innerWidth * 0.7 :
                      panelSettingType === 'pickTypeTemplate-ICON' ? window.innerWidth * 0.6 :
                         panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
                            520
@@ -1060,7 +1091,7 @@ const SpinStyled = styled.div`
 
 
 
-const getInputDataInitially = (data, dataRowsHistory, role) => {
+const getInputDataInitially = (data, dataRowsHistory, role, companies, company) => {
 
    const { rows, publicSettings, userSettings } = data;
 
@@ -1071,7 +1102,7 @@ const getInputDataInitially = (data, dataRowsHistory, role) => {
 
    if (dataRowsHistory) {
       const dataRowsHistoryConverted = convertRowHistoryData(dataRowsHistory, publicSettings.headers);
-      const { rowsDataRFA, TreeViewRFA } = getDataForRFASheet(rows, dataRowsHistoryConverted, drawingTypeTree, role);
+      const { rowsDataRFA, treeViewRFA, rfaStatistics } = getDataForRFASheet(rows, dataRowsHistoryConverted, drawingTypeTree, role, companies, company);
 
       return {
 
@@ -1079,13 +1110,14 @@ const getInputDataInitially = (data, dataRowsHistory, role) => {
          modeSearch: {},
          modeGroup: [],
 
-         drawingTypeTree: TreeViewRFA,
+         drawingTypeTree: treeViewRFA,
          drawingTypeTreeDmsView: drawingTypeTree,
          rowsAll: [...rowsAllOutput, ...rowsToAdd],
          rowsRfaAll: rowsDataRFA.filter(r => !r['row']),
          rowsRfaAllInit: rowsDataRFA,
          isRfaView: true,
          currentRfaToAddNewOrReply: null,
+         rfaStatistics
       };
 
    } else {
@@ -1130,13 +1162,16 @@ const getInputDataInitially = (data, dataRowsHistory, role) => {
    };
 };
 
-const arrangeDrawingTypeFinal = (stateRow, companies) => {
+const arrangeDrawingTypeFinal = (stateRow, companies, company) => {
    const {
       rowsAll, drawingTypeTree, viewTemplateNodeId,
       modeFilter, modeGroup, modeSort, modeSearch,
 
       isRfaView, rowsRfaAll
    } = stateRow;
+
+
+   console.log('modeFilter--------------->>>', modeFilter);
 
    if (isRfaView) {
       // RFA VIEW .......................................
@@ -1148,12 +1183,59 @@ const arrangeDrawingTypeFinal = (stateRow, companies) => {
                filterObj[filter.header] = [...filterObj[filter.header] || [], filter.value];
             };
          });
+
          Object.keys(filterObj).forEach(header => {
             if (header.includes('Consultant (') && !header.includes('Drg To Consultant (')) {
                rowsAllFinalRFA = rowsAllFinalRFA.filter(r => {
                   const { replyCompany } = getConsultantReplyData(r, header, companies);
                   return filterObj[header].indexOf(replyCompany) !== -1;
                });
+            } else if (header === 'Due Date') {
+               if (companies) {
+                  const listConsultant = companies.filter(x => x.companyType === 'Consultant');
+                  if (listConsultant.length > 0) {
+                     let consultantLead = listConsultant.find(x => x.isLeadConsultant);
+                     if (!consultantLead) {
+                        consultantLead = listConsultant[0];
+                     };
+                     let outputDrawingsAfterFilter = [];
+                     filterObj[header].forEach(filterData => {
+                        if (filterData === 'Overdue') {
+                           outputDrawingsAfterFilter = [
+                              ...outputDrawingsAfterFilter,
+                              ...rowsAllFinalRFA.filter(r => {
+                                 return !r[`reply-$$$-status-${consultantLead.company}`] &&
+                                    compareDates(r['Consultant Reply (T)']) < 0 &&
+                                    !outputDrawingsAfterFilter.find(x => x.id === r.id);
+                              })];
+                        } else if (filterData === 'Due in 3 days') {
+                           outputDrawingsAfterFilter = [
+                              ...outputDrawingsAfterFilter,
+                              ...rowsAllFinalRFA.filter(r => {
+                                 return !r[`reply-$$$-status-${consultantLead.company}`] &&
+                                    compareDates(r['Consultant Reply (T)']) < 3 &&
+                                    !outputDrawingsAfterFilter.find(x => x.id === r.id);
+                              })];
+                        } else if (filterData === 'Drawings to review') {
+                           outputDrawingsAfterFilter = [
+                              ...outputDrawingsAfterFilter,
+                              ...rowsAllFinalRFA.filter(r => {
+                                 return !r[`reply-$$$-status-${company}`] &&
+                                 !outputDrawingsAfterFilter.find(x => x.id === r.id);
+                              })];
+                        } else {
+                           outputDrawingsAfterFilter = [
+                              ...outputDrawingsAfterFilter,
+                              ...rowsAllFinalRFA.filter(r => {
+                                 return r[`reply-$$$-status-${consultantLead.company}`] &&
+                                 !outputDrawingsAfterFilter.find(x => x.id === r.id);
+                              })];
+                        };
+                     });
+                     rowsAllFinalRFA = outputDrawingsAfterFilter;
+                     console.log('outputDrawingsAfterFilter', outputDrawingsAfterFilter);
+                  };
+               };
             } else {
                rowsAllFinalRFA = rowsAllFinalRFA.filter(r => filterObj[header].indexOf(r[header]) !== -1);
             };
@@ -1444,7 +1526,51 @@ export const headersRfaView = [
 ];
 
 
+const DataStatisticRibbon = ({ onClickQuickFilter, item }) => {
 
+   const { state: stateRow } = useContext(RowContext);
+   const { state: stateProject } = useContext(ProjectContext);
+   const { company, companies } = stateProject.allDataOneSheet;
+
+   let consultantLead;
+   if (companies) {
+      const listConsultant = companies.filter(x => x.companyType === 'Consultant');
+      if (listConsultant.length > 0) {
+         consultantLead = listConsultant.find(x => x.isLeadConsultant);
+         if (!consultantLead) {
+            consultantLead = listConsultant[0];
+         };
+      };
+   };
+
+   return (
+      <div style={{ marginLeft: 7, display: 'flex', cursor: 'pointer' }} onClick={() => onClickQuickFilter(item)}>
+         <div
+            style={{
+               width: 8,
+               height: 8,
+               borderRadius: '50%',
+               background: item === 'noOfRfaOverdue' ? colorType.red : item === 'noOfRfaOverdueNext3Days' ? 'yellow' : colorType.primary,
+               transform: 'translate(0, 7px)',
+               marginRight: 5
+            }}
+         />
+
+         <span style={{ fontWeight: 'bold', marginRight: 4 }}>{stateRow.rfaStatistics[item]}</span>
+         {item === 'noOfRfaOverdue'
+            ? 'Overdue'
+            : item === 'noOfRfaOverdueNext3Days'
+               ? 'Due in 3 days'
+               : item === 'noOfDrawingsToReview'
+                  ? `Nos of drawings to review by ${company}`
+               : item === 'noOfDrawingsToReviewByLeadConsultant'
+                  ? `Nos of drawings to review by ${consultantLead.company}`
+                  : ''
+         }
+         <DividerRibbon />
+      </div>
+   );
+};
 
 
 

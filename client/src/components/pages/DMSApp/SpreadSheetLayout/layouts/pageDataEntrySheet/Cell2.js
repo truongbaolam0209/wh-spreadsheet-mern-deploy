@@ -170,6 +170,7 @@ const Cell2 = (props) => {
          stateCell.cellAppliedAction.currentDOMCell.columnIndex === columnIndex &&
          !isLockedColumn && !isLockedRow
       ) {
+         
          const { e } = stateCell.cellAppliedAction;
          if (e.key === 'Delete') {
             cellEditDone('');
@@ -179,13 +180,18 @@ const Cell2 = (props) => {
       };
    }, [stateCell.cellAppliedAction]);
 
+
    useEffect(() => { // FOCUS right after press ENTER...
       if (inputRender) inputRef.current.focus();
    }, [inputRender]);
 
+
    useEffect(() => { // Hide Button after pick on PANEL (setBtnShown fasle in pickDataSelect doesn't work)
-      setBtnShown(false);
+      if (btnShown) {
+         setBtnShown(false);
+      };
    }, [valueInput]);
+
 
    const onKeyDown = (e) => { // ENTER to hide input after finishing typing ...
       if (

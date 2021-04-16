@@ -28,9 +28,21 @@ const CellRFA = (props) => {
    const [activeBtn, setActiveBtn] = useState('All');
    const [modalContent, setModalContent] = useState(null);
 
-   let isDueDate;
-   if (column.key === 'Due Date' && !rowData.treeLevel) {
-      isDueDate = compareDates(rowData['Consultant Reply (T)']);
+   let overdueCount;
+   if (
+      (column.key === 'Due Date') && 
+      !rowData.treeLevel) {
+      if (!companies) overdueCount = 0;
+      const listConsultant = companies.filter(x => x.companyType === 'Consultant');
+      if (listConsultant.length === 0) overdueCount = 0;
+      let consultantLead = listConsultant.find(x => x.isLeadConsultant);
+      if (!consultantLead) {
+         consultantLead = listConsultant[0];
+      };
+
+      if (!rowData[`reply-$$$-status-${consultantLead.company}`]) {
+         overdueCount = compareDates(rowData['Consultant Reply (T)']);
+      };
    };
 
 
@@ -68,9 +80,21 @@ const CellRFA = (props) => {
       replyStatus = replyStatusData;
       replyCompany = replyCompanyData;
       replyDate = replyDateData;
+   } else if (column.key.includes('Version ')) {
+
+      const infoData = rowData['Info'];
+      let keyItem;
+      if (infoData.includes('Consultant (') && !infoData.includes('Drg To Consultant (')) {
+         keyItem = infoData;
+      };
+
+      const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyData(rowData, keyItem, companies);
+      replyStatus = replyStatusData;
+      replyCompany = replyCompanyData;
+      replyDate = replyDateData;
    };
 
-
+   // console.log({ replyStatus, replyCompany, replyDate });
 
    const [thereIsDrawingWithNoReply, setThereIsDrawingWithNoReply] = useState(false);
    const [thereIsDrawingWithNoRfaRef, setThereIsDrawingWithNoRfaRef] = useState(false);
@@ -101,11 +125,13 @@ const CellRFA = (props) => {
             window.open(res.data);
 
          } else if (btn === 'Edit') {
-            buttonPanelFunction('addNewRFA-ICON');
-            getSheetRows({
-               ...stateRow,
-               currentRfaToAddNewOrReply: rowData.id,
-            });
+
+            // buttonPanelFunction('updateRFA-ICON');
+            // getSheetRows({
+            //    ...stateRow,
+            //    currentRfaToAddNewOrReply: rowData['RFA Ref'],
+            // });
+        
          };
       } catch (err) {
          console.log(err);
@@ -143,7 +169,7 @@ const CellRFA = (props) => {
             color: 'black',
             background:
                column.key === 'Due Date'
-                  ? isDueDate < 0 && '#FFEBCD'
+                  ? overdueCount < 0 && '#FFEBCD'
                   : (colorTextRow[replyStatus] || 'transparent'),
             fontWeight: column.key === 'RFA Ref' && rowData.treeLevel && 'bold'
          }}
@@ -158,7 +184,7 @@ const CellRFA = (props) => {
                console.log('tempRowSavedTime', tempRowSavedTime);
                if (tempRowSavedTime) {
                   const duration = moment.duration(moment(new Date()).diff(tempRowSavedTime)).asMinutes();
-                  if (duration <= 15) {
+                  if (duration <= 100000) {
                      setIsEdittingAllowed(true);
                   } else {
                      localStorage.removeItem(`editLastTime-reply-${rowData['RFA Ref']}-${rowData.id}`)
@@ -216,8 +242,8 @@ const CellRFA = (props) => {
                </div>
             ) : (!rowData.treeLevel && column.key === 'Due Date') ? (
                <span style={{
-                  fontWeight: isDueDate < 0 && 'bold',
-                  color: isDueDate < 0 && 'red',
+                  fontWeight: overdueCount < 0 && 'bold',
+                  color: overdueCount < 0 && 'red',
                }}>
                   {rowData['Consultant Reply (T)']}
                </span>
@@ -385,7 +411,6 @@ export const getConsultantReplyData = (rowData, header, companies) => {
                   replyStatus = rowData[`reply-$$$-status-${cmp.company}`] || '';
                   replyCompany = cmp.company;
                   const dateData = rowData[`reply-$$$-date-${cmp.company}`];
-                  // replyDate = dateData ? moment(dateData).format('DD/MM/YY') : '';
                   replyDate = dateData || '';
                };
             };

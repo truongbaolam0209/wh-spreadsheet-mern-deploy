@@ -16,10 +16,17 @@ const App = () => {
    };
 
 
-
+   console.log('localStorage', localStorage);
 
    const consultantCompany = 'DCA';
+   // const consultantCompany = 'ONG & ONG';
+   // const consultantCompany = 'RSP';
+   // const consultantCompany = 'K2LD';
+   // const consultantCompany = 'HYLA';
 
+   console.log('EEEEE---localStorage', localStorage);
+
+   
    return (
       <BrowserRouter>
          <Switch>
@@ -30,7 +37,7 @@ const App = () => {
                   <PageSpreadsheet
 
 
-                     email={browserName === 'Chrome' ? 'judy@wohhup.com' : 'consultant_user_@wohhup.com'}
+                     email={browserName === 'Chrome' ? 'judy@wohhup.com' : 'test@dca.com'}
                      company={browserName === 'Chrome' ? 'Woh Hup Private Ltd' : consultantCompany}
                      role={browserName === 'Chrome' ? 'Document Controller' : 'Consultant'}
 
@@ -66,25 +73,8 @@ const App = () => {
                      companies={[
                         { company: 'Woh Hup Private Ltd', companyType: 'Main con' },
 
-                        { company: 'XXX', companyType: 'Sub-con', trade: 'ARCHI' },
-                        { company: 'PLAYWKZ CULTURE', companyType: 'Sub-con', trade: 'ARCHI' },
-                        { company: 'MAXBOND', companyType: 'Sub-con', trade: 'ARCHI' },
-                        { company: 'HI SERVICES', companyType: 'Sub-con', trade: 'ARCHI' },
-
-                        { company: 'YYY', companyType: 'Sub-con', trade: 'C&S' },
-                        { company: 'TYLIN', companyType: 'Sub-con', trade: 'C&S' },
-                        { company: '123', companyType: 'Sub-con', trade: 'C&S' },
-
-                        { company: 'ZZZ-ME-1', companyType: 'Sub-con', trade: 'M&E' },
-                        { company: 'ZZZ-ME-2', companyType: 'Sub-con', trade: 'M&E' },
-                        { company: 'AECOM', companyType: 'Sub-con', trade: 'M&E' },
-                        { company: 'HHH ME', companyType: 'Sub-con', trade: 'M&E' },
-
-
                         { company: 'DCA', companyType: 'Consultant', isLeadConsultant: true },
                         { company: 'RSP', companyType: 'Consultant' },
-                        { company: 'HYLA', companyType: 'Consultant' },
-                        { company: 'K2LD', companyType: 'Consultant' },
                         { company: 'ONG & ONG', companyType: 'Consultant' },
                      ]}
 
@@ -105,6 +95,8 @@ const App = () => {
                         'Sumang Email Group',
                      ]}
         
+
+
                   />
                </Route>
 
@@ -116,6 +108,7 @@ const App = () => {
                         name: 'Document Controller',
                         canEditParent: true
                      }}
+                     // isOutputDataText={true}
                      canSaveUserSettings={false}
                      token={'xxx-xxxxx-xx'}
                      sheetDataInput={sheetDataInput}
@@ -132,6 +125,8 @@ const App = () => {
 
 
             </SheetContext>
+
+
             <Route path='/dashboard'>
                   <PageDashboard
                      projectsArray={[
@@ -146,7 +141,6 @@ const App = () => {
                      ]}
                   />
                </Route>
-
 
          </Switch>
       </BrowserRouter>

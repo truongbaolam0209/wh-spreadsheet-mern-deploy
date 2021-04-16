@@ -14,6 +14,7 @@ const { Option } = Select;
 const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFilter, isRfaView, rowsRfaAll, companies }) => {
 
 
+
    const [filterColumn, setFilterColumn] = useState(
       !isRfaView
          ? (modeFilter.length > 1
@@ -33,7 +34,7 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
             : [
                {
                   id: mongoObjectId(),
-                  header: 'Status',
+                  header: 'Due Date',
                   value: 'Select Value...'
                },
                {
@@ -86,13 +87,17 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
       const output = filterColumn.filter(x => {
          return (x.header !== 'Select Field...' && x.value !== 'Select Value...') || x.isIncludedParent;
       });
+
       if (!filterColumn.find(item => item.isIncludedParent)) {
          output.push({ isIncludedParent: 'not included' });
       };
 
       if (output.length === 1 && output[0].isIncludedParent === 'included') {
+         console.log('FILTER', '1111111111111111111111111111111111');
          applyFilter([]);
       } else {
+         console.log('FILTER', '2222222222222222222222222222222222');
+         console.log('FILTER---->>>>', output);
          applyFilter(output);
       };
    };
@@ -202,7 +207,8 @@ const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rows,
             style={{ marginRight: 13, width: '47%' }}
             onChange={(column) => setColumn(column)}
          >
-            {headers.filter(hd => columnsValueArr[hd]).map(hd => (
+            {/* {headers.filter(hd => columnsValueArr[hd]).map(hd => ( */}
+            {headers.map(hd => (
                <Option key={hd} value={hd}>{hd}</Option>
             ))}
          </SelectStyled>
@@ -263,9 +269,11 @@ const getColumnsValue = (rows, headers, isRfaView, companies) => {
    headers.forEach(hd => {
       let valueArr = [];
       rows.forEach(row => {
-         if (isRfaView && hd.includes('Consultant (') && !hd.includes('Drg To Consultant (')) {
+         if (isRfaView && hd.includes('Consultant (') && hd !== ('Consultant (1)') && !hd.includes('Drg To Consultant (')) {
             const { replyCompany } = getConsultantReplyData(row, hd, companies);
             valueArr.push(replyCompany || '');
+         } else if (isRfaView && hd === 'Due Date') {
+            valueArr = [...valueArr, 'Overdue', 'Due in 3 days', 'Already replied', 'Drawings to review'];
          } else {
             valueArr.push(row[hd] || '');
          };
@@ -274,5 +282,6 @@ const getColumnsValue = (rows, headers, isRfaView, companies) => {
       valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
       if (valueArr.length > 0) valueObj[hd] = valueArr;
    });
+   console.log('===================', valueObj);
    return valueObj;
 };

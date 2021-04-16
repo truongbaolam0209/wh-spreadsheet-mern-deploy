@@ -5,7 +5,7 @@ import { SERVER_URL } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { convertCellTempToHistory, convertDrawingVersionToHistory, debounceFnc, extractCellInfo, genId, mongoObjectId, validateEmailInput } from '../../utils';
+import { compareDates, convertCellTempToHistory, convertDrawingVersionToHistory, debounceFnc, extractCellInfo, genId, mongoObjectId, validateEmailInput } from '../../utils';
 import FormFilter from '../generalComponents/FormFilter';
 import FormGroup from '../generalComponents/FormGroup';
 import FormSort from '../generalComponents/FormSort';
@@ -34,7 +34,7 @@ const PanelSetting = (props) => {
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateCell, getCellModifiedTemp, OverwriteCellsModified } = useContext(CellContext);
    const { projectIsAppliedRfaView, companies } = stateProject.allDataOneSheet;
-
+   const { isRfaView } = stateRow;
    const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading } = props;
 
    const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
@@ -431,15 +431,15 @@ const PanelSetting = (props) => {
          let rowsUpdateSubmissionOrReplyForNewDrawingRev = stateRow.rowsUpdateSubmissionOrReplyForNewDrawingRev;
          Object.keys(row).forEach(key => {
             if (
-               key.includes('reply-$$$-') || 
-               key.includes(`submission-$$$-drawing-${company}`) || 
-               key.includes(`submission-$$$-user-${company}`) 
+               key.includes('reply-$$$-') ||
+               key.includes(`submission-$$$-drawing-${company}`) ||
+               key.includes(`submission-$$$-user-${company}`)
             ) {
                row[key] = '';
             };
          });
          if (rowsUpdateSubmissionOrReplyForNewDrawingRev.indexOf(rowId) === -1) {
-            rowsUpdateSubmissionOrReplyForNewDrawingRev = [ ...rowsUpdateSubmissionOrReplyForNewDrawingRev, rowId ];
+            rowsUpdateSubmissionOrReplyForNewDrawingRev = [...rowsUpdateSubmissionOrReplyForNewDrawingRev, rowId];
             objForRFA = { rowsUpdateSubmissionOrReplyForNewDrawingRev };
          };
       };
@@ -745,7 +745,7 @@ const PanelSetting = (props) => {
          // FILTER FINAL ROW TO UPDATE......
          let rowsToUpdateFinal = [];
          rowsFromDB.map(row => {
-            
+
             Object.keys(cellsModifiedTemp).forEach(key => {
                const { rowId, headerName } = extractCellInfo(key);
                if (rowId === row.id) row[headerName] = cellsModifiedTemp[key];
@@ -770,14 +770,14 @@ const PanelSetting = (props) => {
                      rowToSave.data = { ...rowToSave.data || {}, [hd.key]: rowOutput[hd.text] };
                   };
                });
-               
+
                const rowFoundInRowsGetNewRev = rowsGetNewRev.find(x => x.id === rowToSave._id);
                if (rowFoundInRowsGetNewRev) {
                   Object.keys(rowFoundInRowsGetNewRev).forEach(key => {
                      if (
-                        key.includes('reply-$$$-') || 
-                        key.includes(`submission-$$$-drawing-${company}`) || 
-                        key.includes(`submission-$$$-user-${company}`) 
+                        key.includes('reply-$$$-') ||
+                        key.includes(`submission-$$$-drawing-${company}`) ||
+                        key.includes(`submission-$$$-user-${company}`)
                      ) {
                         rowToSave.data = { ...rowToSave.data || {}, [key]: '' };
                      };
@@ -800,6 +800,12 @@ const PanelSetting = (props) => {
    };
    const saveDataToServerAndReloadData = async () => {
       const { projectId, token, email } = stateProject.allDataOneSheet;
+      const { isRfaView } = stateRow;
+      if (isRfaView) {
+         onClickCancelModal();
+         return;
+      };
+
       try {
          await saveDataToServer();
          const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
@@ -898,7 +904,7 @@ const PanelSetting = (props) => {
                let rowOutput = { _id: r.id };
 
                if (type === 'submission' && !r['RFA Ref']) {
-                  
+
                   r['RFA Ref'] = rfaRefData;
                   r['rfaNumber'] = rfaToSave;
                   r['Status'] = 'Consultant reviewing';
@@ -926,7 +932,7 @@ const PanelSetting = (props) => {
                      rowOutput.data[`reply-$$$-${txt}-${consultantLead.company}`] = '';
                   });
 
-                  
+
                   const listDataToAddSubmision = ['drawing', 'trade', 'user'];
                   listDataToAddSubmision.forEach(txt => {
                      rowOutput.data[`submission-$$$-${txt}-${company}`] = r[`submission-$$$-${txt}-${company}`];
@@ -1025,39 +1031,38 @@ const PanelSetting = (props) => {
 
          const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
 
-         
-         // const getDrawingURLFromDB = async () => {
-         //    try {
-         //       return await Promise.all(dwgsNewRFAClone.map(async dwg => {
-         //          const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${type}-$$$-drawing-${company}`], expire: 1000 } });
-         //          dwg[`${type}-$$$-drawing-${company}`] = res.data;
-         //          return dwg;
-         //       }));
-         //    } catch (err) {
-         //       console.log(err);
-         //    };
-         // };
 
-         // please respond to this RFA by 20/01/20, you can click to download
+         const getDrawingURLFromDB = async () => {
+            try {
+               return await Promise.all(dwgsNewRFAClone.map(async dwg => {
+                  const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${type}-$$$-drawing-${company}`], expire: 1000 } });
+                  dwg[`${type}-$$$-drawing-${company}`] = res.data;
+                  return dwg;
+               }));
+            } catch (err) {
+               console.log(err);
+            };
+         };
 
-         // const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
 
-         // const contentText = type === 'reply' ? `
-         //    <div>
-         //       <span>${emailTextContent}</span>
-         //       <span>
-         //          Please respond to this RFA by ${moment().add(14, 'days').format('DD/MM/YY')}, you can click to download
-         //       </span>
-         //    </div>
-         // ` : type === 'submission' ? `
-         //    <div>
-         //       <span>${emailTextContent}</span>
-         //    </div>
-         // ` : '';
+         const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
 
-         // const contentTable = generateEmailInnerHTML(company, type, dwgsToAddNewRFAGetDrawingURL);
+         const contentText = type === 'reply' ? `
+            <div>
+               <span>${emailTextContent}</span>
+            </div>
+         ` : type === 'submission' ? `
+            <div>
+               <span>${emailTextContent}</span>
+               <span>
+                  Please respond to this RFA by ${moment().add(14, 'days').format('DD/MM/YY')}, you can click to download
+               </span>
+            </div>
+         ` : '';
 
-         // await Axios.post(`/api/issue/rfa-mail`, { token, title: emailTitle, content: contentText + contentTable, listUser: listUserOutput, listGroup: listGroupOutput, projectId });
+         const contentTable = generateEmailInnerHTML(company, type, dwgsToAddNewRFAGetDrawingURL);
+
+         await Axios.post(`/api/issue/rfa-mail`, { token, title: emailTitle, content: contentText + contentTable, listUser: listUserOutput, listGroup: listGroupOutput, projectId });
 
          await reloadDataFromServerViewRFA();
 
@@ -1123,6 +1128,7 @@ const PanelSetting = (props) => {
                modeFilter={stateRow.modeFilter}
                modeSort={stateRow.modeSort}
                modeSearch={stateRow.modeSearch}
+               isRfaView={isRfaView}
             />
          )}
 
@@ -1223,10 +1229,11 @@ const PanelSetting = (props) => {
          )}
 
 
-         {panelSettingType === 'addNewRFA-ICON' && (
+         {(panelSettingType === 'addNewRFA-ICON' || panelSettingType === 'updateRFA-ICON') && (
             <PanelAddNewRFA
                onClickCancelModal={onClickCancelModal}
                onClickApplyAddNewRFA={onClickApplyAddNewRFA}
+               isUpdateRfa={panelSettingType === 'updateRFA-ICON'}
             />
          )}
 
@@ -1370,18 +1377,22 @@ export const convertRowHistoryData = (dataRowsHistory, headers) => {
    });
 };
 
-export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role) => {
+export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, companies, company) => {
 
    const nodeTitleArr = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
 
    const rowsWithRFA = rows.filter(x => x.rfaNumber);
    const rowsHistoryWithRFA = rowsHistory.filter(x => x.rfaNumber);
 
-   let TreeViewRFA = [];
+   let treeViewRFA = [];
 
+   let noOfRfaOverdue = 0;
+   let noOfRfaOverdueNext3Days = 0;
+   let noOfDrawingsToReview = 0;
+   let noOfDrawingsToReviewByLeadConsultant = 0;
    nodeTitleArr.forEach(title => {
 
-      TreeViewRFA.push({
+      treeViewRFA.push({
          id: title,
          treeLevel: 2,
          expanded: true,
@@ -1395,6 +1406,9 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role) => 
 
       const allRfaCode = [...new Set(rowsUnderThisTrade.map(x => x['rfaNumber']))];
       const rfaParentNodeArray = [];
+
+
+
 
       allRfaCode.forEach(rfaNumb => {
          let allDwgs = [...rowsUnderThisTrade, ...rowsHistoryWithRFA].filter(dwg => dwg['rfaNumber'] === rfaNumb);
@@ -1415,8 +1429,40 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role) => 
             expanded: true,
             parentId: title
          });
+
+
+
+         if (companies) {
+            const listConsultant = companies.filter(x => x.companyType === 'Consultant');
+            if (listConsultant.length > 0) {
+               let consultantLead = listConsultant.find(x => x.isLeadConsultant);
+               if (!consultantLead) {
+                  consultantLead = listConsultant[0];
+               };
+
+               const dwg = allDwgs[0];
+               allDwgs.forEach(rrr => {
+                  if (!rrr[`reply-$$$-status-${company}`]) {
+                     noOfDrawingsToReview++;
+                  };
+                  if (!rrr[`reply-$$$-status-${consultantLead.company}`]) {
+                     noOfDrawingsToReviewByLeadConsultant++;
+                  };
+               });
+
+               const nosOfDate = compareDates(dwg['Consultant Reply (T)']);
+               if (!dwg[`reply-$$$-status-${consultantLead.company}`]) {
+                  if (nosOfDate < 3) {
+                     noOfRfaOverdueNext3Days++;
+                  };
+                  if (nosOfDate < 0) {
+                     noOfRfaOverdue++;
+                  };
+               };
+            };
+         };
       });
-      TreeViewRFA = [...TreeViewRFA, ...rfaParentNodeArray];
+      treeViewRFA = [...treeViewRFA, ...rfaParentNodeArray];
    });
 
    let allRowsForRFA = [...rowsWithRFA, ...rowsHistoryWithRFA];
@@ -1424,11 +1470,11 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role) => 
    if (role === 'Consultant') {
       allRowsForRFA = allRowsForRFA.filter(x => x['RFA Ref']);
    };
-   
+
 
    allRowsForRFA.sort((a, b) => {
       if (!b['RFA Ref']) return 1;
-      
+
       if (a['RFA Ref'] > b['RFA Ref']) return -1;
       if (a['RFA Ref'] < b['RFA Ref']) return 1;
 
@@ -1438,7 +1484,13 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role) => 
 
    return {
       rowsDataRFA: allRowsForRFA,
-      TreeViewRFA
+      treeViewRFA,
+      rfaStatistics: {
+         noOfRfaOverdue,
+         noOfRfaOverdueNext3Days,
+         noOfDrawingsToReview,
+         noOfDrawingsToReviewByLeadConsultant
+      }
    };
 };
 
