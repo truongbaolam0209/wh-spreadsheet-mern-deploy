@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { mongoObjectId } from '../../utils/index';
-import { getConsultantReplyData } from '../pageSpreadsheet/CellRFA';
+import { getConsultantReplyData, isColumnWithReplyData } from '../pageSpreadsheet/CellRFA';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
 
@@ -93,11 +93,8 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
       };
 
       if (output.length === 1 && output[0].isIncludedParent === 'included') {
-         console.log('FILTER', '1111111111111111111111111111111111');
          applyFilter([]);
       } else {
-         console.log('FILTER', '2222222222222222222222222222222222');
-         console.log('FILTER---->>>>', output);
          applyFilter(output);
       };
    };
@@ -207,7 +204,6 @@ const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rows,
             style={{ marginRight: 13, width: '47%' }}
             onChange={(column) => setColumn(column)}
          >
-            {/* {headers.filter(hd => columnsValueArr[hd]).map(hd => ( */}
             {headers.map(hd => (
                <Option key={hd} value={hd}>{hd}</Option>
             ))}
@@ -269,11 +265,13 @@ const getColumnsValue = (rows, headers, isRfaView, companies) => {
    headers.forEach(hd => {
       let valueArr = [];
       rows.forEach(row => {
-         if (isRfaView && hd.includes('Consultant (') && hd !== ('Consultant (1)') && !hd.includes('Drg To Consultant (')) {
+         if (isRfaView && isColumnWithReplyData(hd)) {
             const { replyCompany } = getConsultantReplyData(row, hd, companies);
             valueArr.push(replyCompany || '');
+            
          } else if (isRfaView && hd === 'Due Date') {
-            valueArr = [...valueArr, 'Overdue', 'Due in 3 days', 'Already replied', 'Drawings to review'];
+            valueArr = [...valueArr, 'Overdue', 'Due in 3 days', 'Nos of RFA outstanding'];
+
          } else {
             valueArr.push(row[hd] || '');
          };
@@ -282,6 +280,5 @@ const getColumnsValue = (rows, headers, isRfaView, companies) => {
       valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
       if (valueArr.length > 0) valueObj[hd] = valueArr;
    });
-   console.log('===================', valueObj);
    return valueObj;
 };

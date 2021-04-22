@@ -1,7 +1,7 @@
 const schema = require('./schema');
 const model = require('./model');
 const { genCRUDHandlers } = require('../crud');
-const { toObjectId, mongoObjectId } = require('../utils');
+const { toObjectId, mongoObjectId, generateEmailInnerHTMLBackend } = require('../utils');
 const {
    findPublicSettings,
    findUserSettings,
@@ -358,6 +358,66 @@ const saveAllDataRowsToServer = async (req, res, next) => {
 
 
 
+
+
+
+const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type) => {
+
+   let rowIds = JSON.parse(qRowIds).map(toObjectId);
+   if (!sheetId) throw new HTTP(400, 'Missing sheet id!');
+   if (!rowIds) throw new HTTP(400, 'Missing row id!');
+   if (!company) throw new HTTP(400, 'Missing company!');
+   if (!type) throw new HTTP(400, 'Missing type!');
+
+   let [rows, rowHistories, publicSettings] = await Promise.all([
+      rowModel.find({ sheet: sheetId, _id: { $in: rowIds } }),
+      rowHistoryModel.find({ sheet: sheetId, _id: { $in: rowIds } }),
+      findPublicSettings(sheetId)
+   ]);
+   const { headers } = publicSettings;
+
+   const rowsOutput = [...rows, ...rowHistories];
+
+   const outputRowsAll = rowsOutput.map(r => {
+      let output, rowData;
+      if (r.row) {
+         output = {
+            // id: r._id,
+            // _rowLevel: r.level,
+            // _parentRow: r.parentRow,
+            // _preRow: r.preRow
+         };
+         rowData = r.history;
+      } else {
+         output = {
+            id: r._id,
+            _rowLevel: r.level,
+            _parentRow: r.parentRow,
+            _preRow: r.preRow
+         };
+         rowData = r.data;
+      };
+
+      for (const key in rowData) {
+         if (key === 'rfaNumber' || key.includes('reply-$$$-') || key.includes('submission-$$$-')) {
+            output[key] = rowData[key];
+         } else {
+            const headerFound = headers.find(hd => hd.key === key);
+            if (headerFound) {
+               output[headerFound.text] = rowData[key];
+            };
+         };
+      };
+      return output;
+   });
+
+
+   const emailContent = generateEmailInnerHTMLBackend(company, type, outputRowsAll);
+
+   return emailContent;
+
+};
+
 module.exports = {
    schema,
    model,
@@ -376,7 +436,8 @@ module.exports = {
 
 
    saveAllDataSettingsToServer,
-   saveAllDataRowsToServer
+   saveAllDataRowsToServer,
+
 };
 
 

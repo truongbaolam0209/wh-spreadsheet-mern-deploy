@@ -1,4 +1,5 @@
 import moment from 'moment';
+import { isColumnWithReplyData } from '../layouts/pageSpreadsheet/CellRFA';
 
 
 export const colorTypeStatus = {
@@ -279,12 +280,13 @@ export const convertDrawingVersionToHistory = (rowsHistory, stateProject) => {
    return rowsHistoryOutput;
 };
 export const getHeaderWidthForRFAView = (header) => {
-   if (header === 'RFA Ref') return 400;
+   if (header === 'RFA Ref') return 380;
    else if (header === 'Drawing Number') return 250;
    else if (header === 'Drawing Name') return 400;
    else if (header === 'Due Date') return 80;
    else if (header === 'Submission Date') return 80;
    else if (header === 'Rev') return 40;
+   else if (header === 'Requested By') return 100;
    return getHeaderWidth(header);
 };
 export const getHeaderWidth = (header) => {
@@ -316,7 +318,7 @@ export const getHeaderWidth = (header) => {
    else if (header === 'Drawing Number') return 400;
    else if (header === 'Drawing Name') return 450;
 
-   else if (header.includes('Consultant (') && !header.includes('Drg To Consultant (')) return 180;
+   else if (isColumnWithReplyData(header)) return 180;
 
    else return 300;
 
@@ -343,8 +345,12 @@ export const getActionName = (type) => {
    if (type === 'Delete Drawing') return 'Delete Drawing';
    if (type === 'colorized-ICON') return 'Drawing Colorization';
    if (type === 'viewTemplate-ICON') return 'View Template';
-   if (type === 'addNewRFA-ICON') return 'Add New RFA';
-   if (type === 'updateRFA-ICON') return 'Update Submitted RFA';
+
+   if (type === 'form-submit-RFA') return 'Add New RFA';
+   if (type === 'form-submit-edit-RFA') return 'Update Submitted RFA';
+   if (type === 'form-reply-RFA') return 'Reply RFA';
+   if (type === 'form-reply-edit-RFA') return 'Update Replied RFA';
+   
    if (type && (type.includes('Insert Drawings') || type === 'Duplicate Drawings')) return 'Nos Of Drawings';
 
    else return '';
@@ -404,3 +410,7 @@ export const validateEmailInput = (email) => {
    const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
    return re.test(String(email).toLowerCase());
 };
+
+
+
+

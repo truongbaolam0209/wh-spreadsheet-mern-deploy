@@ -479,7 +479,6 @@ export const convertDataFromDB = (data, dataRowHistories, projectsArray) => {
    });
 
    output.projectComparison = arrComparison;
-   // console.log('output--->>>', output);
    return output;
 };
 const convertToInputDataForChart = (rows, rowsHistory, headers) => {

@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { colorTextRow, colorType, imgLink } from '../../constants';
 import PanelCalendar from '../generalComponents/PanelCalendar';
+import { isColumnWithReplyData } from './CellRFA';
 import { getCompanyNameFnc, getTradeNameFnc, getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
 
 
@@ -384,6 +385,7 @@ const Cell = (props) => {
                />
             )}
 
+
             {btnDrawingShown && column.key === 'RFA Ref' && !rowData.treeLevel && rowData['RFA Ref'] && (
                <Tooltip key={'Open Drawing File'} placement='top' title={'Open Drawing File'}>
                   <div
@@ -596,7 +598,7 @@ export const columnLocked = (roleTradeCompany, rowData, modeGroup, column, proje
          column === 'Consultant Reply (T)' ||
          column === 'Consultant Reply (A)'
       )) ||
-      (column.includes('Consultant (') && !column.includes('Drg To Consultant (')) ||
+      (isColumnWithReplyData(column)) ||
       (rowData && !rowData._rowLevel) || // lock drawing type ...
       (modeGroup && modeGroup.length > 0) ||
       (roleTradeCompany.role === 'Modeller' && columnsLockedModeller.includes(column)) ||

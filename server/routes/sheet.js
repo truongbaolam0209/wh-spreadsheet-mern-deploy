@@ -14,19 +14,27 @@ router.get('/', validateToken, Sheet.findOneWithUserEmail);
 
 router.get('/get-all-collections', Sheet.getAllCollections);
 
+// router.get('/get-rows-email', validateToken, Sheet.findManyRowsToSendEmail);
+
 router.post('/update-rows/', validateToken, Sheet.updateOrCreateRows);
 
-router.post('/delete-rows/', validateToken, Sheet.deleteRows);
+router.post('/delete-rows/',validateToken,  Sheet.deleteRows);
 
 router.post('/delete-all/', validateToken, Sheet.deleteAllDataInCollection);
 
-router.post('/update-setting-public/', validateToken, Sheet.updateSettingPublic);
+router.post('/update-setting-public/',validateToken,  Sheet.updateSettingPublic);
 
-router.post('/update-setting-user/', validateToken, Sheet.updateSettingUser);
+router.post('/update-setting-user/',validateToken,  Sheet.updateSettingUser);
 
-router.post('/delete-rows-project/', validateToken, Sheet.deleteAllRowsInOneProject);
+router.post('/delete-rows-project/',validateToken,  Sheet.deleteAllRowsInOneProject);
 
 router.post('/find-many/', validateToken, Sheet.findMany);
+
+
+
+
+
+
 
 
 

@@ -5,7 +5,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { getConsultantReplyData } from './CellRFA';
+import { getConsultantReplyData, isColumnWithReplyData } from './CellRFA';
 
 
 
@@ -27,7 +27,9 @@ const TableCellHistory = (props) => {
 
    if (headerFound) {
       headerKey = headerFound.key;
-   } else {
+   } else if (isColumnWithReplyData(column.key)) {
+
+      
       const { replyCompany } = getConsultantReplyData(rowData, column.key, companies);
       headerKey = replyCompany;
    };

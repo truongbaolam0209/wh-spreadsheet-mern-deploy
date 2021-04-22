@@ -12,6 +12,7 @@ import { compareDates } from '../../utils';
 
 
 
+
 const CellRFA = (props) => {
 
    const { rowData, cellData, column, buttonPanelFunction, onRightClickCell } = props;
@@ -19,35 +20,136 @@ const CellRFA = (props) => {
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { roleTradeCompany, companies, company } = stateProject.allDataOneSheet;
+   const { rowsRfaAll, rowsRfaAllInit } = stateRow;
+
+   const { roleTradeCompany, companies, company, email } = stateProject.allDataOneSheet;
 
    const [btnShown, setBtnShown] = useState(false);
    const [isEdittingAllowed, setIsEdittingAllowed] = useState(false);
 
-
    const [activeBtn, setActiveBtn] = useState('All');
    const [modalContent, setModalContent] = useState(null);
 
-   let overdueCount;
-   if (
-      (column.key === 'Due Date') && 
-      !rowData.treeLevel) {
-      if (!companies) overdueCount = 0;
-      const listConsultant = companies.filter(x => x.companyType === 'Consultant');
-      if (listConsultant.length === 0) overdueCount = 0;
-      let consultantLead = listConsultant.find(x => x.isLeadConsultant);
-      if (!consultantLead) {
-         consultantLead = listConsultant[0];
-      };
+   const [thereIsDrawingWithNoReplyAndConsultantAllowedReply, setThereIsDrawingWithNoReplyAndConsultantAllowedReply] = useState(false);
+   const [thereIsDrawingWithNoRfaRef, setThereIsDrawingWithNoRfaRef] = useState(false);
+   const [requestedByCellData, setRequestedByCellData] = useState(null);
 
-      if (!rowData[`reply-$$$-status-${consultantLead.company}`]) {
-         overdueCount = compareDates(rowData['Consultant Reply (T)']);
+   const [rfaData, setRfaData] = useState({});
+   const [rfaRefText, setRfaRefText] = useState(null);
+
+   const [replyStatus, setReplyStatus] = useState(null);
+   const [replyCompany, setReplyCompany] = useState(null);
+   const [replyDate, setReplyDate] = useState(null);
+
+   const [overdueCount, setOverdueCount] = useState(0);
+
+
+   const cloneRfaData = (row) => {
+      let obj = {};
+      for (const key in row) {
+         if (key.includes('reply') || key.includes('submission') || key === 'rfaNumber') {
+            obj[key] = row[key];
+         };
       };
+      return obj;
    };
+
+   useEffect(() => {
+      if ((rowData.treeLevel === 3 && column.key === 'RFA Ref')) {
+         const rfaNumber = rowData.id;
+         const allBtn = rowData['btn'];
+         const allRowsChildren = rowData.children;
+         const lastBtn = allBtn[allBtn.length - 1];
+
+         let rfaRef;
+         if (activeBtn === '-') {
+            rfaRef = rfaNumber;
+         } else if (activeBtn === 'All') {
+            rfaRef = rfaNumber + (lastBtn === '-' ? '' : lastBtn);
+         } else if (activeBtn) { // A, B, C, ....
+            rfaRef = rfaNumber + activeBtn;
+         };
+
+         const rowsWithThisRFA = rowsRfaAllInit.filter(x => x['RFA Ref'] === rfaRef);
+         const oneRowChildren = rowsWithThisRFA[0];
+         const rfaDataObj = cloneRfaData(oneRowChildren);
+         setRfaRefText(rfaRef);
+         setRfaData(rfaDataObj);
+
+         const consultantMustReplyArray = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply');
+
+         if (roleTradeCompany.role === 'Consultant') {
+            if (
+               !rfaDataObj[`reply-$$$-user-${roleTradeCompany.company}`] &&
+               consultantMustReplyArray && consultantMustReplyArray.indexOf(company) !== -1
+            ) {
+               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
+            } else if (
+               rfaDataObj[`reply-$$$-user-${roleTradeCompany.company}`] ||
+               (consultantMustReplyArray && consultantMustReplyArray.indexOf(company) === -1)
+            ) {
+               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
+            };
+         } else {
+            if (allRowsChildren.find(row => !row['RFA Ref'])) {
+               setThereIsDrawingWithNoRfaRef(true);
+            } else {
+               setThereIsDrawingWithNoRfaRef(false);
+            };
+         };
+
+      } else if (!rowData.treeLevel && rowData['rfaNumber'] && rowData['RFA Ref']) {
+
+         const rfaDataObj = cloneRfaData(rowData);
+         setRfaData(rfaDataObj);
+
+         if (column.key === 'Requested By') {
+            setRequestedByCellData(getInfoValueFromRfaData(rfaDataObj, 'submission', 'requestedBy'));
+
+         } else if (isColumnWithReplyData(column.key)) {
+            const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyData(rowData, column.key, companies);
+            setReplyStatus(replyStatusData);
+            setReplyCompany(replyCompanyData);
+            setReplyDate(replyDateData);
+
+         } else if (isColumnConsultant(column.key)) {
+            setReplyStatus(rfaDataObj[`reply-$$$-status-${company}`]);
+            setReplyCompany(company);
+            setReplyDate(rfaDataObj[`reply-$$$-date-${company}`]);
+         } else if (column.key === 'Due Date') {
+            const consultantMustReplyArray = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply');
+            if (!rowData[`reply-$$$-status-${consultantMustReplyArray[0]}`]) {
+               const compare = compareDates(rowData['Consultant Reply (T)']);
+               setOverdueCount(compare);
+            };
+         };
+      };
+   }, [activeBtn]);
+
+
+
+   useEffect(() => {
+      if (column.key.includes('Version ')) {
+         const versionIndex = column.key.slice(8, column.key.length);
+         const infoData = rowData['Info'];
+         if (isColumnWithReplyData(infoData)) {
+            const dataStatus = getInfoValueFromRfaData(rowData[versionIndex], 'reply', 'status');
+            if (dataStatus) {
+               const dataDate = getInfoValueFromRfaData(rowData[versionIndex], 'reply', 'date');
+               const keyStatus = getInfoKeyFromRfaData(rowData[versionIndex], 'reply', 'status');
+               const companyName = keyStatus.slice(17, keyStatus.length);
+               setReplyStatus(dataStatus);
+               setReplyCompany(companyName);
+               setReplyDate(dataDate);
+            };
+         };
+      };
+   }, []);
+
+
 
 
    const onClickRfaDrawing = (rfaCode, btn) => {
-      const { rowsRfaAll, rowsRfaAllInit } = stateRow;
       const rowsNotThisRFA = rowsRfaAll.filter(r => r.rfaNumber !== rfaCode);
 
       const rowsThisRFAFiltered = rowsRfaAllInit.filter(r => {
@@ -59,69 +161,33 @@ const CellRFA = (props) => {
                   : r['RFA Ref'] === rfaCode + btn
          );
       });
-
       getSheetRows({ ...stateRow, rowsRfaAll: [...rowsNotThisRFA, ...rowsThisRFAFiltered] });
       setActiveBtn(btn);
    };
 
-
-
-   const onClickSubmitOrReplyRFA = () => {
-      buttonPanelFunction('addNewRFA-ICON');
+   const onClickSubmitOrReplyRFA = (btn) => {
+      buttonPanelFunction(btn);
       getSheetRows({
          ...stateRow,
-         currentRfaToAddNewOrReply: rowData.id,
+         currentRfaToAddNewOrReplyOrEdit: {
+            currentRfaNumber: rowData.rfaNumber,
+            currentRfaRef: rfaRefText,
+            currentRfaData: rfaData
+         },
       });
    };
 
-   let replyStatus, replyCompany, replyDate;
-   if (column.key.includes('Consultant (') && !column.key.includes('Drg To Consultant (')) {
-      const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyData(rowData, column.key, companies);
-      replyStatus = replyStatusData;
-      replyCompany = replyCompanyData;
-      replyDate = replyDateData;
-   } else if (column.key.includes('Version ')) {
-
-      const infoData = rowData['Info'];
-      let keyItem;
-      if (infoData.includes('Consultant (') && !infoData.includes('Drg To Consultant (')) {
-         keyItem = infoData;
-      };
-
-      const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyData(rowData, keyItem, companies);
-      replyStatus = replyStatusData;
-      replyCompany = replyCompanyData;
-      replyDate = replyDateData;
-   };
-
-   // console.log({ replyStatus, replyCompany, replyDate });
-
-   const [thereIsDrawingWithNoReply, setThereIsDrawingWithNoReply] = useState(false);
-   const [thereIsDrawingWithNoRfaRef, setThereIsDrawingWithNoRfaRef] = useState(false);
-
-   useEffect(() => {
-      if (rowData.treeLevel === 3 && column.key === 'RFA Ref') {
-         const allRowsChildren = rowData.children;
-         if (roleTradeCompany.role === 'Consultant' && allRowsChildren.find(x => !x[`reply-$$$-status-${roleTradeCompany.company}`])) {
-            setThereIsDrawingWithNoReply(true);
-         };
-
-         if (roleTradeCompany.role !== 'Consultant' && allRowsChildren.find(x => !x['RFA Ref'])) {
-            setThereIsDrawingWithNoRfaRef(true);
-         };
-      };
-   }, []);
 
 
 
-   const onMouseDownCellButton = async (btn, replyCompany, rowData) => {
+   const onMouseDownCellButton = async (btn, replyCompany, rfaData) => {
       try {
          if (btn === 'See Note') {
-            const commentText = rowData[`reply-$$$-comment-${replyCompany}`] || ' ';
+            const commentText = rfaData[`reply-$$$-comment-${replyCompany}`] || ' ';
             setModalContent(commentText);
 
          } else if (btn === 'Open Drawing File') {
-            const res = await Axios.get('/api/issue/get-public-url', { params: { key: rowData[`reply-$$$-drawing-${replyCompany}`], expire: 1000 } });
+            const res = await Axios.get('/api/issue/get-public-url', { params: { key: rfaData[`reply-$$$-drawing-${replyCompany}`], expire: 1000 } });
             window.open(res.data);
 
          } else if (btn === 'Edit') {
@@ -129,32 +195,52 @@ const CellRFA = (props) => {
             // buttonPanelFunction('updateRFA-ICON');
             // getSheetRows({
             //    ...stateRow,
-            //    currentRfaToAddNewOrReply: rowData['RFA Ref'],
+            //    currentRfaToAddNewOrReplyOrEdit: rowData['RFA Ref'],
             // });
-        
+
          };
       } catch (err) {
          console.log(err);
       };
    };
-   const onClickDrawingOpenRfaCell = async () => {
-      try {
-         let dwgLink;
-         Object.keys(rowData).forEach(key => {
-            if (key.includes('submission-$$$-drawing-')) {
-               dwgLink = rowData[key];
-            };
-         });
-         const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
-         window.open(res.data);
-      } catch (err) {
-         console.log(err);
+   const onClickDrawingOpenRfaCell = async (btn) => {
+      if (btn === 'Open Drawing File') {
+         try {
+            const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'drawing');
+            const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
+            window.open(res.data);
+         } catch (err) {
+            console.log(err);
+         };
+      } else if (btn === 'Edit') {
+         buttonPanelFunction('form-submit-edit-RFA');
+         // getSheetRows({
+         //    ...stateRow,
+         //    currentRfaToAddNewOrReplyOrEdit: {
+         //       currentRfaNumber: rowData.rfaNumber,
+         //       currentRfaRef: rowData['RFA Ref']
+         //    },
+         // });
       };
    };
 
    const onMouseDown = (e) => {
       if (e.button === 2) { // check mouse RIGHT CLICK ...
-         onRightClickCell(e, props);
+         // onRightClickCell(e, props);
+      };
+   };
+
+
+   const checkIfEdittingIsAllowed = (type) => {
+      const tempRfaSaved = JSON.parse(localStorage.getItem(`editLastTime-${type}-${email}-${rowData['RFA Ref']}`));
+      if (tempRfaSaved) {
+         const duration = moment.duration(moment(new Date()).diff(tempRfaSaved.createdAt)).asMinutes();
+         if (duration <= 100000) {
+            setIsEdittingAllowed(true);
+         } else {
+            localStorage.removeItem(`editLastTime-${type}-${email}-${rowData['RFA Ref']}`);
+            setIsEdittingAllowed(false);
+         };
       };
    };
 
@@ -167,30 +253,16 @@ const CellRFA = (props) => {
             position: 'relative',
             padding: 5,
             color: 'black',
-            background:
-               column.key === 'Due Date'
-                  ? overdueCount < 0 && '#FFEBCD'
-                  : (colorTextRow[replyStatus] || 'transparent'),
-            fontWeight: column.key === 'RFA Ref' && rowData.treeLevel && 'bold'
+            background: (column.key === 'Due Date' && overdueCount < 0)
+               ? '#FFEBCD'
+               : (colorTextRow[replyStatus] || 'transparent'),
+            fontWeight: (column.key === 'RFA Ref' && rowData.treeLevel) && 'bold'
          }}
          onMouseOver={() => {
-            if (
-               !rowData.treeLevel &&
-               column.key.includes('Consultant (') &&
-               !column.key.includes('Drg To Consultant (') &&
-               roleTradeCompany.role === 'Consultant'
-            ) {
-               const tempRowSavedTime = JSON.parse(localStorage.getItem(`editLastTime-reply-${rowData['RFA Ref']}-${rowData.id}`));
-               console.log('tempRowSavedTime', tempRowSavedTime);
-               if (tempRowSavedTime) {
-                  const duration = moment.duration(moment(new Date()).diff(tempRowSavedTime)).asMinutes();
-                  if (duration <= 100000) {
-                     setIsEdittingAllowed(true);
-                  } else {
-                     localStorage.removeItem(`editLastTime-reply-${rowData['RFA Ref']}-${rowData.id}`)
-                     setIsEdittingAllowed(false);
-                  };
-               };
+            if (!rowData.treeLevel && isColumnWithReplyData(column.key) && roleTradeCompany.role === 'Consultant') {
+               checkIfEdittingIsAllowed('form-reply-RFA');
+            } else if (!rowData.treeLevel && column.key === 'RFA Ref' && roleTradeCompany.role !== 'Consultant') {
+               checkIfEdittingIsAllowed('form-submit-RFA');
             };
             if (!btnShown) setBtnShown(true);
          }}
@@ -213,7 +285,7 @@ const CellRFA = (props) => {
                </div>
 
                {(
-                  (thereIsDrawingWithNoReply && roleTradeCompany.role === 'Consultant') ||
+                  (thereIsDrawingWithNoReplyAndConsultantAllowedReply && roleTradeCompany.role === 'Consultant') ||
                   (thereIsDrawingWithNoRfaRef && roleTradeCompany.role !== 'Consultant')
                ) && (
                      <Tooltip placement='top' title={roleTradeCompany.role === 'Consultant' ? 'Reply To This RFA' : 'Add New RFA For This RFA'} >
@@ -226,20 +298,25 @@ const CellRFA = (props) => {
                               right: 3,
                               top: 0
                            }}
-                           onClick={onClickSubmitOrReplyRFA}
+                           onClick={() => onClickSubmitOrReplyRFA(roleTradeCompany.role === 'Consultant' ? 'form-reply-RFA' : 'form-submit-RFA')}
                         />
                      </Tooltip>
                   )}
             </div>
          ) : (rowData.treeLevel >= 2 && column.key === 'RFA Ref') ? rowData.title
-            : (
-               !rowData.treeLevel && column.key.includes('Consultant (') &&
-               !column.key.includes('Drg To Consultant (') && replyDate
-            ) ? (
+            : (!rowData.treeLevel && (isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) && replyStatus) ? (
                <div>
                   <span style={{ fontWeight: 'bold' }}>{replyCompany}</span>
                   <span>{` - (${replyDate})`}</span>
                </div>
+            ) : (!rowData.treeLevel && column.key.includes('Version ') && replyStatus) ? (
+               <div>
+                  <span style={{ fontWeight: 'bold' }}>{replyCompany}</span>
+               </div>
+
+            ) : (!rowData.treeLevel && (isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) && !replyStatus && rowData['RFA Ref']) ? (
+               <div><span>{replyCompany}</span></div>
+
             ) : (!rowData.treeLevel && column.key === 'Due Date') ? (
                <span style={{
                   fontWeight: overdueCount < 0 && 'bold',
@@ -247,60 +324,65 @@ const CellRFA = (props) => {
                }}>
                   {rowData['Consultant Reply (T)']}
                </span>
+
             ) : (!rowData.treeLevel && column.key === 'Submission Date') ? (
-               <span style={{}}>
-                  {rowData['Drg To Consultant (A)']}
-               </span>
-            ) : (!rowData.treeLevel && !column.key.includes('Consultant (')) ? cellData
+               <span>{rowData['Drg To Consultant (A)']}</span>
+
+            ) : (!rowData.treeLevel && column.key === 'Requested By') ? (
+               <span>{requestedByCellData}</span>
+
+            ) : (!rowData.treeLevel && !isColumnWithReplyData(column.key)) ? cellData
                : ''}
 
 
-         {(
-            btnShown && !rowData.treeLevel &&
-            column.key.includes('Consultant (') &&
-            !column.key.includes('Drg To Consultant (') &&
-            replyCompany) && (
-               <>
-                  {(
-                     (isEdittingAllowed && replyCompany === company)
-                        ? ['Edit', 'See Note', 'Open Drawing File']
-                        : ['See Note', 'Open Drawing File']
-                  ).map(btn => (
-                     <Tooltip key={btn} placement='top' title={btn}>
-                        <div
-                           style={{
-                              cursor: 'pointer', position: 'absolute',
-                              right: btn === 'See Note' ? 4 : btn === 'Open Drawing File' ? 24 : 44,
-                              top: 5, height: 17, width: 17,
-                              // backgroundImage: `url(${imgLink.btnDate})`,
-                              // backgroundSize: 17
-                           }}
-                           onMouseDown={() => onMouseDownCellButton(btn, replyCompany, rowData)}
-                        >
-                           <Icon
-                              type={btn === 'See Note' ? 'message' : btn === 'Open Drawing File' ? 'file' : 'edit'}
-                              style={{ color: 'white' }}
-                           />
-                        </div>
-                     </Tooltip>
-                  ))}
-               </>
-            )}
+         {btnShown && !rowData.treeLevel && isColumnWithReplyData(column.key) && replyCompany && (
+            <>
+               {(isEdittingAllowed
+                  ? ['Edit', 'See Note', 'Open Drawing File']
+                  : ['See Note', 'Open Drawing File']
+               ).map(btn => (
+                  <Tooltip key={btn} placement='top' title={btn}>
+                     <div
+                        style={{
+                           cursor: 'pointer', position: 'absolute',
+                           right: btn === 'See Note' ? 4 : btn === 'Open Drawing File' ? 24 : 44,
+                           top: 5, height: 17, width: 17,
+                           // backgroundImage: `url(${imgLink.btnDate})`,
+                           // backgroundSize: 17
+                        }}
+                        onMouseDown={() => onMouseDownCellButton(btn, replyCompany, rfaData)}
+                     >
+                        <Icon
+                           type={btn === 'See Note' ? 'message' : btn === 'Open Drawing File' ? 'file' : 'edit'}
+                           style={{ color: 'white' }}
+                        />
+                     </div>
+                  </Tooltip>
+               ))}
+            </>
+         )}
 
-         {(btnShown && !rowData.treeLevel &&
-            column.key === 'RFA Ref' && rowData['RFA Ref']) && (
-               <Tooltip key={'Open Drawing File'} placement='top' title={'Open Drawing File'}>
-                  <div
-                     style={{
-                        cursor: 'pointer', position: 'absolute',
-                        right: 4, top: 5, height: 17, width: 17,
-                        backgroundSize: 17,
-                        backgroundImage: `url(${imgLink.btnFileUpload})`
-                     }}
-                     onMouseDown={onClickDrawingOpenRfaCell}
-                  />
-               </Tooltip>
-            )}
+         {btnShown && !rowData.treeLevel && column.key === 'RFA Ref' && rowData['RFA Ref'] && (
+            <>
+               {(isEdittingAllowed
+                  ? ['Edit', 'Open Drawing File']
+                  : ['Open Drawing File']
+               ).map(btn => (
+                  <Tooltip key={btn} placement='top' title={btn}>
+                     <div
+                        style={{
+                           cursor: 'pointer', position: 'absolute',
+                           right: btn === 'Open Drawing File' ? 4 : 24,
+                           top: 5, height: 17, width: 17,
+                           backgroundSize: 17,
+                           backgroundImage: `url(${imgLink.btnFileUpload})`
+                        }}
+                        onMouseDown={() => onClickDrawingOpenRfaCell(btn)}
+                     />
+                  </Tooltip>
+               ))}
+            </>
+         )}
 
 
          {modalContent && (
@@ -367,55 +449,75 @@ const ModalStyledSetting = styled(Modal)`
 
 
 export const getConsultantReplyData = (rowData, header, companies) => {
+
    let replyStatus, replyCompany, replyDate;
-   if (header.includes('Consultant (') && !header.includes('Drg To Consultant (')) {
 
-      if (!companies) return {};
-      const listConsultant = companies.filter(x => x.companyType === 'Consultant');
-      if (listConsultant.length === 0) return {};
+   const consultantHeaderNumber = parseInt(header.slice(12, header.length - 1));
+   const listConsultantMustReply = getInfoValueFromRfaData(rowData, 'submission', 'consultantMustReply');
 
-      let listConsultantsReply = [];
+   if (!listConsultantMustReply || listConsultantMustReply.length === 0) return { replyStatus, replyCompany, replyDate };
+
+   const consultantLeadName = listConsultantMustReply[0];
+   if (isColumnWithReplyData(header)) {
+
+      let listConsultantsAlreadyReply = [];
       for (const key in rowData) {
          if (key.includes('reply-$$$-status')) {
             const companyConsultant = key.slice(17, key.length);
-            listConsultantsReply.push(companyConsultant);
+            listConsultantsAlreadyReply.push(companyConsultant);
          };
       };
-      listConsultantsReply = [...new Set(listConsultantsReply)];
+      listConsultantsAlreadyReply = [...new Set(listConsultantsAlreadyReply)];
 
-      const consultantHeaderNumber = parseInt(header.slice(12, header.length - 1));
-
-      let consultantLead = listConsultant.find(x => x.isLeadConsultant);
-      if (!consultantLead) {
-         consultantLead = listConsultant[0];
-      };
-      const consultantsRemaining = listConsultant.filter(x => x.company !== consultantLead.company);
+      const listConsultantMustReplyRemaining = listConsultantMustReply.filter(x => x !== consultantLeadName);
 
       if (consultantHeaderNumber === 1) {
-         if (listConsultantsReply.indexOf(consultantLead.company) !== -1) {
-            replyStatus = rowData[`reply-$$$-status-${consultantLead.company}`];
-            if (replyStatus) {
-               replyCompany = consultantLead.company;
-               const dateData = rowData[`reply-$$$-date-${consultantLead.company}`];
-               // replyDate = moment(dateData).format('DD/MM/YY');
-               replyDate = dateData;
-            };
-         };
-
+         replyStatus = rowData[`reply-$$$-status-${consultantLeadName}`];
+         replyCompany = consultantLeadName;
+         replyDate = rowData[`reply-$$$-date-${consultantLeadName}`];
       } else if (consultantHeaderNumber > 1) {
          let ConsultantIndex = 1;
-         consultantsRemaining.forEach(cmp => {
-            if (listConsultantsReply.indexOf(cmp.company) !== -1) {
+         companies.forEach(cmp => {
+            if (listConsultantMustReplyRemaining.indexOf(cmp.company) !== -1) {
                ConsultantIndex += 1;
                if (consultantHeaderNumber === ConsultantIndex) {
-                  replyStatus = rowData[`reply-$$$-status-${cmp.company}`] || '';
+                  replyStatus = rowData[`reply-$$$-status-${cmp.company}`];
                   replyCompany = cmp.company;
-                  const dateData = rowData[`reply-$$$-date-${cmp.company}`];
-                  replyDate = dateData || '';
+                  replyDate = rowData[`reply-$$$-date-${cmp.company}`];
                };
             };
          });
       };
    };
    return { replyStatus, replyCompany, replyDate };
+};
+
+export const isColumnWithReplyData = (header) => {
+   return header.includes('Consultant (') && !header.includes('Drg To Consultant (') && header !== 'Consultant';
+};
+export const isColumnConsultant = (header) => {
+   return header === 'Consultant';
+};
+
+export const getInfoValueFromRfaData = (obj, type, info, company = '') => {
+   for (const key in obj) {
+      if (key.includes(`${type}-$$$-${info}-${company}`)) {
+         return obj[key];
+      };
+   };
+};
+export const getInfoKeyFromRfaData = (obj, type, info, company = '') => {
+   for (const key in obj) {
+      if (key.includes(`${type}-$$$-${info}-${company}`)) {
+         return key;
+      };
+   };
+};
+export const getConsultantLeadName = (row) => {
+   const consultantMustReplyArray = getInfoValueFromRfaData(row, 'submission', 'consultantMustReply');
+   let consultantLead;
+   if (consultantMustReplyArray) {
+      consultantLead = consultantMustReplyArray[0];
+   };
+   return consultantLead;
 };

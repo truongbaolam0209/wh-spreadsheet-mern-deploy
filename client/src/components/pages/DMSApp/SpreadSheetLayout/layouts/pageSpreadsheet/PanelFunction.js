@@ -4,6 +4,7 @@ import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { columnLocked, rowLocked } from './Cell';
+import { getConsultantLeadName, getInfoValueFromRfaData } from './CellRFA';
 import { getCompanyNameFnc, getTradeNameFnc } from './FormDrawingTypeOrder';
 
 
@@ -15,7 +16,7 @@ const PanelFunction = (props) => {
    const { state: stateRow } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { roleTradeCompany, projectIsAppliedRfaView, companies } = stateProject.allDataOneSheet;
+   const { roleTradeCompany, projectIsAppliedRfaView } = stateProject.allDataOneSheet;
 
    const { rowsSelectedToMove, rowsSelected, drawingTypeTree, modeGroup } = stateRow;
 
@@ -27,9 +28,9 @@ const PanelFunction = (props) => {
 
    const dwgType = drawingTypeTree.find(x => x.id === rowData.id);
 
-   let company, trade;
+   let companyName, trade;
    if (rowData.treeLevel >= 1) {
-      company = getCompanyNameFnc(dwgType, drawingTypeTree);
+      companyName = getCompanyNameFnc(dwgType, drawingTypeTree);
    };
    if (rowData.treeLevel >= 2) {
       trade = getTradeNameFnc(dwgType, drawingTypeTree);
@@ -39,8 +40,8 @@ const PanelFunction = (props) => {
       roleTradeCompany.role === 'Document Controller' && roleTradeCompany.company === 'Woh Hup Private Ltd'
          ? false
          : roleTradeCompany.company === 'Woh Hup Private Ltd'
-            ? (company !== roleTradeCompany.company || trade !== roleTradeCompany.trade)
-            : company !== roleTradeCompany.company;
+            ? (companyName !== roleTradeCompany.company || trade !== roleTradeCompany.trade)
+            : companyName !== roleTradeCompany.company;
 
 
    const listButton = (rowData._rowLevel && rowData._rowLevel === 1 && !isLockedColumn && !isLockedRow) ? [
@@ -91,7 +92,6 @@ const PanelFunction = (props) => {
                   rowsSelected,
                   drawingTypeTree,
                   projectIsAppliedRfaView,
-                  companies
                )}
             >
                {btn}
@@ -118,30 +118,27 @@ const Container = styled.div`
 
 
 const disabledBtn = (
-   { panelType }, 
-   btn, 
-   rowsSelectedToMove, 
-   roleTradeCompany, 
-   isLockedByCompanyOrTrade, 
-   rowsSelected, 
-   drawingTypeTree, 
+   { panelType },
+   btn,
+   rowsSelectedToMove,
+   roleTradeCompany,
+   isLockedByCompanyOrTrade,
+   rowsSelected,
+   drawingTypeTree,
    projectIsAppliedRfaView,
-   companies
 ) => {
    const { rowData } = panelType.cellProps;
    const { _rowLevel, treeLevel, id } = rowData;
 
-   const listConsultant = companies.filter(x => x.companyType === 'Consultant');
-   let consultantLead = listConsultant.find(x => x.isLeadConsultant);
-   if (!consultantLead) {
-      consultantLead = listConsultant[0];
-   };
-   const consultantLeadName = consultantLead.company;
 
-   
+   const consultantLeadName = getConsultantLeadName(rowData);
+   let consultantLeadReply;
+   if (consultantLeadName) {
+      consultantLeadReply = getInfoValueFromRfaData(rowData, 'reply', 'status', consultantLeadName);
+   };
 
    if (
-      (projectIsAppliedRfaView && !rowData[`reply-$$$-status-${consultantLeadName}`] && btn === 'Create New Drawing Revision') ||
+      (projectIsAppliedRfaView && !consultantLeadReply && btn === 'Create New Drawing Revision') ||
       (rowsSelectedToMove.length === 0 && btn === 'Paste Drawings') ||
       (_rowLevel === 1 && roleTradeCompany.role === 'Modeller' && btnLocked_1.indexOf(btn) !== -1) ||
 
@@ -188,16 +185,16 @@ export const getPanelPosition = ({ x: clickX, y: clickY }) => {
    const top = clickY < 200;
    const bottom = (screenH - clickY) < 200;
 
-   return { 
+   return {
       x: right && top ? clickX - 250 :
          right && bottom ? clickX - 250 :
-         left && bottom ? clickX :
-         left && top ? clickX :
-         right ? clickX - 250 : clickX,
+            left && bottom ? clickX :
+               left && top ? clickX :
+                  right ? clickX - 250 : clickX,
       y: right && top ? clickY :
          right && bottom ? clickY - 300 :
-         left && bottom ? clickY - 300 :
-         left && top ? clickY :
-         bottom ? clickY - 300 : clickY
+            left && bottom ? clickY - 300 :
+               left && top ? clickY :
+                  bottom ? clickY - 300 : clickY
    };
 };

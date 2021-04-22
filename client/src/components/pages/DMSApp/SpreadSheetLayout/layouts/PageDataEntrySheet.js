@@ -233,7 +233,7 @@ const PageDataEntrySheet = (props) => {
    };
 
 
-   useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
+   // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
    // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
 
