@@ -171,7 +171,7 @@ const generateColumns = (headers, { columnWidth, columnHeaderWidth }) => headers
       const { cellData, rowData, column } = props;
       const infoCol = rowData['Info'];
       
-      if (headersConsultantWithNumber.indexOf(infoCol) !== -1 && column.key !== 'Info') {
+      if ((headersConsultantWithNumber.indexOf(infoCol) !== -1 || infoCol === 'RFA Ref') && column.key !== 'Info') {
          return (
             <CellRFA {...props} />
          );
@@ -218,7 +218,6 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
             if (rfaNumber && rfaRef) {
                const { replyStatus, replyCompany, replyDate } = getConsultantReplyData(row, hd.text, companies);
                if (replyStatus) {
-                  // console.log('44444444', row);
                   obj[i] = {...obj[i] || {}, [`reply-$$$-status-${replyCompany}`] : replyStatus };
                   obj[i] = {...obj[i] || {}, [`reply-$$$-date-${replyCompany}`] : replyDate };
                   obj[i] = {...obj[i] || {}, [`reply-$$$-drawing-${replyCompany}`] : row[`reply-$$$-drawing-${replyCompany}`] };

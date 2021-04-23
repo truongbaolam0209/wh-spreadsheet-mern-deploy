@@ -400,6 +400,22 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA, formRfaType
       });
    };
    const generateColumnsListDwgRFA = (headers, nosColumnFixed) => {
+
+      const buttonRemoveDrawing = formRfaType.includes('form-submit-') ? [
+         {
+            key: 'action',
+            dataKey: 'action',
+            title: '',
+            width: 40,
+            frozen: Column.FrozenDirection.RIGHT,
+            cellRenderer: (
+               <CellRemoveDrawing
+                  removeDrawingToAddRFA={removeDrawingToAddRFA}
+               />
+            )
+         }
+      ] : [];
+
       return [
          {
             key: 'index',
@@ -449,18 +465,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA, formRfaType
                />
             ) : null
          })),
-         {
-            key: 'action',
-            dataKey: 'action',
-            title: '',
-            width: 40,
-            frozen: Column.FrozenDirection.RIGHT,
-            cellRenderer: (
-               <CellRemoveDrawing
-                  removeDrawingToAddRFA={removeDrawingToAddRFA}
-               />
-            )
-         },
+         ...buttonRemoveDrawing,
       ];
    };
 
@@ -612,11 +617,24 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA, formRfaType
                   />
                </div>
 
-               <div>Dear Mr/Mrs <span style={{ fontWeight: 'bold' }}>{listConsultantMustReply[0] || ''}</span>,</div>
-               <div>
-                  <span style={{ fontWeight: 'bold' }}>{company}</span> has submitted <span style={{ fontWeight: 'bold' }}>{valueInputRFACreateNew}</span> for you to review, the drawings included in this RFA are in the list below.
-                  Please review and reply to us by <span style={{ fontWeight: 'bold' }}>{moment().add(14, 'days').format('MMM Do YYYY')}.</span>
-               </div>
+               {formRfaType.includes('form-submit-') ? (
+                  <>
+                     <div>Dear Mr/Mrs <span style={{ fontWeight: 'bold' }}>{listConsultantMustReply[0] || ''}</span>,</div>
+                     <div>
+                        <span style={{ fontWeight: 'bold' }}>{company}</span> has submitted <span style={{ fontWeight: 'bold' }}>{valueInputRFACreateNew}</span> for you to review, the drawings included in this RFA are in the list below.
+                        Please review and reply to us by <span style={{ fontWeight: 'bold' }}>{moment().add(14, 'days').format('MMM Do YYYY')}.</span>
+                     </div>
+                  </>
+               ) : (
+                  <>
+                     <div>Dear Mr/Mrs <span style={{ fontWeight: 'bold' }}>Woh Hup Private Ltd</span>,</div>
+                     <div>
+                        <span style={{ fontWeight: 'bold' }}>{company}</span> has replied this RFA, the drawings included in this RFA are in the list below.
+                        Please review and update as per comments.
+                     </div>
+                  </>
+               )}
+
                <br />
 
                <div style={{ display: 'flex', marginBottom: 20 }}>
@@ -899,6 +917,7 @@ const CellInputRevision = ({ setRevisionDwg, rowData, rowsThisRFAWithRev, isFirs
                   setRevisionDwg(rowData.id, e.target.value);
                };
             }}
+            disabled={isFirstSubmission}
          />
       </Tooltip>
    );

@@ -18,14 +18,16 @@ const App = () => {
 
    // console.log(localStorage);
 
-   // const consultantCompany = 'DCA';
-   const consultantCompany = 'ONG & ONG';
+   const consultantCompany = 'DCA';
+   // const consultantCompany = 'ONG & ONG';
    // const consultantCompany = 'RSP';
    // const consultantCompany = 'K2LD';
    // const consultantCompany = 'HYLA';
+   // const consultantCompany = 'GGGG';
 
 
    // localStorage.clear();
+   
    
    return (
       <BrowserRouter>
@@ -149,9 +151,9 @@ const App = () => {
 
 
 
-              
 
             </SheetContext>
+
 
             <Route path='/dashboard'>
                   <PageDashboard
@@ -175,4 +177,3 @@ const App = () => {
 
 
 export default App;
-

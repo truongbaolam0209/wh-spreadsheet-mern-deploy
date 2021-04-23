@@ -877,7 +877,9 @@ const PanelSetting = (props) => {
       const rfaRefData = rfaToSaveVersionOrToReply === '-' ? rfaToSave : (rfaToSave + rfaToSaveVersionOrToReply);
       const isFirstTimeSubmission = rfaToSaveVersionOrToReply === '-';
 
-      const dwgsToAddNewRFACloneToEdit = dwgsToAddNewRFA.map(x => ({ ...x }));
+
+      // for localStorage purpose
+      // const dwgsToAddNewRFACloneToEdit = dwgsToAddNewRFA.map(x => ({ ...x }));
 
 
       let data;
@@ -896,7 +898,7 @@ const PanelSetting = (props) => {
       let dataDWFX;
       if (filesDWFX) {
          dataDWFX = new FormData();
-         dataDWFX.append('files', filesDWFX.originFileObj);
+         dataDWFX.append('file', filesDWFX.originFileObj);
          data.append('projectId', projectId);
          data.append('projectName', projectName);
          data.append('email', email);
@@ -1068,32 +1070,44 @@ const PanelSetting = (props) => {
          //    }
          // }));
 
-
-         const resRow = await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdate });
-         // const resRowHistory = await Axios.post(`${SERVER_URL}/row/history/update-rows-history/`, { token, projectId, rowsHistory: rowsToUpdate });
+         // console.log('rowsToUpdate================>>>>>>>>', rowsToUpdate);
+         // await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdate });
+         // await Axios.post(`${SERVER_URL}/row/history/update-rows-history/`, { token, projectId, rowsHistory: rowsToUpdate });
          // console.log(resRow.data, resRowHistory.data);
-         let cellHistoriesToSave = [];
-         rowsToUpdate.forEach(row => {
-            if (row.data[`reply-$$$-status-${company}`]) {
-               cellHistoriesToSave.push({
-                  rowId: row._id, headerKey: company,
-                  history: {
-                     text: company + '__' +
-                        row.data[`reply-$$$-status-${company}`],
-                     email, createdAt: new Date()
-                  }
-               });
-            };
-            headers.forEach(hd => {
-               if (row.data[hd.key]) {
+
+         const rowsToUpdateFinalRow = rowsToUpdate.filter(r => r.data);
+         const rowsToUpdateFinalRowHistory = rowsToUpdate.filter(r => r.history);
+         console.log({ rowsToUpdateFinalRow, rowsToUpdateFinalRowHistory });
+         if (rowsToUpdateFinalRow.length > 0) {
+            await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdateFinalRow });
+            let cellHistoriesToSave = [];
+            rowsToUpdate.forEach(row => {
+               if (row.data[`reply-$$$-status-${company}`]) {
                   cellHistoriesToSave.push({
-                     rowId: row._id, headerKey: hd.key,
-                     history: { email, text: row.data[hd.key], createdAt: new Date() }
+                     rowId: row._id, headerKey: company,
+                     history: {
+                        text: company + '__' +
+                           row.data[`reply-$$$-status-${company}`],
+                        email, createdAt: new Date()
+                     }
                   });
                };
+               headers.forEach(hd => {
+                  if (row.data[hd.key]) {
+                     cellHistoriesToSave.push({
+                        rowId: row._id, headerKey: hd.key,
+                        history: { email, text: row.data[hd.key], createdAt: new Date() }
+                     });
+                  };
+               });
             });
-         });
-         await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: cellHistoriesToSave });
+            await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: cellHistoriesToSave });
+         };
+         if (rowsToUpdateFinalRowHistory.length > 0) {
+            await Axios.post(`${SERVER_URL}/row/history/update-rows-history/`, { token, projectId, rowsHistory: rowsToUpdateFinalRowHistory });
+         };
+
+
 
 
 
@@ -1129,6 +1143,7 @@ const PanelSetting = (props) => {
          const getDrawingURLFromDB = async () => {
             try {
                return await Promise.all(dwgsNewRFAClone.map(async dwg => {
+                  console.log('private link drawing...',dwg[`${type}-$$$-drawing-${company}`]);
                   const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${type}-$$$-drawing-${company}`], expire: 1000 } });
                   dwg[`${type}-$$$-drawing-${company}`] = res.data;
                   return dwg;
@@ -1141,6 +1156,7 @@ const PanelSetting = (props) => {
          const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
 
          const emailContentOutput = generateEmailInnerHTMLFrontEnd(company, type.includes('submit') ? 'submit' : 'reply', dwgsToAddNewRFAGetDrawingURL);
+         // const emailContentOutput = generateEmailInnerHTMLFrontEnd(company, type.includes('submit') ? 'submit' : 'reply', dwgsNewRFAClone);
 
          await Axios.post('/api/rfa/mail', {
             token,
@@ -1150,7 +1166,6 @@ const PanelSetting = (props) => {
             listGroup: listGroupOutput,
             projectId
          });
-
 
          await reloadDataFromServerViewRFA();
 
@@ -1705,7 +1720,7 @@ const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
       </div>
    </div>
    `;
-
+   console.log('emailOutput', emailOutput);
    return emailOutput;
 };
 

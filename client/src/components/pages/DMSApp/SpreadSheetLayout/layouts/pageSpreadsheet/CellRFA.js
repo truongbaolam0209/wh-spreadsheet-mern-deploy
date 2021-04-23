@@ -3,7 +3,7 @@ import Axios from 'axios';
 import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { colorTextRow, colorType, imgLink } from '../../constants';
+import { colorTextRow, colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { compareDates } from '../../utils';
@@ -195,7 +195,7 @@ const CellRFA = (props) => {
          } else if (btn === 'Open Drawing File') {
             const res = await Axios.get('/api/issue/get-public-url', { params: { key: rfaData[`reply-$$$-drawing-${replyCompany}`], expire: 1000 } });
             window.open(res.data);
-
+         
          } else if (btn === 'Edit') {
 
             // buttonPanelFunction('updateRFA-ICON');
@@ -218,11 +218,12 @@ const CellRFA = (props) => {
          } catch (err) {
             console.log(err);
          };
+
       } else if (btn === 'Open 3D File') {
          const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'dwfx');
-         window.open(dwgLink);
-
-
+         if (dwgLink) {
+            window.open(dwgLink);
+         };
       } else if (btn === 'Edit') {
          buttonPanelFunction('form-submit-edit-RFA');
          // getSheetRows({
@@ -351,15 +352,15 @@ const CellRFA = (props) => {
          {btnShown && !rowData.treeLevel && (isColumnWithReplyData(column.key) || column.key.includes('Version ')) && replyCompany && (
             <>
                {(isEdittingAllowed
-                  // ? ['Edit', 'See Note', 'Open Drawing File', 'Open 3D File']
-                  ? ['See Note', 'Open Drawing File', 'Open 3D File']
-                  : ['See Note', 'Open Drawing File', 'Open 3D File']
+                  // ? ['Edit', 'See Note', 'Open Drawing File']
+                  ? ['See Note', 'Open Drawing File']
+                  : ['See Note', 'Open Drawing File']
                ).map(btn => (
                   <Tooltip key={btn} placement='top' title={btn}>
                      <div
                         style={{
                            cursor: 'pointer', position: 'absolute',
-                           right: btn === 'See Note' ? 4 : btn === 'Open Drawing File' ? 24 : btn === 'Open 3D File' ? 44 : 64,
+                           right: btn === 'See Note' ? 4 : btn === 'Open Drawing File' ? 24 : 44,
                            top: 5, height: 17, width: 17,
                            // backgroundImage: `url(${imgLink.btnDate})`,
                            // backgroundSize: 17
@@ -379,11 +380,12 @@ const CellRFA = (props) => {
          {btnShown && !rowData.treeLevel && column.key === 'RFA Ref' && rowData['RFA Ref'] && (
             <>
                {(isEdittingAllowed
-                  ? ['Edit', 'Open Drawing File']
-                  : ['Open Drawing File']
+                  // ? ['Edit', 'Open Drawing File', 'Open 3D File']
+                  ? ['Open Drawing File', 'Open 3D File']
+                  : ['Open Drawing File', 'Open 3D File']
                ).map(btn => (
                   <Tooltip key={btn} placement='top' title={btn}>
-                     <div
+                     {/* <div
                         style={{
                            cursor: 'pointer', position: 'absolute',
                            right: btn === 'Open Drawing File' ? 4 : 24,
@@ -392,7 +394,20 @@ const CellRFA = (props) => {
                            backgroundImage: `url(${imgLink.btnFileUpload})`
                         }}
                         onMouseDown={() => onClickDrawingOpenRfaCell(btn)}
-                     />
+                     /> */}
+                     <div
+                        style={{
+                           cursor: 'pointer', position: 'absolute',
+                           right: btn === 'See Note' ? 4 : btn === 'Open Drawing File' ? 24 : btn === 'Open 3D File' ? 44 : 64,
+                           top: 5, height: 17, width: 17,
+                        }}
+                        onMouseDown={() => onClickDrawingOpenRfaCell(btn)}
+                     >
+                        <Icon
+                           type={btn === 'Open Drawing File' ? 'file' : btn === 'Open 3D File' ? 'shake' : 'edit'}
+                           style={{ color: 'black' }}
+                        />
+                     </div>
                   </Tooltip>
                ))}
             </>
