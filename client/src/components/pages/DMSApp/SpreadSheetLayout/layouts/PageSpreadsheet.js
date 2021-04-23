@@ -4,7 +4,7 @@ import React, { forwardRef, useContext, useEffect, useRef, useState } from 'reac
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import 'react-base-table/styles.css';
 import styled from 'styled-components';
-import { colorType, SERVER_URL } from '../constants';
+import { colorTextRow, colorType, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
@@ -660,13 +660,7 @@ const PageSpreadsheet = (props) => {
 
       let AdditionalHeadersForProjectRFA = [];
       if (projectIsAppliedRfaView && !stateRow.isRfaView) {
-         AdditionalHeadersForProjectRFA = [
-            // 'Consultant (1)',
-            // 'Consultant (2)',
-            // 'Consultant (3)',
-            // 'Consultant (4)',
-            // 'Consultant (5)',
-         ];
+         AdditionalHeadersForProjectRFA = [...headersConsultantWithNumber];
       };
       let headerArrayForTable = [...arr, ...AdditionalHeadersForProjectRFA];
       headerArrayForTable = headerArrayForTable.filter(hd => hd !== 'Drawing');
@@ -759,26 +753,29 @@ const PageSpreadsheet = (props) => {
    const buttonRibbonMode = ((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && !stateRow.isRfaView));
 
    const loadEmail = async () => {
-      // try {
-      //    const res = await Axios.get(`${SERVER_URL}/sheet/get-rows-email/`, { params: { 
-      //       token, 
-      //       projectId, 
-      //       company: 'RSP', 
-      //       type: 'reply',
-      //       // company: 'Woh Hup Private Ltd', 
-      //       // type: 'submit',
-      //       rowIds: JSON.stringify([
-      //       '60413b2dc3fd65166d5bef48',
-      //       '60413b2df47b193638af4cac',
-      //       '60413b2d9fe00c39a61360c8',
-      //    ]) } });
+      try {
+         const res = await Axios.get(`${SERVER_URL}/sheet/get-rows-email/`, {
+            params: {
+               token,
+               projectId,
+               company: 'RSP',
+               type: 'reply',
+               // company: 'Woh Hup Private Ltd', 
+               // type: 'submit',
+               rowIds: JSON.stringify([
+                  '60413b2dc3fd65166d5bef48',
+                  '60413b2df47b193638af4cac',
+                  '60413b2d9fe00c39a61360c8',
+               ])
+            }
+         });
 
-      //    const result = res.data;
-      //    console.log(result);
+         const result = res.data;
+         console.log(result);
 
-      // } catch (err) {
-      //    console.log(err);
-      // };
+      } catch (err) {
+         console.log(err);
+      };
    };
 
 
@@ -835,7 +832,7 @@ const PageSpreadsheet = (props) => {
             {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && role !== 'Consultant' && (
                <IconTable type='plus-square' onClick={() => buttonPanelFunction('form-submit-RFA')} />
             )}
-            
+
             {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && role === 'Consultant' && (
                <IconTable type='block' onClick={switchRFAHeader} />
             )}
@@ -847,7 +844,7 @@ const PageSpreadsheet = (props) => {
                <IconTable type='dms-button' onClick={() => buttonPanelFunction('goToViewDMS-ICON')} />
             )}
 
-            <Icon type='edit' onClick={loadEmail}/>
+            {/* <Icon type='edit' onClick={loadEmail} /> */}
             <DividerRibbon />
 
             {stateRow && projectIsAppliedRfaView && stateRow.rfaStatistics && (
@@ -870,11 +867,36 @@ const PageSpreadsheet = (props) => {
                   <ButtonAdminDeleteRowsHistory />
                   <ButtonAdminCreateAndUpdateRowsHistory />
                   <ButtonAdminUpdateProjectSettings /> */}
-                  
+
                </div>
             )}
 
-            <div style={{ position: 'absolute', top: 3, right: 30, fontSize: 25, color: colorType.primary }}>{projectName}</div>
+
+            <div style={{ position: 'absolute', display: 'flex', top: 3, right: 30 }}>
+               <div style={{ display: 'flex', marginRight: 25, transform: 'translate(0, 2px)' }}>
+                  <div style={{ marginRight: 10 }}>
+                     <div style={{ display: 'flex' }}>
+                        <div style={{ width: 10, height: 10, background: colorTextRow['Approved with Comment, no submission Required'], transform: 'translate(0, 4px)', marginRight: 5 }} />
+                        <div style={{ fontSize: 11 }}>Approved with Comment, no submission Required</div>
+                     </div>
+                     <div style={{ display: 'flex' }}>
+                        <div style={{ width: 10, height: 10, background: colorTextRow['Approved with comments, to Resubmit'], transform: 'translate(0, 4px)', marginRight: 5 }} />
+                        <div style={{ fontSize: 11 }}>Approved with comments, to Resubmit</div>
+                     </div>
+                  </div>
+                  <div>
+                     <div style={{ display: 'flex' }}>
+                        <div style={{ width: 10, height: 10, background: colorTextRow['Approved for Construction'], transform: 'translate(0, 4px)', marginRight: 5 }} />
+                        <div style={{ fontSize: 11 }}>Approved for Construction</div>
+                     </div>
+                     <div style={{ display: 'flex' }}>
+                        <div style={{ width: 10, height: 10, background: colorTextRow['Reject and resubmit'], transform: 'translate(0, 4px)', marginRight: 5 }} />
+                        <div style={{ fontSize: 11 }}>Reject and resubmit</div>
+                     </div>
+                  </div>
+               </div>
+               <div style={{ fontSize: 25, color: colorType.primary }}>{projectName}</div>
+            </div>
          </ButtonBox>
 
 
@@ -1225,7 +1247,7 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role) => {
    if (isRfaView) {
       // RFA VIEW .......................................
 
-      
+
       let rowsAllFinalRFA = [...rowsRfaAll];
       if (modeFilter.length > 0) {
          let filterObj = {};

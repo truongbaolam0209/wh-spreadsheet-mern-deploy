@@ -141,6 +141,7 @@ const CellRFA = (props) => {
                setReplyStatus(dataStatus);
                setReplyCompany(companyName);
                setReplyDate(dataDate);
+               setRfaData(rowData[versionIndex]);
             };
          };
       };
@@ -183,8 +184,13 @@ const CellRFA = (props) => {
    const onMouseDownCellButton = async (btn, replyCompany, rfaData) => {
       try {
          if (btn === 'See Note') {
-            const commentText = rfaData[`reply-$$$-comment-${replyCompany}`] || ' ';
-            setModalContent(commentText);
+            setModalContent(
+               <div>
+                  <div style={{ fontWeight: 'bold' }}>{rfaData[`reply-$$$-user-${replyCompany}`] || ''}</div>
+                  <div style={{ fontWeight: 'bold' }}>{rfaData[`reply-$$$-status-${replyCompany}`] || ''}</div>
+                  <div>{rfaData[`reply-$$$-comment-${replyCompany}`] || ''}</div>
+               </div>
+            );
 
          } else if (btn === 'Open Drawing File') {
             const res = await Axios.get('/api/issue/get-public-url', { params: { key: rfaData[`reply-$$$-drawing-${replyCompany}`], expire: 1000 } });
@@ -212,6 +218,11 @@ const CellRFA = (props) => {
          } catch (err) {
             console.log(err);
          };
+      } else if (btn === 'Open 3D File') {
+         const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'dwfx');
+         window.open(dwgLink);
+
+
       } else if (btn === 'Edit') {
          buttonPanelFunction('form-submit-edit-RFA');
          // getSheetRows({
@@ -226,7 +237,9 @@ const CellRFA = (props) => {
 
    const onMouseDown = (e) => {
       if (e.button === 2) { // check mouse RIGHT CLICK ...
-         // onRightClickCell(e, props);
+         if (!column.key.includes('Version ') && column.key !== 'Info') {
+            onRightClickCell(e, props);
+         };
       };
    };
 
@@ -335,17 +348,18 @@ const CellRFA = (props) => {
                : ''}
 
 
-         {btnShown && !rowData.treeLevel && isColumnWithReplyData(column.key) && replyCompany && (
+         {btnShown && !rowData.treeLevel && (isColumnWithReplyData(column.key) || column.key.includes('Version ')) && replyCompany && (
             <>
                {(isEdittingAllowed
-                  ? ['Edit', 'See Note', 'Open Drawing File']
-                  : ['See Note', 'Open Drawing File']
+                  // ? ['Edit', 'See Note', 'Open Drawing File', 'Open 3D File']
+                  ? ['See Note', 'Open Drawing File', 'Open 3D File']
+                  : ['See Note', 'Open Drawing File', 'Open 3D File']
                ).map(btn => (
                   <Tooltip key={btn} placement='top' title={btn}>
                      <div
                         style={{
                            cursor: 'pointer', position: 'absolute',
-                           right: btn === 'See Note' ? 4 : btn === 'Open Drawing File' ? 24 : 44,
+                           right: btn === 'See Note' ? 4 : btn === 'Open Drawing File' ? 24 : btn === 'Open 3D File' ? 44 : 64,
                            top: 5, height: 17, width: 17,
                            // backgroundImage: `url(${imgLink.btnDate})`,
                            // backgroundSize: 17
@@ -353,7 +367,7 @@ const CellRFA = (props) => {
                         onMouseDown={() => onMouseDownCellButton(btn, replyCompany, rfaData)}
                      >
                         <Icon
-                           type={btn === 'See Note' ? 'message' : btn === 'Open Drawing File' ? 'file' : 'edit'}
+                           type={btn === 'See Note' ? 'message' : btn === 'Open Drawing File' ? 'file' : btn === 'Open 3D File' ? 'shake' : 'edit'}
                            style={{ color: 'white' }}
                         />
                      </div>

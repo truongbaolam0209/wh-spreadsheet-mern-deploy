@@ -5,7 +5,7 @@ import { SERVER_URL } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { compareDates, convertCellTempToHistory, convertDrawingVersionToHistory, debounceFnc, extractCellInfo, genId, mongoObjectId } from '../../utils';
+import { compareDates, convertCellTempToHistory, convertDrawingVersionToHistory, debounceFnc, extractCellInfo, genId, mongoObjectId, validateEmailInput } from '../../utils';
 import FormFilter from '../generalComponents/FormFilter';
 import FormGroup from '../generalComponents/FormGroup';
 import FormSort from '../generalComponents/FormSort';
@@ -14,7 +14,7 @@ import PanelConfirmResetMode from '../generalComponents/PanelConfirmResetMode';
 import PanelPickNumber from '../generalComponents/PanelPickNumber';
 import ReorderColumnForm from '../generalComponents/ReorderColumnForm';
 import { getOutputRowsAllSorted, headersRfaView, headersRfaViewOneConsultant } from '../PageSpreadsheet';
-import { getConsultantLeadName, getInfoValueFromRfaData } from './CellRFA';
+import { getConsultantLeadName, getInfoKeyFromRfaData, getInfoValueFromRfaData } from './CellRFA';
 import ColorizedForm from './ColorizedForm';
 import FormCellColorizedCheck from './FormCellColorizedCheck';
 import FormDateAutomation from './FormDateAutomation';
@@ -869,7 +869,7 @@ const PanelSetting = (props) => {
       } = dataDwg;
 
       const { rowsRfaAllInit } = stateRow;
-      const { email, projectId, token, publicSettings, roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
+      const { email, projectId, projectName, token, publicSettings, roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
       const { headers } = publicSettings;
 
       const consultantLeadName = listConsultantMustReply[0];
@@ -897,6 +897,10 @@ const PanelSetting = (props) => {
       if (filesDWFX) {
          dataDWFX = new FormData();
          dataDWFX.append('files', filesDWFX.originFileObj);
+         data.append('projectId', projectId);
+         data.append('projectName', projectName);
+         data.append('email', email);
+         data.append('rfaName', rfaRefData);
       };
 
       try {
@@ -912,10 +916,11 @@ const PanelSetting = (props) => {
                fileLink: link
             }));
          };
+
          let linkDWFX;
          if (dataDWFX && dataDWFX !== null) {
-            const res = await Axios.post('https://test.bql-app.com/api/items/add-rfa-item', dataDWFX);
-            linkDWFX = window.location.origin + '/' + res.data;
+            const res = await Axios.post('/api/items/add-rfa-item', dataDWFX);
+            linkDWFX = window.location.origin + '/rfa/' + res.data;
          };
 
 
@@ -963,6 +968,15 @@ const PanelSetting = (props) => {
                r['Status'] = 'Consultant reviewing';
                r['Drg To Consultant (A)'] = moment(new Date()).format('DD/MM/YY');
                r['Consultant Reply (T)'] = moment().add(14, 'days').format('DD/MM/YY');
+               r[`submission-$$$-emailTo-${company}`] = recipient.to;
+               r[`submission-$$$-emailCc-${company}`] = recipient.cc;
+               r[`submission-$$$-emailTitle-${company}`] = emailTextTitle;
+               r[`submission-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
+               r[`submission-$$$-consultantMustReply-${company}`] = listConsultantMustReply;
+               r[`submission-$$$-requestedBy-${company}`] = requestedBy;
+               r[`submission-$$$-trade-${company}`] = trade;
+               r[`submission-$$$-user-${company}`] = email;
+
 
 
                headers.forEach(hd => {
@@ -972,10 +986,16 @@ const PanelSetting = (props) => {
                });
 
                rowOutput.data.rfaNumber = r['rfaNumber'];
-               
+
+
                const fileFound = arrayFileName.find(fl => fl.fileName === r[`submission-$$$-drawing-${company}`]);
                if (fileFound) {
                   rowOutput.data[`submission-$$$-drawing-${company}`] = fileFound.fileLink;
+                  r[`submission-$$$-drawing-${company}`] = fileFound.fileLink;
+               };
+               if (linkDWFX) {
+                  rowOutput.data[`submission-$$$-dwfx-${company}`] = linkDWFX;
+                  r[`submission-$$$-dwfx-${company}`] = linkDWFX;
                };
 
                rowOutput.data[`submission-$$$-emailTo-${company}`] = recipient.to;
@@ -986,10 +1006,8 @@ const PanelSetting = (props) => {
                rowOutput.data[`submission-$$$-requestedBy-${company}`] = requestedBy;
                rowOutput.data[`submission-$$$-trade-${company}`] = trade;
                rowOutput.data[`submission-$$$-user-${company}`] = email;
-               if (linkDWFX) {
-                  rowOutput.data[`submission-$$$-dwfx-${company}`] = linkDWFX;
-               };
-               
+
+
             } else if (type === 'form-reply-RFA') {
 
                const saveToRowOrRowHistory = r.row ? 'history' : 'data';
@@ -1009,6 +1027,7 @@ const PanelSetting = (props) => {
                const fileFound = arrayFileName.find(fl => fl.fileName === r[`reply-$$$-drawing-${company}`]);
                if (fileFound) {
                   rowOutput[saveToRowOrRowHistory][`reply-$$$-drawing-${company}`] = fileFound.fileLink;
+                  r[`reply-$$$-drawing-${company}`] = fileFound.fileLink;
                };
                if (r[`reply-$$$-comment-${company}`]) {
                   rowOutput[saveToRowOrRowHistory][`reply-$$$-comment-${company}`] = r[`reply-$$$-comment-${company}`];
@@ -1021,7 +1040,14 @@ const PanelSetting = (props) => {
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailCc-${company}`] = recipient.cc;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailTitle-${company}`] = emailTextTitle;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
-               
+
+               r[`reply-$$$-date-${company}`] = moment(new Date()).format('DD/MM/YY');
+               r[`reply-$$$-user-${company}`] = email;
+               r[`reply-$$$-emailTo-${company}`] = recipient.to;
+               r[`reply-$$$-emailCc-${company}`] = recipient.cc;
+               r[`reply-$$$-emailTitle-${company}`] = emailTextTitle;
+               r[`reply-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
+
             };
             rowsToUpdate.push(rowOutput);
          });
@@ -1043,18 +1069,17 @@ const PanelSetting = (props) => {
          // }));
 
 
-         await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdate });
-
+         const resRow = await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdate });
+         // const resRowHistory = await Axios.post(`${SERVER_URL}/row/history/update-rows-history/`, { token, projectId, rowsHistory: rowsToUpdate });
+         // console.log(resRow.data, resRowHistory.data);
          let cellHistoriesToSave = [];
          rowsToUpdate.forEach(row => {
-
             if (row.data[`reply-$$$-status-${company}`]) {
                cellHistoriesToSave.push({
                   rowId: row._id, headerKey: company,
                   history: {
                      text: company + '__' +
-                        row.data[`reply-$$$-status-${company}`] + '__' +
-                        moment(row.data[`reply-$$$-date-${company}`]).format('DD/MM/YY'),
+                        row.data[`reply-$$$-status-${company}`],
                      email, createdAt: new Date()
                   }
                });
@@ -1070,70 +1095,63 @@ const PanelSetting = (props) => {
          });
          await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: cellHistoriesToSave });
 
-         const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row.id);
-         
 
-         await Axios.post(`${SERVER_URL}/function-email-set`, { 
-            token, 
-            projectId, 
-            company, 
-            type: type.includes('submit') ? 'submit' : 'reply',
-            rowIds: rowIdsArrayToTriggerLater,
-            momentToTriggerEmail: moment().add(moment.duration(15, 'minutes'))
-         });
 
-         
-         // let listUserOutput = {};
-         // let listGroupOutput = {};
-
-         // Object.keys(recipient).forEach(key => {
-         //    recipient[key].forEach(item => {
-         //       if (listUser.indexOf(item) !== -1) {
-         //          listUserOutput[key] = [...listUserOutput[key] || [], item];
-         //       } else if (listGroup.indexOf(item) !== -1) {
-         //          listGroupOutput[key] = [...listGroupOutput[key] || [], item];
-         //       } else if (validateEmailInput(item)) {
-         //          listUserOutput[key] = [...listUserOutput[key] || [], item];
-         //       };
-         //    });
+         // const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row.id);
+         // await Axios.post(`${SERVER_URL}/function-email-set`, {
+         //    token,
+         //    projectId,
+         //    company,
+         //    type: type.includes('submit') ? 'submit' : 'reply',
+         //    rowIds: rowIdsArrayToTriggerLater,
+         //    momentToTriggerEmail: moment().add(moment.duration(15, 'minutes'))
          // });
 
 
-         // const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
+         let listUserOutput = {};
+         let listGroupOutput = {};
 
-         // const getDrawingURLFromDB = async () => {
-         //    try {
-         //       return await Promise.all(dwgsNewRFAClone.map(async dwg => {
-         //          const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${type}-$$$-drawing-${company}`], expire: 1000 } });
-         //          dwg[`${type}-$$$-drawing-${company}`] = res.data;
-         //          return dwg;
-         //       }));
-         //    } catch (err) {
-         //       console.log(err);
-         //    };
-         // };
+         Object.keys(recipient).forEach(key => {
+            recipient[key].forEach(item => {
+               if (listUser.indexOf(item) !== -1) {
+                  listUserOutput[key] = [...listUserOutput[key] || [], item];
+               } else if (listGroup.indexOf(item) !== -1) {
+                  listGroupOutput[key] = [...listGroupOutput[key] || [], item];
+               } else if (validateEmailInput(item)) {
+                  listUserOutput[key] = [...listUserOutput[key] || [], item];
+               };
+            });
+         });
 
-         // const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
 
-         // const contentText = type === 'reply' ? `
-         //    <div>
-         //       <span>${emailTextAdditionalNotes}</span>
-         //    </div>
-         // ` : type === 'submission' ? `
-         //    <div>
-         //       <span>${emailTextAdditionalNotes}</span>
-         //       <span>
-         //          Please respond to this RFA by ${moment().add(14, 'days').format('DD/MM/YY')}, you can click to download
-         //       </span>
-         //    </div>
-         // ` : '';
-         // const contentTable = generateEmailInnerHTML(company, type, dwgsToAddNewRFAGetDrawingURL);
+         const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
+         // console.log('dwgsNewRFAClone', dwgsNewRFAClone);
+         const getDrawingURLFromDB = async () => {
+            try {
+               return await Promise.all(dwgsNewRFAClone.map(async dwg => {
+                  const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${type}-$$$-drawing-${company}`], expire: 1000 } });
+                  dwg[`${type}-$$$-drawing-${company}`] = res.data;
+                  return dwg;
+               }));
+            } catch (err) {
+               console.log(err);
+            };
+         };
 
-         // const contentTable = generateEmailInnerHTML(company, type, dwgsNewRFAClone);
-         // console.log('contentTable', contentText + contentTable);
-         // await Axios.post(`/api/issue/rfa-mail`, { token, title: emailTitle: emailTextTitle, content: contentText + contentTable, listUser: listUserOutput, listGroup: listGroupOutput, projectId });
+         const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
 
-         
+         const emailContentOutput = generateEmailInnerHTMLFrontEnd(company, type.includes('submit') ? 'submit' : 'reply', dwgsToAddNewRFAGetDrawingURL);
+
+         await Axios.post('/api/rfa/mail', {
+            token,
+            title: `${projectName} - ${rfaRefData} - ${emailTextTitle}`,
+            content: emailContentOutput,
+            listUser: listUserOutput,
+            listGroup: listGroupOutput,
+            projectId
+         });
+
+
          await reloadDataFromServerViewRFA();
 
       } catch (err) {
@@ -1478,7 +1496,6 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, com
       const allRfaCode = [...new Set(rowsUnderThisTrade.map(x => x['rfaNumber']))];
 
 
-
       const rfaParentNodeArray = [];
       allRfaCode.forEach(rfaNumb => {
          let allDwgs = [...rowsUnderThisTrade, ...rowsHistoryWithRFA].filter(dwg => dwg['rfaNumber'] === rfaNumb);
@@ -1504,7 +1521,7 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, com
             if (oneRowInRFA) {
                for (const key in oneRowInRFA) {
                   if (
-                     (key.includes('submission-$$$-') || key.includes('reply-$$$-')) && 
+                     (key.includes('submission-$$$-') || key.includes('reply-$$$-')) &&
                      !key.includes('submission-$$$-drawing') &&
                      !key.includes('reply-$$$-drawing-') &&
                      !key.includes('reply-$$$-comment-') &&
@@ -1515,9 +1532,8 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, com
                };
                objRfaOutput[rfaRef] = obj;
 
-
                const consultantLeadName = getConsultantLeadName(oneRowInRFA);
-               
+
 
                let replyStatusValue;
                if (role === 'Consultant') {
@@ -1578,31 +1594,56 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, com
 
 
 
-const generateEmailInnerHTML = (company, emailType, rowsData) => {
+const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
    const headersArray = [
+      '',
       'Drawing Number',
       'Drawing Name',
-      'RFA Ref',
-      'Drg To Consultant (A)',
-      'Consultant Reply (T)',
+      // 'RFA Ref',
+      // 'Drg To Consultant (A)',
+      // 'Consultant Reply (T)',
       'Rev',
       'Status',
-      'File'
+      // 'File'
    ];
+   const typeInput = emailType === 'submit' ? 'submission' : emailType === 'reply' ? 'reply' : '';
+   let emailTitle = '';
+   let emailAdditionalNotes = '';
+   let rfaRefText = '';
+   let consultantMustReply = [];
+   let contractorName = '';
 
+   const rowContainsRfaData = rowsData.find(row => row[getInfoKeyFromRfaData(row, 'submission', 'consultantMustReply')]);
+   if (rowContainsRfaData) {
+      emailTitle = rowContainsRfaData[`${typeInput}-$$$-emailTitle-${company}`];
+      emailAdditionalNotes = rowContainsRfaData[`${typeInput}-$$$-emailAdditionalNotes-${company}`];
+      rfaRefText = rowContainsRfaData['RFA Ref'];
+      consultantMustReply = rowContainsRfaData[`submission-$$$-consultantMustReply-${company}`];
+
+
+      const keyConsultantMustReply = getInfoKeyFromRfaData(rowContainsRfaData, 'submission', 'consultantMustReply');
+      contractorName = keyConsultantMustReply.slice(35, keyConsultantMustReply.length);
+   };
 
    const th_td_style = `style='border: 1px solid #dddddd; text-align: left; padding: 8px; position: relative;'`;
 
    let tableBody = '';
    rowsData.forEach((rowData, i) => {
-      let str = '';
-      headersArray.forEach(headerText => {
-         if (headerText === 'File') {
-            const btnHTMLContent = `<a href='${rowData[`${emailType}-$$$-drawing-${company}`]}'>download</a>`;
-            str += `<td ${th_td_style}>${btnHTMLContent}</td>`;
-         } else {
+      let str = `<td ${th_td_style}>${i + 1}</td>`;
+      headersArray.forEach((headerText, i) => {
+         if (i !== 0) {
             if (headerText === 'Status' && emailType === 'reply') {
                str += `<td ${th_td_style}>${rowData[`reply-$$$-status-${company}`]}</td>`;
+            } else if (headerText === 'Status' && emailType === 'submit') {
+               str += `<td ${th_td_style}>Consultant reviewing</td>`;
+            } else if (headerText === 'Drawing Number') {
+               str += `
+                  <td ${th_td_style}>
+                     <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]}'>
+                        ${rowData[headerText]}
+                     </a>
+                  </td>
+               `;
             } else {
                str += `<td ${th_td_style}>${rowData[headerText]}</td>`;
             };
@@ -1619,10 +1660,55 @@ const generateEmailInnerHTML = (company, emailType, rowsData) => {
    tableHeader = `<tr style='background: #34495e; color: white;'>${tableHeader}</tr>`;
 
 
-   return tableHeader + tableBody;
+   const emailOutput = `
+   <div style='line-height: 1.6; font-family: Arial, Helvetica, sans-serif;'>
+      <div>Subject: <span style='font-weight: bold;'>${emailTitle}</span></div>
+      <div>RFA Ref: <span style='font-weight: bold;'>${rfaRefText}</span></div>
+      ${emailType === 'submit'
+         ? `
+         <div>Submission Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
+         <br />
+         <div>Dear Mr/Mrs <span style='font-weight: bold;'>${consultantMustReply[0] || ''}</span>,</div>
+         <div>
+            <span style='font-weight: bold;'>${company}</span> has submitted <span
+               style='font-weight: bold;'>${rfaRefText}</span> for you to review, the
+            drawings included in this RFA
+            are in the list below.
+         </div>
+         <div>Please review and reply to us by <span style='font-weight: bold;'>${moment().add(14, 'days').format('MMM Do YYYY')}</span></div>
+      ` : `
+         <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
+         <br />
+         <div>Dear Mr/Mrs <span style='font-weight: bold;'>${contractorName}</span>,</div>
+         <div>
+            <span style='font-weight: bold;'>${company}</span> has reply <span
+               style='font-weight: bold;'>${rfaRefText}</span>, the
+            replied drawings included in this RFA
+            are in the list below.
+         </div>
+      `}
+      
+      <div>${emailAdditionalNotes}</div>
+      <br />
+      <div>Uploaded Documents</div>
+      <table align='center' cellpadding='0' cellspacing='0' width='100%' style='border-collapse: collapse; font-size: 14px;'>
+         ${tableHeader}
+         ${tableBody}
+      </table>
+      <br />
+      <div>This is an automatic email from <span style='font-weight: bold;'>${company}</span></div>
+      <br />
+      <div style='font-size: 13px;'>This email, including attached files, may contain confidential information and is
+         intended only for the use of the individual and/or entity to which it is addressed. If you are not the
+         intended
+         recipient, disclosure, copying, use, or distribution of the information included in this email is prohibited
+      </div>
+   </div>
+   `;
+
+   return emailOutput;
 };
 
 
 
-
-
+// console.log(generateEmailInnerHTMLFrontEnd('ONG & ONG', 'reply', test2));

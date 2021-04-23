@@ -108,8 +108,8 @@ const TableDrawingDetail = (props) => {
 
 
    const panelHeight = window.innerHeight * 0.8;
-   const columnWidth = 120;
-   const columnHeaderWidth = 190;
+   const columnWidth = 150;
+   const columnHeaderWidth = 210;
 
    return (
       <div style={{
@@ -180,7 +180,8 @@ const generateColumns = (headers, { columnWidth, columnHeaderWidth }) => headers
             <div style={{
                textOverflow: 'ellipsis',
                overflow: 'hidden',
-               whiteSpace: 'nowrap'
+               whiteSpace: 'nowrap',
+               padding: 10
             }}>{cellData}</div>
          );
       };
@@ -217,8 +218,12 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
             if (rfaNumber && rfaRef) {
                const { replyStatus, replyCompany, replyDate } = getConsultantReplyData(row, hd.text, companies);
                if (replyStatus) {
+                  // console.log('44444444', row);
                   obj[i] = {...obj[i] || {}, [`reply-$$$-status-${replyCompany}`] : replyStatus };
                   obj[i] = {...obj[i] || {}, [`reply-$$$-date-${replyCompany}`] : replyDate };
+                  obj[i] = {...obj[i] || {}, [`reply-$$$-drawing-${replyCompany}`] : row[`reply-$$$-drawing-${replyCompany}`] };
+                  obj[i] = {...obj[i] || {}, [`reply-$$$-comment-${replyCompany}`] : row[`reply-$$$-comment-${replyCompany}`] };
+                  obj[i] = {...obj[i] || {}, [`reply-$$$-user-${replyCompany}`] : row[`reply-$$$-user-${replyCompany}`] };
                };
             };
          } else {

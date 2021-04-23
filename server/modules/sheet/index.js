@@ -433,7 +433,7 @@ module.exports = {
    deleteAllDataInCollection,
    findMany,
    getAllCollections,
-
+   findManyRowsToSendEmail,
 
    saveAllDataSettingsToServer,
    saveAllDataRowsToServer,

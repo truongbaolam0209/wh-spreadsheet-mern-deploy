@@ -28,13 +28,11 @@ const TableCellHistory = (props) => {
    if (headerFound) {
       headerKey = headerFound.key;
    } else if (isColumnWithReplyData(column.key)) {
-
-      
       const { replyCompany } = getConsultantReplyData(rowData, column.key, companies);
       headerKey = replyCompany;
    };
 
-   
+
    useEffect(() => {
       const fetchCellHistory = async () => {
          try {

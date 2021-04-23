@@ -314,7 +314,7 @@ export const getHeaderWidth = (header) => {
 
    else if (header === 'Rev') return 60;
    else if (header === 'Status') return 280;
-   else if (header === 'Remark') return 700;
+   else if (header === 'Remark') return 400;
    else if (header === 'Drawing Number') return 400;
    else if (header === 'Drawing Name') return 450;
 

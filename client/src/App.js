@@ -19,8 +19,8 @@ const App = () => {
    // console.log(localStorage);
 
    // const consultantCompany = 'DCA';
-   // const consultantCompany = 'ONG & ONG';
-   const consultantCompany = 'RSP';
+   const consultantCompany = 'ONG & ONG';
+   // const consultantCompany = 'RSP';
    // const consultantCompany = 'K2LD';
    // const consultantCompany = 'HYLA';
 
@@ -69,7 +69,7 @@ const App = () => {
                      projectIsAppliedRfaView={true}
                      // projectIsAppliedRfaView={false}
                      
-                     projectName='PDD'
+                     projectName='Punggol Digital District'
                      token='xxx-xxxxx-xxx-x-xxxxx'
                      isAdmin={true}
                      // role='WH C&S Design Engineer'
@@ -147,7 +147,12 @@ const App = () => {
                   />
                </Route>
 
+
+
+              
+
             </SheetContext>
+
             <Route path='/dashboard'>
                   <PageDashboard
                      projectsArray={[
@@ -163,7 +168,6 @@ const App = () => {
                   />
                </Route>
 
-
          </Switch>
       </BrowserRouter>
    );
@@ -171,5 +175,4 @@ const App = () => {
 
 
 export default App;
-
 
