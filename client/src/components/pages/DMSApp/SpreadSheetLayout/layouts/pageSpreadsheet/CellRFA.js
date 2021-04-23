@@ -127,7 +127,7 @@ const CellRFA = (props) => {
    }, [activeBtn]);
 
 
-
+   const [dataButtonRFA, setDataButtonRFA] = useState(null);
    useEffect(() => {
       if (column.key.includes('Version ')) {
          const versionIndex = column.key.slice(8, column.key.length);
@@ -143,6 +143,8 @@ const CellRFA = (props) => {
                setReplyDate(dataDate);
                setRfaData(rowData[versionIndex]);
             };
+         } else if (infoData === 'RFA Ref') {
+            setDataButtonRFA(rowData[versionIndex]);
          };
       };
    }, []);
@@ -181,7 +183,7 @@ const CellRFA = (props) => {
 
 
 
-   const onMouseDownCellButton = async (btn, replyCompany, rfaData) => {
+   const onMouseDownCellButton = async (btn, replyCompany, rfaData, isClickOnRFACell) => {
       try {
          if (btn === 'See Note') {
             setModalContent(
@@ -193,17 +195,27 @@ const CellRFA = (props) => {
             );
 
          } else if (btn === 'Open Drawing File') {
-            const res = await Axios.get('/api/issue/get-public-url', { params: { key: rfaData[`reply-$$$-drawing-${replyCompany}`], expire: 1000 } });
-            window.open(res.data);
-         
-         } else if (btn === 'Edit') {
+            if (isClickOnRFACell) {
+               const res = await Axios.get('/api/issue/get-public-url', { params: { key: dataButtonRFA[`submission-$$$-drawing-${replyCompany}`], expire: 1000 } });
+               window.open(res.data);
+            } else {
+               const res = await Axios.get('/api/issue/get-public-url', { params: { key: rfaData[`reply-$$$-drawing-${replyCompany}`], expire: 1000 } });
+               window.open(res.data);
+            };
 
+
+         } else if (btn === 'Open 3D File') {
+            const dwgLink = getInfoValueFromRfaData(dataButtonRFA, 'submission', 'dwfx');
+            if (dwgLink) {
+               window.open(dwgLink);
+            };
+
+         } else if (btn === 'Edit') {
             // buttonPanelFunction('updateRFA-ICON');
             // getSheetRows({
             //    ...stateRow,
             //    currentRfaToAddNewOrReplyOrEdit: rowData['RFA Ref'],
             // });
-
          };
       } catch (err) {
          console.log(err);
@@ -325,7 +337,11 @@ const CellRFA = (props) => {
                </div>
             ) : (!rowData.treeLevel && column.key.includes('Version ') && replyStatus) ? (
                <div>
-                  <span style={{ fontWeight: 'bold' }}>{replyCompany}</span>
+                  <span style={{ float: 'left', paddingLeft: 3, fontWeight: 'bold' }}>{replyCompany}</span>
+               </div>
+            ) : (!rowData.treeLevel && column.key.includes('Version ') && dataButtonRFA) ? (
+               <div>
+                  <span style={{ float: 'left', paddingLeft: 3, fontWeight: 'bold' }}>{dataButtonRFA.rfaRef}</span>
                </div>
 
             ) : (!rowData.treeLevel && (isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) && !replyStatus && rowData['RFA Ref']) ? (
@@ -349,33 +365,42 @@ const CellRFA = (props) => {
                : ''}
 
 
-         {btnShown && !rowData.treeLevel && (isColumnWithReplyData(column.key) || column.key.includes('Version ')) && replyCompany && (
-            <>
-               {(isEdittingAllowed
-                  // ? ['Edit', 'See Note', 'Open Drawing File']
-                  ? ['See Note', 'Open Drawing File']
-                  : ['See Note', 'Open Drawing File']
-               ).map(btn => (
-                  <Tooltip key={btn} placement='top' title={btn}>
-                     <div
-                        style={{
-                           cursor: 'pointer', position: 'absolute',
-                           right: btn === 'See Note' ? 4 : btn === 'Open Drawing File' ? 24 : 44,
-                           top: 5, height: 17, width: 17,
-                           // backgroundImage: `url(${imgLink.btnDate})`,
-                           // backgroundSize: 17
-                        }}
-                        onMouseDown={() => onMouseDownCellButton(btn, replyCompany, rfaData)}
-                     >
-                        <Icon
-                           type={btn === 'See Note' ? 'message' : btn === 'Open Drawing File' ? 'file' : btn === 'Open 3D File' ? 'shake' : 'edit'}
-                           style={{ color: 'white' }}
-                        />
-                     </div>
-                  </Tooltip>
-               ))}
-            </>
-         )}
+         {btnShown && !rowData.treeLevel && (
+            (isColumnWithReplyData(column.key) && replyCompany) ||
+            (column.key.includes('Version ') && (dataButtonRFA || replyCompany))
+         ) && (
+               <>
+                  {/* {(isEdittingAllowed */}
+                  {(dataButtonRFA
+                     // ? ['Edit', 'See Note', 'Open Drawing File']
+                     ? ['Open 3D File', 'Open Drawing File']
+                     : ['See Note', 'Open Drawing File']
+                  ).map(btn => (
+                     <Tooltip key={btn} placement='top' title={btn}>
+                        <div
+                           style={{
+                              cursor: 'pointer', position: 'absolute',
+                              right: (btn === 'See Note' || btn === 'Open 3D File') ? 4 : btn === 'Open Drawing File' ? 24 : 44,
+                              top: 5, height: 17, width: 17,
+                              // backgroundImage: `url(${imgLink.btnDate})`,
+                              // backgroundSize: 17
+                           }}
+                           onMouseDown={() => onMouseDownCellButton(
+                              btn, 
+                              replyCompany || company, 
+                              rfaData || dataButtonRFA,
+                              dataButtonRFA ? true : false
+                           )}
+                        >
+                           <Icon
+                              type={btn === 'See Note' ? 'message' : btn === 'Open Drawing File' ? 'file' : btn === 'Open 3D File' ? 'shake' : 'edit'}
+                              style={{ color: dataButtonRFA ? 'black' : 'white' }}
+                           />
+                        </div>
+                     </Tooltip>
+                  ))}
+               </>
+            )}
 
          {btnShown && !rowData.treeLevel && column.key === 'RFA Ref' && rowData['RFA Ref'] && (
             <>

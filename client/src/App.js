@@ -27,8 +27,8 @@ const App = () => {
 
 
    // localStorage.clear();
-   
-   
+
+
    return (
       <BrowserRouter>
          <Switch>
@@ -67,10 +67,10 @@ const App = () => {
                      projectId='MTYxNzg5MDkxNzI2MC10ZXN0OA'
 
 
-                     
+
                      projectIsAppliedRfaView={true}
                      // projectIsAppliedRfaView={false}
-                     
+
                      projectName='Punggol Digital District'
                      token='xxx-xxxxx-xxx-x-xxxxx'
                      isAdmin={true}
@@ -79,7 +79,7 @@ const App = () => {
                      // role='WH Archi Modeller'
 
                      // role='Sub-Con'
-                     
+
                      companies={[
                         { company: 'Woh Hup Private Ltd', companyType: 'Main con' },
 
@@ -103,14 +103,14 @@ const App = () => {
                         { company: 'HYLA', companyType: 'Consultant' },
                         { company: 'K2LD', companyType: 'Consultant' },
                         { company: 'ONG & ONG', companyType: 'Consultant' },
-                        
+
                      ]}
 
 
                      // companies={[]}
 
 
-                     
+
                      listUser={[
                         'bql@gmail.com',
                         'pmq@wohhup.com',
@@ -122,7 +122,7 @@ const App = () => {
                         'WH Group 2',
                         'Sumang Email Group',
                      ]}
-        
+
 
 
                   />
@@ -152,23 +152,23 @@ const App = () => {
 
 
 
+
             </SheetContext>
 
-
             <Route path='/dashboard'>
-                  <PageDashboard
-                     projectsArray={[
-                        { name: 'Handy', id: 'MTU5MTY3NDI0ODUyMy1IYW5keQ' },
-                        { name: 'Punggol Digital District', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q' },
-                        { name: 'Sumang', id: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc' },
-                        { name: 'The Reef', id: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg' },
-                        { name: 'Kim Chuan Depot', id: 'MTU3NDgyNTY5OTYwMi1LaW0gQ2h1YW4gRGVwb3Q' },
-                        { name: 'Test', id: 'ETU3NDgyNTY5cTYwMi1LaW0gQ2h1YW4gRGVwb3F' },
-                        { name: 'Test-2', id: 'MTU3NzA2Njg5MTczOTEST' },
-                        { name: 'Test-3', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q5' },
-                     ]}
-                  />
-               </Route>
+               <PageDashboard
+                  projectsArray={[
+                     { name: 'Handy', id: 'MTU5MTY3NDI0ODUyMy1IYW5keQ' },
+                     { name: 'Punggol Digital District', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q' },
+                     { name: 'Sumang', id: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc' },
+                     { name: 'The Reef', id: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg' },
+                     { name: 'Kim Chuan Depot', id: 'MTU3NDgyNTY5OTYwMi1LaW0gQ2h1YW4gRGVwb3Q' },
+                     { name: 'Test', id: 'ETU3NDgyNTY5cTYwMi1LaW0gQ2h1YW4gRGVwb3F' },
+                     { name: 'Test-2', id: 'MTU3NzA2Njg5MTczOTEST' },
+                     { name: 'Test-3', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q5' },
+                  ]}
+               />
+            </Route>
 
          </Switch>
       </BrowserRouter>
@@ -177,3 +177,5 @@ const App = () => {
 
 
 export default App;
+
+

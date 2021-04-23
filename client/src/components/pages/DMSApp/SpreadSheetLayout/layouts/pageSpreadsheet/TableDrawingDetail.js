@@ -9,7 +9,7 @@ import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { mongoObjectId } from '../../utils';
 import { headersConsultantWithNumber } from '../PageSpreadsheet';
-import CellRFA, { getConsultantReplyData, isColumnWithReplyData } from './CellRFA';
+import CellRFA, { getConsultantReplyData, getInfoKeyFromRfaData, getInfoValueFromRfaData, isColumnWithReplyData } from './CellRFA';
 
 
 
@@ -108,7 +108,7 @@ const TableDrawingDetail = (props) => {
 
 
    const panelHeight = window.innerHeight * 0.8;
-   const columnWidth = 150;
+   const columnWidth = 200;
    const columnHeaderWidth = 210;
 
    return (
@@ -139,13 +139,11 @@ const TableDrawingDetail = (props) => {
 
                <div style={{ display: 'flex', padding: '15px 30px' }}>
                   {input.map((item, i) => (
-
                      <TimeLineDrawing
                         key={i}
                         data={item}
                         version={i + 1}
                      />
-
                   ))}
                </div>
             </>
@@ -213,7 +211,6 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
       data.forEach((row, i) => {
          if (isColumnWithReplyData(hd.text)) {
             const rfaNumber = row.rfaNumber;
-   
             const rfaRef = row['RFA Ref'];
             if (rfaNumber && rfaRef) {
                const { replyStatus, replyCompany, replyDate } = getConsultantReplyData(row, hd.text, companies);
@@ -223,6 +220,25 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
                   obj[i] = {...obj[i] || {}, [`reply-$$$-drawing-${replyCompany}`] : row[`reply-$$$-drawing-${replyCompany}`] };
                   obj[i] = {...obj[i] || {}, [`reply-$$$-comment-${replyCompany}`] : row[`reply-$$$-comment-${replyCompany}`] };
                   obj[i] = {...obj[i] || {}, [`reply-$$$-user-${replyCompany}`] : row[`reply-$$$-user-${replyCompany}`] };
+               };
+            };
+         } else if (hd.text === 'RFA Ref') {
+            const rfaNumber = row.rfaNumber;
+            const rfaRef = row['RFA Ref'];
+            if (rfaNumber && rfaRef) {
+               const keyDrawingKey = getInfoKeyFromRfaData(row, 'submission', 'drawing');
+               const keyDrawingValue = getInfoValueFromRfaData(row, 'submission', 'drawing');
+               const keyDwfxKey =  getInfoKeyFromRfaData(row, 'submission', 'dwfx')
+               const keyDwfxValue =  getInfoValueFromRfaData(row, 'submission', 'dwfx');
+               const rfaRef = row['RFA Ref'];
+               if (rfaRef) {
+                  obj[i] = {...obj[i] || {}, rfaRef };
+               };
+               if (keyDrawingKey) {
+                  obj[i] = {...obj[i] || {}, [keyDrawingKey] : keyDrawingValue };
+               };
+               if (keyDwfxKey) {
+                  obj[i] = {...obj[i] || {}, [keyDwfxKey] : keyDwfxValue };
                };
             };
          } else {

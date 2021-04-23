@@ -224,7 +224,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA, formRfaType
       };
    };
 
-
+   console.log('4444444444444444444444444444444444444444444', filesPDF);
 
    const applyAddCommentToDrawing = () => {
       const row = dwgsToAddNewRFA.find(x => x.id === dwgIdToAddComment);
@@ -253,38 +253,28 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA, formRfaType
       // setDwgsToAddNewRFA(rows);
    };
 
-
+   // console.log();
 
    const onClickApplyDoneFormRFA = () => {
 
       let isAllDataInRowFilledIn = true;
+      let listFilePdf;
       if (role !== 'Consultant') {
          dwgsToAddNewRFA && dwgsToAddNewRFA.forEach(r => {
             if (!r['Rev'] || !r[`submission-$$$-drawing-${company}`]) {
                isAllDataInRowFilledIn = false;
             };
          });
+         listFilePdf = dwgsToAddNewRFA.map(r => r[`submission-$$$-drawing-${company}`]);
       } else {
          dwgsToAddNewRFA && dwgsToAddNewRFA.forEach(r => {
             if (!r['Status'] || !r[`reply-$$$-drawing-${company}`]) {
                isAllDataInRowFilledIn = false;
             };
          });
+         listFilePdf = dwgsToAddNewRFA.map(r => r[`reply-$$$-drawing-${company}`]);
       };
-
-
-      filesPDF && Object.keys(filesPDF).forEach(key => {
-         let fileFound;
-         if (role === 'Consultant') {
-            fileFound = dwgsToAddNewRFA && dwgsToAddNewRFA.find(x => x[`reply-$$$-drawing-${company}`] === key);
-         } else {
-            fileFound = dwgsToAddNewRFA && dwgsToAddNewRFA.find(x => x[`submission-$$$-drawing-${company}`] === key);
-         };
-         if (!fileFound) {
-            delete filesPDF[key];
-         };
-      });
-
+      const dwgPdfFile = [...new Set(listFilePdf)]
 
 
       let trade, rfaToSaveVersionOrToReply, rfaToSave;
@@ -325,41 +315,42 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA, formRfaType
          rfaToSave = currentRfaNumber;
       };
 
-      console.log(
-         {
-            filesPDF,
-            formRfaType,
-            rfaToSave,
-            rfaToSaveVersionOrToReply,
-            listRecipientTo, dwgsToAddNewRFA,
-            listConsultantMustReply,
-            role,
-            textEmailTitle, dwgsToAddNewRFA, isAllDataInRowFilledIn
-         }
-      );
-
-
       if (
          (!filesPDF && formRfaType === 'form-submit-RFA') ||
-         // !rfaToSave ||
-         // !rfaToSaveVersionOrToReply ||
-         !listRecipientTo || !dwgsToAddNewRFA ||
+         !rfaToSave ||
+         !rfaToSaveVersionOrToReply ||
+
+         !listRecipientTo || 
          listRecipientTo.length === 0 ||
+
          (role !== 'Consultant' && listConsultantMustReply.length === 0) ||
          (role !== 'Consultant' && !requestedBy) ||
          !textEmailTitle ||
+
+         !dwgsToAddNewRFA ||
          dwgsToAddNewRFA.length === 0 ||
+         (dwgsToAddNewRFA.length !== dwgPdfFile.length) ||
+
          !isAllDataInRowFilledIn
       ) {
          message.info('Please fill in necessary data for drawings to submit!');
          return;
       };
 
+      
+      filesPDF && Object.keys(filesPDF).forEach(key => {
+         let fileFound;
+         if (role === 'Consultant') {
+            fileFound = dwgsToAddNewRFA && dwgsToAddNewRFA.find(x => x[`reply-$$$-drawing-${company}`] === key);
+         } else {
+            fileFound = dwgsToAddNewRFA && dwgsToAddNewRFA.find(x => x[`submission-$$$-drawing-${company}`] === key);
+         };
+         if (!fileFound) {
+            delete filesPDF[key];
+         };
+      });
 
-      // str = str.replace(/(?:\r\n|\r|\n)/g, '<br>');
-
-
-      console.log('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      console.log('LOG-DATA-FORM',
          {
             type: formRfaType,
             trade,

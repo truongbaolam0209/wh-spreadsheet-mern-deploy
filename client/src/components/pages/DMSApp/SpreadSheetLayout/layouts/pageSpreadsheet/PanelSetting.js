@@ -899,10 +899,10 @@ const PanelSetting = (props) => {
       if (filesDWFX) {
          dataDWFX = new FormData();
          dataDWFX.append('file', filesDWFX.originFileObj);
-         data.append('projectId', projectId);
-         data.append('projectName', projectName);
-         data.append('email', email);
-         data.append('rfaName', rfaRefData);
+         dataDWFX.append('projectId', projectId);
+         dataDWFX.append('projectName', projectName);
+         dataDWFX.append('email', email);
+         dataDWFX.append('rfaName', rfaRefData);
       };
 
       try {
@@ -1077,7 +1077,7 @@ const PanelSetting = (props) => {
 
          const rowsToUpdateFinalRow = rowsToUpdate.filter(r => r.data);
          const rowsToUpdateFinalRowHistory = rowsToUpdate.filter(r => r.history);
-         console.log({ rowsToUpdateFinalRow, rowsToUpdateFinalRowHistory });
+
          if (rowsToUpdateFinalRow.length > 0) {
             await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdateFinalRow });
             let cellHistoriesToSave = [];
@@ -1109,8 +1109,6 @@ const PanelSetting = (props) => {
 
 
 
-
-
          // const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row.id);
          // await Axios.post(`${SERVER_URL}/function-email-set`, {
          //    token,
@@ -1139,24 +1137,24 @@ const PanelSetting = (props) => {
 
 
          const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
-         // console.log('dwgsNewRFAClone', dwgsNewRFAClone);
+ 
          const getDrawingURLFromDB = async () => {
             try {
                return await Promise.all(dwgsNewRFAClone.map(async dwg => {
-                  console.log('private link drawing...',dwg[`${type}-$$$-drawing-${company}`]);
-                  const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${type}-$$$-drawing-${company}`], expire: 1000 } });
-                  dwg[`${type}-$$$-drawing-${company}`] = res.data;
+                  const typeApi = type.includes('form-submit-') ? 'submission' : 'reply';
+                  const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${typeApi}-$$$-drawing-${company}`], expire: 1000 } });
+                  dwg[`${typeApi}-$$$-drawing-${company}`] = res.data;
                   return dwg;
                }));
             } catch (err) {
                console.log(err);
+               // If error => close modal
             };
          };
 
          const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
 
          const emailContentOutput = generateEmailInnerHTMLFrontEnd(company, type.includes('submit') ? 'submit' : 'reply', dwgsToAddNewRFAGetDrawingURL);
-         // const emailContentOutput = generateEmailInnerHTMLFrontEnd(company, type.includes('submit') ? 'submit' : 'reply', dwgsNewRFAClone);
 
          await Axios.post('/api/rfa/mail', {
             token,
@@ -1648,19 +1646,19 @@ const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
       headersArray.forEach((headerText, i) => {
          if (i !== 0) {
             if (headerText === 'Status' && emailType === 'reply') {
-               str += `<td ${th_td_style}>${rowData[`reply-$$$-status-${company}`]}</td>`;
+               str += `<td ${th_td_style}>${rowData[`reply-$$$-status-${company}`] || ''}</td>`;
             } else if (headerText === 'Status' && emailType === 'submit') {
                str += `<td ${th_td_style}>Consultant reviewing</td>`;
             } else if (headerText === 'Drawing Number') {
                str += `
                   <td ${th_td_style}>
                      <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]}'>
-                        ${rowData[headerText]}
+                        ${rowData[headerText] || ''}
                      </a>
                   </td>
                `;
             } else {
-               str += `<td ${th_td_style}>${rowData[headerText]}</td>`;
+               str += `<td ${th_td_style}>${rowData[headerText] || ''}</td>`;
             };
          };
       });
