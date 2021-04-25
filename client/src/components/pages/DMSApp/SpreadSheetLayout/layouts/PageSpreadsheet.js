@@ -14,6 +14,7 @@ import { sortFnc } from './generalComponents/FormSort';
 import IconTable from './generalComponents/IconTable';
 import InputSearch from './generalComponents/InputSearch';
 import ViewTemplateSelect from './generalComponents/ViewTemplateSelect';
+import ButtonAdminCreateAndUpdateRows from './pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
 import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
 import Cell, { columnLocked, rowLocked } from './pageSpreadsheet/Cell';
 import CellIndex from './pageSpreadsheet/CellIndex';
@@ -49,7 +50,9 @@ let addedEvent = false;
 const PageSpreadsheet = (props) => {
 
 
-   let { email, role, isAdmin, projectId, projectName, token, company, companies, projectIsAppliedRfaView, listUser, listGroup } = props;
+   let { email, role, isAdmin, projectId, projectName, token, company, companies, projectIsAppliedRfaView, listUser, listGroup: listGroupData, projectNameShort } = props;
+
+   const listGroup = listGroupData.map(x => x.toUpperCase());
    const roleTradeCompany = getUserRoleTradeCompany(role, company);
 
    const tableRef = useRef();
@@ -366,7 +369,7 @@ const PageSpreadsheet = (props) => {
 
 
       } else if (update.type === 'reload-data-view-rfa') {
-         getSheetRows(getInputDataInitially(update.data.dataAllFromServer, update.data.dataRowsHistoryFromServer, role, company));
+         getSheetRows(getInputDataInitially(update.data.dataAllFromServer, update.data.dataRowsHistoryFromServer, roleTradeCompany));
          setExpandedRows(update.data.expandedRowsIdArr);
 
          OverwriteCellsModified({});
@@ -378,14 +381,14 @@ const PageSpreadsheet = (props) => {
          message.success('Save Data Successfully', 1.5);
       } else if (update.type === 'save-data-failure') {
          message.error('Network Error', 1.5);
-
+         setLoading(false);
       } else if (update.type === 'reload-data-from-server') {
          fetchDataOneSheet({
             ...update.data,
-            email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
+            email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup, projectNameShort
          });
          setUserData(getHeadersData(update.data));
-         getSheetRows(getInputDataInitially(update.data, null, role, company));
+         getSheetRows(getInputDataInitially(update.data, null, roleTradeCompany));
          setExpandedRows(getRowsKeyExpanded(
             update.data.publicSettings.drawingTypeTree,
             update.data.userSettings ? update.data.userSettings.viewTemplateNodeId : null
@@ -398,9 +401,12 @@ const PageSpreadsheet = (props) => {
          setCellHistoryFound(null);
          setSearchInputShown(false);
       };
-      setPanelSettingVisible(false);
-      setPanelSettingType(null);
-      setPanelType(null);
+
+      if (update.type !== 'save-data-failure') {
+         setPanelSettingVisible(false);
+         setPanelSettingType(null);
+         setPanelType(null);
+      };
    };
    const onScroll = () => {
       if (stateCell.cellActive) setCellActive(null);
@@ -437,6 +443,7 @@ const PageSpreadsheet = (props) => {
          try {
             setLoading(true);
 
+            // if (roleTradeCompany.role === 'Consultant' || true) {
             if (roleTradeCompany.role === 'Consultant') {
                const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
                const resRowHistory = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
@@ -444,9 +451,9 @@ const PageSpreadsheet = (props) => {
 
                fetchDataOneSheet({
                   ...res.data,
-                  email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
+                  email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup, projectNameShort
                });
-               getSheetRows(getInputDataInitially(res.data, resRowHistory.data, role, company));
+               getSheetRows(getInputDataInitially(res.data, resRowHistory.data, roleTradeCompany));
 
                setExpandedRows([
                   'ARCHI', 'C&S', 'M&E', 'PRECAST',
@@ -457,10 +464,10 @@ const PageSpreadsheet = (props) => {
                const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
                fetchDataOneSheet({
                   ...res.data,
-                  email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup
+                  email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup, projectNameShort
                });
                setUserData(getHeadersData(res.data));
-               getSheetRows(getInputDataInitially(res.data, null, role, company));
+               getSheetRows(getInputDataInitially(res.data, null, roleTradeCompany));
 
                setExpandedRows(getRowsKeyExpanded(
                   res.data.publicSettings.drawingTypeTree,
@@ -471,7 +478,7 @@ const PageSpreadsheet = (props) => {
 
 
             // const resDataCheck = await Axios.get(`${SERVER_URL}/sheet/get-all-collections?user=truongbaolam0209`);
-            // const { rows, settings } = resDataCheck.data;
+            // const { rows, settings, rowHistories } = resDataCheck.data;
 
             // const projectIdsArray = [...new Set(rows.map(x => x.sheet))];
             // let objCheck = {};
@@ -479,13 +486,26 @@ const PageSpreadsheet = (props) => {
             //    const rowsChildren = rows.filter(x => x.sheet === projectId);
             //    objCheck[projectId] = rowsChildren;
             // });
-            // console.log(objCheck);
+            // console.log('ALL-DATA-BASE', objCheck);
             // let settingsUSER = [];
             // let settingsPUBLIC = [];
             // settings.forEach(setting => {
             //    if (setting.user) settingsUSER.push(setting);
             //    else settingsPUBLIC.push(setting);
             // });
+            // console.log('ALL-DATA-BASE-SETTING', { settingsUSER, settingsPUBLIC });
+
+            // const findAllDataInProject = (data) => {
+            //    let output = [];
+            //    data.forEach(r => {
+            //       if (r.sheet === 'MTU3NDgyNTcyMzUwNC1UZXN0') {
+            //          output.push(r);
+            //       };
+            //    });
+            //    return output;
+            // };
+
+
 
 
 
@@ -499,12 +519,23 @@ const PageSpreadsheet = (props) => {
 
 
    useEffect(() => {
-      const interval = setInterval(() => {
-         setPanelFunctionVisible(false);
-         setPanelSettingType('save-ICON');
-         setPanelSettingVisible(true);
-      }, 1000 * 60 * 20);
-      return () => clearInterval(interval);
+
+      // const interval = stateRow && !stateRow.isRfaView ? setInterval(() => {
+      //    setPanelFunctionVisible(false);
+      //    setPanelSettingType('save-ICON');
+      //    setPanelSettingVisible(true);
+      // }, 1000 * 60 * 30) : null;
+      // return () => interval !== null && clearInterval(interval);
+
+      // const interval = setInterval(() => {
+      //    console.log(stateRow, stateRow.isRfaView);
+      //    if (stateRow && !stateRow.isRfaView) {
+      //       setPanelFunctionVisible(false);
+      //       setPanelSettingType('save-ICON');
+      //       setPanelSettingVisible(true);
+      //    };
+      // }, 1000 * 60 * 0.01);
+      // return () => clearInterval(interval);
    }, []);
 
    const updateExpandedRowIdsArray = (viewTemplateNodeId) => {
@@ -655,7 +686,6 @@ const PageSpreadsheet = (props) => {
                }}
             />
          ) : null,
-         style: { padding: 0, margin: 0 }
       }];
 
       let AdditionalHeadersForProjectRFA = [];
@@ -667,9 +697,7 @@ const PageSpreadsheet = (props) => {
 
       headerArrayForTable.forEach((hd, index) => {
          headersObj.push({
-            key: hd,
-            dataKey: hd,
-            title: hd,
+            key: hd, dataKey: hd, title: hd,
             width: stateRow.isRfaView
                ? getHeaderWidthForRFAView(hd)
                : getHeaderWidth(hd),
@@ -716,7 +744,7 @@ const PageSpreadsheet = (props) => {
    };
 
    const [nosColumnFixedRfaView, setNosColumnFixedRfaView] = useState(0);
-   const [headersRfaViewArray, setHeadersRfaViewArray] = useState(headersRfaView);
+   const [headersRfaViewArray, setHeadersRfaViewArray] = useState(headersRfaViewOneConsultant);
 
    const switchRFAHeader = () => {
       if (headersRfaViewArray.includes('Consultant (1)')) {
@@ -752,7 +780,7 @@ const PageSpreadsheet = (props) => {
 
    const buttonRibbonMode = ((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && !stateRow.isRfaView));
 
-   const loadEmail = async () => {
+   const loadEmailCheckBackend = async () => {
       try {
          const res = await Axios.get(`${SERVER_URL}/sheet/get-rows-email/`, {
             params: {
@@ -769,10 +797,6 @@ const PageSpreadsheet = (props) => {
                ])
             }
          });
-
-         const result = res.data;
-         console.log(result);
-
       } catch (err) {
          console.log(err);
       };
@@ -782,10 +806,10 @@ const PageSpreadsheet = (props) => {
    return (
 
       <div
+         style={{ color: 'black' }}
          onContextMenu={(e) => e.preventDefault()}
       >
          <ButtonBox>
-
             {buttonRibbonMode && (
                <>
                   <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
@@ -829,18 +853,18 @@ const PageSpreadsheet = (props) => {
                </>
             )}
 
-            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && role !== 'Consultant' && (
+            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && role === 'Document Controller' && (
                <IconTable type='plus-square' onClick={() => buttonPanelFunction('form-submit-RFA')} />
             )}
 
-            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && role === 'Consultant' && (
+            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && (
                <IconTable type='block' onClick={switchRFAHeader} />
             )}
 
             {stateRow && projectIsAppliedRfaView && !stateRow.isRfaView && (
                <IconTable type='rfa-button' onClick={() => buttonPanelFunction('goToViewRFA-ICON')} />
             )}
-            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && (
+            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && role !== 'Consultant' && (
                <IconTable type='dms-button' onClick={() => buttonPanelFunction('goToViewDMS-ICON')} />
             )}
 
@@ -862,8 +886,11 @@ const PageSpreadsheet = (props) => {
                <div style={{ display: 'flex' }}>
                   <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                   <ButtonAdminUploadData />
-                  {/* <ButtonAdminUploadDataPDD />
                   <ButtonAdminCreateAndUpdateRows />
+
+                  {/* 
+                  <ButtonAdminUploadDataPDD />
+                  
                   <ButtonAdminDeleteRowsHistory />
                   <ButtonAdminCreateAndUpdateRowsHistory />
                   <ButtonAdminUpdateProjectSettings /> */}
@@ -877,26 +904,27 @@ const PageSpreadsheet = (props) => {
                   <div style={{ marginRight: 10 }}>
                      <div style={{ display: 'flex' }}>
                         <div style={{ width: 10, height: 10, background: colorTextRow['Approved with Comment, no submission Required'], transform: 'translate(0, 4px)', marginRight: 5 }} />
-                        <div style={{ fontSize: 11 }}>Approved with Comment, no submission Required</div>
+                        <div style={{ fontSize: 10 }}>Approved with Comment, no submission Required</div>
                      </div>
                      <div style={{ display: 'flex' }}>
                         <div style={{ width: 10, height: 10, background: colorTextRow['Approved with comments, to Resubmit'], transform: 'translate(0, 4px)', marginRight: 5 }} />
-                        <div style={{ fontSize: 11 }}>Approved with comments, to Resubmit</div>
+                        <div style={{ fontSize: 10 }}>Approved with comments, to Resubmit</div>
                      </div>
                   </div>
                   <div>
                      <div style={{ display: 'flex' }}>
                         <div style={{ width: 10, height: 10, background: colorTextRow['Approved for Construction'], transform: 'translate(0, 4px)', marginRight: 5 }} />
-                        <div style={{ fontSize: 11 }}>Approved for Construction</div>
+                        <div style={{ fontSize: 10 }}>Approved for Construction</div>
                      </div>
                      <div style={{ display: 'flex' }}>
                         <div style={{ width: 10, height: 10, background: colorTextRow['Reject and resubmit'], transform: 'translate(0, 4px)', marginRight: 5 }} />
-                        <div style={{ fontSize: 11 }}>Reject and resubmit</div>
+                        <div style={{ fontSize: 10 }}>Reject and resubmit</div>
                      </div>
                   </div>
                </div>
                <div style={{ fontSize: 25, color: colorType.primary }}>{projectName}</div>
             </div>
+
          </ButtonBox>
 
 
@@ -919,7 +947,7 @@ const PageSpreadsheet = (props) => {
                   projectIsAppliedRfaView && stateRow.isRfaView ? nosColumnFixedRfaView : stateProject.userData.nosColumnFixed
                )}
 
-               data={arrangeDrawingTypeFinal(stateRow, companies, company, role)}
+               data={arrangeDrawingTypeFinal(stateRow, companies, company, roleTradeCompany.role)}
                expandedRowKeys={expandedRows}
 
                expandColumnKey={projectIsAppliedRfaView && stateRow.isRfaView ? 'RFA Ref' : stateProject.userData.headersShown[0]}
@@ -962,20 +990,24 @@ const PageSpreadsheet = (props) => {
             visible={panelSettingVisible}
             footer={null}
             onCancel={() => {
-               setPanelSettingVisible(false);
-               setPanelSettingType(null);
-               setPanelType(null);
-               getSheetRows({ ...stateRow, currentRfaToAddNewOrReplyOrEdit: null });
+               if (
+                  !panelSettingType.includes('form-submit-') &&
+                  !panelSettingType.includes('form-reply-') &&
+                  panelSettingType !== 'addDrawingType-ICON'
+               ) {
+                  setPanelSettingVisible(false);
+                  setPanelSettingType(null);
+                  setPanelType(null);
+               };
             }}
             destroyOnClose={true}
             centered={true}
-
             width={
                panelSettingType === 'addDrawingType-ICON' ? window.innerWidth * 0.85 :
                   (
                      panelSettingType === 'form-submit-RFA' || panelSettingType === 'form-reply-RFA' ||
                      panelSettingType === 'form-submit-edit-RFA' || panelSettingType === 'form-reply-edit-RFA'
-                  ) ? window.innerWidth * 0.7 :
+                  ) ? window.innerWidth * 0.9 :
                      panelSettingType === 'pickTypeTemplate-ICON' ? window.innerWidth * 0.6 :
                         panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
                            520
@@ -989,10 +1021,13 @@ const PageSpreadsheet = (props) => {
                   setPanelSettingVisible(false);
                   setPanelSettingType(null);
                   setPanelType(null);
+                  getSheetRows({ ...stateRow, currentRfaToAddNewOrReplyOrEdit: null });
                }}
                setLoading={setLoading}
             />
          </ModalStyledSetting>
+
+
 
          {adminFncInitPanel && (
             <Modal
@@ -1075,7 +1110,10 @@ const TableStyled = styled(Table)`
       if (cellHistoryFound) return `.cell-history-highlight { background-color: #f6e58d; }`;
    }}
 
-   
+
+   .BaseTable__header-row {
+      background: ${colorType.primary};
+   };
    .cell-current {
       background-color: ${colorType.cellHighlighted}
    };
@@ -1109,9 +1147,9 @@ const ModalStyleFunction = styled(Modal)`
    }
 `;
 const ModalStyledSetting = styled(Modal)`
-    .ant-modal-content {
-        border-radius: 0;
-    }
+   .ant-modal-content {
+      border-radius: 0;
+   }
    .ant-modal-close {
       display: none;
    }
@@ -1160,7 +1198,7 @@ const SpinStyled = styled.div`
 
 
 
-const getInputDataInitially = (data, dataRowsHistory, role, company) => {
+export const getInputDataInitially = (data, dataRowsHistory, { role, company }) => {
 
    const { rows, publicSettings, userSettings } = data;
 
@@ -1188,7 +1226,8 @@ const getInputDataInitially = (data, dataRowsHistory, role, company) => {
          currentRfaToAddNewOrReplyOrEdit: null,
          currentRfaRefToEditBeforeSendEmail: null,
          rfaStatistics,
-         isShowAllConsultant: true
+         isShowAllConsultant: false,
+         loading: false
       };
 
    } else {
@@ -1203,6 +1242,8 @@ const getInputDataInitially = (data, dataRowsHistory, role, company) => {
          modeFilter = userSettings.modeFilter || [];
          modeSort = userSettings.modeSort || {};
       };
+
+
 
       return {
          modeFilter,
@@ -1296,11 +1337,13 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role) => {
                            let replyStatusValue;
                            if (role === 'Consultant') {
                               replyStatusValue = getInfoValueFromRfaData(r, 'reply', 'status', company);
+                              const consultantMustReply = getInfoValueFromRfaData(r, 'submission', 'consultantMustReply');
+                              return !replyStatusValue && consultantMustReply.indexOf(company) !== -1;
                            } else {
                               const leadConsultant = getInfoValueFromRfaData(r, 'submission', 'consultantMustReply')[0];
                               replyStatusValue = getInfoValueFromRfaData(r, 'reply', 'status', leadConsultant);
+                              return !replyStatusValue;
                            };
-                           return !replyStatusValue;
                         })];
 
                   };

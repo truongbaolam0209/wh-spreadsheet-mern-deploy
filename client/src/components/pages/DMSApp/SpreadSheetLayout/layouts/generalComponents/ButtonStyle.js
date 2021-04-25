@@ -1,5 +1,7 @@
 import { Button } from 'antd';
-import React from 'react';
+import React, { useContext } from 'react';
+import { Context as RowContext } from '../../contexts/rowContext';
+
 
 
 
@@ -16,6 +18,9 @@ const ButtonStyle = ({
    disabled
 }) => {
 
+   const { state: stateRow } = useContext(RowContext);
+   const { loading } = stateRow;
+
    return (
       <Button
          style={{
@@ -29,7 +34,8 @@ const ButtonStyle = ({
             border: `1px solid ${borderOverwritten ? borderColor : (borderColor || background)}`,
          }}
          onClick={onClick}
-         disabled={disabled}
+         disabled={disabled || (loading && name !== 'Yes')}
+         loading={loading && name === 'Yes'}
       >
          {name}
       </Button>

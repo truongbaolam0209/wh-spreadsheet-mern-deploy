@@ -392,7 +392,7 @@ const Cell = (props) => {
             )}
 
 
-            {btnDrawingShown && column.key === 'RFA Ref' && !rowData.treeLevel && rowData['RFA Ref'] && (
+            {btnDrawingShown && projectIsAppliedRfaView && column.key === 'RFA Ref' && !rowData.treeLevel && rowData['RFA Ref'] && (
                // <Tooltip key={'Open Drawing File'} placement='top' title={'Open Drawing File'}>
                //    <div
                //       style={{

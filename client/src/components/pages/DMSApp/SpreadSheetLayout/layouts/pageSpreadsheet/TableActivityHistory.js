@@ -88,10 +88,11 @@ const TableActivityHistory = (props) => {
             let cellsOutput = [];
             convertHistoryData(resCells.data).forEach(cell => {
                const row = stateRow.rowsAll.find(r => r.id === cell.row);
-               if (row) cellsOutput.push({
+               const headerFound = headers.find(hd => hd.key === cell.headerKey);
+               if (row && headerFound) cellsOutput.push({
                   'Drawing Number': row['Drawing Number'],
                   'Drawing Name': row['Drawing Name'],
-                  'Column': headers.find(hd => hd.key === cell.headerKey).text,
+                  'Column': headerFound.text,
                   'Value': cell.text || '',
                   'User': cell.email || 'n/a',
                   'Created At': moment(cell.createdAt).format('DD/MM/YY - HH:mm'),

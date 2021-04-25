@@ -1,4 +1,5 @@
-import React, { useContext, useState } from 'react';
+import { message, Select } from 'antd';
+import React, { useContext, useEffect, useState } from 'react';
 import BaseTable, { AutoResizer } from 'react-base-table';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
@@ -6,7 +7,10 @@ import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { getHeaderWidth } from '../../utils';
 import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
+import { convertTradeCodeInverted, findTradeOfDrawing } from './PanelAddNewRFA';
 
+
+const { Option } = Select;
 
 const Table = (props) => {
    return (
@@ -25,21 +29,41 @@ const Table = (props) => {
 };
 
 
-const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA }) => {
+const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA, tradeOfRfaForFirstTimeSubmit }) => {
 
+
+
+   console.log('TableDrawingRFA===>>>', { onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA, tradeOfRfaForFirstTimeSubmit });
 
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow } = useContext(RowContext);
    const { headers } = stateProject.allDataOneSheet.publicSettings;
-   const { rowsAll } = stateRow;
+   const { rowsAll, drawingTypeTreeDmsView } = stateRow;
 
-   const rowsTableInput = rowsAll.filter(r => {
-      return (r['Drawing Number'] || r['Drawing Name'])
-      && !r.rfaNumber;
-   });
+   const [drawingTrade, setDrawingTrade] = useState(convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit) || 'ARCHI');
+   const [rowsTableInput, setRowsTableInput] = useState([]);
+
+
+   useEffect(() => {
+
+      if (drawingTrade !== convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit)) {
+         setSelectedIdRows([]);
+      };
+
+      const rowsList = rowsAll.filter(r => {
+         const trade = findTradeOfDrawing(r, drawingTypeTreeDmsView);
+
+         return (r['Drawing Number'] || r['Drawing Name']) &&
+            !r.rfaNumber &&
+            trade.includes(drawingTrade);
+      });
+      setRowsTableInput(rowsList);
+   }, [drawingTrade]);
+
 
    const [selectedIdRows, setSelectedIdRows] = useState(dwgsToAddNewRFA ? dwgsToAddNewRFA.map(x => x.id) : []);
 
+   console.log('selectedIdRows', selectedIdRows);
 
    const generateColumnsRFA = (headers) => {
       return [
@@ -60,9 +84,6 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
       ];
    };
    const rowClassName = ({ rowData }) => {
-      if (rowData['RFA Ref']) {
-         return 'row-with-rfa-locked';
-      };
       if (selectedIdRows.indexOf(rowData.id) !== -1) {
          return 'row-selected-rfa';
       };
@@ -72,12 +93,10 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
    const rowEventHandlers = {
       onClick: (props) => {
          const { rowKey, rowData } = props;
-         if (!rowData['RFA Ref']) {
-            if (selectedIdRows.indexOf(rowKey) === -1) {
-               setSelectedIdRows([...selectedIdRows, rowKey]);
-            } else {
-               setSelectedIdRows(selectedIdRows.filter(id => id !== rowKey));
-            };
+         if (selectedIdRows.indexOf(rowKey) === -1) {
+            setSelectedIdRows([...selectedIdRows, rowKey]);
+         } else {
+            setSelectedIdRows(selectedIdRows.filter(id => id !== rowKey));
          };
       },
    };
@@ -85,12 +104,24 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
    return (
       <div style={{
          width: '100%',
-         height: window.innerHeight * 0.8 - 20,
+         height: window.innerHeight * 0.85 - 20,
          margin: '0 auto',
          padding: 10,
          textAlign: 'center',
       }}>
-         <div style={{ fontWeight: 'bold', marginBottom: 5 }}>{`Number of drawings selected: ${selectedIdRows.length}`}</div>
+         <div style={{ display: 'flex' }}>
+            <SelectStyled
+               style={{ minWidth: 100, paddingRight: 10 }}
+               value={drawingTrade}
+               onChange={(e) => setDrawingTrade(e)}
+            >
+               {['ARCHI', 'C&S', 'M&E', 'PRECAST'].map(item => (
+                  <Option key={item} value={item}>{item}</Option>
+               ))}
+            </SelectStyled>
+            <div style={{ fontWeight: 'bold', marginBottom: 10 }}>{`Number of drawings selected: ${selectedIdRows.length}`}</div>
+         </div>
+
          <div style={{ width: '100%', height: window.innerHeight * 0.8 - 150 }}>
             <TableStyled
                fixed
@@ -104,7 +135,13 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
             <ButtonGroupComp
                onClickCancel={onClickCancelModalPickDrawing}
-               onClickApply={() => onClickApplyModalPickDrawing(selectedIdRows)}
+               onClickApply={() => {
+                  if (selectedIdRows.length === 0) {
+                     return message.info('Please select drawings to submit!', 3);
+                  } else {
+                     onClickApplyModalPickDrawing(drawingTrade, selectedIdRows);
+                  };
+               }}
             />
          </div>
       </div>
@@ -116,7 +153,11 @@ export default TableDrawingRFA;
 
 
 
-
+const SelectStyled = styled(Select)`
+   .ant-select-selection {
+      border-radius: 0;
+   }
+`;
 
 
 const TableStyled = styled(Table)`

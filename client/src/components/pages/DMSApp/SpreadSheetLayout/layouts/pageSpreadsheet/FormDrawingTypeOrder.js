@@ -402,7 +402,7 @@ const ModalStyledSetting = styled(Modal)`
    }
 `;
 const Container = styled.div`
-   height: ${`${window.innerHeight * 0.8}` + 'px'};
+   max-height: ${`${window.innerHeight * 0.8}` + 'px'};
    width: 100%;
    display: flex;
    flex-direction: column;

@@ -1,4 +1,4 @@
-import { Icon, Modal, Tooltip } from 'antd';
+import { Icon, message, Modal, Tooltip } from 'antd';
 import Axios from 'axios';
 import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
@@ -22,7 +22,7 @@ const CellRFA = (props) => {
 
    const { rowsRfaAll, rowsRfaAllInit } = stateRow;
 
-   const { roleTradeCompany, companies, company, email } = stateProject.allDataOneSheet;
+   const { roleTradeCompany, companies, company, email, projectIsAppliedRfaView } = stateProject.allDataOneSheet;
 
    const [btnShown, setBtnShown] = useState(false);
    const [isEdittingAllowed, setIsEdittingAllowed] = useState(false);
@@ -90,7 +90,7 @@ const CellRFA = (props) => {
             ) {
                setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
             };
-         } else {
+         } else if (roleTradeCompany.role === 'Document Controller') {
             if (allRowsChildren.find(row => !row['RFA Ref'])) {
                setThereIsDrawingWithNoRfaRef(true);
             } else {
@@ -113,9 +113,21 @@ const CellRFA = (props) => {
             setReplyDate(replyDateData);
 
          } else if (isColumnConsultant(column.key)) {
-            setReplyStatus(rfaDataObj[`reply-$$$-status-${company}`]);
-            setReplyCompany(company);
-            setReplyDate(rfaDataObj[`reply-$$$-date-${company}`]);
+            if (roleTradeCompany.role !== 'Consultant') {
+               const consultantLead = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply')[0];
+
+               setReplyStatus(getInfoValueFromRfaData(rfaDataObj, 'reply', 'status', consultantLead));
+               setReplyCompany(consultantLead);
+               setReplyDate(getInfoValueFromRfaData(rfaDataObj, 'reply', 'date', consultantLead));
+            } else {
+               const consultantMustReplyValue = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply');
+               if (consultantMustReplyValue.indexOf(company) !== -1) {
+                  setReplyStatus(rfaDataObj[`reply-$$$-status-${company}`]);
+                  setReplyCompany(company);
+                  setReplyDate(rfaDataObj[`reply-$$$-date-${company}`]);
+               };
+            };
+
          } else if (column.key === 'Due Date') {
             const consultantMustReplyArray = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply');
             if (!rowData[`reply-$$$-status-${consultantMustReplyArray[0]}`]) {
@@ -157,10 +169,8 @@ const CellRFA = (props) => {
 
       const rowsThisRFAFiltered = rowsRfaAllInit.filter(r => {
          return r.rfaNumber === rfaCode && (
-            btn === '-'
-               ? r['RFA Ref'] === rfaCode
-               : btn === 'All'
-                  ? !r['row']
+            btn === '-' ? r['RFA Ref'] === rfaCode
+               : btn === 'All' ? !r['row']
                   : r['RFA Ref'] === rfaCode + btn
          );
       });
@@ -169,15 +179,23 @@ const CellRFA = (props) => {
    };
 
    const onClickSubmitOrReplyRFA = (btn) => {
-      buttonPanelFunction(btn);
-      getSheetRows({
-         ...stateRow,
-         currentRfaToAddNewOrReplyOrEdit: {
-            currentRfaNumber: rowData.rfaNumber,
-            currentRfaRef: rfaRefText,
-            currentRfaData: rfaData
-         },
-      });
+      if (
+         (roleTradeCompany.role === 'Consultant' && !rowData.children.find(x => !x['RFA Ref'])) ||
+         roleTradeCompany.role === 'Document Controller'
+      ) {
+         buttonPanelFunction(btn);
+         getSheetRows({
+            ...stateRow,
+            currentRfaToAddNewOrReplyOrEdit: {
+               currentRfaNumber: rowData.rfaNumber,
+               currentRfaRef: rfaRefText,
+               currentRfaData: rfaData
+            },
+         });
+      } else if (roleTradeCompany.role === 'Consultant' && rowData.children.find(x => !x['RFA Ref'])) {
+         message.info('Please wait the contractor to submit this RFA!', 3);
+         return;
+      };
    };
 
 
@@ -285,11 +303,11 @@ const CellRFA = (props) => {
             fontWeight: (column.key === 'RFA Ref' && rowData.treeLevel) && 'bold'
          }}
          onMouseOver={() => {
-            if (!rowData.treeLevel && isColumnWithReplyData(column.key) && roleTradeCompany.role === 'Consultant') {
-               checkIfEdittingIsAllowed('form-reply-RFA');
-            } else if (!rowData.treeLevel && column.key === 'RFA Ref' && roleTradeCompany.role !== 'Consultant') {
-               checkIfEdittingIsAllowed('form-submit-RFA');
-            };
+            // if (!rowData.treeLevel && isColumnWithReplyData(column.key) && roleTradeCompany.role === 'Consultant') {
+            //    checkIfEdittingIsAllowed('form-reply-RFA');
+            // } else if (!rowData.treeLevel && column.key === 'RFA Ref' && roleTradeCompany.role === 'Document Controller') {
+            //    checkIfEdittingIsAllowed('form-submit-RFA');
+            // };
             if (!btnShown) setBtnShown(true);
          }}
          onMouseLeave={() => {
@@ -312,7 +330,7 @@ const CellRFA = (props) => {
 
                {(
                   (thereIsDrawingWithNoReplyAndConsultantAllowedReply && roleTradeCompany.role === 'Consultant') ||
-                  (thereIsDrawingWithNoRfaRef && roleTradeCompany.role !== 'Consultant')
+                  (thereIsDrawingWithNoRfaRef && roleTradeCompany.role === 'Document Controller')
                ) && (
                      <Tooltip placement='top' title={roleTradeCompany.role === 'Consultant' ? 'Reply To This RFA' : 'Add New RFA For This RFA'} >
                         <Icon
@@ -367,6 +385,7 @@ const CellRFA = (props) => {
 
          {btnShown && !rowData.treeLevel && (
             (isColumnWithReplyData(column.key) && replyCompany) ||
+            (isColumnConsultant(column.key) && replyCompany) ||
             (column.key.includes('Version ') && (dataButtonRFA || replyCompany))
          ) && (
                <>
@@ -386,8 +405,8 @@ const CellRFA = (props) => {
                               // backgroundSize: 17
                            }}
                            onMouseDown={() => onMouseDownCellButton(
-                              btn, 
-                              replyCompany || company, 
+                              btn,
+                              replyCompany || company,
                               rfaData || dataButtonRFA,
                               dataButtonRFA ? true : false
                            )}
@@ -402,7 +421,7 @@ const CellRFA = (props) => {
                </>
             )}
 
-         {btnShown && !rowData.treeLevel && column.key === 'RFA Ref' && rowData['RFA Ref'] && (
+         {btnShown && projectIsAppliedRfaView && !rowData.treeLevel && column.key === 'RFA Ref' && rowData['RFA Ref'] && (
             <>
                {(isEdittingAllowed
                   // ? ['Edit', 'Open Drawing File', 'Open 3D File']
@@ -410,16 +429,6 @@ const CellRFA = (props) => {
                   : ['Open Drawing File', 'Open 3D File']
                ).map(btn => (
                   <Tooltip key={btn} placement='top' title={btn}>
-                     {/* <div
-                        style={{
-                           cursor: 'pointer', position: 'absolute',
-                           right: btn === 'Open Drawing File' ? 4 : 24,
-                           top: 5, height: 17, width: 17,
-                           backgroundSize: 17,
-                           backgroundImage: `url(${imgLink.btnFileUpload})`
-                        }}
-                        onMouseDown={() => onClickDrawingOpenRfaCell(btn)}
-                     /> */}
                      <div
                         style={{
                            cursor: 'pointer', position: 'absolute',

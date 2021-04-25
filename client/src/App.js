@@ -16,19 +16,6 @@ const App = () => {
    };
 
 
-   // console.log(localStorage);
-
-   const consultantCompany = 'DCA';
-   // const consultantCompany = 'ONG & ONG';
-   // const consultantCompany = 'RSP';
-   // const consultantCompany = 'K2LD';
-   // const consultantCompany = 'HYLA';
-   // const consultantCompany = 'GGGG';
-
-
-   // localStorage.clear();
-
-
    return (
       <BrowserRouter>
          <Switch>
@@ -42,6 +29,7 @@ const App = () => {
                      email={browserName === 'Chrome' ? 'tbl@wohhup.com' : 'test@dca.com'}
                      company={browserName === 'Chrome' ? 'Woh Hup Private Ltd' : consultantCompany}
                      role={browserName === 'Chrome' ? 'Document Controller' : 'Consultant'}
+                     // role={browserName === 'Chrome' ? 'WH Archi Manager' : 'Consultant'}
 
 
 
@@ -67,11 +55,15 @@ const App = () => {
                      projectId='MTYxNzg5MDkxNzI2MC10ZXN0OA'
 
 
+                     // projectId='MTU3NDgyNTcyMzUwNC1UZXN0'
+
+
 
                      projectIsAppliedRfaView={true}
                      // projectIsAppliedRfaView={false}
 
                      projectName='Punggol Digital District'
+                     projectNameShort='PDD'
                      token='xxx-xxxxx-xxx-x-xxxxx'
                      isAdmin={true}
                      // role='WH C&S Design Engineer'
@@ -98,6 +90,13 @@ const App = () => {
                         { company: 'HHH ME', companyType: 'Sub-con', trade: 'M&E' },
 
 
+                        // { company: 'dcA', companyType: 'Consultant' },
+                        // { company: 'rsp', companyType: 'Consultant' },
+                        // { company: 'HYLA', companyType: 'Consultant' },
+                        // { company: 'K2LD', companyType: 'Consultant' },
+                        // { company: 'onG & Ong', companyType: 'Consultant' },
+
+
                         { company: 'DCA', companyType: 'Consultant' },
                         { company: 'RSP', companyType: 'Consultant' },
                         { company: 'HYLA', companyType: 'Consultant' },
@@ -117,10 +116,17 @@ const App = () => {
                         'tbl_1@gmail.com'
                      ]}
                      listGroup={[
-                        'Group 1',
-                        'Group 2',
-                        'WH Group 2',
-                        'Sumang Email Group',
+                        'dCA',
+                        // 'DCA',
+                        'DCA_%$%_Team1',
+                        'RSP',
+                        'rSP_%$%_Team1',
+                        'RsP_%$%_Team2',
+                        'onG & ONG',
+                        'ong & ONG_%$%_MEP_Team',
+                        'Group Email A',
+                        'Team RCP',
+                        'K2LD',
                      ]}
 
 
@@ -152,8 +158,8 @@ const App = () => {
 
 
 
-
             </SheetContext>
+
 
             <Route path='/dashboard'>
                <PageDashboard
@@ -177,5 +183,4 @@ const App = () => {
 
 
 export default App;
-
 

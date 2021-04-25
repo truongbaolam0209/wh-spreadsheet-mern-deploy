@@ -56,7 +56,7 @@ const ViewTemplateSelect = ({ updateExpandedRowIdsArray }) => {
          {listArrayStringFolder && (
             <SelectStyled
                defaultValue='Select View Template'
-               style={{ width: 300, padding: 3, height: 25 }}
+               style={{ width: 200, padding: 3, height: 25 }}
                onChange={(value) => selectViewTemplate(value)}
                disabled={stateRow.modeGroup.length > 0}
 

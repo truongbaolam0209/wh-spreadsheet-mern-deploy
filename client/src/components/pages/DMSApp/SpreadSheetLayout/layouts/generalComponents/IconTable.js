@@ -80,7 +80,7 @@ const toolTipBtn = (type) => {
                                                                            type === 'rfa-button' ? 'Go To RFA Sheet' :
                                                                               type === 'dms-button' ? 'Go To DMS Sheet' :
                                                                                  type === 'plus-square' ? 'Add New RFA' :
-                                                                                    type === 'block' ? 'View Consultant' :
+                                                                                    type === 'block' ? 'View All Consultant' :
                                                                                     'No Title';
 };
 
