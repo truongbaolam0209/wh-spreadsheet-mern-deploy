@@ -875,11 +875,7 @@ const PanelSetting = (props) => {
          console.log(err);
       };
    };
-   const stopSubmitProcess = (text) => {
-      getSheetRows({ ...stateRow, loading: false });
-      message.warning(text);
-      return;
-   };
+
    const onClickApplyAddNewRFA = async (dataDwg) => {
 
       setLoading(true);
@@ -903,75 +899,83 @@ const PanelSetting = (props) => {
 
 
 
-      // check in the server first
-      const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
-      const resRowHistory = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
-      const latestDataFromServer = getInputDataInitially(res.data, resRowHistory.data, { role, company });
-      const { rowsRfaAllInit: rowsRfaAllInitFromDB } = latestDataFromServer;
-
-      let isStopSubmit = false;
-      if (type.includes('form-submit-') && isFirstTimeSubmission) {
-         const rowWithRfaFound = dwgsToAddNewRFA.find(row => rowsRfaAllInitFromDB.find(x => x.id === row.id));
-         if (rowWithRfaFound) {
-            // stopSubmitProcess('Some drawings in this RFA are already submitted in other previous RFA');
-            // isStopSubmit = true;
-         };
-      } else if (type.includes('form-submit-') && !isFirstTimeSubmission) {
-         dwgsToAddNewRFA.forEach(r => {
-            const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
-            if (rowWithRfaFound) {
-               if (getInfoValueFromRfaData(rowWithRfaFound, 'submission', 'drawing', company)) {
-                  // stopSubmitProcess('Some drawings in this RFA are already submitted in other previous RFA');
-                  // isStopSubmit = true;
-               };
-            };
-         });
-      } else if (type.includes('form-reply-')) {
-         dwgsToAddNewRFA.forEach(r => {
-            const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
-            if (rowWithRfaFound) {
-               if (getInfoValueFromRfaData(rowWithRfaFound, 'reply', 'status', company)) {
-                  // stopSubmitProcess('Some drawings in this RFA are already replied by someone');
-                  // isStopSubmit = true;
-               };
-            };
-         });
-      };
-
-
-
-
-
-      let data;
-      if (filesPDF) {
-         data = new FormData();
-         filesPDF.forEach(file => {
-            data.append('files', file.originFileObj);
-         });
-         data.append('projectId', projectId);
-         data.append('trade', trade);
-         data.append('rfa', rfaToSave);
-         data.append('rfaNumber', rfaToSaveVersionOrToReply === '-' ? '0' : rfaToSaveVersionOrToReply); // CHECK...
-         data.append('type', type.includes('submit') ? 'submit' : 'reply');
-      };
-
-      let dataDWFX;
-      if (filesDWFX) {
-         dataDWFX = new FormData();
-         dataDWFX.append('file', filesDWFX.originFileObj);
-         dataDWFX.append('projectId', projectId);
-         dataDWFX.append('projectName', projectName);
-         dataDWFX.append('email', email);
-         dataDWFX.append('rfaName', rfaRefData);
-      };
-
       try {
+
+         // check in the server first
+         const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+         const resRowHistory = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
+         const latestDataFromServer = getInputDataInitially(res.data, resRowHistory.data, { role, company });
+         const { rowsRfaAllInit: rowsRfaAllInitFromDB } = latestDataFromServer;
+
+
+         let isActionAllowed = true;
+         if (type.includes('form-submit-')) {
+            const allRFARefAlreadySubmitted = [...new Set(rowsRfaAllInitFromDB.filter(x => x['RFA Ref']).map(x => x['RFA Ref']))];
+            if (allRFARefAlreadySubmitted.indexOf(rfaRefData) !== -1) {
+               isActionAllowed = false;
+            };
+
+            if (isFirstTimeSubmission) {
+               const rowWithRfaFound = dwgsToAddNewRFA.find(row => rowsRfaAllInitFromDB.find(x => x.id === row.id));
+               if (rowWithRfaFound) {
+                  isActionAllowed = false;
+               };
+            } else {
+               dwgsToAddNewRFA.forEach(r => {
+                  const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
+                  if (rowWithRfaFound) {
+                     if (getInfoValueFromRfaData(rowWithRfaFound, 'submission', 'drawing', company)) {
+                        isActionAllowed = false;
+                     };
+                  };
+               });
+            };
+         } else if (type.includes('form-reply-')) {
+            dwgsToAddNewRFA.forEach(r => {
+               const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
+               if (rowWithRfaFound) {
+                  if (getInfoValueFromRfaData(rowWithRfaFound, 'reply', 'status', company)) {
+                     isActionAllowed = false;
+                  };
+               };
+            });
+         };
+         if (!isActionAllowed) {
+            getSheetRows({ ...stateRow, loading: false });
+            message.error('This RFA / drawings are already submitted / replied by others, please reload the RFA View');
+            return;
+         };
+
+
+         let data;
+         if (filesPDF) {
+            data = new FormData();
+            filesPDF.forEach(file => {
+               data.append('files', file.originFileObj);
+            });
+            data.append('projectId', projectId);
+            data.append('trade', trade);
+            data.append('rfa', rfaToSave);
+            data.append('rfaNumber', rfaToSaveVersionOrToReply === '-' ? '0' : rfaToSaveVersionOrToReply); // CHECK...
+            data.append('type', type.includes('submit') ? 'submit' : 'reply');
+         };
+
+         let dataDWFX;
+         if (filesDWFX) {
+            dataDWFX = new FormData();
+            dataDWFX.append('file', filesDWFX.originFileObj);
+            dataDWFX.append('projectId', projectId);
+            dataDWFX.append('projectName', projectName);
+            dataDWFX.append('email', email);
+            dataDWFX.append('rfaName', rfaRefData);
+         };
+
 
 
          let arrayFileName = [];
          if (data && data !== null) {
             // const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
-            const res = await Axios.post('/app.com/api/drawing/set-drawing-files', data);
+            const res = await Axios.post('/api/drawing/set-drawing-files', data);
             const listFileName = res.data;
             arrayFileName = listFileName.map(link => ({
                fileName: getFileNameFromLinkResponse(link),
@@ -1225,11 +1229,11 @@ const PanelSetting = (props) => {
 
          await reloadDataFromServerViewRFA();
          message.success('Submitted Successfully', 3);
+
       } catch (err) {
          getSheetRows({ ...stateRow, loading: false });
          commandAction({ type: 'save-data-failure' });
          console.log(err);
-         // stopSubmitProcess('Network Error');
       };
    };
    const redirectToViewDMS = async () => {
@@ -1672,8 +1676,6 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, com
 
 
 
-
-
 const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
    const headersArray = [
       '',
@@ -1719,7 +1721,7 @@ const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
             } else if (headerText === 'Drawing Number') {
                str += `
                   <td ${th_td_style}>
-                     <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]}' download>
+                     <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]} download'>
                         ${rowData[headerText] || ''}
                      </a>
                   </td>
@@ -1777,13 +1779,13 @@ const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
          ${tableHeader}
          ${tableBody}
       </table>
+      <div style='font-size: 12px;'>Download links are valid for 24 hours.</div>
       <br />
       <a href="https://bim.wohhup.com/projects">Go to BIM APP</a>
       <div>This is an automatic email from <span style='font-weight: bold;'>${company}</span></div>
       <br />
    </div>
    `;
-   // console.log('emailOutput', emailOutput);
    return emailOutput;
 };
 

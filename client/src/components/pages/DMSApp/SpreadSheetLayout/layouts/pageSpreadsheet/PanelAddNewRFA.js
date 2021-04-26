@@ -549,7 +549,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA, formRfaType
             background: 'white',
             width: '100%',
             // height: '90vh',
-            maxHeight: '90vh',
+            // maxHeight: '90vh',
             padding: 10,
             color: 'black',
          }}>
@@ -888,7 +888,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA, formRfaType
                {dwgsToAddNewRFA && (
                   <div style={{
                      width: window.innerWidth * 0.9 - 80,
-                     height: dwgsToAddNewRFA.length > 4 ? 162 : dwgsToAddNewRFA.length * 28 + 80
+                     // height: dwgsToAddNewRFA.length > 4 ? 162 : dwgsToAddNewRFA.length * 28 + 80
+                     height: dwgsToAddNewRFA.length * 28 + 80
                   }}>
                      <TableStyled
                         fixed
