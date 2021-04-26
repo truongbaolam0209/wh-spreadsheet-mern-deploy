@@ -1721,7 +1721,7 @@ const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
             } else if (headerText === 'Drawing Number') {
                str += `
                   <td ${th_td_style}>
-                     <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]} download'>
+                     <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]}' download>
                         ${rowData[headerText] || ''}
                      </a>
                   </td>
