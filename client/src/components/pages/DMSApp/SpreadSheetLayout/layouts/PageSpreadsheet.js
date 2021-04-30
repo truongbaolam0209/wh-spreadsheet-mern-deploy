@@ -8,7 +8,7 @@ import { colorTextRow, colorType, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
+import { compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../utils';
 import CellHeader from './generalComponents/CellHeader';
 import { sortFnc } from './generalComponents/FormSort';
 import IconTable from './generalComponents/IconTable';
@@ -356,7 +356,6 @@ const PageSpreadsheet = (props) => {
          } else {
             setExpandedRows(getRowsKeyExpanded(update.data.drawingTypeTree, stateRow.viewTemplateNodeId));
          };
-
 
       } else if (update.type === 'group-columns') {
          getSheetRows({ ...stateRow, ...update.data });
@@ -708,7 +707,7 @@ const PageSpreadsheet = (props) => {
                   onMouseDownColumnHeader={onMouseDownColumnHeader}
                />
             ),
-            cellRenderer: stateRow.isRfaView || (!stateRow.isRfaView && isColumnWithReplyData(hd)) ? (
+            cellRenderer: stateRow.isRfaView || (!stateRow.isRfaView && (isColumnWithReplyData(hd) || isColumnConsultant(hd) || hd === 'RFA Ref')) ? (
                <CellRFA
                   buttonPanelFunction={buttonPanelFunction}
                   onRightClickCell={onRightClickCell}
@@ -854,7 +853,22 @@ const PageSpreadsheet = (props) => {
             )}
 
             {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && role === 'Document Controller' && (
-               <IconTable type='plus-square' onClick={() => buttonPanelFunction('form-submit-RFA')} />
+               <IconTable
+                  type='plus-square'
+                  onClick={() => {
+                     buttonPanelFunction('form-submit-RFA');
+                     getSheetRows({
+                        ...stateRow,
+                        currentRfaToAddNewOrReplyOrEdit: {
+                           currentRfaNumber: null,
+                           currentRfaRef: null,
+                           currentRfaData: null,
+                           formRfaType: 'form-submit-RFA',
+                           isFormEditting: false
+                        }
+                     });
+                  }}
+               />
             )}
 
             {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && (
@@ -991,8 +1005,9 @@ const PageSpreadsheet = (props) => {
             footer={null}
             onCancel={() => {
                if (
-                  !panelSettingType.includes('form-submit-') &&
-                  !panelSettingType.includes('form-reply-') &&
+                  panelSettingType !== 'form-submit-RFA' &&
+                  panelSettingType !== 'form-resubmit-RFA' &&
+                  panelSettingType !== 'form-reply-RFA' &&
                   panelSettingType !== 'addDrawingType-ICON'
                ) {
                   setPanelSettingVisible(false);
@@ -1005,8 +1020,9 @@ const PageSpreadsheet = (props) => {
             width={
                panelSettingType === 'addDrawingType-ICON' ? window.innerWidth * 0.85 :
                   (
-                     panelSettingType === 'form-submit-RFA' || panelSettingType === 'form-reply-RFA' ||
-                     panelSettingType === 'form-submit-edit-RFA' || panelSettingType === 'form-reply-edit-RFA'
+                     panelSettingType === 'form-submit-RFA' ||
+                     panelSettingType === 'form-resubmit-RFA' ||
+                     panelSettingType === 'form-reply-RFA'
                   ) ? window.innerWidth * 0.9 :
                      panelSettingType === 'pickTypeTemplate-ICON' ? window.innerWidth * 0.6 :
                         panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
@@ -1567,62 +1583,7 @@ const rearrangeRowsNotMatchTreeNode = (rows, rowsArranged, drawingTypeTree) => {
 
 
 
-const getUserRoleTradeCompany = (role, company) => {
 
-   const roleArray = [
-      'Document Controller',
-
-      'WH Archi Coordinator',
-      'WH C&S Design Engineer',
-      'WH M&E Coordinator',
-      'WH PRECAST Coordinator',
-
-      'WH Archi Modeller',
-      'WH C&S Modeller',
-      'WH M&E Modeller',
-      'WH PRECAST Modeller',
-
-      'Production',
-
-      'WH Archi Manager',
-      'WH C&S Manager',
-      'WH M&E Manager',
-      'WH PRECAST Manager',
-
-      'Planning Engineer',
-      'QS',
-      'Project Manager',
-      'Corporate Manager',
-      'QAQC',
-      'Safety',
-      'Client',
-
-      'Sub-Con',
-      'Consultant',
-   ];
-
-
-   if (
-      !role || !company || roleArray.indexOf(role) === -1 ||
-      role === 'WH Archi Manager' || role === 'WH C&S Manager' || role === 'WH M&E Manager' || role === 'WH PRECAST Manager' ||
-      role === 'Planning Engineer' || role === 'QS' || role === 'Project Manager' || role === 'Corporate Manager' ||
-      role === 'Client' || role === 'QAQC' || role === 'Safety'
-   ) {
-      return { role: 'View-Only User', trade: null, company: null };
-   };
-
-   if (role === 'WH Archi Coordinator') return { role: 'Coordinator', trade: 'ARCHI', company };
-   if (role === 'WH C&S Design Engineer') return { role: 'Coordinator', trade: 'C&S', company };
-   if (role === 'WH M&E Coordinator') return { role: 'Coordinator', trade: 'M&E', company };
-   if (role === 'WH PRECAST Coordinator') return { role: 'Coordinator', trade: 'PRECAST', company };
-
-   if (role === 'WH Archi Modeller') return { role: 'Modeller', trade: 'ARCHI', company };
-   if (role === 'WH C&S Modeller') return { role: 'Modeller', trade: 'C&S', company };
-   if (role === 'WH M&E Modeller') return { role: 'Modeller', trade: 'M&E', company };
-   if (role === 'WH PRECAST Modeller') return { role: 'Modeller', trade: 'PRECAST', company };
-
-   return { role, trade: null, company };
-};
 export const headersConsultantWithNumber = [
    'Consultant (1)',
    'Consultant (2)',

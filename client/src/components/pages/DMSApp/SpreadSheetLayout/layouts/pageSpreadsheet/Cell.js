@@ -1,11 +1,10 @@
-import { Icon, message, Tooltip } from 'antd';
-import Axios from 'axios';
+import { message } from 'antd';
 import moment from 'moment';
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { colorTextRow, colorType, imgLink } from '../../constants';
 import PanelCalendar from '../generalComponents/PanelCalendar';
-import { getInfoValueFromRfaData, isColumnWithReplyData } from './CellRFA';
+import { isColumnWithReplyData } from './CellRFA';
 import { getCompanyNameFnc, getTradeNameFnc, getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
 
 
@@ -221,24 +220,6 @@ const Cell = (props) => {
       setValueInput({ ...valueInput, current: e.target.value });
    };
 
-   const onClickDrawingOpen = async (btn) => {
-      if (btn === 'Open Drawing File') {
-         const dwgLink = rowData[`submission-$$$-drawing-${company}`];
-         try {
-            const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
-            window.open(res.data);
-         } catch (err) {
-            console.log(err);
-         };
-      } else if (btn === 'Open 3D File') {
-         const dwgLink = getInfoValueFromRfaData(rowData, 'submission', 'dwfx');
-         if (dwgLink) {
-            window.open(dwgLink);
-         };
-      };
-   };
-
-
 
 
 
@@ -389,40 +370,6 @@ const Cell = (props) => {
                   }}
                   ref={buttonRef}
                />
-            )}
-
-
-            {btnDrawingShown && projectIsAppliedRfaView && column.key === 'RFA Ref' && !rowData.treeLevel && rowData['RFA Ref'] && (
-               // <Tooltip key={'Open Drawing File'} placement='top' title={'Open Drawing File'}>
-               //    <div
-               //       style={{
-               //          cursor: 'pointer', position: 'absolute',
-               //          right: 4, top: 5, height: 17, width: 17,
-               //          backgroundSize: 17,
-               //          backgroundImage: `url(${imgLink.btnFileUpload})`
-               //       }}
-               //       onMouseDown={onClickDrawingOpen}
-               //    />
-               // </Tooltip>
-               <>
-                  {['Open Drawing File', 'Open 3D File'].map(btn => (
-                     <Tooltip key={btn} placement='top' title={btn}>
-                        <div
-                           style={{
-                              cursor: 'pointer', position: 'absolute',
-                              right: btn === 'See Note' ? 4 : btn === 'Open Drawing File' ? 24 : btn === 'Open 3D File' ? 44 : 64,
-                              top: 5, height: 17, width: 17,
-                           }}
-                           onMouseDown={() => onClickDrawingOpen(btn)}
-                        >
-                           <Icon
-                              type={btn === 'Open Drawing File' ? 'file' : btn === 'Open 3D File' ? 'shake' : 'edit'}
-                              style={{ color: 'black' }}
-                           />
-                        </div>
-                     </Tooltip>
-                  ))}
-               </>
             )}
 
 

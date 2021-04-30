@@ -101,10 +101,7 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
 
 
    return (
-      <div style={{
-         width: '100%',
-         height: '100%'
-      }}>
+      <div style={{ width: '100%', height: '100%'}}>
          <div style={{ padding: 20, borderBottom: `1px solid ${colorType.grey4}` }}>
 
             <ButtonStyle

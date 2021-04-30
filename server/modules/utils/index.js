@@ -87,19 +87,19 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
       headersArray.forEach((headerText, i) => {
          if (i !== 0) {
             if (headerText === 'Status' && emailType === 'reply') {
-               str += `<td ${th_td_style}>${rowData[`reply-$$$-status-${company}`]}</td>`;
+               str += `<td ${th_td_style}>${rowData[`reply-$$$-status-${company}`] || ''}</td>`;
             } else if (headerText === 'Status' && emailType === 'submit') {
                str += `<td ${th_td_style}>Consultant reviewing</td>`;
             } else if (headerText === 'Drawing Number') {
                str += `
                   <td ${th_td_style}>
-                     <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]}'>
-                        ${rowData[headerText]}
+                     <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]}' download>
+                        ${rowData[headerText] || ''}
                      </a>
                   </td>
                `;
             } else {
-               str += `<td ${th_td_style}>${rowData[headerText]}</td>`;
+               str += `<td ${th_td_style}>${rowData[headerText] || ''}</td>`;
             };
          };
       });
@@ -122,44 +122,41 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
          ? `
          <div>Submission Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
          <br />
-         <div>Dear Mr/Mrs <span style='font-weight: bold;'>${consultantMustReply[0] || ''}</span>,</div>
+         <div>Dear all,</div>
          <div>
             <span style='font-weight: bold;'>${company}</span> has submitted <span
                style='font-weight: bold;'>${rfaRefText}</span> for you to review, the
             drawings included in this RFA
             are in the list below.
+            <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
          </div>
          <div>Please review and reply to us by <span style='font-weight: bold;'>${moment().add(14, 'days').format('MMM Do YYYY')}</span></div>
       ` : `
          <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
          <br />
-         <div>Dear Mr/Mrs <span style='font-weight: bold;'>${contractorName}</span>,</div>
+         <div>Dear all,</div>
          <div>
             <span style='font-weight: bold;'>${company}</span> has reply <span
                style='font-weight: bold;'>${rfaRefText}</span>, the
             replied drawings included in this RFA
             are in the list below.
+            <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
          </div>
       `}
       
-      <div>${emailAdditionalNotes}</div>
       <br />
       <div>Uploaded Documents</div>
       <table align='center' cellpadding='0' cellspacing='0' width='100%' style='border-collapse: collapse; font-size: 14px;'>
          ${tableHeader}
          ${tableBody}
       </table>
+      <div style='font-size: 12px;'>Download links are valid for 24 hours.</div>
       <br />
+      <a href="https://bim.wohhup.com/projects">Go to BIM APP</a>
       <div>This is an automatic email from <span style='font-weight: bold;'>${company}</span></div>
       <br />
-      <div style='font-size: 13px;'>This email, including attached files, may contain confidential information and is
-         intended only for the use of the individual and/or entity to which it is addressed. If you are not the
-         intended
-         recipient, disclosure, copying, use, or distribution of the information included in this email is prohibited
-      </div>
    </div>
    `;
-
    return emailOutput;
 };
 

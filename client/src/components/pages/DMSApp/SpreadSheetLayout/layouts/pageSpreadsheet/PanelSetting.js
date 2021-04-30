@@ -6,7 +6,7 @@ import { SERVER_URL } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { compareDates, convertCellTempToHistory, convertDrawingVersionToHistory, debounceFnc, extractCellInfo, genId, mongoObjectId, validateEmailInput } from '../../utils';
+import { compareDates, convertCellTempToHistory, convertDrawingVersionToHistory, debounceFnc, extractCellInfo, genId, mongoObjectId } from '../../utils';
 import FormFilter from '../generalComponents/FormFilter';
 import FormGroup from '../generalComponents/FormGroup';
 import FormSort from '../generalComponents/FormSort';
@@ -405,16 +405,17 @@ const PanelSetting = (props) => {
          }
       });
    };
-   const applyDateAutomation = (dateAutomation) => {
-      let { rowsAll } = stateRow;
-      const rowId = panelType.cellProps.rowData.id;
-      let row = rowsAll.find(r => r.id === rowId);
+   const applyDateAutomation = (rowsToAutomation, dataUpdate) => {
 
-      Object.keys(dateAutomation).forEach(key => {
-         const cellTempId = `${rowId}~#&&#~${key}`;
-         const dateConverted = moment(dateAutomation[key]).format('DD/MM/YY');
-         getCellModifiedTemp({ [cellTempId]: dateConverted });
-         row[key] = dateConverted;
+      let { rowsAll } = stateRow;
+      const rowsUpdate = rowsAll.filter(x => rowsToAutomation.find(r => r.id === x.id));
+
+      rowsUpdate.forEach(r => {
+         Object.keys(dataUpdate).forEach(key => {
+            const cellTempId = `${r.id}~#&&#~${key}`;
+            getCellModifiedTemp({ [cellTempId]: dataUpdate[key] });
+            r[key] = dataUpdate[key];
+         });
       });
 
       commandAction({
@@ -882,21 +883,19 @@ const PanelSetting = (props) => {
 
       const {
          filesPDF, filesDWFX, type, dwgsToAddNewRFA, dwgIdsToRollBackSubmit, trade, rfaToSave, rfaToSaveVersionOrToReply,
-         recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm
+         recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting
       } = dataDwg;
-
-      const { rowsRfaAllInit } = stateRow;
+      
+      const { currentRfaToAddNewOrReplyOrEdit } = stateRow;
       const { email, projectId, projectName, token, publicSettings, roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
       const { headers } = publicSettings;
 
       const consultantLeadName = listConsultantMustReply[0];
 
       const rfaRefData = rfaToSaveVersionOrToReply === '-' ? rfaToSave : (rfaToSave + rfaToSaveVersionOrToReply);
-      const isFirstTimeSubmission = rfaToSaveVersionOrToReply === '-';
 
       // for localStorage purpose
-      // const dwgsToAddNewRFACloneToEdit = dwgsToAddNewRFA.map(x => ({ ...x }));
-
+      const dwgsToAddNewRFACloneToEdit = dwgsToAddNewRFA.map(x => ({ ...x }));
 
 
       try {
@@ -909,19 +908,20 @@ const PanelSetting = (props) => {
 
 
          let isActionAllowed = true;
-         if (type.includes('form-submit-')) {
-            const allRFARefAlreadySubmitted = [...new Set(rowsRfaAllInitFromDB.filter(x => x['RFA Ref']).map(x => x['RFA Ref']))];
-            if (allRFARefAlreadySubmitted.indexOf(rfaRefData) !== -1) {
-               isActionAllowed = false;
+         if (type === 'form-submit-RFA' || type === 'form-resubmit-RFA') {
+            if (!isFormEditting || (isFormEditting && rfaRefData !== currentRfaToAddNewOrReplyOrEdit.currentRfaRef)) {
+               const allRFARefAlreadySubmitted = [...new Set(rowsRfaAllInitFromDB.filter(x => x['RFA Ref']).map(x => x['RFA Ref']))];
+               if (allRFARefAlreadySubmitted.indexOf(rfaRefData) !== -1) {
+                  isActionAllowed = false;
+               };
             };
-
-            if (isFirstTimeSubmission) {
+            if (type === 'form-submit-RFA' && !isFormEditting) {
                const rowWithRfaFound = dwgsToAddNewRFA.find(row => rowsRfaAllInitFromDB.find(x => x.id === row.id));
                if (rowWithRfaFound) {
                   isActionAllowed = false;
                };
-            } else {
-               dwgsToAddNewRFA.forEach(r => {
+            } else if (type === 'form-resubmit-RFA' && !isFormEditting) {
+               dwgsToAddNewRFA.forEach(r => { // submitted by others.
                   const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
                   if (rowWithRfaFound) {
                      if (getInfoValueFromRfaData(rowWithRfaFound, 'submission', 'drawing', company)) {
@@ -930,15 +930,17 @@ const PanelSetting = (props) => {
                   };
                });
             };
-         } else if (type.includes('form-reply-')) {
-            dwgsToAddNewRFA.forEach(r => {
-               const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
-               if (rowWithRfaFound) {
-                  if (getInfoValueFromRfaData(rowWithRfaFound, 'reply', 'status', company)) {
-                     isActionAllowed = false;
+         } else if (type === 'form-reply-RFA') {
+            if (!isFormEditting) {
+               dwgsToAddNewRFA.forEach(r => {
+                  const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
+                  if (rowWithRfaFound) {
+                     if (getInfoValueFromRfaData(rowWithRfaFound, 'reply', 'status', company)) {
+                        isActionAllowed = false;
+                     };
                   };
-               };
-            });
+               });
+            };
          };
          if (!isActionAllowed) {
             getSheetRows({ ...stateRow, loading: false });
@@ -946,9 +948,10 @@ const PanelSetting = (props) => {
             return;
          };
 
+         const typeText = type === 'form-submit-RFA' ? 'submission' : 'reply';
 
          let data;
-         if (filesPDF) {
+         if (filesPDF.length > 0) {
             data = new FormData();
             filesPDF.forEach(file => {
                data.append('files', file.originFileObj);
@@ -959,21 +962,8 @@ const PanelSetting = (props) => {
             data.append('rfaNumber', rfaToSaveVersionOrToReply === '-' ? '0' : rfaToSaveVersionOrToReply); // CHECK...
             data.append('type', type.includes('submit') ? 'submit' : 'reply');
          };
-
-         let dataDWFX;
-         if (filesDWFX) {
-            dataDWFX = new FormData();
-            dataDWFX.append('file', filesDWFX.originFileObj);
-            dataDWFX.append('projectId', projectId);
-            dataDWFX.append('projectName', projectName);
-            dataDWFX.append('email', email);
-            dataDWFX.append('rfaName', rfaRefData);
-         };
-
-
-
          let arrayFileName = [];
-         if (data && data !== null) {
+         if (filesPDF.length > 0 && data && data !== null) {
             // const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
             const res = await Axios.post('/api/drawing/set-drawing-files', data);
             const listFileName = res.data;
@@ -981,13 +971,50 @@ const PanelSetting = (props) => {
                fileName: getFileNameFromLinkResponse(link),
                fileLink: link
             }));
+            
+            dwgsToAddNewRFA.forEach(r => {
+               const fileFound = arrayFileName.find(fl => fl.fileName === r[`${typeText}-$$$-drawing-${company}`]);
+               if (fileFound) {
+                  r[`${typeText}-$$$-drawing-${company}`] = fileFound.fileLink;
+               };
+            });
          };
 
-         let linkDWFX;
-         if (dataDWFX && dataDWFX !== null) {
-            const res = await Axios.post('/api/items/add-rfa-item', dataDWFX);
-            linkDWFX = window.location.origin + '/rfa/' + res.data;
+
+
+
+         
+         if (filesDWFX.length > 0) {
+            const upload3dModel = async () => {
+               try {
+                  await Promise.all(filesDWFX.map(async (file3D, i) => {
+                     let dataDWFX = new FormData();
+                     dataDWFX.append('file', file3D.originFileObj);
+                     dataDWFX.append('projectId', projectId);
+                     dataDWFX.append('projectName', projectName);
+                     dataDWFX.append('email', email);
+                     dataDWFX.append('rfaName', rfaRefData + `_${i}`);
+
+                     let linkDWFX = '';
+                     if (dataDWFX && dataDWFX !== null) {
+                        const res = await Axios.post('/api/items/add-rfa-item', dataDWFX);
+                        linkDWFX = window.location.origin + '/rfa/' + res.data;
+                     };
+                     const rowFound = dwgsToAddNewRFA.find(x => x[`submission-$$$-dwfx-${company}`] === file3D.name);
+                     rowFound[`submission-$$$-dwfx-${company}`] = linkDWFX;
+                  }));
+                  message.info('DONE...');
+               } catch (err) {
+                  console.log(err);
+               };
+            };
+            upload3dModel();
          };
+         
+
+
+      
+         
 
 
          let rowsToUpdate = [];
@@ -996,37 +1023,37 @@ const PanelSetting = (props) => {
          const arrayKeySubmission = ['drawing', 'trade', 'user', 'emailTo', 'emailCc', 'consultantMustReply', 'requestedBy'];
          const arrayKeyResubmission = ['drawing', 'user'];
 
-         if (dwgIdsToRollBackSubmit.length > 0) {
-            if (type === 'form-submit-edit-RFA') {
-               dwgIdsToRollBackSubmit.forEach(id => {
-                  const rowFound = rowsRfaAllInit.find(x => x.id === id);
-                  if (rowFound) {
-                     let rowOutput = { _id: rowFound.id, data: {} };
-                     arrayHeaderSubmission.forEach(hdText => {
-                        const hdFound = headers.find(hd => hd.text === hdText);
-                        if (hdFound) rowOutput.data[hdFound.key] = '';
-                     });
-                     if (isFirstTimeSubmission) {
-                        arrayKeySubmission.forEach(txt => {
-                           rowOutput.data[`submission-$$$-${txt}-${company}`] = '';
-                        });
-                        rowOutput.data.rfaNumber = '';
-                     } else {
-                        arrayKeyResubmission.forEach(txt => {
-                           rowOutput.data[`submission-$$$-${txt}-${company}`] = '';
-                        });
-                     };
-                     rowsToUpdate.push(rowOutput);
-                  };
-               });
-            }
-         };
+         // if (dwgIdsToRollBackSubmit.length > 0) {
+         //    if (type === 'form-submit-edit-RFA') {
+         //       dwgIdsToRollBackSubmit.forEach(id => {
+         //          const rowFound = rowsRfaAllInit.find(x => x.id === id);
+         //          if (rowFound) {
+         //             let rowOutput = { _id: rowFound.id, data: {} };
+         //             arrayHeaderSubmission.forEach(hdText => {
+         //                const hdFound = headers.find(hd => hd.text === hdText);
+         //                if (hdFound) rowOutput.data[hdFound.key] = '';
+         //             });
+         //             if (type === 'form-submit-RFA') {
+         //                arrayKeySubmission.forEach(txt => {
+         //                   rowOutput.data[`submission-$$$-${txt}-${company}`] = '';
+         //                });
+         //                rowOutput.data.rfaNumber = '';
+         //             } else {
+         //                arrayKeyResubmission.forEach(txt => {
+         //                   rowOutput.data[`submission-$$$-${txt}-${company}`] = '';
+         //                });
+         //             };
+         //             rowsToUpdate.push(rowOutput);
+         //          };
+         //       });
+         //    }
+         // };
 
 
          dwgsToAddNewRFA.forEach((r, i) => {
             let rowOutput = { _id: r.id };
 
-            if ((type === 'form-submit-RFA' && !r['RFA Ref']) || type === 'form-submit-edit-RFA') {
+            if (type === 'form-submit-RFA' || type === 'form-resubmit-RFA') {
                rowOutput.data = {};
                r['RFA Ref'] = rfaRefData;
                r['rfaNumber'] = rfaToSave;
@@ -1043,26 +1070,15 @@ const PanelSetting = (props) => {
                r[`submission-$$$-user-${company}`] = email;
 
 
-
                headers.forEach(hd => {
                   if (r[hd.text] && arrayHeaderSubmission.indexOf(hd.text) !== -1) {
                      rowOutput.data[hd.key] = r[hd.text];
                   };
                });
-
                rowOutput.data.rfaNumber = r['rfaNumber'];
 
-
-               const fileFound = arrayFileName.find(fl => fl.fileName === r[`submission-$$$-drawing-${company}`]);
-               if (fileFound) {
-                  rowOutput.data[`submission-$$$-drawing-${company}`] = fileFound.fileLink;
-                  r[`submission-$$$-drawing-${company}`] = fileFound.fileLink;
-               };
-               if (linkDWFX) {
-                  rowOutput.data[`submission-$$$-dwfx-${company}`] = linkDWFX;
-                  r[`submission-$$$-dwfx-${company}`] = linkDWFX;
-               };
-
+               rowOutput.data[`submission-$$$-drawing-${company}`] = r[`submission-$$$-drawing-${company}`];
+               rowOutput.data[`submission-$$$-dwfx-${company}`] = r[`submission-$$$-dwfx-${company}`];
                rowOutput.data[`submission-$$$-emailTo-${company}`] = recipient.to;
                rowOutput.data[`submission-$$$-emailCc-${company}`] = recipient.cc;
                rowOutput.data[`submission-$$$-emailTitle-${company}`] = emailTextTitle;
@@ -1071,7 +1087,7 @@ const PanelSetting = (props) => {
                rowOutput.data[`submission-$$$-requestedBy-${company}`] = requestedBy;
                rowOutput.data[`submission-$$$-trade-${company}`] = trade;
                rowOutput.data[`submission-$$$-user-${company}`] = email;
-
+               rowsToUpdate.push(rowOutput);
 
             } else if (type === 'form-reply-RFA') {
 
@@ -1089,16 +1105,12 @@ const PanelSetting = (props) => {
                   });
                };
 
-               const fileFound = arrayFileName.find(fl => fl.fileName === r[`reply-$$$-drawing-${company}`]);
-               if (fileFound) {
-                  rowOutput[saveToRowOrRowHistory][`reply-$$$-drawing-${company}`] = fileFound.fileLink;
-                  r[`reply-$$$-drawing-${company}`] = fileFound.fileLink;
-               };
+
                if (r[`reply-$$$-comment-${company}`]) {
                   rowOutput[saveToRowOrRowHistory][`reply-$$$-comment-${company}`] = r[`reply-$$$-comment-${company}`];
                };
                rowOutput[saveToRowOrRowHistory][`reply-$$$-status-${company}`] = r[`reply-$$$-status-${company}`];
-
+               rowOutput[saveToRowOrRowHistory][`reply-$$$-drawing-${company}`] = r[`reply-$$$-drawing-${company}`];
                rowOutput[saveToRowOrRowHistory][`reply-$$$-date-${company}`] = moment(new Date()).format('DD/MM/YY');
                rowOutput[saveToRowOrRowHistory][`reply-$$$-user-${company}`] = email;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailTo-${company}`] = recipient.to;
@@ -1113,25 +1125,16 @@ const PanelSetting = (props) => {
                r[`reply-$$$-emailTitle-${company}`] = emailTextTitle;
                r[`reply-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
 
+               rowsToUpdate.push(rowOutput);
             };
-            rowsToUpdate.push(rowOutput);
          });
 
+         if (!isFormEditting) {
+            let tempAllRfaSaved = JSON.parse(localStorage.getItem('temp-RFA-form-data'));
+            tempAllRfaSaved = { ...tempAllRfaSaved, [`${rfaRefData}-${email}`]: new Date() };
+            localStorage.setItem('temp-RFA-form-data', JSON.stringify(tempAllRfaSaved));
+         };
 
-         // localStorage.setItem(`editLastTime-${type}-${email}-${rfaRefData}`, JSON.stringify({
-         //    createdAt: new Date(),
-         //    data: {
-         //       dwgsToAddNewRFA: dwgsToAddNewRFACloneToEdit,
-         //       trade,
-         //       rfaToSave,
-         //       rfaToSaveVersionOrToReply,
-         //       recipient,
-         //       emailTextTitle,
-         //       emailTextAdditionalNotes,
-         //       listConsultantMustReply,
-         //       requestedBy
-         //    }
-         // }));
 
 
          const rowsToUpdateFinalRow = rowsToUpdate.filter(r => r.data);
@@ -1168,63 +1171,62 @@ const PanelSetting = (props) => {
          };
 
 
+         const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row.id);
+         await Axios.post(`${SERVER_URL}/function-email-set`, {
+            data: {
+               token,
+               projectId,
+               company,
+               type: type.includes('submit') ? 'submit' : 'reply',
+               rowIds: rowIdsArrayToTriggerLater,
+            },
+            momentToTriggerEmail: moment().add(moment.duration(15, 'minutes'))
+         });
 
 
+         // let listUserOutput = {};
+         // let listGroupOutput = {};
 
-         // const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row.id);
-         // await Axios.post(`${SERVER_URL}/function-email-set`, {
-         //    token,
-         //    projectId,
-         //    company,
-         //    type: type.includes('submit') ? 'submit' : 'reply',
-         //    rowIds: rowIdsArrayToTriggerLater,
-         //    momentToTriggerEmail: moment().add(moment.duration(15, 'minutes'))
+         // Object.keys(recipient).forEach(key => {
+         //    recipient[key].forEach(item => {
+         //       if (listUser.indexOf(item) !== -1) {
+         //          listUserOutput[key] = [...listUserOutput[key] || [], item];
+         //       } else if (listGroup.indexOf(item) !== -1) {
+         //          listGroupOutput[key] = [...listGroupOutput[key] || [], item];
+         //       } else if (validateEmailInput(item)) {
+         //          listUserOutput[key] = [...listUserOutput[key] || [], item];
+         //       };
+         //    });
          // });
+         // listUserOutput.cc = [...listUserOutput.cc || [], email];
 
+         // const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
 
-         let listUserOutput = {};
-         let listGroupOutput = {};
+         // const getDrawingURLFromDB = async () => {
+         //    try {
+         //       return await Promise.all(dwgsNewRFAClone.map(async dwg => {
+         //          const typeApi = type.includes('form-submit-') ? 'submission' : 'reply';
+         //          const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${typeApi}-$$$-drawing-${company}`], expire: 3600 * 24 * 7 } });
+         //          dwg[`${typeApi}-$$$-drawing-${company}`] = res.data;
+         //          return dwg;
+         //       }));
+         //    } catch (err) {
+         //       console.log(err);
+         //    };
+         // };
 
-         Object.keys(recipient).forEach(key => {
-            recipient[key].forEach(item => {
-               if (listUser.indexOf(item) !== -1) {
-                  listUserOutput[key] = [...listUserOutput[key] || [], item];
-               } else if (listGroup.indexOf(item) !== -1) {
-                  listGroupOutput[key] = [...listGroupOutput[key] || [], item];
-               } else if (validateEmailInput(item)) {
-                  listUserOutput[key] = [...listUserOutput[key] || [], item];
-               };
-            });
-         });
-         listUserOutput.cc = [...listUserOutput.cc || [], email];
+         // const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
 
-         const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
+         // const emailContentOutput = generateEmailInnerHTMLFrontEnd(company, type.includes('submit') ? 'submit' : 'reply', dwgsToAddNewRFAGetDrawingURL);
 
-         const getDrawingURLFromDB = async () => {
-            try {
-               return await Promise.all(dwgsNewRFAClone.map(async dwg => {
-                  const typeApi = type.includes('form-submit-') ? 'submission' : 'reply';
-                  const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${typeApi}-$$$-drawing-${company}`], expire: 3600 * 24 } });
-                  dwg[`${typeApi}-$$$-drawing-${company}`] = res.data;
-                  return dwg;
-               }));
-            } catch (err) {
-               console.log(err);
-            };
-         };
-
-         const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
-
-         const emailContentOutput = generateEmailInnerHTMLFrontEnd(company, type.includes('submit') ? 'submit' : 'reply', dwgsToAddNewRFAGetDrawingURL);
-
-         await Axios.post('/api/rfa/mail', {
-            token,
-            title: `${projectName} - ${rfaRefData} - ${emailTextTitle}`,
-            content: emailContentOutput,
-            listUser: listUserOutput,
-            listGroup: listGroupOutput,
-            projectId
-         });
+         // await Axios.post('/api/rfa/mail', {
+         //    token,
+         //    title: `${projectName} - ${rfaRefData} - ${emailTextTitle}`,
+         //    content: emailContentOutput,
+         //    listUser: listUserOutput,
+         //    listGroup: listGroupOutput,
+         //    projectId
+         // });
 
 
          await reloadDataFromServerViewRFA();
@@ -1350,7 +1352,11 @@ const PanelSetting = (props) => {
 
 
          {panelSettingType === 'Date Automation' && (
-            <FormDateAutomation applyDateAutomation={applyDateAutomation} />
+            <FormDateAutomation
+               applyDateAutomation={applyDateAutomation}
+               onClickCancel={onClickCancelModal}
+               rowsToAutomation={[panelType.cellProps.rowData]}
+            />
          )}
 
          {panelSettingType === 'Create New Drawing Revision' && (
@@ -1392,13 +1398,13 @@ const PanelSetting = (props) => {
 
 
          {(
-            panelSettingType === 'form-submit-RFA' || panelSettingType === 'form-submit-edit-RFA' ||
-            panelSettingType === 'form-reply-RFA' || panelSettingType === 'form-reply-edit-RFA'
+            panelSettingType === 'form-submit-RFA' ||
+            panelSettingType === 'form-resubmit-RFA' ||
+            panelSettingType === 'form-reply-RFA'
          ) && (
                <PanelAddNewRFA
                   onClickCancelModal={onClickCancelModal}
                   onClickApplyAddNewRFA={onClickApplyAddNewRFA}
-                  formRfaType={panelSettingType}
                />
             )}
 
@@ -1567,7 +1573,7 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, com
 
       const rowsUnderThisTrade = rowsWithRFA.filter(row => {
          const parentNode = drawingTypeTree.find(x => x.id === row._parentRow);
-         return getTradeNameFnc(parentNode, drawingTypeTree) === title;
+         return parentNode && getTradeNameFnc(parentNode, drawingTypeTree) === title;
       });
 
       const allRfaCode = [...new Set(rowsUnderThisTrade.map(x => x['rfaNumber']))].sort();
@@ -1772,7 +1778,6 @@ const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
          </div>
       `}
       
-      <div>${emailAdditionalNotes}</div>
       <br />
       <div>Uploaded Documents</div>
       <table align='center' cellpadding='0' cellspacing='0' width='100%' style='border-collapse: collapse; font-size: 14px;'>

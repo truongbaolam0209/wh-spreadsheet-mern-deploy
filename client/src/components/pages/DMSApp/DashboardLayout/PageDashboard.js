@@ -11,7 +11,7 @@ import ChartPieDrawing from './componentsDashboard/ChartPieDrawing';
 import ChartProgress from './componentsDashboard/ChartProgress';
 import FormPivot from './componentsDashboard/FormPivot';
 import TableDrawingList from './componentsDashboard/TableDrawingList';
-import { convertDataFromDB, createDummyRecords, getRandomIntInclusive, inputStackData } from './utils/functionDashboard';
+import { convertDataFromDB, createDummyRecords, getRandomIntInclusive, getUserRoleTradeCompany, inputStackData } from './utils/functionDashboard';
 
 
 const { TabPane } = Tabs;
@@ -31,7 +31,12 @@ const createDummyProductivity = () => {
    return obj;
 };
 
-const PageDashboard = ({ projectsArray, token }) => {
+const PageDashboard = ({ projectsArray, token, role, company }) => {
+
+   const roleTradeCompany = getUserRoleTradeCompany(role, company);
+
+
+   console.log('roleTradeCompany', roleTradeCompany);
 
    const [dataDB, setDataDB] = useState(null);
    const [loading, setLoading] = useState(false);

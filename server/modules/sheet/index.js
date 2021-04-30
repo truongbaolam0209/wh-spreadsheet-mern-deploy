@@ -361,13 +361,18 @@ const saveAllDataRowsToServer = async (req, res, next) => {
 
 
 
+
+
+
 const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type) => {
 
    let rowIds = JSON.parse(qRowIds).map(toObjectId);
-   if (!sheetId) throw new HTTP(400, 'Missing sheet id!');
-   if (!rowIds) throw new HTTP(400, 'Missing row id!');
-   if (!company) throw new HTTP(400, 'Missing company!');
-   if (!type) throw new HTTP(400, 'Missing type!');
+
+   if (!sheetId) return 'ERROR - sheetId';
+   if (!rowIds) return 'ERROR - rowIds';
+   if (!company) return 'ERROR - company';
+   if (!type) return 'ERROR - Missing type';
+
 
    let [rows, rowHistories, publicSettings] = await Promise.all([
       rowModel.find({ sheet: sheetId, _id: { $in: rowIds } }),
@@ -376,16 +381,15 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type) => {
    ]);
    const { headers } = publicSettings;
 
+   
    const rowsOutput = [...rows, ...rowHistories];
 
    const outputRowsAll = rowsOutput.map(r => {
       let output, rowData;
       if (r.row) {
          output = {
-            // id: r._id,
-            // _rowLevel: r.level,
-            // _parentRow: r.parentRow,
-            // _preRow: r.preRow
+            id: r._id,
+            row: r.row
          };
          rowData = r.history;
       } else {
@@ -400,9 +404,11 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type) => {
 
       for (const key in rowData) {
          if (key === 'rfaNumber' || key.includes('reply-$$$-') || key.includes('submission-$$$-')) {
-            output[key] = rowData[key];
+            if (headerFound) {
+               output[key] = rowData[key];
+            };
          } else {
-            const headerFound = headers.find(hd => hd.key === key);
+            const headerFound = headers.find(x => x.key === key);
             if (headerFound) {
                output[headerFound.text] = rowData[key];
             };
@@ -411,12 +417,29 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type) => {
       return output;
    });
 
+   const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB(outputRowsAll, type);
 
-   const emailContent = generateEmailInnerHTMLBackend(company, type, outputRowsAll);
+   const emailContent = generateEmailInnerHTMLBackend(company, type, dwgsToAddNewRFAGetDrawingURL);
 
    return emailContent;
 
 };
+
+
+const getDrawingURLFromDB = async (dwgsNewRFA, type) => {
+   try {
+      return await Promise.all(dwgsNewRFA.map(async dwg => {
+         const typeApi = type === 'submit' ? 'submission' : type === 'reply' ? 'reply' : '';
+         const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${typeApi}-$$$-drawing-${company}`], expire: 3600 * 24 * 7 } });
+         dwg[`${typeApi}-$$$-drawing-${company}`] = res.data;
+         return dwg;
+      }));
+   } catch (err) {
+      console.log(err);
+   };
+};
+
+
 
 module.exports = {
    schema,
