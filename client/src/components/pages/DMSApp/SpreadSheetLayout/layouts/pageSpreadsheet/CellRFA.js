@@ -19,7 +19,7 @@ const CellRFA = (props) => {
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { rowsRfaAll, rowsRfaAllInit } = stateRow;
+   const { rowsRfaAll, rowsRfaAllInit, isRfaView } = stateRow;
 
    const { roleTradeCompany, companies, company, email, projectIsAppliedRfaView } = stateProject.allDataOneSheet;
 
@@ -55,7 +55,7 @@ const CellRFA = (props) => {
    };
 
    useEffect(() => {
-      if ((rowData.treeLevel === 3 && column.key === 'RFA Ref')) {
+      if (isRfaView && rowData.treeLevel === 3 && column.key === 'RFA Ref') {
          const rfaNumber = rowData.id;
          const allBtn = rowData['btn'];
          const allRowsChildren = rowData.children;
@@ -324,7 +324,7 @@ const CellRFA = (props) => {
          }}
          onMouseDown={onMouseDown}
       >
-         {(rowData.treeLevel === 3 && column.key === 'RFA Ref') ? (
+         {(isRfaView && rowData.treeLevel === 3 && column.key === 'RFA Ref') ? (
             <div style={{ display: 'flex', position: 'relative' }}>
                <span style={{ marginRight: 5 }}>{rowData['rfaNumber']}</span>
                <div style={{ display: 'flex' }}>
@@ -356,7 +356,7 @@ const CellRFA = (props) => {
                      </Tooltip>
                   )}
             </div>
-         ) : (rowData.treeLevel >= 2 && column.key === 'RFA Ref') ? rowData.title
+         ) : (isRfaView && rowData.treeLevel >= 2 && column.key === 'RFA Ref') ? rowData.title
 
             : (!rowData.treeLevel && (isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) && !replyStatus && rowData['RFA Ref']) ? (
                <div>{replyCompany}</div>
