@@ -964,8 +964,8 @@ const PanelSetting = (props) => {
          };
          let arrayFileName = [];
          if (filesPDF.length > 0 && data && data !== null) {
-            const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
-            // const res = await Axios.post('/api/drawing/set-drawing-files', data);
+            // const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
+            const res = await Axios.post('/api/drawing/set-drawing-files', data);
             const listFileName = res.data;
             arrayFileName = listFileName.map(link => ({
                fileName: getFileNameFromLinkResponse(link),
@@ -1008,7 +1008,6 @@ const PanelSetting = (props) => {
             };
             upload3dModel();
          };
-
 
 
 
@@ -1170,7 +1169,7 @@ const PanelSetting = (props) => {
 
 
          const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row.id);
-         await Axios.post(`${SERVER_URL}/function-email-set`, {
+         await Axios.post('/api/rfa/mail', {
             data: {
                token,
                projectId,
