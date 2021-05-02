@@ -40,7 +40,7 @@ export default CellIndex2;
 const Styled = styled.div`
     color: grey;
     font-size: 12px;
-
+    cursor: pointer;
     width: 100%;
     height: 100%;
     padding: 5px;

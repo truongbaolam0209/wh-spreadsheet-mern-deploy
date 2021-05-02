@@ -226,11 +226,12 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
             const rfaNumber = row.rfaNumber;
             const rfaRef = row['RFA Ref'];
             if (rfaNumber && rfaRef) {
+               
                const keyDrawingKey = getInfoKeyFromRfaData(row, 'submission', 'drawing');
                const keyDrawingValue = getInfoValueFromRfaData(row, 'submission', 'drawing');
-               const keyDwfxKey =  getInfoKeyFromRfaData(row, 'submission', 'dwfx')
-               const keyDwfxValue =  getInfoValueFromRfaData(row, 'submission', 'dwfx');
-               const rfaRef = row['RFA Ref'];
+               const keyDwfxKey =  getInfoKeyFromRfaData(row, 'submission', 'dwfxLink')
+               const keyDwfxValue =  getInfoValueFromRfaData(row, 'submission', 'dwfxLink');
+  
                if (rfaRef) {
                   obj[i] = {...obj[i] || {}, rfaRef };
                };

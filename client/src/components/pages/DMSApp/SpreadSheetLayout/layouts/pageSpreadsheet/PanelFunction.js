@@ -138,11 +138,12 @@ const disabledBtn = (
    };
 
    if (
-      (projectIsAppliedRfaView && !consultantLeadReply && btn === 'Create New Drawing Revision') ||
+      (projectIsAppliedRfaView && (!consultantLeadReply || roleTradeCompany.role !== 'Document Controller') && btn === 'Create New Drawing Revision') ||
+
       (rowsSelectedToMove.length === 0 && btn === 'Paste Drawings') ||
       (_rowLevel === 1 && roleTradeCompany.role === 'Modeller' && btnLocked_1.indexOf(btn) !== -1) ||
 
-      (_rowLevel === 1 && rowsSelected.length > 0 && rowsSelectedToMove.length === 0 && btn !== 'Move Drawings') ||
+      (_rowLevel === 1 && rowsSelected.length > 0 && rowsSelectedToMove.length === 0 && btn !== 'Move Drawings' && btn !== 'Date Automation') ||
       (_rowLevel === 1 && rowsSelected.length > 0 && rowsSelectedToMove.length > 0 && btn !== 'Paste Drawings') ||
       (_rowLevel === 1 && (roleTradeCompany.role === 'View-Only User' || roleTradeCompany.role === 'Production') && btnLocked_2.indexOf(btn) !== -1) ||
 

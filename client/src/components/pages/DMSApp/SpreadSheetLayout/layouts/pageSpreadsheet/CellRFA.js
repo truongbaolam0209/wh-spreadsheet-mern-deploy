@@ -139,6 +139,9 @@ const CellRFA = (props) => {
    }, [activeBtn]);
 
 
+
+
+
    const [dataButtonRfaInDmsViewDrawingHistoryTable, setDataButtonRfaInDmsViewDrawingHistoryTable] = useState(null);
    useEffect(() => {
       if (column.key.includes('Version ')) {
@@ -157,6 +160,7 @@ const CellRFA = (props) => {
             };
          } else if (infoData === 'RFA Ref') {
             setDataButtonRfaInDmsViewDrawingHistoryTable(rowData[versionIndex]);
+            setRfaData(rowData[versionIndex]);
          };
       };
    }, []);
@@ -211,7 +215,7 @@ const CellRFA = (props) => {
             window.open(res.data);
 
          } else if (btn === 'Open 3D File') {
-            const dwgLink = getInfoValueFromRfaData(dataButtonRfaInDmsViewDrawingHistoryTable, 'submission', 'dwfx');
+            const dwgLink = getInfoValueFromRfaData(dataButtonRfaInDmsViewDrawingHistoryTable, 'submission', 'dwfxLink');
             if (dwgLink) {
                window.open(dwgLink);
             };
@@ -242,7 +246,7 @@ const CellRFA = (props) => {
             console.log(err);
          };
       } else if (btn === 'Open 3D File') {
-         const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'dwfx');
+         const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'dwfxLink');
          if (dwgLink) {
             window.open(dwgLink);
          };
@@ -273,27 +277,23 @@ const CellRFA = (props) => {
 
    const checkIfEdittingIsAllowed = (type) => {
       let tempAllRfaSaved = JSON.parse(localStorage.getItem('temp-RFA-form-data'));
-
-      if (tempAllRfaSaved && tempAllRfaSaved[`${rowData['RFA Ref']}-${email}`]) {
-
-         const savedAt = tempAllRfaSaved[`${rowData['RFA Ref']}-${email}`];
-
+      if (tempAllRfaSaved && tempAllRfaSaved[`${type}-${rowData['RFA Ref']}-${email}`]) {
+         const savedAt = tempAllRfaSaved[`${type}-${rowData['RFA Ref']}-${email}`];
          const duration = moment.duration(moment(new Date()).diff(savedAt)).asMinutes();
-         if (duration <= 1200) {
+
+         if (duration <= 15) {
             setIsEdittingAllowed(true);
          } else {
-            delete tempAllRfaSaved[`${rowData['RFA Ref']}-${email}`];
+            delete tempAllRfaSaved[`${type}-${rowData['RFA Ref']}-${email}`];
             localStorage.setItem('temp-RFA-form-data', JSON.stringify(tempAllRfaSaved));
             setIsEdittingAllowed(false);
          };
       };
    };
 
-
    const additionalBtnToEdit = isEdittingAllowed ? ['Edit'] : [];
 
-
-
+   
    return (
       <div
          style={{

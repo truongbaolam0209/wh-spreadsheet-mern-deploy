@@ -49,7 +49,6 @@ let addedEvent = false;
 
 const PageSpreadsheet = (props) => {
 
-
    let { email, role, isAdmin, projectId, projectName, token, company, companies, projectIsAppliedRfaView, listUser, listGroup: listGroupData, projectNameShort } = props;
 
    const listGroup = listGroupData.map(x => x.toUpperCase());
@@ -210,13 +209,12 @@ const PageSpreadsheet = (props) => {
 
 
 
-
    const { state: stateCell, setCellActive, getCellModifiedTemp, OverwriteCellsModified, copyTempData, applyActionOnCell } = useContext(CellContext);
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
    // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
-   useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
+   // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
 
@@ -295,17 +293,23 @@ const PageSpreadsheet = (props) => {
          };
 
       } else {
-         getSheetRows({
-            ...stateRow,
-            rowsSelected: [],
-            rowsSelectedToMove: []
-         });
          setCellActive(null);
          copyTempData(null);
          applyActionOnCell(null);
 
          setPanelSettingType(btn);
          setPanelSettingVisible(true);
+
+         const objAttr = (
+            btn === 'Date Automation' ||
+            btn === 'Move Drawings'
+         ) ? {} : { rowsSelected: [] };
+
+         getSheetRows({
+            ...stateRow,
+            ...objAttr,
+            rowsSelectedToMove: []
+         });
       };
 
       setCellActive(null);
@@ -337,7 +341,13 @@ const PageSpreadsheet = (props) => {
          update.type === 'duplicate-drawings' || update.type === 'delete-drawing' ||
          update.type === 'drawing-data-automation' || update.type === 'create-new-drawing-revisions'
       ) {
-         getSheetRows({ ...stateRow, ...update.data, modeFilter: [], modeSort: {} });
+         getSheetRows({
+            ...stateRow,
+            ...update.data,
+            modeFilter: [],
+            modeSort: {},
+            rowsSelected: [],
+         });
 
       } else if (update.type === 'reset-filter-sort') {
 
@@ -443,7 +453,7 @@ const PageSpreadsheet = (props) => {
             setLoading(true);
 
             // if (roleTradeCompany.role === 'Consultant' || true) {
-            if (roleTradeCompany.role === 'Consultant') {
+               if (roleTradeCompany.role === 'Consultant') {
                const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
                const resRowHistory = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
                const { rows } = res.data;
@@ -785,17 +795,14 @@ const PageSpreadsheet = (props) => {
             params: {
                token,
                projectId,
-               company: 'RSP',
+               company: 'DCA',
                type: 'reply',
                // company: 'Woh Hup Private Ltd', 
                // type: 'submit',
-               rowIds: JSON.stringify([
-                  '60413b2dc3fd65166d5bef48',
-                  '60413b2df47b193638af4cac',
-                  '60413b2d9fe00c39a61360c8',
-               ])
+               rowIds: JSON.stringify([])
             }
          });
+         const emailHTML = res.data;
       } catch (err) {
          console.log(err);
       };
@@ -901,13 +908,15 @@ const PageSpreadsheet = (props) => {
                   <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                   <ButtonAdminUploadData />
                   <ButtonAdminCreateAndUpdateRows />
-
+        
                   {/* 
-                  <ButtonAdminUploadDataPDD />
-                  
-                  <ButtonAdminDeleteRowsHistory />
-                  <ButtonAdminCreateAndUpdateRowsHistory />
-                  <ButtonAdminUpdateProjectSettings /> */}
+                        <div onClick={loadEmailCheckBackend}>checkAPIEmail</div>
+                        <ButtonAdminUploadDataPDD />
+                        
+                        <ButtonAdminDeleteRowsHistory />
+                        <ButtonAdminCreateAndUpdateRowsHistory />
+                        <ButtonAdminUpdateProjectSettings /> 
+                     */}
 
                </div>
             )}
@@ -981,7 +990,14 @@ const PageSpreadsheet = (props) => {
             <ModalStyleFunction
                visible={panelFunctionVisible}
                footer={null}
-               onCancel={() => setPanelFunctionVisible(false)}
+               onCancel={() => {
+                  getSheetRows({
+                     ...stateRow,
+                     rowsSelected: [],
+                     rowsSelectedToMove: []
+                  });
+                  setPanelFunctionVisible(false);
+               }}
                destroyOnClose={true}
                style={{
                   position: 'fixed',

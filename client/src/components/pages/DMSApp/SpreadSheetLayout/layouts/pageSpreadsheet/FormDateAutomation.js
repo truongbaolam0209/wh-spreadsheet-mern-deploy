@@ -9,15 +9,23 @@ import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
 
 const FormDateAutomation = ({ applyDateAutomation, rowsToAutomation, onClickCancel }) => {
 
+   const dateAutomationLocal = JSON.parse(localStorage.getItem('date-automation-data'));
+   const { offset: offsetSaved, itemsLocked: itemsLockedSaved } = dateAutomationLocal || {
+      offset: [7, 7, 7, 7, 7, 7, 7, 7],
+      itemsLocked: ['Drg To Consultant (T)']
+   };
+
    const rowsWithConstructionStart = rowsToAutomation.filter(x => x['Construction Start']);
 
 
-   const [dateConstructionStartInit, setDateConstructionStartInit] = useState(rowsWithConstructionStart[0] && rowsWithConstructionStart[0]['Construction Start']);
-   const [offset, setOffset] = useState([
-      7, 0, 8, 9, 3, 6, 9, 3
-   ]);
+   const [dateConstructionStartInit, setDateConstructionStartInit] = useState(
+      rowsWithConstructionStart[0] 
+      ? rowsWithConstructionStart[0]['Construction Start']
+      : moment().format('DD/MM/YY')
+   );
+   const [offset, setOffset] = useState(offsetSaved);
 
-   const [itemsLocked, setItemsLocked] = useState(['Get Approval (T)']);
+   const [itemsLocked, setItemsLocked] = useState(itemsLockedSaved);
 
 
    const updateCheckList = (isChecked, header, index) => {
@@ -57,6 +65,8 @@ const FormDateAutomation = ({ applyDateAutomation, rowsToAutomation, onClickCanc
             dataUpdate[hd] = moment(date.add(nosOfDaysToOffset, 'days').format('DD/MM/YY'), 'DD/MM/YY').format('DD/MM/YY');
          };
       });
+
+      localStorage.setItem('date-automation-data', JSON.stringify({ offset, itemsLocked }));
       applyDateAutomation(rowsToAutomation, dataUpdate);
    };
 

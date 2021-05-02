@@ -36,8 +36,6 @@ const PageDashboard = ({ projectsArray, token, role, company }) => {
    const roleTradeCompany = getUserRoleTradeCompany(role, company);
 
 
-   console.log('roleTradeCompany', roleTradeCompany);
-
    const [dataDB, setDataDB] = useState(null);
    const [loading, setLoading] = useState(false);
 
@@ -182,6 +180,19 @@ const PageDashboard = ({ projectsArray, token, role, company }) => {
                      >
                         <TabsStyled type='card'>
                            {dataProject.map(item => {
+                              let tradeForView;
+                              if (item.panel !== 'OVERALL' && item.panel !== 'SUBCON') {
+                                 tradeForView = item.panel.slice(5, item.panel.length);
+                              };
+                              let canViewPanelModellerAndCoordinator = false;
+
+                              if (
+                                 (roleTradeCompany.trade && roleTradeCompany.trade === tradeForView) ||
+                                 (role && tradeForView && role.includes('Manager') && role.toLowerCase().includes(tradeForView.toLowerCase())) ||
+                                 role === 'Project Manager'
+                              ) {
+                                 canViewPanelModellerAndCoordinator = true;
+                              };
 
                               return (
                                  <TabPane tab={item.panel} key={item.panel}>
@@ -248,6 +259,7 @@ const PageDashboard = ({ projectsArray, token, role, company }) => {
                                     ) : (
                                        <>
                                           {(window.innerWidth >= 1600 && item.panel !== 'OVERALL') && arrBreak.map((n, i) => <br key={i} />)}
+
                                           <ChartBarDrawing
                                              title='Status of drawing per revision'
                                              type='rev'
@@ -255,21 +267,26 @@ const PageDashboard = ({ projectsArray, token, role, company }) => {
                                              openDrawingTable={openDrawingTable}
                                              projectId={projectId}
                                           />
-                                          <ChartBarDrawing
-                                             title='Drawing by coordinator'
-                                             type='coordinator'
-                                             data={item}
-                                             openDrawingTable={openDrawingTable}
-                                             projectId={projectId}
-                                          />
 
-                                          <ChartBarDrawing
-                                             title='Drawing by modeller'
-                                             type='modeller'
-                                             data={item}
-                                             openDrawingTable={openDrawingTable}
-                                             projectId={projectId}
-                                          />
+                                          {canViewPanelModellerAndCoordinator && (
+                                             <>
+                                                <ChartBarDrawing
+                                                   title='Drawing by coordinator'
+                                                   type='coordinator'
+                                                   data={item}
+                                                   openDrawingTable={openDrawingTable}
+                                                   projectId={projectId}
+                                                />
+                                                <ChartBarDrawing
+                                                   title='Drawing by modeller'
+                                                   type='modeller'
+                                                   data={item}
+                                                   openDrawingTable={openDrawingTable}
+                                                   projectId={projectId}
+                                                />
+                                             </>
+                                          )}
+
                                        </>
                                     )}
                                  </TabPane>

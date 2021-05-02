@@ -39,7 +39,7 @@ const PanelSetting = (props) => {
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateCell, getCellModifiedTemp, OverwriteCellsModified } = useContext(CellContext);
    const { projectIsAppliedRfaView, companies } = stateProject.allDataOneSheet;
-   const { isRfaView, isShowAllConsultant } = stateRow;
+   const { isRfaView, isShowAllConsultant, rowsSelected } = stateRow;
    const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading } = props;
 
    const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
@@ -885,7 +885,7 @@ const PanelSetting = (props) => {
          filesPDF, filesDWFX, type, dwgsToAddNewRFA, dwgIdsToRollBackSubmit, trade, rfaToSave, rfaToSaveVersionOrToReply,
          recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting
       } = dataDwg;
-      
+
       const { currentRfaToAddNewOrReplyOrEdit } = stateRow;
       const { email, projectId, projectName, token, publicSettings, roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
       const { headers } = publicSettings;
@@ -948,7 +948,7 @@ const PanelSetting = (props) => {
             return;
          };
 
-         const typeText = type === 'form-submit-RFA' ? 'submission' : 'reply';
+         const typeText = type === 'form-reply-RFA' ? 'reply' : 'submission';
 
          let data;
          if (filesPDF.length > 0) {
@@ -964,14 +964,14 @@ const PanelSetting = (props) => {
          };
          let arrayFileName = [];
          if (filesPDF.length > 0 && data && data !== null) {
-            // const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
-            const res = await Axios.post('/api/drawing/set-drawing-files', data);
+            const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
+            // const res = await Axios.post('/api/drawing/set-drawing-files', data);
             const listFileName = res.data;
             arrayFileName = listFileName.map(link => ({
                fileName: getFileNameFromLinkResponse(link),
                fileLink: link
             }));
-            
+
             dwgsToAddNewRFA.forEach(r => {
                const fileFound = arrayFileName.find(fl => fl.fileName === r[`${typeText}-$$$-drawing-${company}`]);
                if (fileFound) {
@@ -982,14 +982,13 @@ const PanelSetting = (props) => {
 
 
 
-
-         
          if (filesDWFX.length > 0) {
             const upload3dModel = async () => {
                try {
-                  await Promise.all(filesDWFX.map(async (file3D, i) => {
+                  await Promise.all(dwgsToAddNewRFA.forEach(async (row, i) => {
+                     const fileFound = filesDWFX.find(x => x.name === row[`submission-$$$-dwfxName-${company}`]);
                      let dataDWFX = new FormData();
-                     dataDWFX.append('file', file3D.originFileObj);
+                     dataDWFX.append('file', fileFound.originFileObj);
                      dataDWFX.append('projectId', projectId);
                      dataDWFX.append('projectName', projectName);
                      dataDWFX.append('email', email);
@@ -1000,8 +999,7 @@ const PanelSetting = (props) => {
                         const res = await Axios.post('/api/items/add-rfa-item', dataDWFX);
                         linkDWFX = window.location.origin + '/rfa/' + res.data;
                      };
-                     const rowFound = dwgsToAddNewRFA.find(x => x[`submission-$$$-dwfx-${company}`] === file3D.name);
-                     rowFound[`submission-$$$-dwfx-${company}`] = linkDWFX;
+                     row[`submission-$$$-dwfxLink-${company}`] = linkDWFX;
                   }));
                   message.info('DONE...');
                } catch (err) {
@@ -1010,11 +1008,9 @@ const PanelSetting = (props) => {
             };
             upload3dModel();
          };
-         
 
 
-      
-         
+
 
 
          let rowsToUpdate = [];
@@ -1078,7 +1074,7 @@ const PanelSetting = (props) => {
                rowOutput.data.rfaNumber = r['rfaNumber'];
 
                rowOutput.data[`submission-$$$-drawing-${company}`] = r[`submission-$$$-drawing-${company}`];
-               rowOutput.data[`submission-$$$-dwfx-${company}`] = r[`submission-$$$-dwfx-${company}`];
+               rowOutput.data[`submission-$$$-dwfxName-${company}`] = r[`submission-$$$-dwfxName-${company}`];
                rowOutput.data[`submission-$$$-emailTo-${company}`] = recipient.to;
                rowOutput.data[`submission-$$$-emailCc-${company}`] = recipient.cc;
                rowOutput.data[`submission-$$$-emailTitle-${company}`] = emailTextTitle;
@@ -1131,7 +1127,7 @@ const PanelSetting = (props) => {
 
          if (!isFormEditting) {
             let tempAllRfaSaved = JSON.parse(localStorage.getItem('temp-RFA-form-data'));
-            tempAllRfaSaved = { ...tempAllRfaSaved, [`${rfaRefData}-${email}`]: new Date() };
+            tempAllRfaSaved = { ...tempAllRfaSaved, [`${typeText}-${rfaRefData}-${email}`]: new Date() };
             localStorage.setItem('temp-RFA-form-data', JSON.stringify(tempAllRfaSaved));
          };
 
@@ -1171,13 +1167,15 @@ const PanelSetting = (props) => {
          };
 
 
+
+
          const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row.id);
          await Axios.post(`${SERVER_URL}/function-email-set`, {
             data: {
                token,
                projectId,
                company,
-               type: type.includes('submit') ? 'submit' : 'reply',
+               type: type === 'form-reply-RFA' ? 'reply' : 'submit',
                rowIds: rowIdsArrayToTriggerLater,
             },
             momentToTriggerEmail: moment().add(moment.duration(15, 'minutes'))
@@ -1201,7 +1199,6 @@ const PanelSetting = (props) => {
          // listUserOutput.cc = [...listUserOutput.cc || [], email];
 
          // const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
-
          // const getDrawingURLFromDB = async () => {
          //    try {
          //       return await Promise.all(dwgsNewRFAClone.map(async dwg => {
@@ -1227,7 +1224,6 @@ const PanelSetting = (props) => {
          //    listGroup: listGroupOutput,
          //    projectId
          // });
-
 
          await reloadDataFromServerViewRFA();
          message.success('Submitted Successfully', 3);
@@ -1355,7 +1351,7 @@ const PanelSetting = (props) => {
             <FormDateAutomation
                applyDateAutomation={applyDateAutomation}
                onClickCancel={onClickCancelModal}
-               rowsToAutomation={[panelType.cellProps.rowData]}
+               rowsToAutomation={rowsSelected.length > 0 ? rowsSelected : [panelType.cellProps.rowData]}
             />
          )}
 
@@ -1701,12 +1697,18 @@ const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
    let consultantMustReply = [];
    let contractorName = '';
 
+   let drgToConsultantA = '';
+   let consultantReplyT = '';
+
    const rowContainsRfaData = rowsData.find(row => row[getInfoKeyFromRfaData(row, 'submission', 'consultantMustReply')]);
    if (rowContainsRfaData) {
       emailTitle = rowContainsRfaData[`${typeInput}-$$$-emailTitle-${company}`];
       emailAdditionalNotes = rowContainsRfaData[`${typeInput}-$$$-emailAdditionalNotes-${company}`];
       rfaRefText = rowContainsRfaData['RFA Ref'];
       consultantMustReply = rowContainsRfaData[`submission-$$$-consultantMustReply-${company}`];
+
+      drgToConsultantA = rowContainsRfaData['Drg To Consultant (A)'];
+      consultantReplyT = rowContainsRfaData['Consultant Reply (T)'];
 
 
       const keyConsultantMustReply = getInfoKeyFromRfaData(rowContainsRfaData, 'submission', 'consultantMustReply');
@@ -1754,7 +1756,7 @@ const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
       <div>RFA Ref: <span style='font-weight: bold;'>${rfaRefText}</span></div>
       ${emailType === 'submit'
          ? `
-         <div>Submission Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
+         <div>Submission Date: <span style='font-weight: bold;'>${drgToConsultantA}</span></div>
          <br />
          <div>Dear all,</div>
          <div>
@@ -1764,7 +1766,7 @@ const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
             are in the list below.
             <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
          </div>
-         <div>Please review and reply to us by <span style='font-weight: bold;'>${moment().add(14, 'days').format('MMM Do YYYY')}</span></div>
+         <div>Please review and reply to us by <span style='font-weight: bold;'>${consultantReplyT}</span></div>
       ` : `
          <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
          <br />
@@ -1784,7 +1786,8 @@ const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
          ${tableHeader}
          ${tableBody}
       </table>
-      <div style='font-size: 12px;'>Download links are valid for 24 hours.</div>
+      
+      <div style='font-size: 12px;'>The links will expires on ${moment().add(7, 'days').format('MMM Do YYYY')}</div>
       <br />
       <a href="https://bim.wohhup.com/projects">Go to BIM APP</a>
       <div>This is an automatic email from <span style='font-weight: bold;'>${company}</span></div>
@@ -1793,5 +1796,6 @@ const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
    `;
    return emailOutput;
 };
+
 
 

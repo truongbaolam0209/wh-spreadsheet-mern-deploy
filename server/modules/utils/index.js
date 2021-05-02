@@ -67,12 +67,18 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
    let consultantMustReply = [];
    let contractorName = '';
 
+   let drgToConsultantA = '';
+   let consultantReplyT = '';
+
    const rowContainsRfaData = rowsData.find(row => row[getInfoKeyFromRfaData(row, 'submission', 'consultantMustReply')]);
    if (rowContainsRfaData) {
       emailTitle = rowContainsRfaData[`${typeInput}-$$$-emailTitle-${company}`];
       emailAdditionalNotes = rowContainsRfaData[`${typeInput}-$$$-emailAdditionalNotes-${company}`];
       rfaRefText = rowContainsRfaData['RFA Ref'];
       consultantMustReply = rowContainsRfaData[`submission-$$$-consultantMustReply-${company}`];
+
+      drgToConsultantA = rowContainsRfaData['Drg To Consultant (A)'];
+      consultantReplyT = rowContainsRfaData['Consultant Reply (T)'];
 
 
       const keyConsultantMustReply = getInfoKeyFromRfaData(rowContainsRfaData, 'submission', 'consultantMustReply');
@@ -120,7 +126,7 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
       <div>RFA Ref: <span style='font-weight: bold;'>${rfaRefText}</span></div>
       ${emailType === 'submit'
          ? `
-         <div>Submission Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
+         <div>Submission Date: <span style='font-weight: bold;'>${drgToConsultantA}</span></div>
          <br />
          <div>Dear all,</div>
          <div>
@@ -130,7 +136,7 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
             are in the list below.
             <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
          </div>
-         <div>Please review and reply to us by <span style='font-weight: bold;'>${moment().add(14, 'days').format('MMM Do YYYY')}</span></div>
+         <div>Please review and reply to us by <span style='font-weight: bold;'>${consultantReplyT}</span></div>
       ` : `
          <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
          <br />
@@ -150,7 +156,8 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
          ${tableHeader}
          ${tableBody}
       </table>
-      <div style='font-size: 12px;'>Download links are valid for 24 hours.</div>
+      
+      <div style='font-size: 12px;'>The links will expires on ${moment().add(7, 'days').format('MMM Do YYYY')}</div>
       <br />
       <a href="https://bim.wohhup.com/projects">Go to BIM APP</a>
       <div>This is an automatic email from <span style='font-weight: bold;'>${company}</span></div>
@@ -159,6 +166,7 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
    `;
    return emailOutput;
 };
+
 
 module.exports = {
    toObjectId,
