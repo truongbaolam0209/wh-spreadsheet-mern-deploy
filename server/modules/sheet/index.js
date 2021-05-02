@@ -9,13 +9,12 @@ const {
    updateUserSettings
 } = require('../settings');
 
-
 const { HTTP } = require('../errors');
 const rowModel = require('../row/model');
 const cellHistoryModel = require('../cell-history/model');
 const rowHistoryModel = require('../row-history/model');
 const settingsModel = require('../settings/model');
-
+const { createPublicUrl } = require('../../../custom/aws');
 
 const handlers = genCRUDHandlers(model, {
    genQueryToFindMany
@@ -410,7 +409,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, listUser
       return output;
    });
 
-   const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB(outputRowsAll, type);
+   const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB(outputRowsAll, company, type);
 
    const emailContent = generateEmailInnerHTMLBackend(company, type, dwgsToAddNewRFAGetDrawingURL);
 
@@ -452,12 +451,12 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, listUser
 };
 
 
-const getDrawingURLFromDB = async (dwgsNewRFA, type) => {
+const getDrawingURLFromDB = async (dwgsNewRFA, company, type) => {
    try {
       return await Promise.all(dwgsNewRFA.map(async dwg => {
          const typeApi = type === 'submit' ? 'submission' : type === 'reply' ? 'reply' : '';
-         const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${typeApi}-$$$-drawing-${company}`], expire: 3600 * 24 * 7 } });
-         dwg[`${typeApi}-$$$-drawing-${company}`] = res.data;
+         const res = await createPublicUrl(dwg[`${typeApi}-$$$-drawing-${company}`], 3600 * 24 * 7)
+         dwg[`${typeApi}-$$$-drawing-${company}`] = res;
          return dwg;
       }));
    } catch (err) {
