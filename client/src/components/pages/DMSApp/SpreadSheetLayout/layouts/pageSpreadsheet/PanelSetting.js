@@ -885,7 +885,7 @@ const PanelSetting = (props) => {
          filesPDF, filesDWFX, type, dwgsToAddNewRFA, dwgIdsToRollBackSubmit, trade, rfaToSave, rfaToSaveVersionOrToReply,
          recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting
       } = dataDwg;
-      
+
       const { currentRfaToAddNewOrReplyOrEdit } = stateRow;
       const { email, projectId, projectName, token, publicSettings, roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
       const { headers } = publicSettings;
@@ -980,27 +980,28 @@ const PanelSetting = (props) => {
             });
          };
 
-         
+
 
          if (filesDWFX.length > 0) {
             const upload3dModel = async () => {
                try {
                   await Promise.all(dwgsToAddNewRFA.map(async (row, i) => {
                      const fileFound = filesDWFX.find(x => x.name === row[`submission-$$$-dwfxName-${company}`]);
-              
-                     let dataDWFX = new FormData();
-                     dataDWFX.append('file', fileFound.originFileObj);
-                     dataDWFX.append('projectId', projectId);
-                     dataDWFX.append('projectName', projectName);
-                     dataDWFX.append('email', email);
-                     dataDWFX.append('rfaName', rfaRefData + `_${i}`);
+                     if (fileFound) {
+                        let dataDWFX = new FormData();
+                        dataDWFX.append('file', fileFound.originFileObj);
+                        dataDWFX.append('projectId', projectId);
+                        dataDWFX.append('projectName', projectName);
+                        dataDWFX.append('email', email);
+                        dataDWFX.append('rfaName', rfaRefData + `_${i}`);
 
-                     let linkDWFX = '';
-                     if (dataDWFX && dataDWFX !== null) {
-                        const res = await Axios.post('/api/items/add-rfa-item', dataDWFX);
-                        linkDWFX = window.location.origin + '/rfa/' + res.data;
+                        let linkDWFX = '';
+                        if (dataDWFX && dataDWFX !== null) {
+                           const res = await Axios.post('/api/items/add-rfa-item', dataDWFX);
+                           linkDWFX = window.location.origin + '/rfa/' + res.data;
+                        };
+                        row[`submission-$$$-dwfxLink-${company}`] = linkDWFX;
                      };
-                     row[`submission-$$$-dwfxLink-${company}`] = linkDWFX;
                   }));
                   message.info('DONE...');
                } catch (err) {
@@ -1009,10 +1010,10 @@ const PanelSetting = (props) => {
             };
             await upload3dModel();
          };
-         
 
 
-    
+
+
          let rowsToUpdate = [];
          const arrayHeaderSubmission = ['RFA Ref', 'Status', 'Drg To Consultant (A)', 'Consultant Reply (T)', 'Rev'];
          const arrayHeaderReply = ['Status', 'Consultant Reply (A)'];
@@ -1168,22 +1169,23 @@ const PanelSetting = (props) => {
          };
 
 
-         const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row._id);
-
-         await Axios.post('/api/rfa/mail', {
-            token,
-            data: {
-               projectId,
-               company,
-               type: type === 'form-reply-RFA' ? 'reply' : 'submit',
-               rowIds: rowIdsArrayToTriggerLater,
-               emailSender: email,
-               projectName,
-               listUser,
-               listGroup
-            },
-            momentToTriggerEmail: moment().add(moment.duration(15, 'minutes'))
-         });
+         if (!isFormEditting) {
+            const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row._id);
+            await Axios.post('/api/rfa/mail', {
+               token,
+               data: {
+                  projectId,
+                  company,
+                  type: type === 'form-reply-RFA' ? 'reply' : 'submit',
+                  rowIds: rowIdsArrayToTriggerLater,
+                  emailSender: email,
+                  projectName,
+                  listUser,
+                  listGroup
+               },
+               momentToTriggerEmail: moment().add(moment.duration(15, 'minutes'))
+            });
+         };
 
 
          // let listUserOutput = {};
