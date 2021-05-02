@@ -47,7 +47,13 @@ const getInfoKeyFromRfaData = (obj, type, info) => {
    };
 };
 
-
+const getInfoValueFromRfaData = (obj, type, info, company = '') => {
+   for (const key in obj) {
+      if (key.includes(`${type}-$$$-${info}-${company}`)) {
+         return obj[key];
+      };
+   };
+};
 const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
    const headersArray = [
       '',
@@ -168,9 +174,16 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
 };
 
 
+const validateEmailInput = (email) => {
+   const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+   return re.test(String(email).toLowerCase());
+};
+
 module.exports = {
    toObjectId,
    filterObject,
    mongoObjectId,
-   generateEmailInnerHTMLBackend
+   generateEmailInnerHTMLBackend,
+   getInfoValueFromRfaData,
+   validateEmailInput
 };

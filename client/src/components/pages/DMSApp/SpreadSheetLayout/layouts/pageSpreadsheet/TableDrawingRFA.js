@@ -33,6 +33,8 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
 
 
 
+   console.log('TableDrawingRFA===>>>', { onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA, tradeOfRfaForFirstTimeSubmit });
+
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow } = useContext(RowContext);
    const { headers } = stateProject.allDataOneSheet.publicSettings;

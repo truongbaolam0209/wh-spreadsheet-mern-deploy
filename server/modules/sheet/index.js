@@ -1,7 +1,7 @@
 const schema = require('./schema');
 const model = require('./model');
 const { genCRUDHandlers } = require('../crud');
-const { toObjectId, mongoObjectId, generateEmailInnerHTMLBackend } = require('../utils');
+const { toObjectId, mongoObjectId, generateEmailInnerHTMLBackend, getInfoValueFromRfaData, validateEmailInput } = require('../utils');
 const {
    findPublicSettings,
    findUserSettings,
@@ -358,71 +358,17 @@ const saveAllDataRowsToServer = async (req, res, next) => {
 
 
 
+const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, listUser, listGroup) => {
 
+   let rowIds = qRowIds.map(toObjectId);
 
-const findManyRowsToSendEmail_1 = async (req, res, next) => {
-   try {
-      const { projectId: sheetId, company, type, rowIds: qRowIds } = req.query;
-
-      let rowIds = JSON.parse(qRowIds).map(toObjectId);
-      if (!sheetId) return 'ERROR - sheetId';
-      if (!rowIds) return 'ERROR - rowIds';
-      if (!company) return 'ERROR - company';
-      if (!type) return 'ERROR - Missing type';
-
-      let [rows, rowHistories, publicSettings] = await Promise.all([
-         rowModel.find({ sheet: sheetId, _id: { $in: rowIds } }),
-         rowHistoryModel.find({ sheet: sheetId, _id: { $in: rowIds } }),
-         findPublicSettings(sheetId)
-      ]);
-      const { headers } = publicSettings;
-      const rowsOutput = [...rows, ...rowHistories];
-      const outputRowsAll = rowsOutput.map(r => {
-         let output, rowData;
-         if (r.row) {
-            output = {
-               id: r._id,
-               row: r.row
-            };
-            rowData = r.history;
-         } else {
-            output = {
-               id: r._id,
-               _rowLevel: r.level,
-               _parentRow: r.parentRow,
-               _preRow: r.preRow
-            };
-            rowData = r.data;
-         };
-
-         for (const key in rowData) {
-            if (key === 'rfaNumber' || key.includes('reply-$$$-') || key.includes('submission-$$$-')) {
-               output[key] = rowData[key];
-            } else {
-               const headerFound = headers.find(x => x.key === key);
-               if (headerFound) {
-                  output[headerFound.text] = rowData[key];
-               };
-            };
-         };
-         return output;
-      });
-      const emailContent = generateEmailInnerHTMLBackend(company, type, outputRowsAll);
-      return res.json(emailContent);
-   } catch (error) {
-      next(error);
-   };
-};
-
-
-
-const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type) => {
-
-   let rowIds = JSON.parse(qRowIds).map(toObjectId);
    if (!sheetId) return 'ERROR - sheetId';
    if (!rowIds) return 'ERROR - rowIds';
    if (!company) return 'ERROR - company';
    if (!type) return 'ERROR - Missing type';
+   if (!listUser) return 'ERROR - Missing listUser';
+   if (!listGroup) return 'ERROR - Missing listGroup';
+
 
    let [rows, rowHistories, publicSettings] = await Promise.all([
       rowModel.find({ sheet: sheetId, _id: { $in: rowIds } }),
@@ -448,6 +394,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type) => {
          };
          rowData = r.data;
       };
+
       for (const key in rowData) {
          if (key === 'rfaNumber' || key.includes('reply-$$$-') || key.includes('submission-$$$-')) {
             output[key] = rowData[key];
@@ -460,10 +407,43 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type) => {
       };
       return output;
    });
+
    const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB(outputRowsAll, type);
+
    const emailContent = generateEmailInnerHTMLBackend(company, type, dwgsToAddNewRFAGetDrawingURL);
-   return emailContent;
+
+   const oneRowData = outputRowsAll[0];
+
+   const emailListTo = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailTo', company);
+   const emailListCc = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailCc', company);
+   const recipient = {
+      to: emailListTo,
+      cc: emailListCc
+   };
+
+   let listUserOutput = {};
+   let listGroupOutput = {};
+   const listGroupLowercase = listGroup.map(x => x.toLowerCase());
+
+   Object.keys(recipient).forEach(key => {
+      recipient[key].forEach(item => {
+         if (listUser.indexOf(item) !== -1) {
+            listUserOutput[key] = [...listUserOutput[key] || [], item];
+         } else if (listGroupLowercase.indexOf(item.toLowerCase()) !== -1) {
+            listGroupOutput[key] = [...listGroupOutput[key] || [], item];
+         } else if (validateEmailInput(item)) {
+            listUserOutput[key] = [...listUserOutput[key] || [], item];
+         };
+      });
+   });
+
+   return {
+      emailContent,
+      listUserOutput,
+      listGroupOutput
+   };
 };
+
 
 const getDrawingURLFromDB = async (dwgsNewRFA, type) => {
    try {

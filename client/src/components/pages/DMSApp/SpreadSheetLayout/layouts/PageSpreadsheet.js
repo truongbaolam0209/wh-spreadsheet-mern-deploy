@@ -214,7 +214,7 @@ const PageSpreadsheet = (props) => {
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
    // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
-   // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
+   useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
 
@@ -452,8 +452,7 @@ const PageSpreadsheet = (props) => {
          try {
             setLoading(true);
 
-            // if (roleTradeCompany.role === 'Consultant' || true) {
-               if (roleTradeCompany.role === 'Consultant') {
+            if (roleTradeCompany.role === 'Consultant') {
                const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
                const resRowHistory = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
                const { rows } = res.data;
@@ -717,7 +716,14 @@ const PageSpreadsheet = (props) => {
                   onMouseDownColumnHeader={onMouseDownColumnHeader}
                />
             ),
-            cellRenderer: stateRow.isRfaView || (!stateRow.isRfaView && (isColumnWithReplyData(hd) || isColumnConsultant(hd) || hd === 'RFA Ref')) ? (
+            cellRenderer: stateRow.isRfaView || 
+               (!stateRow.isRfaView && 
+                  (
+                     isColumnWithReplyData(hd) || 
+                     isColumnConsultant(hd) || 
+                     hd === 'RFA Ref'
+                  )
+            ) ? (
                <CellRFA
                   buttonPanelFunction={buttonPanelFunction}
                   onRightClickCell={onRightClickCell}
@@ -795,11 +801,16 @@ const PageSpreadsheet = (props) => {
             params: {
                token,
                projectId,
-               company: 'DCA',
-               type: 'reply',
-               // company: 'Woh Hup Private Ltd', 
-               // type: 'submit',
-               rowIds: JSON.stringify([])
+               // company: 'DCA',
+               // type: 'reply',
+               company: 'Woh Hup Private Ltd', 
+               type: 'submit',
+               rowIds: [
+                  '60413b2d81584997b9c6f617',
+                  '60413b2dac1f7fde9b5f9bd9',
+               ],
+               listUser,
+               listGroup
             }
          });
          const emailHTML = res.data;
@@ -908,7 +919,7 @@ const PageSpreadsheet = (props) => {
                   <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                   <ButtonAdminUploadData />
                   <ButtonAdminCreateAndUpdateRows />
-        
+                  
                   {/* 
                         <div onClick={loadEmailCheckBackend}>checkAPIEmail</div>
                         <ButtonAdminUploadDataPDD />

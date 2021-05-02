@@ -84,7 +84,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
    const [filesPDF, setFilesPDF] = useState(null);
    const [filesDWFX, setFilesDWFX] = useState(null);
-
    const [listRecipientTo, setListRecipientTo] = useState([]);
    const [listRecipientCc, setListRecipientCc] = useState([]);
 
@@ -517,6 +516,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             filesDWFXOutput[key] = filesDWFX[key];
          };
       });
+
+
 
 
 

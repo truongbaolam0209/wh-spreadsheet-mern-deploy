@@ -885,7 +885,7 @@ const PanelSetting = (props) => {
          filesPDF, filesDWFX, type, dwgsToAddNewRFA, dwgIdsToRollBackSubmit, trade, rfaToSave, rfaToSaveVersionOrToReply,
          recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting
       } = dataDwg;
-
+      
       const { currentRfaToAddNewOrReplyOrEdit } = stateRow;
       const { email, projectId, projectName, token, publicSettings, roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
       const { headers } = publicSettings;
@@ -980,13 +980,14 @@ const PanelSetting = (props) => {
             });
          };
 
-
+         
 
          if (filesDWFX.length > 0) {
             const upload3dModel = async () => {
                try {
                   await Promise.all(dwgsToAddNewRFA.forEach(async (row, i) => {
                      const fileFound = filesDWFX.find(x => x.name === row[`submission-$$$-dwfxName-${company}`]);
+              
                      let dataDWFX = new FormData();
                      dataDWFX.append('file', fileFound.originFileObj);
                      dataDWFX.append('projectId', projectId);
@@ -1008,10 +1009,10 @@ const PanelSetting = (props) => {
             };
             upload3dModel();
          };
+         
 
 
-
-
+    
          let rowsToUpdate = [];
          const arrayHeaderSubmission = ['RFA Ref', 'Status', 'Drg To Consultant (A)', 'Consultant Reply (T)', 'Rev'];
          const arrayHeaderReply = ['Status', 'Consultant Reply (A)'];
@@ -1056,7 +1057,7 @@ const PanelSetting = (props) => {
                r['Drg To Consultant (A)'] = moment(new Date()).format('DD/MM/YY');
                r['Consultant Reply (T)'] = dateReplyForsubmitForm;
                r[`submission-$$$-emailTo-${company}`] = recipient.to;
-               r[`submission-$$$-emailCc-${company}`] = recipient.cc;
+               r[`submission-$$$-emailCc-${company}`] = [...recipient.cc, email];
                r[`submission-$$$-emailTitle-${company}`] = emailTextTitle;
                r[`submission-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
                r[`submission-$$$-consultantMustReply-${company}`] = listConsultantMustReply;
@@ -1075,7 +1076,7 @@ const PanelSetting = (props) => {
                rowOutput.data[`submission-$$$-drawing-${company}`] = r[`submission-$$$-drawing-${company}`];
                rowOutput.data[`submission-$$$-dwfxName-${company}`] = r[`submission-$$$-dwfxName-${company}`];
                rowOutput.data[`submission-$$$-emailTo-${company}`] = recipient.to;
-               rowOutput.data[`submission-$$$-emailCc-${company}`] = recipient.cc;
+               rowOutput.data[`submission-$$$-emailCc-${company}`] = [...recipient.cc, email];
                rowOutput.data[`submission-$$$-emailTitle-${company}`] = emailTextTitle;
                rowOutput.data[`submission-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
                rowOutput.data[`submission-$$$-consultantMustReply-${company}`] = listConsultantMustReply;
@@ -1109,14 +1110,14 @@ const PanelSetting = (props) => {
                rowOutput[saveToRowOrRowHistory][`reply-$$$-date-${company}`] = moment(new Date()).format('DD/MM/YY');
                rowOutput[saveToRowOrRowHistory][`reply-$$$-user-${company}`] = email;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailTo-${company}`] = recipient.to;
-               rowOutput[saveToRowOrRowHistory][`reply-$$$-emailCc-${company}`] = recipient.cc;
+               rowOutput[saveToRowOrRowHistory][`reply-$$$-emailCc-${company}`] = [...recipient.cc, email];
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailTitle-${company}`] = emailTextTitle;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
 
                r[`reply-$$$-date-${company}`] = moment(new Date()).format('DD/MM/YY');
                r[`reply-$$$-user-${company}`] = email;
                r[`reply-$$$-emailTo-${company}`] = recipient.to;
-               r[`reply-$$$-emailCc-${company}`] = recipient.cc;
+               r[`reply-$$$-emailCc-${company}`] = [...recipient.cc, email];
                r[`reply-$$$-emailTitle-${company}`] = emailTextTitle;
                r[`reply-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
 
@@ -1166,16 +1167,17 @@ const PanelSetting = (props) => {
          };
 
 
+         const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row._id);
 
-
-         const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row.id);
          await Axios.post('/api/rfa/mail', {
+            token,
             data: {
-               token,
                projectId,
                company,
                type: type === 'form-reply-RFA' ? 'reply' : 'submit',
                rowIds: rowIdsArrayToTriggerLater,
+               listUser,
+               listGroup
             },
             momentToTriggerEmail: moment().add(moment.duration(15, 'minutes'))
          });
@@ -1663,6 +1665,7 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, com
       if (a['Drawing Number'] > b['Drawing Number']) return 1;
       if (a['Drawing Number'] < b['Drawing Number']) return -1;
    });
+
 
    return {
       rowsDataRFA: allRowsForRFA,

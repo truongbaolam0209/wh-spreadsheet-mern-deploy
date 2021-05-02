@@ -280,7 +280,6 @@ const CellRFA = (props) => {
       if (tempAllRfaSaved && tempAllRfaSaved[`${type}-${rowData['RFA Ref']}-${email}`]) {
          const savedAt = tempAllRfaSaved[`${type}-${rowData['RFA Ref']}-${email}`];
          const duration = moment.duration(moment(new Date()).diff(savedAt)).asMinutes();
-
          if (duration <= 15) {
             setIsEdittingAllowed(true);
          } else {
@@ -293,7 +292,7 @@ const CellRFA = (props) => {
 
    const additionalBtnToEdit = isEdittingAllowed ? ['Edit'] : [];
 
-   
+
    return (
       <div
          style={{
