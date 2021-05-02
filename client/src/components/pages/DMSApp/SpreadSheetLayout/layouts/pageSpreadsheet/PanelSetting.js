@@ -1057,7 +1057,7 @@ const PanelSetting = (props) => {
                r['Drg To Consultant (A)'] = moment(new Date()).format('DD/MM/YY');
                r['Consultant Reply (T)'] = dateReplyForsubmitForm;
                r[`submission-$$$-emailTo-${company}`] = recipient.to;
-               r[`submission-$$$-emailCc-${company}`] = [...recipient.cc, email];
+               r[`submission-$$$-emailCc-${company}`] = recipient.cc;
                r[`submission-$$$-emailTitle-${company}`] = emailTextTitle;
                r[`submission-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
                r[`submission-$$$-consultantMustReply-${company}`] = listConsultantMustReply;
@@ -1076,7 +1076,7 @@ const PanelSetting = (props) => {
                rowOutput.data[`submission-$$$-drawing-${company}`] = r[`submission-$$$-drawing-${company}`];
                rowOutput.data[`submission-$$$-dwfxName-${company}`] = r[`submission-$$$-dwfxName-${company}`];
                rowOutput.data[`submission-$$$-emailTo-${company}`] = recipient.to;
-               rowOutput.data[`submission-$$$-emailCc-${company}`] = [...recipient.cc, email];
+               rowOutput.data[`submission-$$$-emailCc-${company}`] = recipient.cc;
                rowOutput.data[`submission-$$$-emailTitle-${company}`] = emailTextTitle;
                rowOutput.data[`submission-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
                rowOutput.data[`submission-$$$-consultantMustReply-${company}`] = listConsultantMustReply;
@@ -1110,14 +1110,14 @@ const PanelSetting = (props) => {
                rowOutput[saveToRowOrRowHistory][`reply-$$$-date-${company}`] = moment(new Date()).format('DD/MM/YY');
                rowOutput[saveToRowOrRowHistory][`reply-$$$-user-${company}`] = email;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailTo-${company}`] = recipient.to;
-               rowOutput[saveToRowOrRowHistory][`reply-$$$-emailCc-${company}`] = [...recipient.cc, email];
+               rowOutput[saveToRowOrRowHistory][`reply-$$$-emailCc-${company}`] = recipient.cc;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailTitle-${company}`] = emailTextTitle;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
 
                r[`reply-$$$-date-${company}`] = moment(new Date()).format('DD/MM/YY');
                r[`reply-$$$-user-${company}`] = email;
                r[`reply-$$$-emailTo-${company}`] = recipient.to;
-               r[`reply-$$$-emailCc-${company}`] = [...recipient.cc, email];
+               r[`reply-$$$-emailCc-${company}`] = recipient.cc;
                r[`reply-$$$-emailTitle-${company}`] = emailTextTitle;
                r[`reply-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
 
@@ -1176,6 +1176,8 @@ const PanelSetting = (props) => {
                company,
                type: type === 'form-reply-RFA' ? 'reply' : 'submit',
                rowIds: rowIdsArrayToTriggerLater,
+               emailSender: email,
+               projectName,
                listUser,
                listGroup
             },

@@ -358,7 +358,7 @@ const saveAllDataRowsToServer = async (req, res, next) => {
 
 
 
-const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, listUser, listGroup) => {
+const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, listUser, listGroup, emailSender, projectName) => {
 
    let rowIds = qRowIds.map(toObjectId);
 
@@ -368,6 +368,8 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, listUser
    if (!type) return 'ERROR - Missing type';
    if (!listUser) return 'ERROR - Missing listUser';
    if (!listGroup) return 'ERROR - Missing listGroup';
+   if (!emailSender) return 'ERROR - Missing emailSender';
+   if (!projectName) return 'ERROR - Missing projectName';
 
 
    let [rows, rowHistories, publicSettings] = await Promise.all([
@@ -416,6 +418,9 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, listUser
 
    const emailListTo = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailTo', company);
    const emailListCc = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailCc', company);
+   const emailTitle = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailTitle', company);
+   const rfa = oneRowData['RFA Ref'];
+
    const recipient = {
       to: emailListTo,
       cc: emailListCc
@@ -436,11 +441,13 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, listUser
          };
       });
    });
+   listUserOutput.cc = [...listUserOutput.cc || [], emailSender];
 
    return {
       emailContent,
       listUserOutput,
-      listGroupOutput
+      listGroupOutput,
+      emailTitle: `${projectName}-${rfa}-${emailTitle}`
    };
 };
 
