@@ -394,7 +394,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          let canUploadFile = true;
          info.fileList.forEach(file => {
             output = { ...output, [file.name]: file };
-            if (file.size > 100 * 1000 * 0.01) {
+            if (file.size > 100 * 1000 * 100) {
                canUploadFile = false;
             };
          });

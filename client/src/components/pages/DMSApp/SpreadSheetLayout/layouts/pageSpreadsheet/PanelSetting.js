@@ -985,7 +985,7 @@ const PanelSetting = (props) => {
          if (filesDWFX.length > 0) {
             const upload3dModel = async () => {
                try {
-                  await Promise.all(dwgsToAddNewRFA.forEach(async (row, i) => {
+                  await Promise.all(dwgsToAddNewRFA.map(async (row, i) => {
                      const fileFound = filesDWFX.find(x => x.name === row[`submission-$$$-dwfxName-${company}`]);
               
                      let dataDWFX = new FormData();
@@ -1007,7 +1007,7 @@ const PanelSetting = (props) => {
                   console.log(err);
                };
             };
-            upload3dModel();
+            await upload3dModel();
          };
          
 
@@ -1075,6 +1075,7 @@ const PanelSetting = (props) => {
 
                rowOutput.data[`submission-$$$-drawing-${company}`] = r[`submission-$$$-drawing-${company}`];
                rowOutput.data[`submission-$$$-dwfxName-${company}`] = r[`submission-$$$-dwfxName-${company}`];
+               rowOutput.data[`submission-$$$-dwfxLink-${company}`] = r[`submission-$$$-dwfxLink-${company}`];
                rowOutput.data[`submission-$$$-emailTo-${company}`] = recipient.to;
                rowOutput.data[`submission-$$$-emailCc-${company}`] = recipient.cc;
                rowOutput.data[`submission-$$$-emailTitle-${company}`] = emailTextTitle;
