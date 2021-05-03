@@ -11,7 +11,7 @@ const FormDateAutomation = ({ applyDateAutomation, rowsToAutomation, onClickCanc
 
    const dateAutomationLocal = JSON.parse(localStorage.getItem('date-automation-data'));
    const { offset: offsetSaved, itemsLocked: itemsLockedSaved } = dateAutomationLocal || {
-      offset: [7, 7, 7, 7, 7, 7, 7, 7],
+      offset: [-7, -7, -7, -7, -7, -7, -7, -7],
       itemsLocked: ['Drg To Consultant (T)']
    };
 
@@ -19,12 +19,12 @@ const FormDateAutomation = ({ applyDateAutomation, rowsToAutomation, onClickCanc
 
 
    const [dateConstructionStartInit, setDateConstructionStartInit] = useState(
-      rowsWithConstructionStart[0] 
-      ? rowsWithConstructionStart[0]['Construction Start']
-      : moment().format('DD/MM/YY')
+      rowsWithConstructionStart[0]
+         ? rowsWithConstructionStart[0]['Construction Start']
+         : moment().format('DD/MM/YY')
    );
-   const [offset, setOffset] = useState(offsetSaved);
 
+   const [offset, setOffset] = useState(offsetSaved);
    const [itemsLocked, setItemsLocked] = useState(itemsLockedSaved);
 
 
@@ -54,9 +54,7 @@ const FormDateAutomation = ({ applyDateAutomation, rowsToAutomation, onClickCanc
       };
    };
 
-
    const onClickApply = () => {
-
       let dataUpdate = {};
       arrHeaders.forEach((hd, i) => {
          if (!itemsLocked.find(x => hd === x)) {
@@ -129,7 +127,6 @@ const DatePickerComp = ({
 
    const nosOfDaysToOffset = offset.filter((x, i) => i < itemIndex).reduce((a, b) => a + b, 0);
 
-
    const constructionDateFormat = dateConstructionStartInit ? moment(dateConstructionStartInit, 'DD/MM/YY') : moment();
 
    const dateValue = moment(constructionDateFormat.add(nosOfDaysToOffset, 'days').format('DD/MM/YY'), 'DD/MM/YY');
@@ -155,7 +152,7 @@ const DatePickerComp = ({
          {itemIndex !== 0 && (
             <InputStyled
                style={{ width: 70 }}
-               type='number' min='1'
+               type='number' max={-1}
                value={offset[itemIndex - 1]}
                disabled={itemsLocked.indexOf(header) !== -1}
                onChange={(e) => onChangeNosOfDays(itemIndex - 1, e.target.value)}
@@ -174,7 +171,7 @@ const DatePickerComp = ({
          <div>{header}</div>
 
 
-         
+
       </div>
    );
 };
