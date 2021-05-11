@@ -114,5 +114,5 @@ const InputStyled = styled.div`
     width: 250px;
     border: 1px solid black;
     border-radius: 5px;
-    background-color: ${colorType.grey1}
+    /* background-color: ${colorType.grey1} */
 `;

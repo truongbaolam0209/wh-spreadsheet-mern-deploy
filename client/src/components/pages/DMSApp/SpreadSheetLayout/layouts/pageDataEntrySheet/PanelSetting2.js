@@ -795,7 +795,7 @@ const PanelSetting2 = (props) => {
          )}
          {panelSettingType === 'swap-ICON-2' && (
             <PanelConfirmResetMode
-               onClickCancel={onClickCancelModal}
+               onClickCancelModal={onClickCancelModal}
                applyResetMode={applyResetMode}
                modeFilter={stateRow.modeFilter}
                modeSort={stateRow.modeSort}

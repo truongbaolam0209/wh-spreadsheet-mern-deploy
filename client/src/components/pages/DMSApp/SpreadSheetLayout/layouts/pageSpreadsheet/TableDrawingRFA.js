@@ -32,9 +32,6 @@ const Table = (props) => {
 const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA, tradeOfRfaForFirstTimeSubmit }) => {
 
 
-
-   console.log('TableDrawingRFA===>>>', { onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA, tradeOfRfaForFirstTimeSubmit });
-
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow } = useContext(RowContext);
    const { headers } = stateProject.allDataOneSheet.publicSettings;
@@ -63,7 +60,6 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
 
    const [selectedIdRows, setSelectedIdRows] = useState(dwgsToAddNewRFA ? dwgsToAddNewRFA.map(x => x.id) : []);
 
-   console.log('selectedIdRows', selectedIdRows);
 
    const generateColumnsRFA = (headers) => {
       return [

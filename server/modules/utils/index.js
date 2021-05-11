@@ -72,6 +72,7 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
    let rfaRefText = '';
    let consultantMustReply = [];
    let contractorName = '';
+   let requestedBy = '';
 
    let drgToConsultantA = '';
    let consultantReplyT = '';
@@ -82,6 +83,7 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
       emailAdditionalNotes = rowContainsRfaData[`${typeInput}-$$$-emailAdditionalNotes-${company}`];
       rfaRefText = rowContainsRfaData['RFA Ref'];
       consultantMustReply = rowContainsRfaData[`submission-$$$-consultantMustReply-${company}`];
+      requestedBy = rowContainsRfaData[`submission-$$$-requestedBy-${company}`];
 
       drgToConsultantA = rowContainsRfaData['Drg To Consultant (A)'];
       consultantReplyT = rowContainsRfaData['Consultant Reply (T)'];
@@ -133,6 +135,7 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
       ${emailType === 'submit'
          ? `
          <div>Submission Date: <span style='font-weight: bold;'>${drgToConsultantA}</span></div>
+         <div>Requested by: <span style='font-weight: bold;'>${requestedBy}</span></div>
          <br />
          <div>Dear all,</div>
          <div>
@@ -142,7 +145,7 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
             are in the list below.
             <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
          </div>
-         <div>Please review and reply to us by <span style='font-weight: bold;'>${consultantReplyT}</span></div>
+         <div>Please review and reply to us by <span style='font-weight: bold;'>${consultantReplyT}</span>.</div>
       ` : `
          <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
          <br />
@@ -163,10 +166,10 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
          ${tableBody}
       </table>
       
-      <div style='font-size: 12px;'>The links will expires on ${moment().add(7, 'days').format('MMM Do YYYY')}</div>
+      <div style='font-size: 12px;'>The links will expires on ${moment().add(7, 'days').format('MMM Do YYYY')}.</div>
       <br />
       <a href="https://bim.wohhup.com/projects">Go to BIM APP</a>
-      <div>This is an automatic email from <span style='font-weight: bold;'>${company}</span></div>
+      <div>This is an automatic email from <span style='font-weight: bold;'>${company}</span>.</div>
       <br />
    </div>
    `;

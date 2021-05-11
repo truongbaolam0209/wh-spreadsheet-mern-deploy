@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { mongoObjectId } from '../../utils/index';
-import { getConsultantReplyData, isColumnWithReplyData } from '../pageSpreadsheet/CellRFA';
+import { getConsultantReplyData, getInfoValueFromRfaData, isColumnWithReplyData } from '../pageSpreadsheet/CellRFA';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
 
@@ -18,7 +18,7 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
    const [filterColumn, setFilterColumn] = useState(
       !isRfaView
          ? (modeFilter.length > 1
-            ? modeFilter
+            ? modeFilter.map(item => ({...item}))
             : [
                {
                   id: mongoObjectId(),
@@ -30,11 +30,11 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
                }
             ])
          : (modeFilter.length > 1
-            ? modeFilter
+            ? modeFilter.map(item => ({...item}))
             : [
                {
                   id: mongoObjectId(),
-                  header: 'Due Date',
+                  header: 'Overdue RFA',
                   value: 'Select Value...'
                },
                {
@@ -78,12 +78,13 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
          found.isIncludedParent = isChecked ? 'not included' : 'included';
          setFilterColumn(filterColumn);
       } else {
-         let xxx = [...filterColumn, { isIncludedParent: isChecked ? 'not included' : 'included' }];
-         setFilterColumn(xxx);
+         let arr = [...filterColumn, { isIncludedParent: isChecked ? 'not included' : 'included' }];
+         setFilterColumn(arr);
       };
    };
 
    const onClickApply = () => {
+
       const output = filterColumn.filter(x => {
          return (x.header !== 'Select Field...' && x.value !== 'Select Value...') || x.isIncludedParent;
       });
@@ -101,7 +102,7 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
 
 
    return (
-      <div style={{ width: '100%', height: '100%'}}>
+      <div style={{ width: '100%', height: '100%' }}>
          <div style={{ padding: 20, borderBottom: `1px solid ${colorType.grey4}` }}>
 
             <ButtonStyle
@@ -258,17 +259,37 @@ const SelectStyled = styled(Select)`
 
 
 const getColumnsValue = (rows, headers, isRfaView, companies) => {
+
    let valueObj = {};
-   headers.forEach(hd => {
+
+   const arrayHeaderRFA = [
+      'Requested By',
+      'Submission Date',
+      'Overdue RFA'
+   ];
+
+   [...headers, ...arrayHeaderRFA].forEach(hd => {
       let valueArr = [];
       rows.forEach(row => {
          if (isRfaView && isColumnWithReplyData(hd)) {
             const { replyCompany } = getConsultantReplyData(row, hd, companies);
             valueArr.push(replyCompany || '');
-            
-         } else if (isRfaView && hd === 'Due Date') {
-            valueArr = [...valueArr, 'Overdue', 'Due in 3 days', 'Nos of RFA outstanding'];
 
+         } else if (isRfaView && hd === 'Overdue RFA') {
+            valueArr = [...valueArr, 'Overdue', 'Due in 3 days', 'RFA outstanding'];
+
+         } else if (isRfaView && hd === 'Due Date') {
+            const dueDate = row['Consultant Reply (T)'];
+            valueArr.push(dueDate || '');
+
+         } else if (isRfaView && hd === 'Requested By') {
+            const requestedBy = getInfoValueFromRfaData(row, 'submission', 'requestedBy');
+            valueArr.push(requestedBy || '');
+
+         } else if (isRfaView && hd === 'Submission Date') {
+            const submissionDate = row['Drg To Consultant (A)'];
+            valueArr.push(submissionDate || '');
+            
          } else {
             valueArr.push(row[hd] || '');
          };

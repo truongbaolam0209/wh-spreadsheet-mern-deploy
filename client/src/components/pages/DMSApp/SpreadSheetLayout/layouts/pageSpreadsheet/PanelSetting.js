@@ -2,7 +2,7 @@ import { message } from 'antd';
 import Axios from 'axios';
 import moment from 'moment';
 import React, { useContext } from 'react';
-import { SERVER_URL } from '../../constants';
+import { EDIT_DURATION_MIN, SERVER_URL } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
@@ -15,7 +15,7 @@ import PanelConfirmResetMode from '../generalComponents/PanelConfirmResetMode';
 import PanelPickNumber from '../generalComponents/PanelPickNumber';
 import ReorderColumnForm from '../generalComponents/ReorderColumnForm';
 import { getInputDataInitially, getOutputRowsAllSorted, headersRfaView, headersRfaViewOneConsultant } from '../PageSpreadsheet';
-import { getConsultantLeadName, getInfoKeyFromRfaData, getInfoValueFromRfaData } from './CellRFA';
+import { getConsultantLeadName, getInfoValueFromRfaData } from './CellRFA';
 import ColorizedForm from './ColorizedForm';
 import FormCellColorizedCheck from './FormCellColorizedCheck';
 import FormDateAutomation from './FormDateAutomation';
@@ -24,8 +24,6 @@ import PanelAddNewRFA from './PanelAddNewRFA';
 import TableActivityHistory from './TableActivityHistory';
 import TableCellHistory from './TableCellHistory';
 import TableDrawingDetail from './TableDrawingDetail';
-
-
 
 
 const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
@@ -44,7 +42,9 @@ const PanelSetting = (props) => {
 
    const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
 
-   const applyFilter = (filter) => commandAction({ type: 'filter-by-columns', data: { modeFilter: filter } });
+   const applyFilter = (filter) => {
+      commandAction({ type: 'filter-by-columns', data: { modeFilter: filter } });
+   };
 
    const applyResetMode = (modeReset) => {
       const modeResetObj = {};
@@ -452,6 +452,8 @@ const PanelSetting = (props) => {
             if (
                key.includes('reply-$$$-') ||
                key.includes(`submission-$$$-drawing-${company}`) ||
+               key.includes(`submission-$$$-dwfxLink-${company}`) ||
+               key.includes(`submission-$$$-dwfxName-${company}`) ||
                key.includes(`submission-$$$-user-${company}`)
             ) {
                row[key] = '';
@@ -796,6 +798,8 @@ const PanelSetting = (props) => {
                      if (
                         key.includes('reply-$$$-') ||
                         key === `submission-$$$-drawing-${company}` ||
+                        key === `submission-$$$-dwfxLink-${company}` ||
+                        key === `submission-$$$-dwfxName-${company}` ||
                         key === `submission-$$$-trade-${company}` ||
                         key === `submission-$$$-user-${company}` ||
                         key === `submission-$$$-emailAdditionalNotes-${company}`
@@ -886,16 +890,12 @@ const PanelSetting = (props) => {
          recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting
       } = dataDwg;
 
+
       const { currentRfaToAddNewOrReplyOrEdit } = stateRow;
       const { email, projectId, projectName, token, publicSettings, roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
       const { headers } = publicSettings;
 
-      const consultantLeadName = listConsultantMustReply[0];
-
       const rfaRefData = rfaToSaveVersionOrToReply === '-' ? rfaToSave : (rfaToSave + rfaToSaveVersionOrToReply);
-
-      // for localStorage purpose
-      const dwgsToAddNewRFACloneToEdit = dwgsToAddNewRFA.map(x => ({ ...x }));
 
 
       try {
@@ -981,7 +981,6 @@ const PanelSetting = (props) => {
          };
 
 
-
          if (filesDWFX.length > 0) {
             const upload3dModel = async () => {
                try {
@@ -994,6 +993,7 @@ const PanelSetting = (props) => {
                         dataDWFX.append('projectName', projectName);
                         dataDWFX.append('email', email);
                         dataDWFX.append('rfaName', rfaRefData + `_${i}`);
+
 
                         let linkDWFX = '';
                         if (dataDWFX && dataDWFX !== null) {
@@ -1065,6 +1065,7 @@ const PanelSetting = (props) => {
                r[`submission-$$$-requestedBy-${company}`] = requestedBy;
                r[`submission-$$$-trade-${company}`] = trade;
                r[`submission-$$$-user-${company}`] = email;
+               r[`submission-$$$-date-${company}`] = new Date();
 
 
                headers.forEach(hd => {
@@ -1085,6 +1086,7 @@ const PanelSetting = (props) => {
                rowOutput.data[`submission-$$$-requestedBy-${company}`] = requestedBy;
                rowOutput.data[`submission-$$$-trade-${company}`] = trade;
                rowOutput.data[`submission-$$$-user-${company}`] = email;
+               rowOutput.data[`submission-$$$-date-${company}`] = new Date();
                rowsToUpdate.push(rowOutput);
 
             } else if (type === 'form-reply-RFA') {
@@ -1092,6 +1094,8 @@ const PanelSetting = (props) => {
                const saveToRowOrRowHistory = r.row ? 'history' : 'data';
                rowOutput[saveToRowOrRowHistory] = {};
 
+               const arrayConsultantReply = getInfoValueFromRfaData(r, 'submission', 'consultantMustReply') || [];
+               const consultantLeadName = arrayConsultantReply[0];
                if (consultantLeadName === company) {
                   arrayHeaderReply.forEach(hdText => {
                      const hdFound = headers.find(hd => hd.text === hdText);
@@ -1109,14 +1113,14 @@ const PanelSetting = (props) => {
                };
                rowOutput[saveToRowOrRowHistory][`reply-$$$-status-${company}`] = r[`reply-$$$-status-${company}`];
                rowOutput[saveToRowOrRowHistory][`reply-$$$-drawing-${company}`] = r[`reply-$$$-drawing-${company}`];
-               rowOutput[saveToRowOrRowHistory][`reply-$$$-date-${company}`] = moment(new Date()).format('DD/MM/YY');
+               rowOutput[saveToRowOrRowHistory][`reply-$$$-date-${company}`] = new Date();
                rowOutput[saveToRowOrRowHistory][`reply-$$$-user-${company}`] = email;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailTo-${company}`] = recipient.to;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailCc-${company}`] = recipient.cc;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailTitle-${company}`] = emailTextTitle;
                rowOutput[saveToRowOrRowHistory][`reply-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
 
-               r[`reply-$$$-date-${company}`] = moment(new Date()).format('DD/MM/YY');
+               r[`reply-$$$-date-${company}`] = new Date();
                r[`reply-$$$-user-${company}`] = email;
                r[`reply-$$$-emailTo-${company}`] = recipient.to;
                r[`reply-$$$-emailCc-${company}`] = recipient.cc;
@@ -1126,13 +1130,6 @@ const PanelSetting = (props) => {
                rowsToUpdate.push(rowOutput);
             };
          });
-
-         if (!isFormEditting) {
-            let tempAllRfaSaved = JSON.parse(localStorage.getItem('temp-RFA-form-data'));
-            tempAllRfaSaved = { ...tempAllRfaSaved, [`${typeText}-${rfaRefData}-${email}`]: new Date() };
-            localStorage.setItem('temp-RFA-form-data', JSON.stringify(tempAllRfaSaved));
-         };
-
 
 
          const rowsToUpdateFinalRow = rowsToUpdate.filter(r => r.data);
@@ -1183,7 +1180,7 @@ const PanelSetting = (props) => {
                   listUser,
                   listGroup
                },
-               momentToTriggerEmail: moment().add(moment.duration(15, 'minutes'))
+               momentToTriggerEmail: moment().add(moment.duration(EDIT_DURATION_MIN, 'minutes'))
             });
          };
 
@@ -1240,13 +1237,14 @@ const PanelSetting = (props) => {
          console.log(err);
       };
    };
+
    const redirectToViewDMS = async () => {
       const { projectId, token, email } = stateProject.allDataOneSheet;
       try {
          setLoading(true);
          commandAction({ type: '' });
          const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
-         commandAction({ type: 'reload-data-from-server', data: res.data });
+         commandAction({ type: 'reload-data-from-server', data: res.data, isBackToDms: true });
 
       } catch (err) {
          commandAction({ type: 'save-data-failure' });
@@ -1289,7 +1287,7 @@ const PanelSetting = (props) => {
          )}
          {panelSettingType === 'swap-ICON-2' && (
             <PanelConfirmResetMode
-               onClickCancel={onClickCancelModal}
+               onClickCancelModal={onClickCancelModal}
                applyResetMode={applyResetMode}
                modeFilter={stateRow.modeFilter}
                modeSort={stateRow.modeSort}
@@ -1657,9 +1655,6 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, com
 
    let allRowsForRFA = [...rowsWithRFA, ...rowsHistoryWithRFA];
 
-   // if (role === 'Consultant') {
-   //    allRowsForRFA = allRowsForRFA.filter(x => x['RFA Ref']);
-   // };
 
    allRowsForRFA.sort((a, b) => {
       if (!b['RFA Ref']) return 1;
@@ -1682,127 +1677,4 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, com
       }
    };
 };
-
-
-
-const generateEmailInnerHTMLFrontEnd = (company, emailType, rowsData) => {
-   const headersArray = [
-      '',
-      'Drawing Number',
-      'Drawing Name',
-      // 'RFA Ref',
-      // 'Drg To Consultant (A)',
-      // 'Consultant Reply (T)',
-      'Rev',
-      'Status',
-      // 'File'
-   ];
-   const typeInput = emailType === 'submit' ? 'submission' : emailType === 'reply' ? 'reply' : '';
-   let emailTitle = '';
-   let emailAdditionalNotes = '';
-   let rfaRefText = '';
-   let consultantMustReply = [];
-   let contractorName = '';
-
-   let drgToConsultantA = '';
-   let consultantReplyT = '';
-
-   const rowContainsRfaData = rowsData.find(row => row[getInfoKeyFromRfaData(row, 'submission', 'consultantMustReply')]);
-   if (rowContainsRfaData) {
-      emailTitle = rowContainsRfaData[`${typeInput}-$$$-emailTitle-${company}`];
-      emailAdditionalNotes = rowContainsRfaData[`${typeInput}-$$$-emailAdditionalNotes-${company}`];
-      rfaRefText = rowContainsRfaData['RFA Ref'];
-      consultantMustReply = rowContainsRfaData[`submission-$$$-consultantMustReply-${company}`];
-
-      drgToConsultantA = rowContainsRfaData['Drg To Consultant (A)'];
-      consultantReplyT = rowContainsRfaData['Consultant Reply (T)'];
-
-
-      const keyConsultantMustReply = getInfoKeyFromRfaData(rowContainsRfaData, 'submission', 'consultantMustReply');
-      contractorName = keyConsultantMustReply.slice(35, keyConsultantMustReply.length);
-   };
-
-   const th_td_style = `style='border: 1px solid #dddddd; text-align: left; padding: 8px; position: relative;'`;
-
-   let tableBody = '';
-   rowsData.forEach((rowData, i) => {
-      let str = `<td ${th_td_style}>${i + 1}</td>`;
-      headersArray.forEach((headerText, i) => {
-         if (i !== 0) {
-            if (headerText === 'Status' && emailType === 'reply') {
-               str += `<td ${th_td_style}>${rowData[`reply-$$$-status-${company}`] || ''}</td>`;
-            } else if (headerText === 'Status' && emailType === 'submit') {
-               str += `<td ${th_td_style}>Consultant reviewing</td>`;
-            } else if (headerText === 'Drawing Number') {
-               str += `
-                  <td ${th_td_style}>
-                     <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]}' download>
-                        ${rowData[headerText] || ''}
-                     </a>
-                  </td>
-               `;
-            } else {
-               str += `<td ${th_td_style}>${rowData[headerText] || ''}</td>`;
-            };
-         };
-      });
-      tableBody += `<tr>${str}</tr>`;
-   });
-
-
-   let tableHeader = '';
-   headersArray.forEach(headerText => {
-      tableHeader += `<th ${th_td_style}>${headerText}</th>`;
-   });
-   tableHeader = `<tr style='background: #34495e; color: white;'>${tableHeader}</tr>`;
-
-
-   const emailOutput = `
-   <div style='line-height: 1.6; font-family: Arial, Helvetica, sans-serif;'>
-      <div>Subject: <span style='font-weight: bold;'>${emailTitle}</span></div>
-      <div>RFA Ref: <span style='font-weight: bold;'>${rfaRefText}</span></div>
-      ${emailType === 'submit'
-         ? `
-         <div>Submission Date: <span style='font-weight: bold;'>${drgToConsultantA}</span></div>
-         <br />
-         <div>Dear all,</div>
-         <div>
-            <span style='font-weight: bold;'>${company}</span> has submitted <span
-               style='font-weight: bold;'>${rfaRefText}</span> for you to review, the
-            drawings included in this RFA
-            are in the list below.
-            <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
-         </div>
-         <div>Please review and reply to us by <span style='font-weight: bold;'>${consultantReplyT}</span></div>
-      ` : `
-         <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
-         <br />
-         <div>Dear all,</div>
-         <div>
-            <span style='font-weight: bold;'>${company}</span> has reply <span
-               style='font-weight: bold;'>${rfaRefText}</span>, the
-            replied drawings included in this RFA
-            are in the list below.
-            <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
-         </div>
-      `}
-      
-      <br />
-      <div>Uploaded Documents</div>
-      <table align='center' cellpadding='0' cellspacing='0' width='100%' style='border-collapse: collapse; font-size: 14px;'>
-         ${tableHeader}
-         ${tableBody}
-      </table>
-      
-      <div style='font-size: 12px;'>The links will expires on ${moment().add(7, 'days').format('MMM Do YYYY')}</div>
-      <br />
-      <a href="https://bim.wohhup.com/projects">Go to BIM APP</a>
-      <div>This is an automatic email from <span style='font-weight: bold;'>${company}</span></div>
-      <br />
-   </div>
-   `;
-   return emailOutput;
-};
-
-
 

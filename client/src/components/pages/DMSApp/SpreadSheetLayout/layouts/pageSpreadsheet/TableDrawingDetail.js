@@ -108,7 +108,7 @@ const TableDrawingDetail = (props) => {
 
 
    const panelHeight = window.innerHeight * 0.8;
-   const columnWidth = 200;
+   const columnWidth = 210;
    const columnHeaderWidth = 210;
 
    return (
@@ -226,20 +226,15 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
             const rfaNumber = row.rfaNumber;
             const rfaRef = row['RFA Ref'];
             if (rfaNumber && rfaRef) {
+               console.log('row', row);
+               for (const key in row) {
+                  if (key.includes('submission-$$$-') && row[key]) {
+                     obj[i] = {...obj[i] || {}, [key] : row[key] };
+                  };
+               };
                
-               const keyDrawingKey = getInfoKeyFromRfaData(row, 'submission', 'drawing');
-               const keyDrawingValue = getInfoValueFromRfaData(row, 'submission', 'drawing');
-               const keyDwfxKey =  getInfoKeyFromRfaData(row, 'submission', 'dwfxLink')
-               const keyDwfxValue =  getInfoValueFromRfaData(row, 'submission', 'dwfxLink');
-  
                if (rfaRef) {
                   obj[i] = {...obj[i] || {}, rfaRef };
-               };
-               if (keyDrawingKey) {
-                  obj[i] = {...obj[i] || {}, [keyDrawingKey] : keyDrawingValue };
-               };
-               if (keyDwfxKey) {
-                  obj[i] = {...obj[i] || {}, [keyDwfxKey] : keyDwfxValue };
                };
             };
          } else {
@@ -255,6 +250,9 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
 
 
 const TableStyled = styled(Table)`
+
+   color: black;
+   
    .BaseTable__row-cell-text {
       /* color: black; */
    }
@@ -284,6 +282,10 @@ const TableStyled = styled(Table)`
       border-right: 1px solid #DCDCDC;
       overflow: visible !important;
       padding: 0;
+   };
+
+   .BaseTable__table-main .BaseTable__row-cell:last-child {
+      padding-right: 0;
    };
    
 `;

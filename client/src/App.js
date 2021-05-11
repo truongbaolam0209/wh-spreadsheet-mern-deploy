@@ -9,6 +9,7 @@ import PageSpreadsheet from './components/pages/DMSApp/SpreadSheetLayout/layouts
 
 const browserName = detectBrowser();
 
+
 const App = () => {
 
    const saveDataToServerCallback = (dataToSave) => {
@@ -16,23 +17,6 @@ const App = () => {
    };
 
 
-   // console.log(localStorage);
-
-   const consultantCompany = 'DCA';
-   // const consultantCompany = 'RSP';
-   // const consultantCompany = 'ONG & ONG';
-
-
-
-   // const consultantCompany = 'dcA';
-   // const consultantCompany = 'rsp';
-   // const consultantCompany = 'onG & Ong';
-   // const consultantCompany = 'K2LD';
-   // const consultantCompany = 'HYLA';
-
-
-   // localStorage.removeItem('temp-RFA-form-data');
-   console.log('current LOCAL', localStorage);
 
 
    return (
@@ -72,10 +56,10 @@ const App = () => {
                      // projectId='MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q'
                      // projectId='MTYxMDMzOTYwMjQyNS1TdW1hbmc'
 
-                     projectId='MTYxNzg5MDkxNzI2MC10ZXN0OA'
+                     // projectId='MTYxNzg5MDkxNzI2MC10ZXN0OA'
 
 
-                     // projectId='MTU3NDgyNTcyMzUwNC1UZXN0'
+                     projectId='MTU3NDgyNTcyMzUwNC1UZXN0'
 
 
 
@@ -122,6 +106,7 @@ const App = () => {
                         { company: 'HYLA', companyType: 'Consultant' },
                         { company: 'K2LD', companyType: 'Consultant' },
                         { company: 'ONG & ONG', companyType: 'Consultant' },
+                        { company: 'Archi Consultant', companyType: 'Consultant' },
 
                      ]}
 
@@ -165,7 +150,8 @@ const App = () => {
                      // isOutputDataText={true}
                      canSaveUserSettings={false}
                      token={'xxx-xxxxx-xx'}
-                     sheetDataInput={sheetDataInput}
+                     // sheetDataInput={sheetDataInput}
+                     sheetDataInput={[]}
                      sheetName='Sheet 1'
                      sheetId='e4ac39e4-3f5f-46bd-adc1-912a14efe801'
 
@@ -237,5 +223,3 @@ const App = () => {
 
 
 export default App;
-
-

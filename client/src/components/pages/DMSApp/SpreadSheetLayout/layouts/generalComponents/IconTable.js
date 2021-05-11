@@ -63,25 +63,26 @@ const toolTipBtn = (type) => {
                         type === 'eye' ? 'Rows Hide/Unhide' :
                            type === 'menu' ? 'Projects List' :
                               type === 'swap' ? 'Clear Filter/Sort/Group/Search' :
-                                 type === 'history' ? 'Activity History' :
-                                    type === 'border-outer' ? 'PUBLIC' :
-                                       type === 'radius-upright' ? 'USER' :
-                                          type === 'save' ? 'Save' :
-                                             type === 'fullscreen-exit' ? 'Save SMARTSHEET To Server SUMANG' :
-                                                type === 'fall' ? 'Save SMARTSHEET To Server HANDY' :
-                                                   type === 'delete' ? 'Delete All Data In Every DB Collections' :
-                                                      type === 'pic-center' ? 'Save Random Rows To Server' :
-                                                         type === 'folder-add' ? 'Drawing Type Organization' :
-                                                            type === 'heat-map' ? 'Highlight Data Changed' :
-                                                               type === 'export' ? 'Export To Excel' :
-                                                                  type === 'plus' ? 'Save View Template' :
-                                                                     type === 'edit' ? 'Change User Name To Check Multi-User' :
-                                                                        type === 'upload' ? 'Upload Data To Server' :
-                                                                           type === 'rfa-button' ? 'Go To RFA Sheet' :
-                                                                              type === 'dms-button' ? 'Go To DMS Sheet' :
-                                                                                 type === 'plus-square' ? 'Add New RFA' :
-                                                                                    type === 'block' ? 'View All Consultant' :
-                                                                                    'No Title';
+                                 type === 'retweet' ? 'Quick Clear All Filter' :
+                                    type === 'history' ? 'Activity History' :
+                                       type === 'border-outer' ? 'PUBLIC' :
+                                          type === 'radius-upright' ? 'USER' :
+                                             type === 'save' ? 'Save' :
+                                                type === 'fullscreen-exit' ? 'Save SMARTSHEET To Server SUMANG' :
+                                                   type === 'fall' ? 'Save SMARTSHEET To Server HANDY' :
+                                                      type === 'delete' ? 'Delete All Data In Every DB Collections' :
+                                                         type === 'pic-center' ? 'Save Random Rows To Server' :
+                                                            type === 'folder-add' ? 'Drawing Type Organization' :
+                                                               type === 'heat-map' ? 'Highlight Data Changed' :
+                                                                  type === 'export' ? 'Export To Excel' :
+                                                                     type === 'plus' ? 'Save View Template' :
+                                                                        type === 'edit' ? 'Change User Name To Check Multi-User' :
+                                                                           type === 'upload' ? 'Upload Data To Server' :
+                                                                              type === 'rfa-button' ? 'Go To RFA Sheet' :
+                                                                                 type === 'dms-button' ? 'Go To DMS Sheet' :
+                                                                                    type === 'plus-square' ? 'Add New RFA' :
+                                                                                       type === 'block' ? 'View Consultant Mode' :
+                                                                                          'No Title';
 };
 
 const DivStyled = styled.div`

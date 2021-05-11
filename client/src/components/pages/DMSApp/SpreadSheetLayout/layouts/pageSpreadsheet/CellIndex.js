@@ -11,7 +11,7 @@ const CellIndex = (props) => {
    const { stateRow, getSheetRows } = contextRow;
    const { stateProject } = contextProject;
 
-   const { drawingTypeTree, rowsAll, modeGroup, rowsSelected } = stateRow;
+   const { drawingTypeTree, rowsAll, rowsRfaAll, modeGroup, rowsSelected } = stateRow;
    const { roleTradeCompany } = stateProject.allDataOneSheet;
    
    const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);

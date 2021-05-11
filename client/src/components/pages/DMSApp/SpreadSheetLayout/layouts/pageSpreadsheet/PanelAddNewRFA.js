@@ -62,7 +62,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const { roleTradeCompany: { role, company }, companies, listUser, listGroup, email, projectNameShort: projectNameShortText } = stateProject.allDataOneSheet;
    const projectNameShort = projectNameShortText || 'NO-PROJECT-NAME';
 
-   const { rowsAll, loading, currentRfaToAddNewOrReplyOrEdit, currentRfaRefToEditBeforeSendEmail, rowsRfaAll, rowsRfaAllInit, drawingTypeTreeDmsView } = stateRow;
+   const { rowsAll, loading, currentRfaToAddNewOrReplyOrEdit, rowsRfaAll, rowsRfaAllInit, drawingTypeTreeDmsView } = stateRow;
 
    const listRecipient = [...listUser, ...listGroup];
    const listConsultants = companies.filter(x => x.companyType === 'Consultant');
@@ -117,8 +117,14 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                r[`submission-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
             });
             setDwgsToAddNewRFA(rowsToEditClone);
-            setListRecipientTo(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || []);
-            setListRecipientCc(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || []);
+
+            const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || [];
+            setListRecipientTo([...new Set(listEmailTo)]);
+
+            const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || [];
+            setListRecipientCc([...new Set(listEmailCc)]);
+
+
             setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'consultantMustReply', company) || []);
             setRequestedBy(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'requestedBy', company) || '');
             setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTitle', company) || '');
@@ -137,8 +143,14 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   !dwg['RFA Ref'];
             });
             setDwgsToAddNewRFA(dwgsToResubmit.map(x => ({ ...x })));
-            setListRecipientTo(currentRfaData[`submission-$$$-emailTo-${company}`]);
-            setListRecipientCc(currentRfaData[`submission-$$$-emailCc-${company}`]);
+
+            const listEmailTo = currentRfaData[`submission-$$$-emailTo-${company}`] || [];
+            setListRecipientTo([...new Set(listEmailTo)]);
+
+            const listEmailCc = currentRfaData[`submission-$$$-emailCc-${company}`] || [];
+            setListRecipientCc([...new Set(listEmailCc)]);
+
+
             setListConsultantMustReply(currentRfaData[`submission-$$$-consultantMustReply-${company}`]);
             setRequestedBy(currentRfaData[`submission-$$$-requestedBy-${company}`]);
 
@@ -170,8 +182,13 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             setRfaNewVersionResubmitSuffix(versionTextSuffix);
 
             setDwgsToAddNewRFA(rowsToEditClone);
-            setListRecipientTo(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || []);
-            setListRecipientCc(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || []);
+
+            const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || [];
+            setListRecipientTo([...new Set(listEmailTo)]);
+
+            const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || [];
+            setListRecipientCc([...new Set(listEmailCc)]);
+
             setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'consultantMustReply', company) || []);
             setRequestedBy(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'requestedBy', company) || '');
             setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTitle', company) || '');
@@ -196,12 +213,14 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             let arrEmailCc = [];
             for (const key in currentRfaData) {
                if (key.includes('submission-$$$-user-')) {
-                  setListRecipientTo([currentRfaData[key]]);
+                  const listEmailTo = currentRfaData[key] ? [currentRfaData[key]] : [];
+                  setListRecipientTo([...new Set(listEmailTo)]);
+
                } else if (key.includes('submission-$$$-emailTo-') || key.includes('submission-$$$-emailCc-')) {
                   arrEmailCc = [...new Set([...arrEmailCc, ...currentRfaData[key]])];
                };
             };
-            setListRecipientCc(arrEmailCc);
+            setListRecipientCc([...new Set(arrEmailCc)]);
             const oneDwg = dwgsNotReplyYet[0];
             const keyEmailTitle = getInfoKeyFromRfaData(oneDwg, 'submission', 'emailTitle');
             setTextEmailTitle('Reply - ' + oneDwg[keyEmailTitle]);
@@ -215,8 +234,13 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                r[`reply-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
             });
             setDwgsToAddNewRFA(dwgsToEditReplyClone);
-            setListRecipientTo(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTo', company) || []);
-            setListRecipientCc(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailCc', company) || []);
+
+            const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTo', company) || [];
+            setListRecipientTo([...new Set(listEmailTo)]);
+
+            const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailCc', company) || [];
+            setListRecipientCc([...new Set(listEmailCc)]);
+
             setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTitle', company) || '');
             setTextEmailAdditionalNotes(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailAdditionalNotes', company) || '');
          };
@@ -519,9 +543,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
 
-
-
-
       getSheetRows({ ...stateRow, loading: true });
 
       onClickApplyAddNewRFA({
@@ -747,7 +768,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                                  };
                               };
                            };
-                           setListRecipientTo(list);
+                           setListRecipientTo([...new Set(list)]);
                         }}
                      >
                         {listRecipient.map(cm => {
@@ -803,7 +824,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                               message.warning('Please choose an available group email or key in an email address!');
                               return;
                            };
-                           setListRecipientCc(list);
+                           setListRecipientCc([...new Set(list)]);
                         }}
                      >
                         {listRecipient.map(cm => {
