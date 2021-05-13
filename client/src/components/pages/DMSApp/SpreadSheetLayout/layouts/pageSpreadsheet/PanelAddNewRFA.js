@@ -94,9 +94,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
    const [textEmailAdditionalNotes, setTextEmailAdditionalNotes] = useState('');
 
-
-   const [dwgIdsToRollBackSubmit, setDwgIdsToRollBackSubmit] = useState([]);
-
    const [modalConfirmsubmitOrCancel, setModalConfirmsubmitOrCancel] = useState(null);
 
    const { currentRfaNumber, currentRfaRef, currentRfaData, formRfaType, isFormEditting } = currentRfaToAddNewOrReplyOrEdit || {};
@@ -418,7 +415,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          let canUploadFile = true;
          info.fileList.forEach(file => {
             output = { ...output, [file.name]: file };
-            if (file.size > 100 * 1000 * 100) {
+            if (file.size > 1000 * 1000 * 100) {
                canUploadFile = false;
             };
          });
@@ -496,7 +493,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       };
 
 
-
       if (projectNameShort === 'NO-PROJECT-NAME') {
          return message.info('Please update project abbreviation name for RFA number!', 3);
       } else if (!isAllDataInRowFilledIn) {
@@ -552,7 +548,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          filesPDF: (filesPDFOutput && Object.values(filesPDFOutput)) || [],
          filesDWFX: (filesDWFXOutput && Object.values(filesDWFXOutput)) || [],
          dwgsToAddNewRFA: dwgsToAddNewRFA.map(x => ({ ...x })),
-         dwgIdsToRollBackSubmit,
          rfaToSave, rfaToSaveVersionOrToReply,
          recipient: {
             to: [...new Set(listRecipientTo)],
@@ -654,7 +649,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                paddingRight: 10,
                borderBottom: `1px solid ${colorType.grey4}`,
             }}>
-               <div style={{ display: 'flex' }}>
+               <div style={{ display: 'flex', marginBottom: 10 }}>
                   <div style={{ marginRight: 10, fontWeight: 'bold' }}>RFA Number</div>
                   {formRfaType === 'form-submit-RFA' ? (
                      <>
@@ -687,7 +682,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                      </>
 
                   ) : formRfaType === 'form-reply-RFA' ? (
-                     <div style={{ transform: 'translateY(5px)' }}>{currentRfaRef}</div>
+                     <div>{currentRfaRef}</div>
 
                   ) : null}
 
@@ -972,7 +967,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                {dwgsToAddNewRFA && (
                   <div style={{
                      width: window.innerWidth * 0.9 - 80,
-                     // height: dwgsToAddNewRFA.length > 4 ? 162 : dwgsToAddNewRFA.length * 28 + 80
                      height: dwgsToAddNewRFA.length * 28 + 80
                   }}>
                      <TableStyled
@@ -1268,8 +1262,8 @@ const CellRemoveDrawing = (props) => {
 };
 
 
-const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRfaType, rfaRef, onClickCancelConfirmModal, onClickApplyConfirmModal }) => {
 
+const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRfaType, rfaRef, onClickCancelConfirmModal, onClickApplyConfirmModal }) => {
 
    return (
       <div style={{ padding: 20, width: '100%' }}>
@@ -1289,6 +1283,8 @@ const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRfaType, rfaRef, onClickC
       </div>
    );
 };
+
+
 const ModalConfirmStyled = styled(Modal)`
     .ant-modal-content {
         border-radius: 0;
@@ -1458,19 +1454,6 @@ const DatePickerStyled = styled(DatePicker)`
    }
 `;
 
-const SelectRFAStyled = styled(Select)`
-   width: 250px;
-   outline: none;
-   .ant-select-selection {
-      outline: none;
-      border-radius: 0;
-      width: 100%;
-      background: transparent;
-   };
-   .ant-select-selection__rendered {
-      outline: none;
-   };
-`;
 
 
 

@@ -448,6 +448,7 @@ export const getUserRoleTradeCompany = (role, company) => {
 
       'Sub-Con',
       'Consultant',
+      'RE/RTO'
    ];
 
 
@@ -455,7 +456,7 @@ export const getUserRoleTradeCompany = (role, company) => {
       !role || !company || roleArray.indexOf(role) === -1 ||
       role === 'WH Archi Manager' || role === 'WH C&S Manager' || role === 'WH M&E Manager' || role === 'WH PRECAST Manager' ||
       role === 'Planning Engineer' || role === 'QS' || role === 'Project Manager' || role === 'Corporate Manager' ||
-      role === 'Client' || role === 'QAQC' || role === 'Safety'
+      role === 'Client' || role === 'QAQC' || role === 'Safety' || role === 'RE/RTO'
    ) {
       return { role: 'View-Only User', trade: null, company: null };
    };

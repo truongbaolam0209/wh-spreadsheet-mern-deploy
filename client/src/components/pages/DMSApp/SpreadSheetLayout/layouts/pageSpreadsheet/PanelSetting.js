@@ -886,10 +886,9 @@ const PanelSetting = (props) => {
       setLoading(true);
 
       const {
-         filesPDF, filesDWFX, type, dwgsToAddNewRFA, dwgIdsToRollBackSubmit, trade, rfaToSave, rfaToSaveVersionOrToReply,
+         filesPDF, filesDWFX, type, dwgsToAddNewRFA, trade, rfaToSave, rfaToSaveVersionOrToReply,
          recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting
       } = dataDwg;
-
 
       const { currentRfaToAddNewOrReplyOrEdit } = stateRow;
       const { email, projectId, projectName, token, publicSettings, roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
@@ -994,6 +993,10 @@ const PanelSetting = (props) => {
                         dataDWFX.append('email', email);
                         dataDWFX.append('rfaName', rfaRefData + `_${i}`);
 
+                        // console.log('checkFile3D=================', {
+                        //    file: fileFound.originFileObj,
+                        //    projectId, projectName, email, rfaName: rfaRefData + `_${i}`
+                        // });
 
                         let linkDWFX = '';
                         if (dataDWFX && dataDWFX !== null) {
@@ -1048,10 +1051,13 @@ const PanelSetting = (props) => {
 
 
          dwgsToAddNewRFA.forEach((r, i) => {
+  
+            const saveToRowOrRowHistory = r.row ? 'history' : 'data';
             let rowOutput = { _id: r.id };
-
+            
             if (type === 'form-submit-RFA' || type === 'form-resubmit-RFA') {
-               rowOutput.data = {};
+               rowOutput[saveToRowOrRowHistory] = {};
+
                r['RFA Ref'] = rfaRefData;
                r['rfaNumber'] = rfaToSave;
                r['Status'] = 'Consultant reviewing';
@@ -1070,28 +1076,27 @@ const PanelSetting = (props) => {
 
                headers.forEach(hd => {
                   if (r[hd.text] && arrayHeaderSubmission.indexOf(hd.text) !== -1) {
-                     rowOutput.data[hd.key] = r[hd.text];
+                     rowOutput[saveToRowOrRowHistory][hd.key] = r[hd.text];
                   };
                });
-               rowOutput.data.rfaNumber = r['rfaNumber'];
+               rowOutput[saveToRowOrRowHistory].rfaNumber = r['rfaNumber'];
 
-               rowOutput.data[`submission-$$$-drawing-${company}`] = r[`submission-$$$-drawing-${company}`];
-               rowOutput.data[`submission-$$$-dwfxName-${company}`] = r[`submission-$$$-dwfxName-${company}`];
-               rowOutput.data[`submission-$$$-dwfxLink-${company}`] = r[`submission-$$$-dwfxLink-${company}`];
-               rowOutput.data[`submission-$$$-emailTo-${company}`] = recipient.to;
-               rowOutput.data[`submission-$$$-emailCc-${company}`] = recipient.cc;
-               rowOutput.data[`submission-$$$-emailTitle-${company}`] = emailTextTitle;
-               rowOutput.data[`submission-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
-               rowOutput.data[`submission-$$$-consultantMustReply-${company}`] = listConsultantMustReply;
-               rowOutput.data[`submission-$$$-requestedBy-${company}`] = requestedBy;
-               rowOutput.data[`submission-$$$-trade-${company}`] = trade;
-               rowOutput.data[`submission-$$$-user-${company}`] = email;
-               rowOutput.data[`submission-$$$-date-${company}`] = new Date();
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-drawing-${company}`] = r[`submission-$$$-drawing-${company}`];
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-dwfxName-${company}`] = r[`submission-$$$-dwfxName-${company}`];
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-dwfxLink-${company}`] = r[`submission-$$$-dwfxLink-${company}`];
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-emailTo-${company}`] = recipient.to;
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-emailCc-${company}`] = recipient.cc;
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-emailTitle-${company}`] = emailTextTitle;
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-consultantMustReply-${company}`] = listConsultantMustReply;
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-requestedBy-${company}`] = requestedBy;
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-trade-${company}`] = trade;
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-user-${company}`] = email;
+               rowOutput[saveToRowOrRowHistory][`submission-$$$-date-${company}`] = new Date();
                rowsToUpdate.push(rowOutput);
 
             } else if (type === 'form-reply-RFA') {
-
-               const saveToRowOrRowHistory = r.row ? 'history' : 'data';
+               
                rowOutput[saveToRowOrRowHistory] = {};
 
                const arrayConsultantReply = getInfoValueFromRfaData(r, 'submission', 'consultantMustReply') || [];
@@ -1135,29 +1140,32 @@ const PanelSetting = (props) => {
          const rowsToUpdateFinalRow = rowsToUpdate.filter(r => r.data);
          const rowsToUpdateFinalRowHistory = rowsToUpdate.filter(r => r.history);
 
+
          if (rowsToUpdateFinalRow.length > 0) {
             await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdateFinalRow });
-
+            
             let cellHistoriesToSave = [];
             rowsToUpdate.forEach(row => {
-               if (row.data[`reply-$$$-status-${company}`]) {
-                  cellHistoriesToSave.push({
-                     rowId: row._id, headerKey: company,
-                     history: {
-                        text: company + '__' +
-                           row.data[`reply-$$$-status-${company}`],
-                        email, createdAt: new Date()
-                     }
-                  });
-               };
-               headers.forEach(hd => {
-                  if (row.data[hd.key]) {
+               if (row.data) { // save history for current row only, not row history......
+                  if (row.data[`reply-$$$-status-${company}`]) {
                      cellHistoriesToSave.push({
-                        rowId: row._id, headerKey: hd.key,
-                        history: { email, text: row.data[hd.key], createdAt: new Date() }
+                        rowId: row._id, headerKey: company,
+                        history: {
+                           text: company + '__' +
+                              row.data[`reply-$$$-status-${company}`],
+                           email, createdAt: new Date()
+                        }
                      });
                   };
-               });
+                  headers.forEach(hd => {
+                     if (row.data[hd.key]) {
+                        cellHistoriesToSave.push({
+                           rowId: row._id, headerKey: hd.key,
+                           history: { email, text: row.data[hd.key], createdAt: new Date() }
+                        });
+                     };
+                  });
+               };
             });
             await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: cellHistoriesToSave });
          };
@@ -1551,9 +1559,12 @@ export const convertRowHistoryData = (dataRowsHistory, headers) => {
 export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, company) => {
 
    const nodeTitleArr = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
-
+   
    const rowsWithRFA = rows.filter(x => x.rfaNumber);
    const rowsHistoryWithRFA = rowsHistory.filter(x => x.rfaNumber);
+   
+
+   const fffffff = rowsWithRFA.map(x => ({...x}));
 
    let treeViewRFA = [];
 

@@ -9,7 +9,7 @@ import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { mongoObjectId } from '../../utils';
 import { headersConsultantWithNumber } from '../PageSpreadsheet';
-import CellRFA, { getConsultantReplyData, getInfoKeyFromRfaData, getInfoValueFromRfaData, isColumnWithReplyData } from './CellRFA';
+import CellRFA, { getConsultantReplyData, isColumnWithReplyData } from './CellRFA';
 
 
 
@@ -226,7 +226,6 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
             const rfaNumber = row.rfaNumber;
             const rfaRef = row['RFA Ref'];
             if (rfaNumber && rfaRef) {
-               console.log('row', row);
                for (const key in row) {
                   if (key.includes('submission-$$$-') && row[key]) {
                      obj[i] = {...obj[i] || {}, [key] : row[key] };

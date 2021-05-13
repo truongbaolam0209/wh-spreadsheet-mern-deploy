@@ -1,18 +1,26 @@
 import { Icon, Tooltip } from 'antd';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
 
 
-const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTableAction, isRfaView }) => {
+const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTableAction, isRfaView, modeFilter }) => {
 
 
 
    const [mode, setMode] = useState(false);
+   const [value, setValue] = useState('');
+
+   useEffect(() => {
+      if (modeFilter.length === 0) {
+         setValue('');
+      };
+   }, [modeFilter]);
 
    const onChange = (e) => {
       if (!e.target) return;
       searchGlobal(e.target.value, isRfaView);
+      setValue(e.target.value);
    };
 
    const showDrawingSearchOnly = () => {
@@ -53,6 +61,7 @@ const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTab
          <input
             placeholder='Input search text...'
             onChange={onChange}
+            value={value}
             style={{
                border: 'none',
                outline: 'none',

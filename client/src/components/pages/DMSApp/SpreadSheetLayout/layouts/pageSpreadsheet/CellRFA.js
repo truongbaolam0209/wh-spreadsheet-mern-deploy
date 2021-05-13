@@ -365,9 +365,23 @@ const CellRFA = (props) => {
       };
    };
 
+   
+   const [is3dModelAttached, setIs3dModelAttached] = useState(false);
+   useEffect(() => {
+      if (!rowData.treeLevel && (
+         (projectIsAppliedRfaView && column.key === 'RFA Ref' && rowData['RFA Ref']) ||
+         (column.key.includes('Version ') && isDrawingDetailTableDms && isRfaRowInDmsDrawingDetailTable))
+      ) {
+         const dwfxLink = getInfoValueFromRfaData(rowData, 'submission', 'dwfxLink');
+         if (dwfxLink) {
+            setIs3dModelAttached(true);
+         };
+      };
+   }, []);
+   
+   
    const additionalBtnToEdit = isEditButtonShownInCell ? ['Edit'] : [];
-
-
+   const additionalBtn3DModel = is3dModelAttached ? ['Open 3D File'] : [];
 
    return (
       <div
@@ -506,12 +520,12 @@ const CellRFA = (props) => {
             (column.key.includes('Version ') && isDrawingDetailTableDms && isRfaRowInDmsDrawingDetailTable)
          ) && (
                <>
-                  {['Open Drawing File', 'Open 3D File', ...additionalBtnToEdit].map(btn => (
+                  {['Open Drawing File', ...additionalBtn3DModel, ...additionalBtnToEdit].map(btn => (
                      <Tooltip key={btn} placement='top' title={btn}>
                         <div
                            style={{
                               cursor: 'pointer', position: 'absolute',
-                              right: btn === 'Open Drawing File' ? 5 : btn === 'Open 3D File' ? 27 : 51,
+                              right: btn === 'Open Drawing File' ? 5 : btn === 'Open 3D File' ? 27 : (additionalBtn3DModel.length === 1 ? 51 : 27),
                               top: 5, height: 17, width: 17,
                            }}
                            onMouseDown={() => onMouseDownCellButtonRfaRef(btn)}
