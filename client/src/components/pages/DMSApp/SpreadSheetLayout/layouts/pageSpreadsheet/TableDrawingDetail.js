@@ -240,8 +240,10 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
             obj[`Version ${i}`] = row[hd.text] || '';
          };
       });
+      
       dwgArray.push(obj);
    });
+   console.log('tttttttttttt', dwgArray);
    return dwgArray;
 };
 

@@ -352,7 +352,7 @@ const PageSpreadsheet = (props) => {
       } else if (update.type === 'reset-filter-sort') {
 
          getSheetRows({ ...stateRow, ...update.data });
-
+         
          setCellSearchFound(null);
 
          if (!stateRow.isRfaView) {
@@ -740,14 +740,14 @@ const PageSpreadsheet = (props) => {
                   onMouseDownColumnHeader={onMouseDownColumnHeader}
                />
             ),
-            cellRenderer: stateRow.isRfaView ||
-               (!stateRow.isRfaView &&
+            cellRenderer: stateRow.isRfaView || 
+               (!stateRow.isRfaView && 
                   (
-                     isColumnWithReplyData(hd) ||
-                     isColumnConsultant(hd) ||
+                     isColumnWithReplyData(hd) || 
+                     isColumnConsultant(hd) || 
                      hd === 'RFA Ref'
                   )
-               ) ? (
+            ) ? (
                <CellRFA
                   buttonPanelFunction={buttonPanelFunction}
                   onRightClickCell={onRightClickCell}
@@ -828,7 +828,7 @@ const PageSpreadsheet = (props) => {
                projectId,
                // company: 'DCA',
                // type: 'reply',
-               company: 'Woh Hup Private Ltd',
+               company: 'Woh Hup Private Ltd', 
                type: 'submit',
                rowIds: [
                   '60413b2d81584997b9c6f617',
@@ -896,7 +896,7 @@ const PageSpreadsheet = (props) => {
                </>
             )}
 
-
+            
 
             {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && (
                <IconTable type='block' onClick={switchRFAHeader} />
@@ -938,7 +938,7 @@ const PageSpreadsheet = (props) => {
                </>
             )}
 
-
+            
 
             {stateRow && projectIsAppliedRfaView && stateRow.rfaStatistics && (
                <>
@@ -956,7 +956,7 @@ const PageSpreadsheet = (props) => {
                   {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} /> */}
                   <ButtonAdminUploadData />
                   <ButtonAdminCreateAndUpdateRows />
-
+                  
                   {/* 
                         <div onClick={loadEmailCheckBackend}>checkAPIEmail</div>
                         <ButtonAdminUploadDataPDD />
@@ -1369,7 +1369,7 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role) => {
    if (isRfaView) {
       // RFA VIEW .......................................
 
-
+      
       let rowsAllFinalRFA = [...rowsRfaAll];
 
       if (Object.keys(modeSearch).length === 2) {
@@ -1378,7 +1378,7 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role) => {
             rowsAllFinalRFA = rowsAllFinalRFA.filter(row => row.id in searchDataObj);
          };
       };
-
+      
       if (modeFilter.length > 0) {
          let filterObj = {};
          modeFilter.forEach(filter => {

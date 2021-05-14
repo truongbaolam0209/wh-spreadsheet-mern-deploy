@@ -166,9 +166,9 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
          ${tableBody}
       </table>
       
-      <div style='font-size: 12px;'>The links will expires on ${moment().add(7, 'days').format('MMM Do YYYY')}.</div>
+      <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('MMM Do YYYY')}.</div>
       <br />
-      <a href="https://bim.wohhup.com/projects">Go to BIM APP</a>
+      <a href="https://idd.wohhup.com/projects">Go to BIM APP</a>
       <div>This is an automatic email from <span style='font-weight: bold;'>${company}</span>.</div>
       <br />
    </div>

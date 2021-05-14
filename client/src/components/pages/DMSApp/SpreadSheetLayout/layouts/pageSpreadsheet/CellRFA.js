@@ -98,10 +98,6 @@ const CellRFA = (props) => {
          } else if (isColumnWithReplyData(column.key)) {
             const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyData(rowData, column.key, companies);
 
-            // const isEditTimeOver = checkIfEditTimeIsOver(rowData, replyCompanyData, EDIT_DURATION_MIN, 'check-if-status-button-ready');
-            // if (isEditTimeOver) {
-            //    setReplyStatus(replyStatusData);
-            // };
             setReplyStatus(replyStatusData);
             setReplyCompany(replyCompanyData);
             setReplyDate(convertReplyOrSubmissionDate(replyDateData));
@@ -109,11 +105,6 @@ const CellRFA = (props) => {
          } else if (isColumnConsultant(column.key)) {
             if (roleTradeCompany.role !== 'Consultant') {
                const consultantLead = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply')[0];
-
-               // const isEditTimeOver = checkIfEditTimeIsOver(rfaDataObj, consultantLead, EDIT_DURATION_MIN, 'check-if-status-button-ready');
-               // if (isEditTimeOver) {
-               //    setReplyStatus(getInfoValueFromRfaData(rfaDataObj, 'reply', 'status', consultantLead));
-               // };
 
                setReplyStatus(getInfoValueFromRfaData(rfaDataObj, 'reply', 'status', consultantLead));
                setReplyCompany(consultantLead);
@@ -123,10 +114,7 @@ const CellRFA = (props) => {
             } else {
                const consultantMustReplyValue = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply');
                if (consultantMustReplyValue.indexOf(company) !== -1) {
-                  // const isEditTimeOver = checkIfEditTimeIsOver(rfaDataObj, company, EDIT_DURATION_MIN, 'check-if-status-button-ready');
-                  // if (isEditTimeOver) {
-                  //    setReplyStatus(rfaDataObj[`reply-$$$-status-${company}`]);
-                  // };
+
                   setReplyStatus(rfaDataObj[`reply-$$$-status-${company}`]);
                   setReplyCompany(company);
                   const dateInfo = rfaDataObj[`reply-$$$-date-${company}`];
@@ -147,9 +135,9 @@ const CellRFA = (props) => {
 
 
 
+   const [isDrawingDetailTableDms, setIsDrawingDetailTableDms] = useState(null);
+   const [is3dModelAttached, setIs3dModelAttached] = useState(false);
 
-   const [isRfaRowInDmsDrawingDetailTable, setIsRfaRowInDmsDrawingDetailTable] = useState(false);
-   const [isDrawingDetailTableDms, setIsDrawingDetailTableDms] = useState(false);
    useEffect(() => {
       if (column.key.includes('Version ')) {
          const versionIndex = column.key.slice(8, column.key.length);
@@ -160,26 +148,39 @@ const CellRFA = (props) => {
                const dataDate = getInfoValueFromRfaData(rowData[versionIndex], 'reply', 'date');
                const keyStatus = getInfoKeyFromRfaData(rowData[versionIndex], 'reply', 'status');
                const companyName = keyStatus.slice(17, keyStatus.length);
-               // const isEditTimeOver = checkIfEditTimeIsOver(rowData, companyName, EDIT_DURATION_MIN, 'check-if-status-button-ready');
-               // if (isEditTimeOver) {
-               //    setReplyStatus(dataStatus);
-               // };
+
                setReplyStatus(dataStatus);
                setReplyCompany(companyName);
                setReplyDate(convertReplyOrSubmissionDate(dataDate));
-               
+
                setRfaData(rowData[versionIndex]);
-               setIsDrawingDetailTableDms(true);
-               setIsRfaRowInDmsDrawingDetailTable(false);
+
+               setIsDrawingDetailTableDms('drawing-detail-consultant');
             };
          } else if (infoData === 'RFA Ref') {
             setRfaData(rowData[versionIndex]);
-            setIsDrawingDetailTableDms(true);
-            setIsRfaRowInDmsDrawingDetailTable(true);
+
+            setIsDrawingDetailTableDms('drawing-detail-rfa');
+
+            const dwfxLink = getInfoValueFromRfaData(rowData[versionIndex], 'submission', 'dwfxLink');
+            if (dwfxLink) {
+               setIs3dModelAttached(true);
+            };
+         };
+      };
+
+      if (!rowData.treeLevel && projectIsAppliedRfaView && column.key === 'RFA Ref' && rowData['RFA Ref']) {
+         const dwfxLink = getInfoValueFromRfaData(rowData, 'submission', 'dwfxLink');
+         if (dwfxLink) {
+            setIs3dModelAttached(true);
          };
       };
    }, []);
 
+
+
+
+   
    
 
    const onClickRfaDrawing = (rfaCode, btn) => {
@@ -192,8 +193,8 @@ const CellRFA = (props) => {
                   : r['RFA Ref'] === rfaCode + btn
          );
       });
-      getSheetRows({ 
-         ...stateRow, 
+      getSheetRows({
+         ...stateRow,
          rowsRfaAll: [...rowsNotThisRFA, ...rowsThisRFAFiltered]
       });
       setActiveBtn(btn);
@@ -233,7 +234,7 @@ const CellRFA = (props) => {
 
       try {
          let userReply, isEditTimeOver;
-         if (isDrawingDetailTableDms && !isRfaRowInDmsDrawingDetailTable) {
+         if (isDrawingDetailTableDms === 'drawing-detail-consultant') {
             userReply = getInfoValueFromRfaData(rfaData, 'reply', 'user', replyCompany);
             isEditTimeOver = checkIfEditTimeIsOver(rfaData, replyCompany, EDIT_DURATION_MIN, 'check-if-status-button-ready');
          } else {
@@ -256,7 +257,7 @@ const CellRFA = (props) => {
                window.open(res.data);
 
             } else if (btn === 'Open 3D File') {
-               
+
             } else if (btn === 'Edit') {
                buttonPanelFunction('form-reply-RFA');
                getSheetRows({
@@ -282,7 +283,7 @@ const CellRFA = (props) => {
    const onMouseDownCellButtonRfaRef = async (btn) => {
       try {
          let userSubmission, isEditTimeOver;
-         if (isDrawingDetailTableDms && isRfaRowInDmsDrawingDetailTable) {
+         if (isDrawingDetailTableDms === 'drawing-detail-rfa') {
             userSubmission = getInfoValueFromRfaData(rfaData, 'submission', 'user');
             isEditTimeOver = checkIfEditTimeIsOver(rfaData, null, EDIT_DURATION_MIN, 'check-if-rfa-button-ready');
          } else {
@@ -290,6 +291,9 @@ const CellRFA = (props) => {
             isEditTimeOver = checkIfEditTimeIsOver(rowData, null, EDIT_DURATION_MIN, 'check-if-rfa-button-ready');
          };
 
+         if (!isEditTimeOver && userSubmission === email && btn === 'Open 3D File') {
+            return message.warn('3D model is uploading, please wait ...');
+         };
 
          if (isEditTimeOver || userSubmission === email) {
             if (btn === 'Open Drawing File') {
@@ -365,23 +369,15 @@ const CellRFA = (props) => {
       };
    };
 
+
    
-   const [is3dModelAttached, setIs3dModelAttached] = useState(false);
-   useEffect(() => {
-      if (!rowData.treeLevel && (
-         (projectIsAppliedRfaView && column.key === 'RFA Ref' && rowData['RFA Ref']) ||
-         (column.key.includes('Version ') && isDrawingDetailTableDms && isRfaRowInDmsDrawingDetailTable))
-      ) {
-         const dwfxLink = getInfoValueFromRfaData(rowData, 'submission', 'dwfxLink');
-         if (dwfxLink) {
-            setIs3dModelAttached(true);
-         };
-      };
-   }, []);
-   
-   
-   const additionalBtnToEdit = isEditButtonShownInCell ? ['Edit'] : [];
+
+
+   const additionalBtnToEdit = (isEditButtonShownInCell && isRfaView) ? ['Edit'] : [];
    const additionalBtn3DModel = is3dModelAttached ? ['Open 3D File'] : [];
+
+
+
 
    return (
       <div
@@ -454,19 +450,17 @@ const CellRFA = (props) => {
                </div>
 
             ) : (
-               !rowData.treeLevel && 
-               column.key.includes('Version ') && 
-               isDrawingDetailTableDms &&
-               !isRfaRowInDmsDrawingDetailTable &&
+               !rowData.treeLevel &&
+               column.key.includes('Version ') &&
+               isDrawingDetailTableDms === 'drawing-detail-consultant' &&
                replyStatus
             ) ? (
                <div style={{ float: 'left', paddingLeft: 3, fontWeight: 'bold' }}>{replyCompany}</div>
 
             ) : (
-               !rowData.treeLevel && 
-               column.key.includes('Version ') && 
-               isDrawingDetailTableDms &&
-               isRfaRowInDmsDrawingDetailTable
+               !rowData.treeLevel &&
+               column.key.includes('Version ') &&
+               isDrawingDetailTableDms === 'drawing-detail-rfa'
             ) ? (
                <div style={{ float: 'left', paddingLeft: 3, fontWeight: 'bold' }}>{rfaData.rfaRef}</div>
 
@@ -491,7 +485,7 @@ const CellRFA = (props) => {
          {btnShown && !rowData.treeLevel && replyCompany && (
             isColumnWithReplyData(column.key) ||
             isColumnConsultant(column.key) ||
-            (column.key.includes('Version ') && isDrawingDetailTableDms && !isRfaRowInDmsDrawingDetailTable)
+            (column.key.includes('Version ') && isDrawingDetailTableDms === 'drawing-detail-consultant')
          ) && (
                <>
                   {['See Note', 'Open Drawing File', ...additionalBtnToEdit].map(btn => (
@@ -507,7 +501,6 @@ const CellRFA = (props) => {
                            <Icon
                               type={btn === 'See Note' ? 'message' : btn === 'Open Drawing File' ? 'file' : 'edit'}
                               style={{ color: replyStatus ? 'white' : 'black', fontSize: 15 }}
-               
                            />
                         </div>
                      </Tooltip>
@@ -517,7 +510,7 @@ const CellRFA = (props) => {
 
          {btnShown && !rowData.treeLevel && (
             (projectIsAppliedRfaView && column.key === 'RFA Ref' && rowData['RFA Ref']) ||
-            (column.key.includes('Version ') && isDrawingDetailTableDms && isRfaRowInDmsDrawingDetailTable)
+            (column.key.includes('Version ') && isDrawingDetailTableDms === 'drawing-detail-rfa')
          ) && (
                <>
                   {['Open Drawing File', ...additionalBtn3DModel, ...additionalBtnToEdit].map(btn => (
@@ -538,7 +531,8 @@ const CellRFA = (props) => {
                      </Tooltip>
                   ))}
                </>
-            )}
+            )
+         }
 
 
          {modalContent && (
@@ -730,7 +724,7 @@ const checkIfEditTimeIsOver = (rowData, replyCompany, editTimeAllowed, type) => 
       };
    };
 
-
+   console.log(duration, editTimeAllowed);
    if (duration && duration > editTimeAllowed) {
       return true;
    };

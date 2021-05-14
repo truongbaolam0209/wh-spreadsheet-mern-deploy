@@ -886,7 +886,7 @@ const PanelSetting = (props) => {
       setLoading(true);
 
       const {
-         filesPDF, filesDWFX, type, dwgsToAddNewRFA, trade, rfaToSave, rfaToSaveVersionOrToReply,
+         filesPDF, filesDWFX, type, dwgsToAddNewRFA, dwgIdsToRollBackSubmit, trade, rfaToSave, rfaToSaveVersionOrToReply,
          recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting
       } = dataDwg;
 
@@ -1006,7 +1006,6 @@ const PanelSetting = (props) => {
                         row[`submission-$$$-dwfxLink-${company}`] = linkDWFX;
                      };
                   }));
-                  message.info('DONE...');
                } catch (err) {
                   console.log(err);
                };
@@ -1020,34 +1019,6 @@ const PanelSetting = (props) => {
          let rowsToUpdate = [];
          const arrayHeaderSubmission = ['RFA Ref', 'Status', 'Drg To Consultant (A)', 'Consultant Reply (T)', 'Rev'];
          const arrayHeaderReply = ['Status', 'Consultant Reply (A)'];
-         const arrayKeySubmission = ['drawing', 'trade', 'user', 'emailTo', 'emailCc', 'consultantMustReply', 'requestedBy'];
-         const arrayKeyResubmission = ['drawing', 'user'];
-
-         // if (dwgIdsToRollBackSubmit.length > 0) {
-         //    if (type === 'form-submit-edit-RFA') {
-         //       dwgIdsToRollBackSubmit.forEach(id => {
-         //          const rowFound = rowsRfaAllInit.find(x => x.id === id);
-         //          if (rowFound) {
-         //             let rowOutput = { _id: rowFound.id, data: {} };
-         //             arrayHeaderSubmission.forEach(hdText => {
-         //                const hdFound = headers.find(hd => hd.text === hdText);
-         //                if (hdFound) rowOutput.data[hdFound.key] = '';
-         //             });
-         //             if (type === 'form-submit-RFA') {
-         //                arrayKeySubmission.forEach(txt => {
-         //                   rowOutput.data[`submission-$$$-${txt}-${company}`] = '';
-         //                });
-         //                rowOutput.data.rfaNumber = '';
-         //             } else {
-         //                arrayKeyResubmission.forEach(txt => {
-         //                   rowOutput.data[`submission-$$$-${txt}-${company}`] = '';
-         //                });
-         //             };
-         //             rowsToUpdate.push(rowOutput);
-         //          };
-         //       });
-         //    }
-         // };
 
 
          dwgsToAddNewRFA.forEach((r, i) => {
