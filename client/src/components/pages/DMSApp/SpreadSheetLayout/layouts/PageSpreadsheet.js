@@ -54,6 +54,10 @@ const PageSpreadsheet = (props) => {
    const listGroup = listGroupData.map(x => x.toUpperCase());
    const roleTradeCompany = getUserRoleTradeCompany(role, company);
 
+
+
+   const isUserCanSubmitRfaBothSide = false;
+
    const tableRef = useRef();
 
    const handlerBeforeUnload = (e) => {
@@ -214,7 +218,7 @@ const PageSpreadsheet = (props) => {
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
    // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
-   // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
+   useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
 
@@ -352,7 +356,7 @@ const PageSpreadsheet = (props) => {
       } else if (update.type === 'reset-filter-sort') {
 
          getSheetRows({ ...stateRow, ...update.data });
-         
+
          setCellSearchFound(null);
 
          if (!stateRow.isRfaView) {
@@ -387,7 +391,7 @@ const PageSpreadsheet = (props) => {
          OverwriteCellsModified({});
          setCellActive(null);
          setLoading(false);
-
+         setSearchInputShown(true);
 
       } else if (update.type === 'save-data-successfully') {
          message.success('Save Data Successfully', 1.5);
@@ -397,7 +401,8 @@ const PageSpreadsheet = (props) => {
       } else if (update.type === 'reload-data-from-server') {
          fetchDataOneSheet({
             ...update.data,
-            email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup, projectNameShort
+            email, projectId, projectName, role, token, company, companies, roleTradeCompany,
+            projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isUserCanSubmitRfaBothSide
          });
          setUserData(getHeadersData(update.data));
          getSheetRows(getInputDataInitially(update.data, null, roleTradeCompany));
@@ -459,14 +464,15 @@ const PageSpreadsheet = (props) => {
          try {
             setLoading(true);
 
-            if (roleTradeCompany.role === 'Consultant') {
+            if (roleTradeCompany.role === 'Consultant' || role === 'Client') {
                const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
                const resRowHistory = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
                const { rows } = res.data;
 
                fetchDataOneSheet({
                   ...res.data,
-                  email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup, projectNameShort
+                  email, projectId, projectName, role, token, company, companies, roleTradeCompany,
+                  projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isUserCanSubmitRfaBothSide
                });
                getSheetRows(getInputDataInitially(res.data, resRowHistory.data, roleTradeCompany));
 
@@ -481,7 +487,7 @@ const PageSpreadsheet = (props) => {
                const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
                fetchDataOneSheet({
                   ...res.data,
-                  email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup, projectNameShort
+                  email, projectId, projectName, role, token, company, companies, roleTradeCompany, projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isUserCanSubmitRfaBothSide
                });
                setUserData(getHeadersData(res.data));
                getSheetRows(getInputDataInitially(res.data, null, roleTradeCompany));
@@ -740,14 +746,14 @@ const PageSpreadsheet = (props) => {
                   onMouseDownColumnHeader={onMouseDownColumnHeader}
                />
             ),
-            cellRenderer: stateRow.isRfaView || 
-               (!stateRow.isRfaView && 
+            cellRenderer: stateRow.isRfaView ||
+               (!stateRow.isRfaView &&
                   (
-                     isColumnWithReplyData(hd) || 
-                     isColumnConsultant(hd) || 
+                     isColumnWithReplyData(hd) ||
+                     isColumnConsultant(hd) ||
                      hd === 'RFA Ref'
                   )
-            ) ? (
+               ) ? (
                <CellRFA
                   buttonPanelFunction={buttonPanelFunction}
                   onRightClickCell={onRightClickCell}
@@ -773,7 +779,7 @@ const PageSpreadsheet = (props) => {
                   ? 'cell-found'
                   : (cellHistoryFound && cellHistoryFound.find(cell => cell.rowId === id && cell.header === key))
                      ? 'cell-history-highlight'
-                     : (columnLocked(roleTradeCompany, rowData, stateRow.modeGroup, key, projectIsAppliedRfaView) && rowData._rowLevel === 1)
+                     : (columnLocked(roleTradeCompany, rowData, stateRow.modeGroup, key, projectIsAppliedRfaView, stateRow.isRfaView) && rowData._rowLevel === 1)
                         ? 'cell-locked'
                         : '';
             }
@@ -820,33 +826,8 @@ const PageSpreadsheet = (props) => {
    const buttonRibbonMode = ((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && !stateRow.isRfaView));
 
 
-   const loadEmailCheckBackend = async () => {
-      try {
-         const res = await Axios.get(`${SERVER_URL}/sheet/get-rows-email/`, {
-            params: {
-               token,
-               projectId,
-               // company: 'DCA',
-               // type: 'reply',
-               company: 'Woh Hup Private Ltd', 
-               type: 'submit',
-               rowIds: [
-                  '60413b2d81584997b9c6f617',
-                  '60413b2dac1f7fde9b5f9bd9',
-               ],
-               listUser,
-               listGroup
-            }
-         });
-         const emailHTML = res.data;
-      } catch (err) {
-         console.log(err);
-      };
-   };
-
 
    return (
-
       <div
          style={{ color: 'black' }}
          onContextMenu={(e) => e.preventDefault()}
@@ -896,7 +877,7 @@ const PageSpreadsheet = (props) => {
                </>
             )}
 
-            
+
 
             {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && (
                <IconTable type='block' onClick={switchRFAHeader} />
@@ -909,9 +890,11 @@ const PageSpreadsheet = (props) => {
             {/* <Icon type='edit' onClick={loadEmail} /> */}
             <DividerRibbon />
 
-            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && role !== 'Consultant' && (
+            {stateRow && projectIsAppliedRfaView && stateRow.isRfaView && (roleTradeCompany.role !== 'Consultant' && role !== 'Client') && (
                <>
-                  <IconTable type='dms-button' onClick={() => buttonPanelFunction('goToViewDMS-ICON')} />
+                  <IconTable type='dms-button'
+                     onClick={() => buttonPanelFunction('goToViewDMS-ICON')}
+                  />
                   <DividerRibbon />
                </>
             )}
@@ -930,7 +913,7 @@ const PageSpreadsheet = (props) => {
                               currentRfaData: null,
                               formRfaType: 'form-submit-RFA',
                               isFormEditting: false
-                           }
+                           },
                         });
                      }}
                   />
@@ -938,7 +921,7 @@ const PageSpreadsheet = (props) => {
                </>
             )}
 
-            
+
 
             {stateRow && projectIsAppliedRfaView && stateRow.rfaStatistics && (
                <>
@@ -956,9 +939,8 @@ const PageSpreadsheet = (props) => {
                   {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} /> */}
                   <ButtonAdminUploadData />
                   <ButtonAdminCreateAndUpdateRows />
-                  
+
                   {/* 
-                        <div onClick={loadEmailCheckBackend}>checkAPIEmail</div>
                         <ButtonAdminUploadDataPDD />
                         
                         <ButtonAdminDeleteRowsHistory />
@@ -1369,7 +1351,7 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role) => {
    if (isRfaView) {
       // RFA VIEW .......................................
 
-      
+
       let rowsAllFinalRFA = [...rowsRfaAll];
 
       if (Object.keys(modeSearch).length === 2) {
@@ -1378,7 +1360,7 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role) => {
             rowsAllFinalRFA = rowsAllFinalRFA.filter(row => row.id in searchDataObj);
          };
       };
-      
+
       if (modeFilter.length > 0) {
          let filterObj = {};
          modeFilter.forEach(filter => {

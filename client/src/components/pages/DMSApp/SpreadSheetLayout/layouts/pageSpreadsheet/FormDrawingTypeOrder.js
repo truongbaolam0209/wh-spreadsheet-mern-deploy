@@ -331,6 +331,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
                   itemNode={itemNode}
                   input={input}
                   rowsAll={rowsAll}
+                  onClickCancel={() => setModalTitle(null)}
                />
             </ModalStyledSetting>
          )}
@@ -484,7 +485,7 @@ const PanelItemsStyled = styled.div`
    overflow-x: hidden;
    border-bottom: 1px solid ${colorType.grey4};
 `;
-const ConfirmOrEditNameModal = ({ modalTitle, confirmAction, itemNode, input, rowsAll }) => {
+const ConfirmOrEditNameModal = ({ modalTitle, confirmAction, itemNode, input, rowsAll, onClickCancel }) => {
 
    let dwgsToWarn = [];
    if (modalTitle === 'Delete Drawing Type') {
@@ -534,7 +535,7 @@ const ConfirmOrEditNameModal = ({ modalTitle, confirmAction, itemNode, input, ro
 
          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
             <ButtonGroupComp
-               onClickCancel={() => { }}
+               onClickCancel={onClickCancel}
                onClickApply={onClickApplyModal}
             />
          </div>

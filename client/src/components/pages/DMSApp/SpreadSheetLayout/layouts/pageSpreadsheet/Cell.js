@@ -91,7 +91,7 @@ const Cell = (props) => {
    };
 
 
-   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key, projectIsAppliedRfaView);
+   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key, projectIsAppliedRfaView, isRfaView);
    const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
 
 
@@ -561,9 +561,9 @@ const columnsLockedModeller = [
    'Construction Start',
 ];
 
-export const columnLocked = (roleTradeCompany, rowData, modeGroup, column, projectIsAppliedRfaView) => {
+export const columnLocked = (roleTradeCompany, rowData, modeGroup, column, projectIsAppliedRfaView, isRfaView) => {
    if (
-      (projectIsAppliedRfaView && (
+      (projectIsAppliedRfaView && !isRfaView && (
          column === 'RFA Ref' ||
          column === 'Drg To Consultant (A)' ||
          column === 'Rev' ||

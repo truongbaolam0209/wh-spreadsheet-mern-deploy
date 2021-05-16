@@ -887,15 +887,18 @@ const PanelSetting = (props) => {
 
       const {
          filesPDF, filesDWFX, type, dwgsToAddNewRFA, dwgIdsToRollBackSubmit, trade, rfaToSave, rfaToSaveVersionOrToReply,
-         recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting
+         recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting,
+         isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply
       } = dataDwg;
 
       const { currentRfaToAddNewOrReplyOrEdit } = stateRow;
-      const { email, projectId, projectName, token, publicSettings, roleTradeCompany: { role, company }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
+      const { email, projectId, projectName, token, publicSettings, roleTradeCompany: { role, company: companyUser }, companies, listUser, listGroup } = stateProject.allDataOneSheet;
       const { headers } = publicSettings;
 
       const rfaRefData = rfaToSaveVersionOrToReply === '-' ? rfaToSave : (rfaToSave + rfaToSaveVersionOrToReply);
 
+
+      const company = (type === 'form-reply-RFA' && isAdminAction && adminActionConsultantToReply) ? adminActionConsultantToReply : companyUser;
 
       try {
 
@@ -1111,7 +1114,7 @@ const PanelSetting = (props) => {
          const rowsToUpdateFinalRow = rowsToUpdate.filter(r => r.data);
          const rowsToUpdateFinalRowHistory = rowsToUpdate.filter(r => r.history);
 
-
+         console.log(rowsToUpdateFinalRow, rowsToUpdateFinalRowHistory);
          if (rowsToUpdateFinalRow.length > 0) {
             await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdateFinalRow });
             
@@ -1163,49 +1166,6 @@ const PanelSetting = (props) => {
             });
          };
 
-
-         // let listUserOutput = {};
-         // let listGroupOutput = {};
-
-         // Object.keys(recipient).forEach(key => {
-         //    recipient[key].forEach(item => {
-         //       if (listUser.indexOf(item) !== -1) {
-         //          listUserOutput[key] = [...listUserOutput[key] || [], item];
-         //       } else if (listGroup.indexOf(item) !== -1) {
-         //          listGroupOutput[key] = [...listGroupOutput[key] || [], item];
-         //       } else if (validateEmailInput(item)) {
-         //          listUserOutput[key] = [...listUserOutput[key] || [], item];
-         //       };
-         //    });
-         // });
-         // listUserOutput.cc = [...listUserOutput.cc || [], email];
-
-         // const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
-         // const getDrawingURLFromDB = async () => {
-         //    try {
-         //       return await Promise.all(dwgsNewRFAClone.map(async dwg => {
-         //          const typeApi = type.includes('form-submit-') ? 'submission' : 'reply';
-         //          const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${typeApi}-$$$-drawing-${company}`], expire: 3600 * 24 * 7 } });
-         //          dwg[`${typeApi}-$$$-drawing-${company}`] = res.data;
-         //          return dwg;
-         //       }));
-         //    } catch (err) {
-         //       console.log(err);
-         //    };
-         // };
-
-         // const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
-
-         // const emailContentOutput = generateEmailInnerHTMLFrontEnd(company, type.includes('submit') ? 'submit' : 'reply', dwgsToAddNewRFAGetDrawingURL);
-
-         // await Axios.post('/api/rfa/mail', {
-         //    token,
-         //    title: `${projectName} - ${rfaRefData} - ${emailTextTitle}`,
-         //    content: emailContentOutput,
-         //    listUser: listUserOutput,
-         //    listGroup: listGroupOutput,
-         //    projectId
-         // });
 
          await reloadDataFromServerViewRFA();
          message.success('Submitted Successfully', 3);

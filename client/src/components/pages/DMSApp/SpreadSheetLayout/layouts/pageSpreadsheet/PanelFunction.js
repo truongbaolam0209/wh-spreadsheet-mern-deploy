@@ -18,11 +18,11 @@ const PanelFunction = (props) => {
 
    const { roleTradeCompany, projectIsAppliedRfaView } = stateProject.allDataOneSheet;
 
-   const { rowsSelectedToMove, rowsSelected, drawingTypeTree, modeGroup } = stateRow;
+   const { rowsSelectedToMove, rowsSelected, drawingTypeTree, modeGroup, isRfaView } = stateRow;
 
    const { rowData, column } = panelType.cellProps;
 
-   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key, projectIsAppliedRfaView);
+   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key, projectIsAppliedRfaView, isRfaView);
 
    const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
 

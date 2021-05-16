@@ -18,7 +18,7 @@ const ButtonColumnTag = ({ tag, setMode, actionType }) => {
    const [type, setType] = useState(tag.mode);
 
    useEffect(() => {
-      if (actionType === 'reset-mode-action') {
+      if (actionType === 'reset-mode-action' || actionType === 'admin-pick-consultant-to-reply') {
          setType(tag.mode);
          setBtnStyle(
             tag.mode === 'hidden' ? styleHidden :
@@ -54,7 +54,7 @@ const ButtonColumnTag = ({ tag, setMode, actionType }) => {
             setMode({ header: tag.header, id: tag.id, mode: 'shown' });
             setType('shown');
          };
-      } else if (actionType === 'reset-mode-action') {
+      } else if (actionType === 'reset-mode-action' || actionType === 'admin-pick-consultant-to-reply') {
          setMode({ id: tag.id });
       };
    };
@@ -64,7 +64,7 @@ const ButtonColumnTag = ({ tag, setMode, actionType }) => {
          style={{
             ...btnStyle,
             padding: 9,
-            cursor: actionType === 'reset-mode-action' && 'pointer',
+            cursor: (actionType === 'reset-mode-action' || actionType === 'admin-pick-consultant-to-reply') && 'pointer',
             textAlign: 'center',
             fontWeight: 'bold',
             width: '70%',

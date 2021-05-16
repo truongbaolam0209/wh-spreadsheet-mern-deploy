@@ -32,7 +32,6 @@ const PanelConfirmResetMode = ({ applyResetMode, onClickCancelModal, modeFilter,
         setBtnArr([...btnArr]);
     };
 
-
     return (
         <div style={{
             width: '100%',

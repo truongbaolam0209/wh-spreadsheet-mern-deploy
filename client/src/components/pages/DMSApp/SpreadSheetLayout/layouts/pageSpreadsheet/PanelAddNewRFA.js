@@ -59,12 +59,28 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { roleTradeCompany: { role, company }, companies, listUser, listGroup, email, projectNameShort: projectNameShortText } = stateProject.allDataOneSheet;
+   const { roleTradeCompany: { role, company: companyUser }, companies, listUser, listGroup, projectNameShort: projectNameShortText } = stateProject.allDataOneSheet;
    const projectNameShort = projectNameShortText || 'NO-PROJECT-NAME';
 
    const { rowsAll, loading, currentRfaToAddNewOrReplyOrEdit, rowsRfaAll, rowsRfaAllInit, drawingTypeTreeDmsView } = stateRow;
 
-   const listRecipient = [...listUser, ...listGroup];
+   const {
+      currentRfaNumber, currentRfaRef, currentRfaData, formRfaType, isFormEditting,
+      isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
+   } = currentRfaToAddNewOrReplyOrEdit || {};
+
+   const company = (formRfaType === 'form-reply-RFA' && isAdminAction && adminActionConsultantToReply) ? adminActionConsultantToReply : companyUser;
+
+
+   const listRecipient = (
+      isAdminAction &&
+      isAdminActionWithNoEmailSent &&
+      (formRfaType === 'form-submit-RFA' || formRfaType === 'form-resubmit-RFA')
+   )
+      ? [...listUser, ...listGroup].filter(x => !validateEmailInput(x))
+      : [...listUser, ...listGroup];
+
+
    const listConsultants = companies.filter(x => x.companyType === 'Consultant');
 
 
@@ -96,7 +112,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
    const [modalConfirmsubmitOrCancel, setModalConfirmsubmitOrCancel] = useState(null);
 
-   const { currentRfaNumber, currentRfaRef, currentRfaData, formRfaType, isFormEditting } = currentRfaToAddNewOrReplyOrEdit || {};
+
+
 
 
    useEffect(() => {
@@ -106,7 +123,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
 
          } else {
-            const rowsToEdit = rowsRfaAll.filter(x => currentRfaRef === x['RFA Ref']);
+            const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
             const oneRowInRfa = rowsToEdit[0];
             const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
             rowsToEditClone.forEach(r => {
@@ -139,6 +156,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                return dwg.rfaNumber === currentRfaNumber &&
                   !dwg['RFA Ref'];
             });
+
+
             setDwgsToAddNewRFA(dwgsToResubmit.map(x => ({ ...x })));
 
             const listEmailTo = currentRfaData[`submission-$$$-emailTo-${company}`] || [];
@@ -167,7 +186,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
          } else {
 
-            const rowsToEdit = rowsRfaAll.filter(x => currentRfaRef === x['RFA Ref']);
+            const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
             const oneRowInRfa = rowsToEdit[0];
             const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
             rowsToEditClone.forEach(r => {
@@ -199,12 +218,14 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
          };
       } else if (formRfaType === 'form-reply-RFA') {
+
          if (!isFormEditting) {
-            const dwgsNotReplyYet = rowsRfaAll.filter(dwg => {
+            const dwgsNotReplyYet = rowsRfaAllInit.filter(dwg => {
                return dwg.rfaNumber === currentRfaNumber &&
                   dwg['RFA Ref'] === currentRfaRef &&
                   !currentRfaData[`reply-$$$-status-${company}`];
             });
+
             setDwgsToAddNewRFA(dwgsNotReplyYet.map(x => ({ ...x })));
 
             let arrEmailCc = [];
@@ -223,7 +244,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             setTextEmailTitle('Reply - ' + oneDwg[keyEmailTitle]);
 
          } else {
-            const dwgsToEditReply = rowsRfaAll.filter(x => currentRfaRef === x['RFA Ref']);
+            const dwgsToEditReply = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
             const oneRowInRfa = dwgsToEditReply[0];
             const dwgsToEditReplyClone = dwgsToEditReply.map(x => ({ ...x }));
             dwgsToEditReplyClone.forEach(r => {
@@ -452,14 +473,14 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
       let isAllDataInRowFilledIn = true;
       let listFilePdf;
-      if (role === 'Document Controller') {
+      if (formRfaType === 'form-submit-RFA' || formRfaType === 'form-resubmit-RFA') {
          dwgsToAddNewRFA.forEach(r => {
             if (!r['Rev'] || !r[`submission-$$$-drawing-${company}`]) {
                isAllDataInRowFilledIn = false;
             };
          });
          listFilePdf = dwgsToAddNewRFA.map(r => r[`submission-$$$-drawing-${company}`]);
-      } else if (role === 'Consultant') {
+      } else if (formRfaType === 'form-reply-RFA') {
          dwgsToAddNewRFA.forEach(r => {
             if (!r[`reply-$$$-status-${company}`] || !r[`reply-$$$-drawing-${company}`]) {
                isAllDataInRowFilledIn = false;
@@ -501,15 +522,15 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          return message.info('Different drawings can not attach same Pdf file!', 3);
       } else if (!filesPDF && !isFormEditting) {
          return message.info('Please choose file pdf!', 3);
-      } else if (!textEmailTitle) {
+      } else if (!textEmailTitle && !isAdminActionWithNoEmailSent) {
          return message.info('Please fill in email title!', 3);
       } else if (!listRecipientTo || listRecipientTo.length === 0) {
          return message.info('Please fill in recipient!', 3);
-      } else if (role === 'Document Controller' && !dateReplyForSubmitForm) {
+      } else if (formRfaType === 'form-submit-RFA' && !dateReplyForSubmitForm) {
          return message.info('Please fill in expected reply date!', 3);
-      } else if (role === 'Document Controller' && listConsultantMustReply.length === 0) {
+      } else if (formRfaType === 'form-submit-RFA' && listConsultantMustReply.length === 0) {
          return message.info('Please fill in consultant lead', 3);
-      } else if (role === 'Document Controller' && !requestedBy) {
+      } else if (formRfaType === 'form-submit-RFA' && !requestedBy) {
          return message.info('Please fill in person requested', 3);
       } else if (!trade || !rfaToSave || !rfaToSaveVersionOrToReply) {
          return message.info('Please fill in necessary info!', 3);
@@ -538,7 +559,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       });
 
 
-
       getSheetRows({ ...stateRow, loading: true });
 
       onClickApplyAddNewRFA({
@@ -550,14 +570,18 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          dwgsToAddNewRFA: dwgsToAddNewRFA.map(x => ({ ...x })),
          rfaToSave, rfaToSaveVersionOrToReply,
          recipient: {
-            to: [...new Set(listRecipientTo)],
-            cc: [...new Set(listRecipientCc)]
+            to: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientTo)],
+            cc: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientCc)]
          },
-         listConsultantMustReply: [...listConsultantMustReply],
-         requestedBy,
-         emailTextTitle: textEmailTitle,
-         emailTextAdditionalNotes: textEmailAdditionalNotes,
-         dateReplyForsubmitForm: dateReplyForSubmitForm && dateReplyForSubmitForm.format('DD/MM/YY')
+         listConsultantMustReply: formRfaType === 'form-reply-RFA' ? [] : [...listConsultantMustReply],
+         requestedBy: formRfaType === 'form-reply-RFA' ? '' : requestedBy,
+         emailTextTitle: isAdminActionWithNoEmailSent ? '' : textEmailTitle,
+         emailTextAdditionalNotes: isAdminActionWithNoEmailSent ? '' : textEmailAdditionalNotes,
+         dateReplyForsubmitForm: dateReplyForSubmitForm && dateReplyForSubmitForm.format('DD/MM/YY'),
+
+         isAdminActionWithNoEmailSent,
+         adminActionConsultantToReply,
+         isAdminAction
       });
    };
 
@@ -698,146 +722,157 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                         />
                      </>
                   )}
+
+                  {formRfaType === 'form-reply-RFA' && adminActionConsultantToReply && (
+                     <div style={{ marginLeft: 20 }}>Company reply: <span style={{ fontWeight: 'bold' }}>{adminActionConsultantToReply}</span></div>
+                  )}
+
+
                </div>
 
-               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div style={{ transform: 'translateY(5px)', fontWeight: 'bold' }}>To</div>
-                  <div style={{ width: '95%' }}>
-                     <SelectRecipientStyled
-                        mode='tags'
-                        placeholder='Please select...'
-                        value={listRecipientTo}
 
-                        onChange={(list) => {
+               {!isAdminActionWithNoEmailSent && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                     <div style={{ transform: 'translateY(5px)', fontWeight: 'bold' }}>{'To'}</div>
+                     <div style={{ width: '95%' }}>
+                        <SelectRecipientStyled
+                           mode='tags'
+                           placeholder='Please select...'
+                           value={listRecipientTo}
 
-                           if (list.find(tag => !listGroup.find(x => x === tag) && !validateEmailInput(tag))) {
-                              message.warning('Please choose an available group email or key in an email address!');
-                              return;
-                           };
+                           onChange={(list) => {
 
-                           if (formRfaType === 'form-submit-RFA') {
-                              let isLeadConsultantIncluded = false;
-                              list.forEach(tagCompany => {
-                                 if (checkIfMatchWithInputCompanyFormat(tagCompany, listConsultants)) {
-                                    isLeadConsultantIncluded = true;
-                                 };
-                              });
-                              if (!isLeadConsultantIncluded) {
-                                 message.warning('Email loop must include lead consultant!');
+                              if (list.find(tag => !listGroup.find(x => x === tag) && !validateEmailInput(tag))) {
+                                 message.warning('Please choose an available group email or key in an email address!');
+                                 return;
                               };
-                              const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
-                              if (
-                                 itemJustRemoved &&
-                                 listConsultantMustReply.find(x => x.toUpperCase() === itemJustRemoved || x.toUpperCase() === extractConsultantName(itemJustRemoved))
-                              ) {
-                                 if (!list.find(tg => {
-                                    return (extractConsultantName(tg) && extractConsultantName(itemJustRemoved) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved)) ||
-                                       (extractConsultantName(tg) && extractConsultantName(tg) === itemJustRemoved) ||
-                                       (tg === extractConsultantName(itemJustRemoved) && extractConsultantName(itemJustRemoved))
-                                 })) {
-                                    if (extractConsultantName(itemJustRemoved)) {
-                                       setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== extractConsultantName(itemJustRemoved)));
-                                    } else {
-                                       setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== itemJustRemoved));
+
+                              if (formRfaType === 'form-submit-RFA') {
+                                 let isLeadConsultantIncluded = false;
+                                 list.forEach(tagCompany => {
+                                    if (checkIfMatchWithInputCompanyFormat(tagCompany, listConsultants)) {
+                                       isLeadConsultantIncluded = true;
+                                    };
+                                 });
+                                 if (!isLeadConsultantIncluded) {
+                                    message.warning('Email loop must include lead consultant!');
+                                 };
+                                 const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
+                                 if (
+                                    itemJustRemoved &&
+                                    listConsultantMustReply.find(x => x.toUpperCase() === itemJustRemoved || x.toUpperCase() === extractConsultantName(itemJustRemoved))
+                                 ) {
+                                    if (!list.find(tg => {
+                                       return (extractConsultantName(tg) && extractConsultantName(itemJustRemoved) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved)) ||
+                                          (extractConsultantName(tg) && extractConsultantName(tg) === itemJustRemoved) ||
+                                          (tg === extractConsultantName(itemJustRemoved) && extractConsultantName(itemJustRemoved))
+                                    })) {
+                                       if (extractConsultantName(itemJustRemoved)) {
+                                          setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== extractConsultantName(itemJustRemoved)));
+                                       } else {
+                                          setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== itemJustRemoved));
+                                       };
+                                    };
+                                 };
+                              } else if (formRfaType === 'form-resubmit-RFA') {
+                                 const consultantLeadFromPreviousSubmission = listConsultantMustReply[0];
+                                 const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
+                                 if (
+                                    itemJustRemoved &&
+                                    listConsultantMustReply.find(x => x.toUpperCase() === itemJustRemoved || x.toUpperCase() === extractConsultantName(itemJustRemoved)) &&
+                                    consultantLeadFromPreviousSubmission.toUpperCase() !== itemJustRemoved && consultantLeadFromPreviousSubmission.toUpperCase() !== extractConsultantName(itemJustRemoved)
+                                 ) {
+                                    if (!list.find(tg => {
+                                       return (extractConsultantName(tg) && extractConsultantName(itemJustRemoved) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved)) ||
+                                          (extractConsultantName(tg) && extractConsultantName(tg) === itemJustRemoved) ||
+                                          (tg === extractConsultantName(itemJustRemoved) && extractConsultantName(itemJustRemoved))
+                                    })) {
+                                       if (extractConsultantName(itemJustRemoved)) {
+                                          setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== extractConsultantName(itemJustRemoved)));
+                                       } else {
+                                          setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== itemJustRemoved));
+                                       };
                                     };
                                  };
                               };
-                           } else if (formRfaType === 'form-resubmit-RFA') {
-                              const consultantLeadFromPreviousSubmission = listConsultantMustReply[0];
-                              const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
-                              if (
-                                 itemJustRemoved &&
-                                 listConsultantMustReply.find(x => x.toUpperCase() === itemJustRemoved || x.toUpperCase() === extractConsultantName(itemJustRemoved)) &&
-                                 consultantLeadFromPreviousSubmission.toUpperCase() !== itemJustRemoved && consultantLeadFromPreviousSubmission.toUpperCase() !== extractConsultantName(itemJustRemoved)
-                              ) {
-                                 if (!list.find(tg => {
-                                    return (extractConsultantName(tg) && extractConsultantName(itemJustRemoved) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved)) ||
-                                       (extractConsultantName(tg) && extractConsultantName(tg) === itemJustRemoved) ||
-                                       (tg === extractConsultantName(itemJustRemoved) && extractConsultantName(itemJustRemoved))
-                                 })) {
-                                    if (extractConsultantName(itemJustRemoved)) {
-                                       setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== extractConsultantName(itemJustRemoved)));
-                                    } else {
-                                       setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== itemJustRemoved));
-                                    };
-                                 };
-                              };
-                           };
-                           setListRecipientTo([...new Set(list)]);
-                        }}
-                     >
-                        {listRecipient.map(cm => {
-                           const isLeadConsultant = listConsultantMustReply[0] && (cm === listConsultantMustReply[0].toUpperCase() || extractConsultantName(cm) === listConsultantMustReply[0].toUpperCase());
-                           const isLeadConsultantStyled = isLeadConsultant ? {
-                              background: colorType.primary,
-                              fontWeight: 'bold',
-                              color: 'white'
-                           } : {};
-                           const textShown = extractConsultantName(cm) ? cm.replace('_%$%_', '_') : cm;
+                              setListRecipientTo([...new Set(list)]);
+                           }}
+                        >
+                           {listRecipient.map(cm => {
+                              const isLeadConsultant = listConsultantMustReply[0] && (cm === listConsultantMustReply[0].toUpperCase() || extractConsultantName(cm) === listConsultantMustReply[0].toUpperCase());
+                              const isLeadConsultantStyled = isLeadConsultant ? {
+                                 background: colorType.primary,
+                                 fontWeight: 'bold',
+                                 color: 'white'
+                              } : {};
+                              const textShown = extractConsultantName(cm) ? cm.replace('_%$%_', '_') : cm;
 
-                           return (
-                              <Option key={cm}>
-                                 <div
-                                    style={{
+                              return (
+                                 <Option key={cm}>
+                                    <div
+                                       style={{
+                                          background: 'transparent',
+                                          fontWeight: 'normal',
+                                          color: 'black',
+                                          ...isLeadConsultantStyled,
+                                          padding: '0 5px'
+                                       }}
+                                       onClick={(e) => onClickTagRecipientTo(cm)}
+                                    >
+                                       {textShown}
+                                    </div>
+                                 </Option>
+                              )
+                           })}
+                        </SelectRecipientStyled>
+
+                        {formRfaType !== 'form-reply-RFA' && (
+                           <div style={{ display: 'flex', marginTop: 5, marginBottom: 10 }}>
+                              <div style={{ marginRight: 8 }}>Lead consultant :</div>
+                              <div style={{ fontWeight: 'bold', marginRight: 10 }}>{listConsultantMustReply[0] || ''}</div>
+                              {formRfaType === 'form-submit-RFA' && (
+                                 <div style={{ fontSize: 11, color: 'grey', fontStyle: 'italic', transform: 'translateY(3px)' }}>(Click on tag to change lead consultant)</div>
+                              )}
+                           </div>
+                        )}
+                     </div>
+                  </div>
+               )}
+
+               {!isAdminActionWithNoEmailSent && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                     <div style={{ transform: 'translateY(5px)', fontWeight: 'bold' }}>CC</div>
+                     <div style={{ width: '95%' }}>
+                        <SelectRecipientStyled
+                           mode='tags'
+                           placeholder='Please select...'
+                           value={listRecipientCc}
+                           onChange={(list) => {
+                              if (list.find(tag => !listGroup.find(x => x === tag) && !validateEmailInput(tag))) {
+                                 message.warning('Please choose an available group email or key in an email address!');
+                                 return;
+                              };
+                              setListRecipientCc([...new Set(list)]);
+                           }}
+                        >
+                           {listRecipient.map(cm => {
+                              const textShown = extractConsultantName(cm) ? cm.replace('_%$%_', '_') : cm;
+                              return (
+                                 <Option key={cm}>
+                                    <div style={{
                                        background: 'transparent',
                                        fontWeight: 'normal',
                                        color: 'black',
-                                       ...isLeadConsultantStyled,
                                        padding: '0 5px'
-                                    }}
-                                    onClick={(e) => onClickTagRecipientTo(cm)}
-                                 >
-                                    {textShown}
-                                 </div>
-                              </Option>
-                           )
-                        })}
-                     </SelectRecipientStyled>
-
-                     {formRfaType !== 'form-reply-RFA' && (
-                        <div style={{ display: 'flex', marginTop: 5, marginBottom: 10 }}>
-                           <div style={{ marginRight: 8 }}>Lead consultant :</div>
-                           <div style={{ fontWeight: 'bold', marginRight: 10 }}>{listConsultantMustReply[0] || ''}</div>
-                           {formRfaType === 'form-submit-RFA' && (
-                              <div style={{ fontSize: 11, color: 'grey', fontStyle: 'italic', transform: 'translateY(3px)' }}>(Click on tag to change lead consultant)</div>
-                           )}
-                        </div>
-                     )}
+                                    }}>{textShown}</div>
+                                 </Option>
+                              )
+                           })}
+                        </SelectRecipientStyled>
+                     </div>
                   </div>
-               </div>
+               )}
 
-
-               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div style={{ transform: 'translateY(5px)', fontWeight: 'bold' }}>CC</div>
-                  <div style={{ width: '95%' }}>
-                     <SelectRecipientStyled
-                        mode='tags'
-                        placeholder='Please select...'
-                        value={listRecipientCc}
-                        onChange={(list) => {
-                           if (list.find(tag => !listGroup.find(x => x === tag) && !validateEmailInput(tag))) {
-                              message.warning('Please choose an available group email or key in an email address!');
-                              return;
-                           };
-                           setListRecipientCc([...new Set(list)]);
-                        }}
-                     >
-                        {listRecipient.map(cm => {
-                           const textShown = extractConsultantName(cm) ? cm.replace('_%$%_', '_') : cm;
-                           return (
-                              <Option key={cm}>
-                                 <div style={{
-                                    background: 'transparent',
-                                    fontWeight: 'normal',
-                                    color: 'black',
-                                    padding: '0 5px'
-                                 }}>{textShown}</div>
-                              </Option>
-                           )
-                        })}
-                     </SelectRecipientStyled>
-                  </div>
-               </div>
 
 
                {formRfaType !== 'form-reply-RFA' && (
@@ -855,54 +890,59 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                )}
 
 
+               {!isAdminActionWithNoEmailSent && (
+                  <>
+                     <div style={{ display: 'flex', marginBottom: 20 }}>
+                        <div style={{ width: 65, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Subject</div>
+                        <InputStyled
+                           style={{
+                              width: '90%',
+                              marginBottom: 10,
+                              borderRadius: 0,
+                           }}
+                           onChange={(e) => setTextEmailTitle(e.target.value)}
+                           value={textEmailTitle}
+                        />
+                     </div>
 
-               <div style={{ display: 'flex', marginBottom: 20 }}>
-                  <div style={{ width: 65, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Subject</div>
-                  <InputStyled
-                     style={{
-                        width: '90%',
-                        marginBottom: 10,
-                        borderRadius: 0,
-                     }}
-                     onChange={(e) => setTextEmailTitle(e.target.value)}
-                     value={textEmailTitle}
-                  />
-               </div>
-
-               <div style={{ paddingLeft: 100 }}>
-                  <div style={{ paddingLeft: 0 }}>Dear All,</div>
-                  {formRfaType === 'form-reply-RFA' ? (
-                     <div>
-                        <span style={{ fontWeight: 'bold' }}>{company}</span> has replied this RFA, the drawings included in this RFA are in the list below.
+                     <div style={{ paddingLeft: 100 }}>
+                        <div style={{ paddingLeft: 0 }}>Dear All,</div>
+                        {formRfaType === 'form-reply-RFA' ? (
+                           <div>
+                              <span style={{ fontWeight: 'bold' }}>{company}</span> has replied this RFA, the drawings included in this RFA are in the list below.
                         Please review and update as per comments.
-                     </div>
-                  ) : (
-                     <div>
-                        <span style={{ fontWeight: 'bold' }}>{company}</span> has submitted <span style={{ fontWeight: 'bold' }}>
-                           {formRfaType === 'form-resubmit-RFA'
-                              ? `${currentRfaNumber}${rfaNewVersionResubmitSuffix}`
-                              : `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${rfaNumberSuffixFirstTimeSubmit}`}
-                        </span> for you to review, the drawings included in this RFA are in the list below.
+                           </div>
+                        ) : (
+                           <div>
+                              <span style={{ fontWeight: 'bold' }}>{company}</span> has submitted <span style={{ fontWeight: 'bold' }}>
+                                 {formRfaType === 'form-resubmit-RFA'
+                                    ? `${currentRfaNumber}${rfaNewVersionResubmitSuffix}`
+                                    : `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${rfaNumberSuffixFirstTimeSubmit}`}
+                              </span> for you to review, the drawings included in this RFA are in the list below.
                         Please review and reply to us by <span style={{ fontWeight: 'bold' }}>{dateReplyForSubmitForm ? dateReplyForSubmitForm.format('DD/MM/YY') : ''}.</span>
+                           </div>
+                        )}
                      </div>
-                  )}
-               </div>
-               <br />
 
-               <div style={{ display: 'flex', marginBottom: 20 }}>
-                  <div style={{ width: 70, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold', marginBottom: 10 }}>Notes : </div>
-                  <TextAreaStyled
-                     style={{
-                        width: '90%',
-                        marginBottom: 10,
-                        borderRadius: 0,
-                     }}
-                     rows={3}
-                     onChange={(e) => setTextEmailAdditionalNotes(e.target.value)}
-                     value={textEmailAdditionalNotes}
-                     placeholder='Write note...'
-                  />
-               </div>
+                     <br />
+
+                     <div style={{ display: 'flex', marginBottom: 20 }}>
+                        <div style={{ width: 70, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold', marginBottom: 10 }}>Notes : </div>
+                        <TextAreaStyled
+                           style={{
+                              width: '90%',
+                              marginBottom: 10,
+                              borderRadius: 0,
+                           }}
+                           rows={3}
+                           onChange={(e) => setTextEmailAdditionalNotes(e.target.value)}
+                           value={textEmailAdditionalNotes}
+                           placeholder='Write note...'
+                        />
+                     </div>
+                  </>
+               )}
+
 
 
                <div style={{ display: 'flex', marginBottom: 5 }}>
@@ -988,7 +1028,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                <ButtonGroupComp
                   onClickCancel={() => setModalConfirmsubmitOrCancel('cancel')}
                   onClickApply={() => setModalConfirmsubmitOrCancel('ok')}
-                  newText={'Submit'}
+                  newTextBtnApply={'Submit'}
                />
             </div>
          </div>
@@ -1277,7 +1317,7 @@ const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRfaType, rfaRef, onClickC
             <ButtonGroupComp
                onClickCancel={onClickCancelConfirmModal}
                onClickApply={() => onClickApplyConfirmModal(typeConfirm === 'ok' ? 'Submit' : 'Cancel Action Form')}
-               newText={'Yes'}
+               newTextBtnApply={'Yes'}
             />
          </div>
       </div>

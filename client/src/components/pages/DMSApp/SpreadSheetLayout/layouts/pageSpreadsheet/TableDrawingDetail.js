@@ -168,7 +168,7 @@ const generateColumns = (headers, { columnWidth, columnHeaderWidth }) => headers
 
       const { cellData, rowData, column } = props;
       const infoCol = rowData['Info'];
-      
+
       if ((headersConsultantWithNumber.indexOf(infoCol) !== -1 || infoCol === 'RFA Ref') && column.key !== 'Info') {
          return (
             <CellRFA {...props} />
@@ -215,11 +215,11 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
             if (rfaNumber && rfaRef) {
                const { replyStatus, replyCompany, replyDate } = getConsultantReplyData(row, hd.text, companies);
                if (replyStatus) {
-                  obj[i] = {...obj[i] || {}, [`reply-$$$-status-${replyCompany}`] : replyStatus };
-                  obj[i] = {...obj[i] || {}, [`reply-$$$-date-${replyCompany}`] : replyDate };
-                  obj[i] = {...obj[i] || {}, [`reply-$$$-drawing-${replyCompany}`] : row[`reply-$$$-drawing-${replyCompany}`] };
-                  obj[i] = {...obj[i] || {}, [`reply-$$$-comment-${replyCompany}`] : row[`reply-$$$-comment-${replyCompany}`] };
-                  obj[i] = {...obj[i] || {}, [`reply-$$$-user-${replyCompany}`] : row[`reply-$$$-user-${replyCompany}`] };
+                  obj[i] = { ...obj[i] || {}, [`reply-$$$-status-${replyCompany}`]: replyStatus };
+                  obj[i] = { ...obj[i] || {}, [`reply-$$$-date-${replyCompany}`]: replyDate };
+                  obj[i] = { ...obj[i] || {}, [`reply-$$$-drawing-${replyCompany}`]: row[`reply-$$$-drawing-${replyCompany}`] };
+                  obj[i] = { ...obj[i] || {}, [`reply-$$$-comment-${replyCompany}`]: row[`reply-$$$-comment-${replyCompany}`] };
+                  obj[i] = { ...obj[i] || {}, [`reply-$$$-user-${replyCompany}`]: row[`reply-$$$-user-${replyCompany}`] };
                };
             };
          } else if (hd.text === 'RFA Ref') {
@@ -228,22 +228,21 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
             if (rfaNumber && rfaRef) {
                for (const key in row) {
                   if (key.includes('submission-$$$-') && row[key]) {
-                     obj[i] = {...obj[i] || {}, [key] : row[key] };
+                     obj[i] = { ...obj[i] || {}, [key]: row[key] };
                   };
                };
-               
+
                if (rfaRef) {
-                  obj[i] = {...obj[i] || {}, rfaRef };
+                  obj[i] = { ...obj[i] || {}, rfaRef };
                };
             };
          } else {
             obj[`Version ${i}`] = row[hd.text] || '';
          };
       });
-      
+
       dwgArray.push(obj);
    });
-   console.log('tttttttttttt', dwgArray);
    return dwgArray;
 };
 

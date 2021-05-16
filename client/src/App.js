@@ -19,8 +19,8 @@ const App = () => {
 
    // console.log(localStorage);
 
-   const consultantCompany = 'DCA';
-   // const consultantCompany = 'RSP';
+   // const consultantCompany = 'DCA';
+   const consultantCompany = 'RSP';
    // const consultantCompany = 'Archi Consultant';
    // const consultantCompany = 'ONG & ONG';
 
@@ -48,6 +48,7 @@ const App = () => {
                      email={browserName === 'Chrome' ? 'tbl@wohhup.com' : 'test@dca.com'}
                      company={browserName === 'Chrome' ? 'Woh Hup Private Ltd' : consultantCompany}
                      role={browserName === 'Chrome' ? 'Document Controller' : 'Consultant'}
+                     // role={browserName === 'Chrome' ? 'Document Controller' : 'Client'}
                      // role={browserName === 'Chrome' ? 'WH Archi Coordinator' : 'Consultant'}
 
 
@@ -85,7 +86,7 @@ const App = () => {
                      projectName='Punggol Digital District'
                      projectNameShort='PDD'
                      token='xxx-xxxxx-xxx-x-xxxxx'
-                     isAdmin={true}
+                     // isAdmin={true}
                      // role='WH C&S Design Engineer'
                      // role='WH Archi Coordinator'
                      // role='WH Archi Modeller'
