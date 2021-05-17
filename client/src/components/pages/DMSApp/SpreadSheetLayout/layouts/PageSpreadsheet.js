@@ -13,6 +13,7 @@ import CellHeader from './generalComponents/CellHeader';
 import { sortFnc } from './generalComponents/FormSort';
 import IconTable from './generalComponents/IconTable';
 import InputSearch from './generalComponents/InputSearch';
+import LoadingIcon from './generalComponents/LoadingIcon';
 import ViewTemplateSelect from './generalComponents/ViewTemplateSelect';
 import ButtonAdminCreateAndUpdateRows from './pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
 import ButtonAdminUploadData from './pageSpreadsheet/ButtonAdminUploadData';
@@ -219,7 +220,7 @@ const PageSpreadsheet = (props) => {
 
    // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
    useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
-   // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
+   useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
 
 
@@ -465,6 +466,7 @@ const PageSpreadsheet = (props) => {
             setLoading(true);
 
             if (roleTradeCompany.role === 'Consultant' || role === 'Client') {
+
                const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
                const resRowHistory = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
                const { rows } = res.data;
@@ -747,7 +749,7 @@ const PageSpreadsheet = (props) => {
                />
             ),
             cellRenderer: stateRow.isRfaView ||
-               (!stateRow.isRfaView &&
+               (!stateRow.isRfaView && projectIsAppliedRfaView &&
                   (
                      isColumnWithReplyData(hd) ||
                      isColumnConsultant(hd) ||
@@ -1234,33 +1236,15 @@ const ModalStyledSetting = styled(Modal)`
    }
 `;
 const ButtonBox = styled.div`
-    width: ${`${window.innerWidth}px`};
-    position: relative;
-    display: flex;
-    padding-top: 7px;
-    padding-bottom: 7px;
-    padding-left: 7px;
-    background: ${colorType.grey4};
+   width: ${`${window.innerWidth}px`};
+   position: relative;
+   display: flex;
+   padding-top: 7px;
+   padding-bottom: 7px;
+   padding-left: 7px;
+   background: ${colorType.grey4};
 `;
-const LoadingIcon = () => {
-   return (
-      <SpinStyled>
-         <Icon type='loading' style={{ fontSize: 40, textAlign: 'center', margin: 'auto' }} />
-      </SpinStyled>
-   );
-};
-const SpinStyled = styled.div`
-    background: rgba(0, 0, 0, 0.05);
-    opacity: 0.7;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: ${`${window.innerWidth}px`};
-    height: ${`${window.innerHeight}px`};
-    display: flex;
-    justify-content: center;
-    z-index: 1000;
-`;
+
 
 
 

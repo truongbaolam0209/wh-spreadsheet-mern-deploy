@@ -49,12 +49,30 @@ let addedEvent = false;
 const PageDataEntrySheet = (props) => {
 
    const {
-      role, email, isAdmin, token, sheetDataInput: sheetDataInputRaw, sheetId: projectId, sheetName: projectName, isOutputDataText,
+      role, email, isAdmin, token, sheetDataInput: sheetDataInputRaw, sheetId: projectId, sheetName: projectName,
       cellsHistoryInCurrentSheet, cellOneHistory,
       saveDataToServerCallback, outputDataType
    } = props;
 
+
    let sheetDataInput = convertSheetInputRaw(sheetDataInputRaw);
+   const result = resolveDataFromProps(sheetDataInput);
+
+   useEffect(() => {
+      fetchDataOneSheet({ ...result, email, projectId, projectName, role, token });
+
+      setUserData(getHeadersData(result));
+
+      getSheetRows(getInputDataInitially(result));
+
+      setExpandedRows(getRowsKeyExpanded(
+         result.publicSettings.drawingTypeTree,
+         result.userSettings ? result.userSettings.viewTemplateNodeId : null
+      ));
+   }, [sheetDataInputRaw]);
+
+
+
    const handlerBeforeUnload = (e) => {
       if (window.location.pathname === '/data-entry-sheet') {
          e.preventDefault();
@@ -68,9 +86,7 @@ const PageDataEntrySheet = (props) => {
       };
    }, []);
 
-
    const tableRef = useRef();
-
    const getCurrentDOMCell = () => {
       isTyping = true;
       setCellActive(currentDOMCell);
@@ -207,10 +223,10 @@ const PageDataEntrySheet = (props) => {
    };
 
 
-
    const { state: stateCell, setCellActive, OverwriteCellsModified, copyTempData, applyActionOnCell } = useContext(CellContext);
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
+
 
    const [adminFncInitPanel, setAdminFncInitPanel] = useState(false);
    const [adminFncBtn, setAdminFncBtn] = useState(null);
@@ -235,7 +251,7 @@ const PageDataEntrySheet = (props) => {
 
    // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
    // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
-   // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
+   useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
 
 
    const [cursor, setCursor] = useState(null);
@@ -404,21 +420,9 @@ const PageDataEntrySheet = (props) => {
 
 
 
-   useEffect(() => {
-      const result = resolveDataFromProps({ data: sheetDataInput });
 
-      fetchDataOneSheet({ ...result, email, projectId, projectName, role, token, isOutputDataText });
 
-      setUserData(getHeadersData(result));
 
-      getSheetRows(getInputDataInitially(result));
-
-      setExpandedRows(getRowsKeyExpanded(
-         result.publicSettings.drawingTypeTree,
-         result.userSettings ? result.userSettings.viewTemplateNodeId : null
-      ));
-   }, [sheetDataInput]);
-   // }, []);
 
 
 
@@ -438,8 +442,6 @@ const PageDataEntrySheet = (props) => {
    const updateExpandedRowIdsArray = (viewTemplateNodeId) => {
       setExpandedRows(getRowsKeyExpanded(stateRow.drawingTypeTree, viewTemplateNodeId));
    };
-
-
 
 
 
@@ -559,25 +561,19 @@ const PageDataEntrySheet = (props) => {
       );
    };
 
-   const { headers } = sheetDataInput.publicSettings;
-
-
 
    const renderColumns = (headerArr, nosColumnFixed) => {
-      const widthColumn = (headers, hd) => {
-         const type = headers.find(x => x.text === hd).type;
-         return type === 'date' ? 95 : type === 'checkbox' ? 50 : hd.length * 25
-      };
       let headersObj = [{
          key: 'Index', dataKey: 'Index', title: '', width: 50,
          frozen: Column.FrozenDirection.LEFT,
          cellRenderer: <CellIndex2 />,
          style: { padding: 0, margin: 0 }
       }];
+
       headerArr.forEach((hd, index) => {
          headersObj.push({
             key: hd, dataKey: hd, title: hd,
-            width: widthColumn(headers, hd),
+            width: widthColumn(stateProject.allDataOneSheet.publicSettings.headers, hd),
             resizable: true,
             frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
             headerRenderer: <CellHeader />,
@@ -591,7 +587,7 @@ const PageDataEntrySheet = (props) => {
             className: (props) => {
                const { rowData, column: { key } } = props;
                const { id } = rowData;
-               const headerData = sheetDataInput.publicSettings.headers.find(hd => hd.text === key);
+               const headerData = stateProject.allDataOneSheet.publicSettings.headers.find(hd => hd.text === key);
 
                return (cellSearchFound && id in cellSearchFound && cellSearchFound[id].indexOf(key) !== -1)
                   ? 'cell-found'
@@ -652,7 +648,7 @@ const PageDataEntrySheet = (props) => {
          </ButtonBox>
 
 
-         {stateProject.allDataOneSheet && (
+         {stateProject.allDataOneSheet !== null && (
             <TableStyled
                dataForStyled={{
                   stateProject,
@@ -680,8 +676,6 @@ const PageDataEntrySheet = (props) => {
                onRowExpand={onRowExpand}
             />
          )}
-
-
 
 
          <ModalStyleFunction
@@ -835,6 +829,9 @@ const TableStyled = styled(Table)`
       padding: 0;
       border-right: 1px solid #DCDCDC;
       overflow: visible !important;
+   };
+   .BaseTable__table-main .BaseTable__row-cell:last-child {
+      padding-right: 0;
    };
 `;
 const ModalStyleFunction = styled(Modal)`
@@ -1067,6 +1064,7 @@ const getHeadersData = (projectData) => {
 
    const { publicSettings, userSettings } = projectData;
    let { headers } = publicSettings;
+
    let headersShown, headersHidden, colorization, nosColumnFixed;
 
    if (!userSettings || Object.keys(userSettings).length === 0) {
@@ -1148,7 +1146,7 @@ const rearrangeRowsNotMatchTreeNode = (rows, rowsArranged, drawingTypeTree) => {
 
 
 
-export const resolveDataFromProps = ({ data }) => {
+export const resolveDataFromProps = (data) => {
 
    let { rows, publicSettings, userSettings } = data;
    const { headers } = publicSettings;
@@ -1164,29 +1162,39 @@ export const resolveDataFromProps = ({ data }) => {
 
    const rowsOutput = processRowsFromDB(headers, rows);
 
-   data.rows = rowsOutput;
-   return data;
+   return {
+      rows: rowsOutput,
+      publicSettings,
+      userSettings
+   };
 };
 
 
 
 const convertSheetInputRaw = (data) => {
-   data.rows = data.rows || [];
-   data.publicSettings = data.publicSettings || {};
-   data.userSettings = data.userSettings || {};
 
-   data.publicSettings.headers = data.publicSettings.headers || [];
-   data.publicSettings.drawingTypeTree = data.publicSettings.drawingTypeTree || [];
-   data.publicSettings.activityRecorded = data.publicSettings.activityRecorded || [];
+   if (!data.publicSettings) return {};
 
-   return data;
+   return {
+      rows: (!data.rows || data.rows.length === 0) ? [] : data.rows.map(x => ({ ...x })),
+      publicSettings: {
+         sheetId: data.publicSettings ? data.publicSettings.sheetId : null,
+         headers: data.publicSettings.headers ? data.publicSettings.headers.map(x => ({ ...x })) : [],
+         drawingTypeTree: data.publicSettings.drawingTypeTree ? data.publicSettings.drawingTypeTree.map(x => ({ ...x })) : [],
+         activityRecorded: data.publicSettings.activityRecorded ? data.publicSettings.activityRecorded.map(x => ({ ...x })) : [],
+      },
+      userSettings: {}
+   };
 };
 
 
 
 
 
-
+const widthColumn = (headers, hd) => {
+   const type = headers.find(x => x.text === hd).type;
+   return type === 'date' ? 95 : type === 'checkbox' ? 50 : hd.length * 25
+};
 
 
 

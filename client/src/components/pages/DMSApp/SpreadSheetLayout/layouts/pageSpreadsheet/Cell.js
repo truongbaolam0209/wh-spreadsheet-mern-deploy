@@ -162,6 +162,8 @@ const Cell = (props) => {
          });
       };
       if (isLockedColumn || isLockedRow) return;
+
+
       setBtnShown(true);
       if (!inputRender) { // single click just highlight cell, not activate
          setPosition({ cell: cellRef.current.parentElement, rowIndex, columnIndex });
@@ -171,7 +173,6 @@ const Cell = (props) => {
          getSheetRows({ ...stateRow, rowsSelected: [] });
       };
    };
-
 
 
    useEffect(() => {
@@ -464,8 +465,8 @@ const checkCellDataFormat = (header) => {
    else if (
       header === 'Index' ||
       header === 'Drawing Number' ||
-      header === 'Drawing Name' ||
-      header === 'RFA Ref'
+      header === 'Drawing Name'
+      // header === 'RFA Ref'
    ) return 'cell-type-none';
 
    else return 'cell-type-text';

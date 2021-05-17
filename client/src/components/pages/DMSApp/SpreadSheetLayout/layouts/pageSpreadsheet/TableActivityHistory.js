@@ -1,4 +1,4 @@
-import { Modal } from 'antd';
+import { message, Modal } from 'antd';
 import Axios from 'axios';
 import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
@@ -34,6 +34,7 @@ const Table = (props) => {
 const panelWidth = window.innerWidth * 0.8;
 const panelHeight = window.innerHeight * 0.8;
 
+
 const TableActivityHistory = (props) => {
 
    const { state: stateProject } = useContext(ProjectContext);
@@ -47,6 +48,8 @@ const TableActivityHistory = (props) => {
 
    const [historyAll, setHistoryAll] = useState(null);
    const [historyAllInit, setHistoryAllInit] = useState(null);
+
+   const [loading, setLoading] = useState(false);
 
 
    const headersShown = [
@@ -66,6 +69,7 @@ const TableActivityHistory = (props) => {
 
    useEffect(() => {
       const fetchRowsAndCellHistory = async () => {
+         setLoading(true);
          try {
             const resRows = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
             const resCells = await Axios.get(`${SERVER_URL}/cell/history/`, { params: { token, projectId } });
@@ -79,7 +83,8 @@ const TableActivityHistory = (props) => {
                   'Column': 'Rev & Status',
                   'Value': `${history[revKey] || ''} - ${history[statusKey] || ''}`,
                   'User': row.userId || 'n/a',
-                  'Created At': moment(row.createdAt).format('DD/MM/YY - HH:mm'),
+                  // 'Created At': moment(row.createdAt).format('DD/MM/YY - HH:mm'),
+                  'Created At': row.createdAt,
                   'Action': 'Save Drawing Version',
                   id: mongoObjectId()
                });
@@ -95,7 +100,8 @@ const TableActivityHistory = (props) => {
                   'Column': headerFound.text,
                   'Value': cell.text || '',
                   'User': cell.email || 'n/a',
-                  'Created At': moment(cell.createdAt).format('DD/MM/YY - HH:mm'),
+                  // 'Created At': moment(cell.createdAt).format('DD/MM/YY - HH:mm'),
+                  'Created At': cell.createdAt,
                   'Action': 'Edit Cell',
                   id: mongoObjectId()
                });
@@ -108,7 +114,8 @@ const TableActivityHistory = (props) => {
                   'Column': undefined,
                   'Value': undefined,
                   'User': r.email || 'n/a',
-                  'Created At': moment(r.createdAt).format('DD/MM/YY - HH:mm'),
+                  // 'Created At': moment(r.createdAt).format('DD/MM/YY - HH:mm'),
+                  'Created At': r.createdAt,
                   'Action': r.action,
                   id: mongoObjectId()
                };
@@ -118,7 +125,10 @@ const TableActivityHistory = (props) => {
             setHistoryAll(sortDataBeforePrint(outputArr));
             setHistoryAllInit(sortDataBeforePrint(outputArr));
 
+            setLoading(false);
          } catch (err) {
+            setLoading(false);
+            message.warn('Network Error!');
             console.log(err);
          };
       };
@@ -134,15 +144,11 @@ const TableActivityHistory = (props) => {
 
    const sortDataBeforePrint = (data) => {
       data.sort((b, a) => {
-         let aa = moment(a['Created At'], 'DD/MM/YY - HH:mm').toDate();
-         let bb = moment(b['Created At'], 'DD/MM/YY - HH:mm').toDate();
-         return aa > bb ? 1 : bb > aa ? -1 : 0
+         return new Date(a['Created At']) - new Date(b['Created At']);
       });
-
       data.forEach((dt, i) => {
          dt.index = i + 1;
       });
-
       return data;
    };
 
@@ -151,7 +157,7 @@ const TableActivityHistory = (props) => {
    const onClick = () => {
       if (!dateRange) return;
       let newData = historyAll.filter(r => {
-         let xxx = moment(r['Created At'], 'DD/MM/YY - HH:mm').toDate();
+         let xxx = moment(r['Created At']);
          return xxx <= dateRange[1] && xxx >= dateRange[0];
       });
       setHistoryAll(sortDataBeforePrint(newData));
@@ -170,7 +176,7 @@ const TableActivityHistory = (props) => {
       let today = new Date();
       let dateBefore = addDays(today, nos);
       let newData = historyAllInit.filter(r => {
-         let xxx = moment(r['Created At'], 'DD/MM/YY - HH:mm').toDate();
+         let xxx = moment(r['Created At']);
          return xxx <= today && xxx >= dateBefore;
       });
       setHistoryAll(sortDataBeforePrint(newData));
@@ -204,34 +210,24 @@ const TableActivityHistory = (props) => {
                   </div>
 
                   <ButtonStyle
-                     onClick={() => { }}
-                     marginRight={5}
-                     name='Today'
+                     marginRight={5} name='Today'
                      onClick={() => checkDataWithinDays(-1)}
                   />
                   <ButtonStyle
-                     onClick={() => { }}
-                     marginRight={5}
-                     name='Last 3 Days'
+                     marginRight={5} name='Last 3 Days'
                      onClick={() => checkDataWithinDays(-3)}
                   />
 
                   <ButtonStyle
-                     onClick={() => { }}
-                     marginRight={5}
-                     name='Last 7 Days'
+                     marginRight={5} name='Last 7 Days'
                      onClick={() => checkDataWithinDays(-7)}
                   />
                   <ButtonStyle
-                     onClick={() => { }}
-                     marginRight={5}
-                     name='Last 14 Days'
+                     marginRight={5} name='Last 14 Days'
                      onClick={() => checkDataWithinDays(-14)}
                   />
                   <ButtonStyle
-                     onClick={() => { }}
-                     marginRight={5}
-                     name='This Month'
+                     marginRight={5} name='This Month'
                      onClick={() => checkDataWithinDays(-31)}
                   />
                </div>
@@ -293,6 +289,13 @@ const generateColumns = (headers) => {
          title: column,
          resizable: true,
          width: getHeaderWidth2(column),
+         cellRenderer: column !== 'Created At'
+         ? null
+         : ({ cellData }) => {
+            return (
+               <div style={{ color: 'black' }}>{moment(cellData).format('DD/MM/YY - HH:mm')}</div>
+            );
+         }
       }))
    ];
 };
@@ -329,32 +332,22 @@ const ModalStyledSetting = styled(Modal)`
 `;
 const TableStyled = styled(Table)`
 
-
-    .BaseTable__row-cell-text {
-        color: black
-    }
-
-    .BaseTable__table .BaseTable__body {
-      /* -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      -khtml-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none; */
+   .BaseTable__row-cell-text {
+      color: black
    }
 
-    .BaseTable__header-cell {
-        padding: 10px;
-        border-right: 1px solid #DCDCDC;
-        background: ${colorType.grey1};
-        color: black
-    }
+   .BaseTable__header-cell {
+      padding: 10px;
+      border-right: 1px solid #DCDCDC;
+      background: ${colorType.grey1};
+      color: black
+   }
 
-    .BaseTable__row-cell {
-        padding: 10px;
-        border-right: 1px solid #DCDCDC;
-        overflow: visible !important;
-    }
+   .BaseTable__row-cell {
+      padding: 10px;
+      border-right: 1px solid #DCDCDC;
+      overflow: visible !important;
+   }
 `;
 
 

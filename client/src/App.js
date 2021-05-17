@@ -1,10 +1,11 @@
 import 'antd/dist/antd.css';
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Route, Switch } from 'react-router-dom';
 import PageDashboard from './components/pages/DMSApp/DashboardLayout/PageDashboard';
 import SheetContext from './components/pages/DMSApp/SpreadSheetLayout/contexts/sheetContextProvider';
 import PageDataEntrySheet from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageDataEntrySheet';
 import PageSpreadsheet from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageSpreadsheet';
+
 
 
 const browserName = detectBrowser();
@@ -17,22 +18,6 @@ const App = () => {
    };
 
 
-   // console.log(localStorage);
-
-   // const consultantCompany = 'DCA';
-   const consultantCompany = 'RSP';
-   // const consultantCompany = 'Archi Consultant';
-   // const consultantCompany = 'ONG & ONG';
-
-
-
-   // const consultantCompany = 'dcA';
-   // const consultantCompany = 'rsp';
-   // const consultantCompany = 'onG & Ong';
-   // const consultantCompany = 'K2LD';
-   // const consultantCompany = 'HYLA';
-
-
 
 
    return (
@@ -40,6 +25,8 @@ const App = () => {
          <Switch>
 
             <SheetContext>
+
+
                <Route path='/sheet'>
 
                   <PageSpreadsheet
@@ -66,7 +53,7 @@ const App = () => {
 
                      // email='emmylou_lopez@wohhup.com'
 
-                     // projectId='MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg'
+                     projectId='MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg'
 
 
 
@@ -76,12 +63,12 @@ const App = () => {
                      // projectId='MTYxNzg5MDkxNzI2MC10ZXN0OA'
 
 
-                     projectId='MTU3NDgyNTcyMzUwNC1UZXN0'
+                     // projectId='MTU3NDgyNTcyMzUwNC1UZXN0'
 
 
 
                      projectIsAppliedRfaView={true}
-                     // projectIsAppliedRfaView={false}
+                    //  projectIsAppliedRfaView={false}
 
                      projectName='Punggol Digital District'
                      projectNameShort='PDD'
@@ -164,11 +151,9 @@ const App = () => {
                         name: 'Document Controller',
                         canEditParent: true
                      }}
-                     // isOutputDataText={true}
                      canSaveUserSettings={false}
                      token={'xxx-xxxxx-xx'}
-                     // sheetDataInput={sheetDataInput}
-                     sheetDataInput={[]}
+                     sheetDataInput={sheetDataInput_1}
                      sheetName='Sheet 1'
                      sheetId='e4ac39e4-3f5f-46bd-adc1-912a14efe801'
 
@@ -242,18 +227,8 @@ const App = () => {
 export default App;
 
 
-function detectBrowser() {
-   if ((navigator.userAgent.indexOf("Opera") || navigator.userAgent.indexOf('OPR')) != -1) {
-      return 'Opera';
-   } else if (navigator.userAgent.indexOf("Chrome") != -1) {
-      return 'Chrome';
-   } else if (navigator.userAgent.indexOf("Safari") != -1) {
-      return 'Safari';
-   } else if (navigator.userAgent.indexOf("Firefox") != -1) {
-      return 'Firefox';
-   } else if ((navigator.userAgent.indexOf("MSIE") != -1) || (!!document.documentMode == true)) {
-      return 'IE';//crap
-   } else {
-      return 'Unknown';
-   };
-};
+
+
+
+
+

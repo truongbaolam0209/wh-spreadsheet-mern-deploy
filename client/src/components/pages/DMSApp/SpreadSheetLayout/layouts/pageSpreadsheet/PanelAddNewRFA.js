@@ -116,6 +116,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
 
+
+
    useEffect(() => {
       if (formRfaType === 'form-submit-RFA') {
          if (!isFormEditting) {
