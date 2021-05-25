@@ -8,7 +8,7 @@ import { colorType, SERVER_URL } from '../constants';
 import { Context as CellContext } from '../contexts/cellContext';
 import { Context as ProjectContext } from '../contexts/projectContext';
 import { Context as RowContext } from '../contexts/rowContext';
-import { debounceFnc, genId, getActionName, groupByHeaders, mongoObjectId, processRowsFromDB, randomColorRange } from '../utils';
+import { convertCellTempToHistory, debounceFnc, genId, getActionName, groupByHeaders, mongoObjectId, processRowsFromDB, randomColorRange } from '../utils';
 import CellHeader from './generalComponents/CellHeader';
 import { sortFnc } from './generalComponents/FormSort';
 import IconTable from './generalComponents/IconTable';
@@ -430,12 +430,12 @@ const PageDataEntrySheet = (props) => {
 
 
    useEffect(() => {
-      const interval = setInterval(() => {
-         setPanelFunctionVisible(false);
-         setPanelSettingType('save-ICON');
-         setPanelSettingVisible(true);
-      }, 1000 * 60 * 20);
-      return () => clearInterval(interval);
+      // const interval = setInterval(() => {
+      //    setPanelFunctionVisible(false);
+      //    setPanelSettingType('save-ICON');
+      //    setPanelSettingVisible(true);
+      // }, 1000 * 60 * 20);
+      // return () => clearInterval(interval);
    }, []);
 
 
@@ -605,6 +605,33 @@ const PageDataEntrySheet = (props) => {
 
 
 
+   const saveDataSheet = () => {
+
+      const { drawingTypeTree, rowsAll, drawingsTypeDeleted, rowsDeleted } = stateRow;
+      const { cellsModifiedTemp } = stateCell;
+      const { publicSettings } = stateProject.allDataOneSheet;
+      const { headers } = publicSettings;
+
+
+      const rowToSaveArr = rowsAll.map(row => {
+         let rowToSave = { _id: row.id, parentRow: row._parentRow, preRow: row._preRow, level: row._rowLevel };
+         headers.forEach(hd => {
+            rowToSave.data = { ...rowToSave.data || {}, [hd.text]: row[hd.text] || '' };
+         });
+         return rowToSave;
+      });
+
+      
+      saveDataToServerCallback({
+         drawingTypeTree,
+         rowsAll: rowToSaveArr,
+         drawingsTypeDeleted,
+         rowsDeleted,
+         cellHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject, true)
+      });
+   };
+
+
 
 
    return (
@@ -612,7 +639,7 @@ const PageDataEntrySheet = (props) => {
          onContextMenu={(e) => e.preventDefault()}
       >
          <ButtonBox>
-            <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
+            <IconTable type='save' onClick={saveDataSheet} />
             <DividerRibbon />
             <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
             <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
@@ -728,7 +755,6 @@ const PageDataEntrySheet = (props) => {
                outputDataType={outputDataType}
                cellsHistoryInCurrentSheet={cellsHistoryInCurrentSheet}
                cellOneHistory={cellOneHistory}
-               saveDataToServerCallback={saveDataToServerCallback}
             />
          </ModalStyledSetting>
 
@@ -914,7 +940,7 @@ const getInputDataInitially = (data) => {
       modeSort = userSettings.modeSort || {};
    };
 
-   const newRows = createRowsInit(sheetId, 5);
+   const newRows = createRowsInit(sheetId, 1);
    const sheetInitState = (drawingTypeTree.length === 0 && rows.length === 0);
 
    let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);

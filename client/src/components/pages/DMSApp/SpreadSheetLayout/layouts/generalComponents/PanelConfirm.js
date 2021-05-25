@@ -4,7 +4,7 @@ import ButtonGroupComp from './ButtonGroupComp';
 
 
 
-const PanelConfirm = ({ onClickCancel, onClickApply, content }) => {
+const PanelConfirm = ({ onClickCancel, onClickApply, content, newTextBtnApply, newTextBtnCancel }) => {
 
     const [value, setValue] = useState('');
 
@@ -12,7 +12,8 @@ const PanelConfirm = ({ onClickCancel, onClickApply, content }) => {
     return (
         <div style={{
             width: '100%',
-            height: '100%'
+            height: '100%',
+            color: 'black'
         }}>
             <div style={{ padding: 20 }}>
                 {(content === 'Do you want to save a new view template ?' ? (
@@ -36,6 +37,8 @@ const PanelConfirm = ({ onClickCancel, onClickApply, content }) => {
                 <ButtonGroupComp
                     onClickCancel={onClickCancel}
                     onClickApply={() => onClickApply(value)}
+                    newTextBtnApply={newTextBtnApply}
+                    newTextBtnCancel={newTextBtnCancel}
                 />
             </div>
 

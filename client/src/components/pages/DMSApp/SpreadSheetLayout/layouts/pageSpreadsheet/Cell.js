@@ -20,8 +20,7 @@ const Cell = (props) => {
    const { stateCell, getCellModifiedTemp, setCellActive } = contextCell;
    const { stateRow, getSheetRows } = contextRow;
    const { stateProject } = contextProject;
-
-   const { drawingTypeTree, rowsAll, modeGroup, rowsSelected, rowsSelectedToMove, modeFilter, isRfaView } = stateRow;
+   const { drawingTypeTree, rowsAll, modeGroup, rowsSelected, rowsSelectedToMove, modeFilter } = stateRow;
 
    let columnKeyToPutFolderName;
    if (rowData.treeLevel || rowData._rowLevel < 1) {
@@ -38,7 +37,7 @@ const Cell = (props) => {
 
 
 
-   const { roleTradeCompany, projectIsAppliedRfaView, company } = stateProject.allDataOneSheet;
+   const { roleTradeCompany, projectIsAppliedRfaView, company, pageSheetTypeName } = stateProject.allDataOneSheet;
 
 
    let info = '';
@@ -91,7 +90,7 @@ const Cell = (props) => {
    };
 
 
-   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key, projectIsAppliedRfaView, isRfaView);
+   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key, projectIsAppliedRfaView, pageSheetTypeName);
    const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
 
 
@@ -355,7 +354,7 @@ const Cell = (props) => {
             )}
 
 
-            {btnShown && !cellBtnDisabled(column.key) && !isRfaView && (
+            {btnShown && !cellBtnDisabled(column.key) && pageSheetTypeName === 'page-spreadsheet' && (
                <div
                   style={{
                      cursor: 'pointer', position: 'absolute',
@@ -562,9 +561,9 @@ const columnsLockedModeller = [
    'Construction Start',
 ];
 
-export const columnLocked = (roleTradeCompany, rowData, modeGroup, column, projectIsAppliedRfaView, isRfaView) => {
+export const columnLocked = (roleTradeCompany, rowData, modeGroup, column, projectIsAppliedRfaView, pageSheetTypeName) => {
    if (
-      (projectIsAppliedRfaView && !isRfaView && (
+      (projectIsAppliedRfaView && pageSheetTypeName === 'page-spreadsheet' && (
          column === 'RFA Ref' ||
          column === 'Drg To Consultant (A)' ||
          column === 'Rev' ||

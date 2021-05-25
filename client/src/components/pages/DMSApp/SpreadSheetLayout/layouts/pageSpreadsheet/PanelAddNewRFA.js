@@ -26,12 +26,25 @@ const extractConsultantName = (name) => {
 const checkIfMatchWithInputCompanyFormat = (item, listConsultants) => {
    let result = false;
    listConsultants.forEach(cm => {
-      if (cm.company.toUpperCase() === item || cm.company.toUpperCase() === extractConsultantName(item)) {
+      if (cm.company === extractConsultantName(item)) {
          result = true;
       };
    });
    return result;
 };
+const getGroupCompanyForAdminSubmitWithoutEmail = (listGroup, listConsultants) => {
+   let output = [];
+   listGroup.forEach(group => {
+      if (group.includes('_%$%_')) {
+         const companyName = extractConsultantName(group);
+         if (listConsultants.find(x => x.company === companyName)) {
+            output.push(group);
+         };
+      };
+   });
+   return [...new Set(output)];
+};
+
 const versionArray = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 
@@ -72,16 +85,14 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const company = (formRfaType === 'form-reply-RFA' && isAdminAction && adminActionConsultantToReply) ? adminActionConsultantToReply : companyUser;
 
 
-   const listRecipient = (
-      isAdminAction &&
-      isAdminActionWithNoEmailSent &&
-      (formRfaType === 'form-submit-RFA' || formRfaType === 'form-resubmit-RFA')
-   )
-      ? [...listUser, ...listGroup].filter(x => !validateEmailInput(x))
+   const listConsultants = companies.filter(x => x.companyType === 'Consultant');
+
+
+   const listRecipient = (isAdminAction && isAdminActionWithNoEmailSent)
+      ? getGroupCompanyForAdminSubmitWithoutEmail(listGroup, listConsultants)
       : [...listUser, ...listGroup];
 
 
-   const listConsultants = companies.filter(x => x.companyType === 'Consultant');
 
 
    const [rfaNumberSuffixFirstTimeSubmit, setRfaNumberSuffixFirstTimeSubmit] = useState('');
@@ -113,8 +124,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const [modalConfirmsubmitOrCancel, setModalConfirmsubmitOrCancel] = useState(null);
 
 
-
-
+   const [dateSendThisForm, setDateSendThisForm] = useState(null);
 
 
 
@@ -123,6 +133,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          if (!isFormEditting) {
             setDwgsToAddNewRFA(null);
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
+            setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
 
          } else {
             const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
@@ -147,6 +158,9 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             setTextEmailAdditionalNotes(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailAdditionalNotes', company) || '');
 
             setDateReplyForSubmitForm(moment(oneRowInRfa['Consultant Reply (T)'], 'DD/MM/YY'));
+
+            setDateSendThisForm(moment(oneRowInRfa['Drg To Consultant (A)'], 'DD/MM/YY'));
+
             setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'trade', company)));
 
             const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
@@ -186,6 +200,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             const oneDwg = dwgsToResubmit[0];
             setTextEmailTitle('Resubmit - ' + oneDwg[`submission-$$$-emailTitle-${company}`]);
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
+            setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
          } else {
 
             const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
@@ -213,12 +228,13 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             setTextEmailAdditionalNotes(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailAdditionalNotes', company) || '');
 
             setDateReplyForSubmitForm(moment(oneRowInRfa['Consultant Reply (T)'], 'DD/MM/YY'));
+            setDateSendThisForm(moment(oneRowInRfa['Drg To Consultant (A)'], 'DD/MM/YY'));
             setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'trade', company)));
 
             const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
             setRfaNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
-
          };
+
       } else if (formRfaType === 'form-reply-RFA') {
 
          if (!isFormEditting) {
@@ -245,6 +261,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             const keyEmailTitle = getInfoKeyFromRfaData(oneDwg, 'submission', 'emailTitle');
             setTextEmailTitle('Reply - ' + oneDwg[keyEmailTitle]);
 
+            setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
+
          } else {
             const dwgsToEditReply = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
             const oneRowInRfa = dwgsToEditReply[0];
@@ -263,6 +281,9 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
             setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTitle', company) || '');
             setTextEmailAdditionalNotes(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailAdditionalNotes', company) || '');
+
+            const replyActualDate = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'date', company);
+            setDateSendThisForm(moment(moment(replyActualDate), 'DD/MM/YY'));
          };
       };
    }, []);
@@ -452,21 +473,24 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    };
 
 
-   const onClickTagRecipientTo = (email) => {
+
+
+   const onClickTagRecipientTo = (email, isRemoveTag) => {
       let outputListConsultantMustReply = [...listConsultantMustReply];
-      const consultantNameEmailGroup = extractConsultantName(email) || email;
-      const originConsultant = listConsultants.find(x => x.company.toUpperCase() === consultantNameEmailGroup);
-      outputListConsultantMustReply = outputListConsultantMustReply.filter(x => x.toUpperCase() !== consultantNameEmailGroup);
 
-      if (originConsultant && formRfaType === 'form-submit-RFA') {
+      const consultantName = extractConsultantName(email);
+      const originConsultant = listConsultants.find(x => x.company === consultantName);
+      outputListConsultantMustReply = outputListConsultantMustReply.filter(x => x !== consultantName);
+
+
+      if (originConsultant && !isRemoveTag) {
          outputListConsultantMustReply.unshift(originConsultant.company);
-         // message.info(`Lead consultant: ${outputListConsultantMustReply[0]}`);
-
-      } else if (originConsultant && formRfaType === 'form-resubmit-RFA') {
-         outputListConsultantMustReply.push(originConsultant.company);
       };
+
       setListConsultantMustReply(outputListConsultantMustReply);
    };
+
+
 
    const onClickApplyDoneFormRFA = () => {
       if (!dwgsToAddNewRFA || dwgsToAddNewRFA.length === 0) {
@@ -526,11 +550,15 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          return message.info('Please choose file pdf!', 3);
       } else if (!textEmailTitle && !isAdminActionWithNoEmailSent) {
          return message.info('Please fill in email title!', 3);
-      } else if (!listRecipientTo || listRecipientTo.length === 0) {
+
+      } else if ((!listRecipientTo || listRecipientTo.length === 0) && !isAdminActionWithNoEmailSent) {
          return message.info('Please fill in recipient!', 3);
+
       } else if (formRfaType === 'form-submit-RFA' && !dateReplyForSubmitForm) {
          return message.info('Please fill in expected reply date!', 3);
+
       } else if (formRfaType === 'form-submit-RFA' && listConsultantMustReply.length === 0) {
+
          return message.info('Please fill in consultant lead', 3);
       } else if (formRfaType === 'form-submit-RFA' && !requestedBy) {
          return message.info('Please fill in person requested', 3);
@@ -580,6 +608,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          emailTextTitle: isAdminActionWithNoEmailSent ? '' : textEmailTitle,
          emailTextAdditionalNotes: isAdminActionWithNoEmailSent ? '' : textEmailAdditionalNotes,
          dateReplyForsubmitForm: dateReplyForSubmitForm && dateReplyForSubmitForm.format('DD/MM/YY'),
+         dateSendThisForm,
 
          isAdminActionWithNoEmailSent,
          adminActionConsultantToReply,
@@ -662,6 +691,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    };
 
 
+
+
    return (
       <>
          <div style={{
@@ -713,8 +744,20 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   ) : null}
 
 
+                  {'form-reply-RFA' && (
+                     <div style={{ display: 'flex', marginRight: 40 }}>
+                        <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date Submission</div>
+                        <DatePickerStyled
+                           style={{ width: 110, transform: 'translateY(-5px)' }}
+                           value={dateSendThisForm}
+                           format={'DD/MM/YY'}
+                           onChange={(e) => setDateSendThisForm(e)}
+                        />
+                     </div>
+                  )}
+
                   {formRfaType !== 'form-reply-RFA' && (
-                     <>
+                     <div style={{ display: 'flex' }}>
                         <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date Reply</div>
                         <DatePickerStyled
                            style={{ width: 110, transform: 'translateY(-5px)' }}
@@ -722,7 +765,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                            format={'DD/MM/YY'}
                            onChange={(e) => setDateReplyForSubmitForm(e)}
                         />
-                     </>
+                     </div>
                   )}
 
                   {formRfaType === 'form-reply-RFA' && adminActionConsultantToReply && (
@@ -733,9 +776,9 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                </div>
 
 
-               {!isAdminActionWithNoEmailSent && (
+               {(!isAdminActionWithNoEmailSent || formRfaType !== 'form-reply-RFA') && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                     <div style={{ transform: 'translateY(5px)', fontWeight: 'bold' }}>{'To'}</div>
+                     <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 5 }}>{isAdminActionWithNoEmailSent ? 'Consultants' : 'To'}</div>
                      <div style={{ width: '95%' }}>
                         <SelectRecipientStyled
                            mode='tags'
@@ -745,8 +788,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                            onChange={(list) => {
 
                               if (list.find(tag => !listGroup.find(x => x === tag) && !validateEmailInput(tag))) {
-                                 message.warning('Please choose an available group email or key in an email address!');
-                                 return;
+                                 return message.warning('Please choose an available group email or key in an email address!');
                               };
 
                               if (formRfaType === 'form-submit-RFA') {
@@ -756,52 +798,46 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                                        isLeadConsultantIncluded = true;
                                     };
                                  });
-                                 if (!isLeadConsultantIncluded) {
-                                    message.warning('Email loop must include lead consultant!');
-                                 };
+                                 if (!isLeadConsultantIncluded) message.warning('Email loop must include lead consultant!');
+
                                  const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
                                  if (
                                     itemJustRemoved &&
-                                    listConsultantMustReply.find(x => x.toUpperCase() === itemJustRemoved || x.toUpperCase() === extractConsultantName(itemJustRemoved))
+                                    listConsultantMustReply.find(x => x === extractConsultantName(itemJustRemoved)) &&
+                                    !list.find(tg => extractConsultantName(tg) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved))
                                  ) {
-                                    if (!list.find(tg => {
-                                       return (extractConsultantName(tg) && extractConsultantName(itemJustRemoved) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved)) ||
-                                          (extractConsultantName(tg) && extractConsultantName(tg) === itemJustRemoved) ||
-                                          (tg === extractConsultantName(itemJustRemoved) && extractConsultantName(itemJustRemoved))
-                                    })) {
-                                       if (extractConsultantName(itemJustRemoved)) {
-                                          setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== extractConsultantName(itemJustRemoved)));
-                                       } else {
-                                          setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== itemJustRemoved));
-                                       };
-                                    };
+                                    setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
                                  };
+
+
                               } else if (formRfaType === 'form-resubmit-RFA') {
                                  const consultantLeadFromPreviousSubmission = listConsultantMustReply[0];
                                  const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
                                  if (
                                     itemJustRemoved &&
-                                    listConsultantMustReply.find(x => x.toUpperCase() === itemJustRemoved || x.toUpperCase() === extractConsultantName(itemJustRemoved)) &&
-                                    consultantLeadFromPreviousSubmission.toUpperCase() !== itemJustRemoved && consultantLeadFromPreviousSubmission.toUpperCase() !== extractConsultantName(itemJustRemoved)
+                                    listConsultantMustReply.find(x => x === extractConsultantName(itemJustRemoved)) &&
+                                    consultantLeadFromPreviousSubmission !== extractConsultantName(itemJustRemoved) &&
+                                    !list.find(tg => extractConsultantName(tg) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved))
                                  ) {
-                                    if (!list.find(tg => {
-                                       return (extractConsultantName(tg) && extractConsultantName(itemJustRemoved) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved)) ||
-                                          (extractConsultantName(tg) && extractConsultantName(tg) === itemJustRemoved) ||
-                                          (tg === extractConsultantName(itemJustRemoved) && extractConsultantName(itemJustRemoved))
-                                    })) {
-                                       if (extractConsultantName(itemJustRemoved)) {
-                                          setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== extractConsultantName(itemJustRemoved)));
-                                       } else {
-                                          setListConsultantMustReply(listConsultantMustReply.filter(x => x.toUpperCase() !== itemJustRemoved));
-                                       };
-                                    };
+                                    setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
                                  };
                               };
                               setListRecipientTo([...new Set(list)]);
+
+                              let companyNameToCheck, isRemoveTag;
+                              if (list.length === listRecipientTo.length + 1) {
+                                 companyNameToCheck = list.find(x => !listRecipientTo.find(item => item === x));
+                                 isRemoveTag = false;
+                              } else if (list.length === listRecipientTo.length - 1) {
+                                 companyNameToCheck = listRecipientTo.find(x => !list.find(item => item === x));
+                                 isRemoveTag = true;
+                              };
+                              // console.log('companyNameToCheck====', companyNameToCheck);
+                              onClickTagRecipientTo(companyNameToCheck, isRemoveTag);
                            }}
                         >
                            {listRecipient.map(cm => {
-                              const isLeadConsultant = listConsultantMustReply[0] && (cm === listConsultantMustReply[0].toUpperCase() || extractConsultantName(cm) === listConsultantMustReply[0].toUpperCase());
+                              const isLeadConsultant = listConsultantMustReply[0] && extractConsultantName(cm) === listConsultantMustReply[0];
                               const isLeadConsultantStyled = isLeadConsultant ? {
                                  background: colorType.primary,
                                  fontWeight: 'bold',
@@ -817,9 +853,9 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                                           fontWeight: 'normal',
                                           color: 'black',
                                           ...isLeadConsultantStyled,
-                                          padding: '0 5px'
+                                          padding: '0 5px',
                                        }}
-                                       onClick={(e) => onClickTagRecipientTo(cm)}
+                                       onClick={() => onClickTagRecipientTo(cm, false)}
                                     >
                                        {textShown}
                                     </div>
@@ -840,6 +876,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                      </div>
                   </div>
                )}
+
+
 
                {!isAdminActionWithNoEmailSent && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -1475,7 +1513,13 @@ const SelectRecipientStyled = styled(Select)`
       }
    };
 
+   .ant-select-dropdown-menu-item .ant-select-dropdown-menu-item-selected {
+      padding: 0;
+   };
+   
+
 `;
+
 
 
 const DatePickerStyled = styled(DatePicker)`

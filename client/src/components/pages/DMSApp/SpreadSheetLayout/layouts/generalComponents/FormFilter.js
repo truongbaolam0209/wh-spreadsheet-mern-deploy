@@ -11,12 +11,12 @@ import ButtonStyle from './ButtonStyle';
 const { Option } = Select;
 
 
-const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFilter, isRfaView, rowsRfaAll, companies }) => {
+const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFilter, pageSheetTypeName, rowsRfaAll, companies }) => {
 
 
 
    const [filterColumn, setFilterColumn] = useState(
-      !isRfaView
+      pageSheetTypeName === 'page-spreadsheet'
          ? (modeFilter.length > 1
             ? modeFilter.map(item => ({...item}))
             : [
@@ -123,13 +123,13 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
                   setFilterSelect={setFilterSelect}
                   removeFilterTag={removeFilterTag}
                   headers={headers}
-                  rows={isRfaView ? rowsRfaAll : rowsAll}
-                  isRfaView={isRfaView}
+                  rows={pageSheetTypeName === 'page-spreadsheet' ? rowsAll : rowsRfaAll}
+                  pageSheetTypeName={pageSheetTypeName}
                   companies={companies}
                />
             ))}
 
-            {!isRfaView && (
+            {pageSheetTypeName === 'page-spreadsheet' && (
                <div>
                   <CheckboxStyled
                      onChange={onChangeBox}
@@ -177,10 +177,10 @@ const IconStyled = styled.div`
 
 
 
-const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rows, isRfaView, companies }) => {
+const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rows, pageSheetTypeName, companies }) => {
 
 
-   const columnsValueArr = getColumnsValue(rows, headers, isRfaView, companies);
+   const columnsValueArr = getColumnsValue(rows, headers, pageSheetTypeName, companies);
 
    const [column, setColumn] = useState(data.header);
 
@@ -258,7 +258,7 @@ const SelectStyled = styled(Select)`
 `;
 
 
-const getColumnsValue = (rows, headers, isRfaView, companies) => {
+const getColumnsValue = (rows, headers, pageSheetTypeName, companies) => {
 
    let valueObj = {};
 
@@ -271,22 +271,22 @@ const getColumnsValue = (rows, headers, isRfaView, companies) => {
    [...headers, ...arrayHeaderRFA].forEach(hd => {
       let valueArr = [];
       rows.forEach(row => {
-         if (isRfaView && isColumnWithReplyData(hd)) {
+         if (pageSheetTypeName !== 'page-spreadsheet' && isColumnWithReplyData(hd)) {
             const { replyCompany } = getConsultantReplyData(row, hd, companies);
             valueArr.push(replyCompany || '');
 
-         } else if (isRfaView && hd === 'Overdue RFA') {
+         } else if (pageSheetTypeName !== 'page-spreadsheet' && hd === 'Overdue RFA') {
             valueArr = [...valueArr, 'Overdue', 'Due in 3 days', 'RFA outstanding'];
 
-         } else if (isRfaView && hd === 'Due Date') {
+         } else if (pageSheetTypeName !== 'page-spreadsheet' && hd === 'Due Date') {
             const dueDate = row['Consultant Reply (T)'];
             valueArr.push(dueDate || '');
 
-         } else if (isRfaView && hd === 'Requested By') {
+         } else if (pageSheetTypeName !== 'page-spreadsheet' && hd === 'Requested By') {
             const requestedBy = getInfoValueFromRfaData(row, 'submission', 'requestedBy');
             valueArr.push(requestedBy || '');
 
-         } else if (isRfaView && hd === 'Submission Date') {
+         } else if (pageSheetTypeName !== 'page-spreadsheet' && hd === 'Submission Date') {
             const submissionDate = row['Drg To Consultant (A)'];
             valueArr.push(submissionDate || '');
             

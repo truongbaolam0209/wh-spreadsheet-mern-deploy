@@ -4,7 +4,7 @@ import styled from 'styled-components';
 import { colorType } from '../../constants';
 
 
-const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTableAction, isRfaView, modeFilter }) => {
+const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTableAction, modeFilter }) => {
 
 
 
@@ -19,18 +19,13 @@ const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTab
 
    const onChange = (e) => {
       if (!e.target) return;
-      searchGlobal(e.target.value, isRfaView);
+      searchGlobal(e.target.value);
       setValue(e.target.value);
    };
 
    const showDrawingSearchOnly = () => {
       if (isDashboard) {
          setTableAction('show found only');
-      } else if (isRfaView) {
-         getSheetRows({
-            ...stateRow,
-            modeSearch: { ...stateRow.modeSearch, isFoundShownOnly: 'show found only' }
-         });
       } else {
          getSheetRows({
             ...stateRow,
@@ -42,11 +37,7 @@ const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTab
    const showDrawingAll = () => {
       if (isDashboard) {
          setTableAction('show all');
-      } else if (isRfaView) {
-         getSheetRows({
-            ...stateRow,
-            modeSearch: { ...stateRow.modeSearch, isFoundShownOnly: 'show all' }
-         });
+
       } else {
          getSheetRows({
             ...stateRow,

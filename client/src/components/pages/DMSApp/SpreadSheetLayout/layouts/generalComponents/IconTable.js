@@ -2,15 +2,17 @@ import { Icon, Tooltip } from 'antd';
 import React, { useContext } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
+import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 
 
 
 const IconTable = (props) => {
 
-   const { type, onClick, isActivityTable } = props;
+   const { type, onClick, isActivityTable, pageSheetTypeName } = props;
 
    const { state: stateRow } = useContext(RowContext);
+   const { state: stateProject } = useContext(ProjectContext);
 
 
    const modeGroup = stateRow && stateRow.modeGroup;
@@ -24,7 +26,7 @@ const IconTable = (props) => {
 
 
    return (
-      <Tooltip placement={type === 'menu' ? 'topLeft' : 'top'} title={toolTipBtn(type)}>
+      <Tooltip placement={type === 'menu' ? 'topLeft' : 'top'} title={toolTipBtn(type, pageSheetTypeName)}>
          <DivStyled>
             {type === 'rfa-button' ? (
                <IconRFA onClick={onClick}>RFA</IconRFA>
@@ -52,7 +54,7 @@ const IconTable = (props) => {
 export default IconTable;
 
 
-const toolTipBtn = (type) => {
+const toolTipBtn = (type, pageSheetTypeName) => {
    return type === 'filter' ? 'Filter Data' :
       type === 'apartment' ? 'Grouping Data' :
          type === 'layout' ? 'Reorder Columns' :
@@ -80,9 +82,10 @@ const toolTipBtn = (type) => {
                                                                            type === 'upload' ? 'Upload Data To Server' :
                                                                               type === 'rfa-button' ? 'Go To RFA Sheet' :
                                                                                  type === 'dms-button' ? 'Go To DMS Sheet' :
-                                                                                    type === 'plus-square' ? 'Add New RFA' :
-                                                                                       type === 'block' ? 'View Consultant Mode' :
-                                                                                          'No Title';
+                                                                                    (type === 'plus-square' && pageSheetTypeName === 'page-rfam') ? 'Add New RFAM' :
+                                                                                       type === 'plus-square' ? 'Add New RFA' :
+                                                                                          type === 'block' ? 'View Consultant Mode' :
+                                                                                             'No Title';
 };
 
 const DivStyled = styled.div`

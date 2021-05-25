@@ -16,13 +16,13 @@ const PanelFunction = (props) => {
    const { state: stateRow } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { roleTradeCompany, projectIsAppliedRfaView } = stateProject.allDataOneSheet;
+   const { roleTradeCompany, projectIsAppliedRfaView, pageSheetTypeName } = stateProject.allDataOneSheet;
 
-   const { rowsSelectedToMove, rowsSelected, drawingTypeTree, modeGroup, isRfaView } = stateRow;
+   const { rowsSelectedToMove, rowsSelected, drawingTypeTree, modeGroup } = stateRow;
 
    const { rowData, column } = panelType.cellProps;
 
-   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key, projectIsAppliedRfaView, isRfaView);
+   const isLockedColumn = columnLocked(roleTradeCompany, rowData, modeGroup, column.key, projectIsAppliedRfaView, pageSheetTypeName);
 
    const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
 

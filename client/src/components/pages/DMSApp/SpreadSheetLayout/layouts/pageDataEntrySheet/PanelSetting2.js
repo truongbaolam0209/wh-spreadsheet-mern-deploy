@@ -26,8 +26,8 @@ const PanelSetting2 = (props) => {
    const { state: stateCell, OverwriteCellsModified } = useContext(CellContext);
 
    const {
-      panelType, panelSettingType, commandAction, onClickCancelModal, setLoading,
-      cellsHistoryInCurrentSheet, cellOneHistory, saveDataToServerCallback
+      panelType, panelSettingType, commandAction, onClickCancelModal,
+      cellsHistoryInCurrentSheet, cellOneHistory
    } = props;
 
    const { projectId } = stateProject.allDataOneSheet;
@@ -412,48 +412,7 @@ const PanelSetting2 = (props) => {
    };
 
 
-   const saveData = () => {
-      const {
-         drawingTypeTree,
-         rowsAll,
-         drawingsTypeDeleted,
-         rowsDeleted,
-      } = stateRow;
-      const { cellsModifiedTemp } = stateCell;
-      const { publicSettings } = stateProject.allDataOneSheet;
-      const { headers } = publicSettings;
 
-
-      // const rowToSaveArr = rowsAll.map(row => {
-      //    let rowToSave = { _id: row.id, parentRow: row._parentRow, preRow: row._preRow };
-      //    headers.forEach(hd => {
-      //       if (row[hd.text] || row[hd.text] === '') {
-      //          const keyOfHeader = isOutputDataText ? hd.text : hd.key;
-      //          rowToSave.data = { ...rowToSave.data || {}, [keyOfHeader]: row[hd.text] };
-      //       };
-      //    });
-      //    return rowToSave;
-      // });
-
-      const rowToSaveArr = rowsAll.map(row => {
-         let rowToSave = { _id: row.id, parentRow: row._parentRow, preRow: row._preRow };
-         headers.forEach(hd => {
-            if (row[hd.text] || row[hd.text] === '') {
-               rowToSave.data = { ...rowToSave.data || {}, [hd.text]: row[hd.text] };
-            };
-         });
-         return rowToSave;
-      });
-
-      
-      saveDataToServerCallback({
-         drawingTypeTree,
-         rowsAll: rowToSaveArr,
-         drawingsTypeDeleted,
-         rowsDeleted,
-         cellHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject, true)
-      });
-   };
 
 
    // const saveDataToServer = async () => {
@@ -778,13 +737,6 @@ const PanelSetting2 = (props) => {
 
    return (
       <>
-         {panelSettingType === 'save-ICON' && (
-            <PanelConfirm
-               onClickCancel={onClickCancelModal}
-               onClickApply={saveData}
-               content='Do you want to save ?'
-            />
-         )}
 
          {panelSettingType === 'filter-ICON' && (
             <FormFilter

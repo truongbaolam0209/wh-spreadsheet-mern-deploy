@@ -3,18 +3,16 @@ import OverallComponentDMS from './generalComponents/OverallComponentDMS';
 
 
 
-const PageSpreadsheet = (props) => {
+const PageRFAM = (props) => {
 
    return (
       <div>
          <OverallComponentDMS
             {...props}
-            pageSheetTypeName='page-spreadsheet'
+            pageSheetTypeName='page-rfam'
          />
       </div>
    );
 };
 
-export default PageSpreadsheet;
-
-
+export default PageRFAM;

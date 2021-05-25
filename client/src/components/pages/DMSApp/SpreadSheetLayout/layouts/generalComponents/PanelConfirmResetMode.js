@@ -6,10 +6,10 @@ import ButtonColumnTag from './ButtonColumnTag';
 import ButtonGroupComp from './ButtonGroupComp';
 
 
-const PanelConfirmResetMode = ({ applyResetMode, onClickCancelModal, modeFilter, modeSort, modeSearch, isRfaView }) => {
+const PanelConfirmResetMode = ({ applyResetMode, onClickCancelModal, modeFilter, modeSort, modeSearch, pageSheetTypeName }) => {
 
 
-    const [btnArr, setBtnArr] = useState(!isRfaView ? [
+    const [btnArr, setBtnArr] = useState(pageSheetTypeName === 'page-spreadsheet' ? [
         { id: mongoObjectId(), header: 'Filter', mode: modeFilter.length > 0 ? 'shown' : 'hidden' },
         { id: mongoObjectId(), header: 'Sort', mode: Object.keys(modeSort).length > 0 ? 'shown' : 'hidden' },
         { id: mongoObjectId(), header: 'Search', mode: Object.keys(modeSearch).length > 0 ? 'shown' : 'hidden' },

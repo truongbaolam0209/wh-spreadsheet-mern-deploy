@@ -80,9 +80,10 @@ const findOneWithUserEmail = async (req, res, next) => {
 const updateOrCreateRows = async (req, res, next) => {
    try {
       const { projectId: sheetId, rows } = req.body;
+
       if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
 
-      let result = await _update_Or_Create_Rows(rows, sheetId);
+      let result = await _update_Or_Create_Rows(rows, sheetId, rowModel);
       return res.json(result);
 
    } catch (err) {
@@ -188,7 +189,7 @@ const findSheetIncludingRowsSortedFnc = async (sheetId) => {
 
    if (dataRows.length === 0) {
       let emptyRows = createRowsEmptyInit(drawingTypeTree);
-      let manyRows = await _update_Or_Create_Rows(emptyRows, sheetId);
+      let manyRows = await _update_Or_Create_Rows(emptyRows, sheetId, rowModel);
       rows = manyRows.rowsToCreate;
 
    } else {
@@ -212,9 +213,9 @@ const findSheetIncludingRowsSortedFnc = async (sheetId) => {
    return sheet;
 };
 
-const _update_Or_Create_Rows = async (rowsData, sheetId) => {
+const _update_Or_Create_Rows = async (rowsData, sheetId, rowModel) => {
 
-   let { rowsToUpdate, rowsToCreate } = await _process_Rows_Data(rowsData, sheetId);
+   let { rowsToUpdate, rowsToCreate } = await _process_Rows_Data(rowsData, sheetId, rowModel);
 
    const _genUpdateRowQuery = (rowData) => {
       let { _id, data, ...rest } = rowData;
@@ -226,6 +227,8 @@ const _update_Or_Create_Rows = async (rowsData, sheetId) => {
          $set: setDataQuery
       };
    };
+
+
 
    await Promise.all([
       ...rowsToUpdate.map((r) => rowModel.updateOne({ _id: r._id }, _genUpdateRowQuery(r))),
@@ -240,7 +243,8 @@ const _update_Or_Create_Rows = async (rowsData, sheetId) => {
    };
 };
 
-const _process_Rows_Data = async (rowsData, sheetId) => {
+const _process_Rows_Data = async (rowsData, sheetId, rowModel) => {
+
    let rowsToUpdate = [];
    let rowsToCreate = [];
    if (rowsData instanceof Array) {
@@ -290,7 +294,11 @@ const _process_Rows = (sheetHeaders, rows) => {
             const headerFound = sheetHeaders.find(hd => hd.key === key);
             if (headerFound) {
                rowFormal[headerFound.text] = data[key];
-            } else if (!headerFound && (key === 'rfaNumber' || key.includes('reply-$$$-') || key.includes('submission-$$$-'))) {
+            } else if (!headerFound && (
+               key === 'rfaNumber' ||
+               key.includes('reply-$$$-') ||
+               key.includes('submission-$$$-')
+            )) {
                rowFormal[key] = data[key];
             };
          });
@@ -357,7 +365,7 @@ const saveAllDataRowsToServer = async (req, res, next) => {
 
 
 
-const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, listUser, listGroup, emailSender, projectName) => {
+const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSender, projectName) => {
 
    let rowIds = qRowIds.map(toObjectId);
 
@@ -420,27 +428,27 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, listUser
    const emailTitle = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailTitle', company);
    const rfa = oneRowData['RFA Ref'];
 
-   const recipient = {
-      to: emailListTo,
-      cc: emailListCc
-   };
 
    let listUserOutput = {};
    let listGroupOutput = {};
-   const listGroupLowercase = listGroup.map(x => x.toLowerCase());
 
-   Object.keys(recipient).forEach(key => {
-      recipient[key].forEach(item => {
-         if (listUser.indexOf(item) !== -1) {
-            listUserOutput[key] = [...listUserOutput[key] || [], item];
-         } else if (listGroupLowercase.indexOf(item.toLowerCase()) !== -1) {
-            listGroupOutput[key] = [...listGroupOutput[key] || [], item];
-         } else if (validateEmailInput(item)) {
-            listUserOutput[key] = [...listUserOutput[key] || [], item];
-         };
-      });
+   emailListTo.forEach(item => {
+      if (validateEmailInput(item)) {
+         listUserOutput.to = [...listUserOutput.to || [], item];
+      } else {
+         listGroupOutput.to = [...listGroupOutput.to || [], item];
+      };
+   });
+
+   emailListCc.forEach(item => {
+      if (validateEmailInput(item)) {
+         listUserOutput.cc = [...listUserOutput.cc || [], item];
+      } else {
+         listGroupOutput.cc = [...listGroupOutput.cc || [], item];
+      };
    });
    listUserOutput.cc = [...listUserOutput.cc || [], emailSender];
+
 
    return {
       emailContent,
@@ -486,6 +494,11 @@ module.exports = {
    saveAllDataSettingsToServer,
    saveAllDataRowsToServer,
 
+
+
+
+   _update_Or_Create_Rows,
+   _process_Rows
 };
 
 

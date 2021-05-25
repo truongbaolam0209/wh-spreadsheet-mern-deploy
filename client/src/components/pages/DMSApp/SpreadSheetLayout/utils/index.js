@@ -349,6 +349,7 @@ export const getActionName = (type) => {
    if (type === 'form-submit-RFA') return 'Add New RFA';
    if (type === 'form-resubmit-RFA') return 'Resubmitted RFA';
    if (type === 'form-reply-RFA') return 'Reply RFA';
+   if (type === 'form-RFA-submit-for-admin') return 'Choose Admin Action';
 
 
    if (type === 'Date Automation') return 'Date Automation';

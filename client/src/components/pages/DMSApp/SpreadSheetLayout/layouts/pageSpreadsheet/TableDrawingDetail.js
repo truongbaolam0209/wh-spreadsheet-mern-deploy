@@ -8,7 +8,7 @@ import { colorType, SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { mongoObjectId } from '../../utils';
-import { headersConsultantWithNumber } from '../PageSpreadsheet';
+import { headersConsultantWithNumber } from '../generalComponents/OverallComponentDMS';
 import CellRFA, { getConsultantReplyData, isColumnWithReplyData } from './CellRFA';
 
 
@@ -41,7 +41,7 @@ const TableDrawingDetail = (props) => {
    const { headers } = stateProject.allDataOneSheet.publicSettings;
    const { _id: projectId, token, companies, projectIsAppliedRfaView } = stateProject.allDataOneSheet;
 
-   const { isRfaView, rowsVersionsToSave } = stateRow;
+   const { rowsVersionsToSave } = stateRow;
 
 
    const [rowsHistoryDatabase, setRowsHistoryDatabase] = useState(null);
