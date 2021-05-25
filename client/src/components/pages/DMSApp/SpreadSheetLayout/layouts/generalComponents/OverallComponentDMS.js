@@ -52,7 +52,7 @@ const OverallComponentDMS = (props) => {
 
    let {
       email, role, isAdmin, projectId, projectName, token, company,
-      companies, projectIsAppliedRfaView, listUser, listGroup: listGroupData, projectNameShort, pageSheetTypeName
+      companies, projectIsAppliedRfaView, listUser, listGroup: listGroupData, projectNameShort, pageSheetTypeName, history
    } = props;
 
 
@@ -1170,6 +1170,7 @@ const OverallComponentDMS = (props) => {
                }}
                setLoading={setLoading}
                buttonPanelFunction={buttonPanelFunction}
+               history={history}
             />
          </ModalStyledSetting>
 

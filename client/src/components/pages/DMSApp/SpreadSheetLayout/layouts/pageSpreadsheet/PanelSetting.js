@@ -2,7 +2,6 @@ import { message } from 'antd';
 import Axios from 'axios';
 import moment from 'moment';
 import React, { useContext } from 'react';
-import { useHistory } from 'react-router-dom';
 import { EDIT_DURATION_MIN, SERVER_URL } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
@@ -33,7 +32,7 @@ const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
 
 const PanelSetting = (props) => {
 
-   let history = useHistory();
+
 
    const { state: stateRow, getSheetRows } = useContext(RowContext);
 
@@ -41,7 +40,7 @@ const PanelSetting = (props) => {
    const { state: stateCell, getCellModifiedTemp, OverwriteCellsModified } = useContext(CellContext);
    const { projectIsAppliedRfaView, companies, pageSheetTypeName } = stateProject.allDataOneSheet;
    const { isShowAllConsultant, rowsSelected } = stateRow;
-   const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading, buttonPanelFunction } = props;
+   const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading, buttonPanelFunction, history } = props;
 
    const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
 

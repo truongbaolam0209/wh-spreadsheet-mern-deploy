@@ -37,6 +37,7 @@ const App = () => {
 
 
    const propsSheet = {
+      history: 'history',
       email: browserName === 'Chrome' ? 'tbl@wohhup.com' : 'test@dca.com',
       company: browserName === 'Chrome' ? 'Woh Hup Private Ltd' : consultantCompany,
       role: browserName === 'Chrome' ? 'Document Controller' : 'Consultant',
