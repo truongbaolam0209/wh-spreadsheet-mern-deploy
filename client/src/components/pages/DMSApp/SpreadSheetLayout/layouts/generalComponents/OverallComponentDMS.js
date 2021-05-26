@@ -772,7 +772,17 @@ const OverallComponentDMS = (props) => {
                   onMouseDownColumnHeader={onMouseDownColumnHeader}
                />
             ),
-            cellRenderer: pageSheetTypeName === 'page-spreadsheet' ? (
+            cellRenderer: (pageSheetTypeName === 'page-rfa' || (pageSheetTypeName === 'page-spreadsheet' && projectIsAppliedRfaView &&
+               (
+                  isColumnWithReplyData(hd) ||
+                  isColumnConsultant(hd) ||
+                  hd === 'RFA Ref'
+               )
+            )) ? (
+               <CellRFA
+                  buttonPanelFunction={buttonPanelFunction}
+               />
+            ) : pageSheetTypeName === 'page-spreadsheet' ? (
                <Cell
                   setPosition={setPosition}
                   onRightClickCell={onRightClickCell}
@@ -783,16 +793,6 @@ const OverallComponentDMS = (props) => {
                      contextRow: { stateRow, getSheetRows },
                      contextProject: { stateProject },
                   }}
-               />
-            ) : (pageSheetTypeName === 'page-rfa' || (pageSheetTypeName === 'page-spreadsheet' && projectIsAppliedRfaView &&
-               (
-                  isColumnWithReplyData(hd) ||
-                  isColumnConsultant(hd) ||
-                  hd === 'RFA Ref'
-               )
-            )) ? (
-               <CellRFA
-                  buttonPanelFunction={buttonPanelFunction}
                />
             ) : (
                <CellForm

@@ -289,8 +289,13 @@ const CellRFA = (props) => {
                );
 
             } else if (btn === 'Open Drawing File') {
-               const res = await Axios.get('/api/issue/get-public-url', { params: { key: rfaData[`reply-$$$-drawing-${replyCompany}`], expire: 1000 } });
-               window.open(res.data);
+               const dwgLink = rfaData[`reply-$$$-drawing-${replyCompany}`];
+               if (dwgLink) {
+                  const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
+                  window.open(res.data);
+               } else {
+                  message.info('There is no drawing attached!');
+               };
 
             } else if (btn === 'Edit') {
                let adminEditData = {};
@@ -343,8 +348,12 @@ const CellRFA = (props) => {
          if (isEditTimeOver || userSubmission === email) {
             if (btn === 'Open Drawing File') {
                const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'drawing');
-               const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
-               window.open(res.data);
+               if (dwgLink) {
+                  const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
+                  window.open(res.data);
+               } else {
+                  message.info('There is no drawing attached!');
+               };
             } else if (btn === 'Open 3D File') {
                const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'dwfxLink');
                if (dwgLink) {
