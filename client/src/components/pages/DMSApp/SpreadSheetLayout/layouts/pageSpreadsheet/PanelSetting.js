@@ -39,7 +39,8 @@ const PanelSetting = (props) => {
    const { state: stateCell, getCellModifiedTemp, OverwriteCellsModified } = useContext(CellContext);
    const { projectIsAppliedRfaView, companies, pageSheetTypeName } = stateProject.allDataOneSheet;
    const { isShowAllConsultant, rowsSelected } = stateRow;
-   const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading, buttonPanelFunction, history } = props;
+   const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading, buttonPanelFunction, 
+      history, localState } = props;
 
    const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
 
@@ -851,7 +852,10 @@ const PanelSetting = (props) => {
          commandAction({ type: '' });
 
          await saveDataToServer();
-         history.push('/dms-rfa');
+         history.push({
+            pathname: '/dms-rfa',
+            state: localState
+         });
 
       } catch (err) {
          commandAction({ type: 'save-data-failure' });
@@ -1447,7 +1451,10 @@ const PanelSetting = (props) => {
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={() => {
-                  history.push('/dms-spreadsheet');
+                  history.push({
+                     pathname: '/dms-spreadsheet',
+                     state: localState
+                  });
                }}
                content={'Do you want to go to DMS sheet ?'}
             />

@@ -52,7 +52,8 @@ const OverallComponentDMS = (props) => {
 
    let {
       email, role, isAdmin, projectId, projectName, token, company,
-      companies, projectIsAppliedRfaView, listUser, listGroup: listGroupData, projectNameShort, pageSheetTypeName, history
+      companies, projectIsAppliedRfaView, listUser, listGroup: listGroupData, projectNameShort, pageSheetTypeName, 
+      history, localState
    } = props;
 
    const listGroup = listGroupData.map(x => x.toUpperCase());
@@ -1169,6 +1170,7 @@ const OverallComponentDMS = (props) => {
                setLoading={setLoading}
                buttonPanelFunction={buttonPanelFunction}
                history={history}
+               localState={localState}
             />
          </ModalStyledSetting>
 
