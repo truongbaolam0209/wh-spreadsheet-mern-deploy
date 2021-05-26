@@ -851,7 +851,7 @@ const PanelSetting = (props) => {
          commandAction({ type: '' });
 
          await saveDataToServer();
-         history.push('/sheet-rfa');
+         history.push('/dms-rfa');
 
       } catch (err) {
          commandAction({ type: 'save-data-failure' });
@@ -1447,7 +1447,7 @@ const PanelSetting = (props) => {
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={() => {
-                  history.push('/sheet-spreadsheet');
+                  history.push('/dms-spreadsheet');
                }}
                content={'Do you want to go to DMS sheet ?'}
             />

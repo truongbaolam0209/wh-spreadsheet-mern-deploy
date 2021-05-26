@@ -64,7 +64,7 @@ const OverallComponentDMS = (props) => {
 
    
    const handlerBeforeUnload = (e) => {
-      if (window.location.pathname === '/drawing-edit') {
+      if (window.location.pathname === '/dms-spreadsheet') {
          e.preventDefault();
          e.returnValue = '';
       };
