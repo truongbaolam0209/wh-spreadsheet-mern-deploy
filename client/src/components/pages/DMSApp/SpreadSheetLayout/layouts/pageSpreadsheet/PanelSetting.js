@@ -33,7 +33,6 @@ const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
 const PanelSetting = (props) => {
 
 
-
    const { state: stateRow, getSheetRows } = useContext(RowContext);
 
    const { state: stateProject } = useContext(ProjectContext);
@@ -954,15 +953,18 @@ const PanelSetting = (props) => {
             // const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
             const res = await Axios.post('/api/drawing/set-drawing-files', data);
             const listFileName = res.data;
+
             arrayFileName = listFileName.map(link => ({
                fileName: getFileNameFromLinkResponse(link),
                fileLink: link
             }));
 
-            // arrayFileName = filesPDF.map(fl => ({
-            //    fileName: fl.name,
-            //    fileLink: `https://www.google.com/${fl.name}`
-            // }));
+            // arrayFileName = filesPDF.map(fl => {
+            //    return {
+            //       fileName: fl.name,
+            //       fileLink: `https://www.google.com/${fl.name}`
+            //    };
+            // });
 
             dwgsToAddNewRFA.forEach(r => {
                const fileFound = arrayFileName.find(fl => fl.fileName === r[`${typeText}-$$$-drawing-${company}`]);
@@ -1195,52 +1197,6 @@ const PanelSetting = (props) => {
                momentToTriggerEmail: moment().add(moment.duration(EDIT_DURATION_MIN, 'minutes'))
             });
          };
-
-
-         // let listUserOutput = {};
-         // let listGroupOutput = {};
-
-         // Object.keys(recipient).forEach(key => {
-         //    recipient[key].forEach(item => {
-         //       if (listUser.indexOf(item) !== -1) {
-         //          listUserOutput[key] = [...listUserOutput[key] || [], item];
-         //       } else if (listGroup.indexOf(item) !== -1) {
-         //          listGroupOutput[key] = [...listGroupOutput[key] || [], item];
-         //       } else if (validateEmailInput(item)) {
-         //          listUserOutput[key] = [...listUserOutput[key] || [], item];
-         //       };
-         //    });
-         // });
-         // listUserOutput.cc = [...listUserOutput.cc || [], email];
-
-         // const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
-         // const getDrawingURLFromDB = async () => {
-         //    try {
-         //       return await Promise.all(dwgsNewRFAClone.map(async dwg => {
-         //          const typeApi = type.includes('form-submit-') ? 'submission' : 'reply';
-         //          const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${typeApi}-$$$-drawing-${company}`], expire: 3600 * 24 * 7 } });
-         //          dwg[`${typeApi}-$$$-drawing-${company}`] = res.data;
-         //          return dwg;
-         //       }));
-         //    } catch (err) {
-         //       console.log(err);
-         //    };
-         // };
-
-         // const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
-
-         // const emailContentOutput = generateEmailInnerHTMLFrontEnd(company, type.includes('submit') ? 'submit' : 'reply', dwgsToAddNewRFAGetDrawingURL);
-
-         // await Axios.post('/api/rfa/mail', {
-         //    token,
-         //    title: `${projectName} - ${rfaRefData} - ${emailTextTitle}`,
-         //    content: emailContentOutput,
-         //    listUser: listUserOutput,
-         //    listGroup: listGroupOutput,
-         //    projectId
-         // });
-
-
 
          message.success('Submitted Successfully', 3);
 
@@ -1731,13 +1687,14 @@ export const getDataForRFASheet = (rows, rowsHistory, drawingTypeTree, role, com
 
 
    allRowsForRFA.sort((a, b) => {
-      if (!b['RFA Ref']) return 1;
+      // if (!b['RFA Ref']) return 1;
+      // if (a['RFA Ref'] > b['RFA Ref']) return -1;
+      // if (a['RFA Ref'] < b['RFA Ref']) return 1;
+      // if (a['Drawing Number'] > b['Drawing Number']) return 1;
+      // if (a['Drawing Number'] < b['Drawing Number']) return -1;
 
-      if (a['RFA Ref'] > b['RFA Ref']) return -1;
-      if (a['RFA Ref'] < b['RFA Ref']) return 1;
-
-      if (a['Drawing Number'] > b['Drawing Number']) return 1;
-      if (a['Drawing Number'] < b['Drawing Number']) return -1;
+      if (a['RFA Ref'] > b['RFA Ref']) return 1;
+      if (a['RFA Ref'] < b['RFA Ref']) return -1;
    });
 
 

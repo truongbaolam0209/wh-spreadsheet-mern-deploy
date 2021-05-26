@@ -292,8 +292,6 @@ const CellRFA = (props) => {
                const res = await Axios.get('/api/issue/get-public-url', { params: { key: rfaData[`reply-$$$-drawing-${replyCompany}`], expire: 1000 } });
                window.open(res.data);
 
-            } else if (btn === 'Open 3D File') {
-
             } else if (btn === 'Edit') {
                let adminEditData = {};
                const listEmailTo = getInfoValueFromRfaData(rfaData, 'reply', 'emailTo', replyCompany);
@@ -398,8 +396,6 @@ const CellRFA = (props) => {
       };
    };
 
-   // roleTradeCompany.role === 'Consultant' ? 'reply' : roleTradeCompany.role === 'Document Controller' ? 'submission' : '',
-
    const checkIfEditBtnShown = (header) => {
 
       if (header === 'RFA Ref' && (roleTradeCompany.role === 'Document Controller' || isUserCanSubmitRfaBothSide)) {
@@ -478,11 +474,11 @@ const CellRFA = (props) => {
          arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'plus-square'];
       };
       if (thereIsDrawingWithNoReplyAndConsultantAllowedReply) {
-         arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'edit'];
+         arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'form'];
       };
    } else {
       if (thereIsDrawingWithNoReplyAndConsultantAllowedReply && roleTradeCompany.role === 'Consultant') {
-         arrayButtonReplyAndResubmit = ['edit'];
+         arrayButtonReplyAndResubmit = ['form'];
       } else if (thereIsDrawingWithNoRfaRef && roleTradeCompany.role === 'Document Controller') {
          arrayButtonReplyAndResubmit = ['plus-square'];
       };
@@ -531,17 +527,17 @@ const CellRFA = (props) => {
                </div>
 
                {arrayButtonReplyAndResubmit.map(button => (
-                  <Tooltip key={button} placement='top' title={button === 'edit' ? 'Reply To This RFA' : button === 'plus-square' ? 'Add New RFA For This RFA' : null} >
+                  <Tooltip key={button} placement='top' title={button === 'form' ? 'Reply To This RFA' : button === 'plus-square' ? 'Add New RFA For This RFA' : null} >
                      <Icon
                         type={button}
                         style={{
                            fontSize: 17,
                            transform: 'translateY(1.5px)',
                            position: 'absolute',
-                           right: arrayButtonReplyAndResubmit.length === 2 ? (button === 'edit' ? 30 : 3) : 3,
+                           right: arrayButtonReplyAndResubmit.length === 2 ? (button === 'form' ? 30 : 3) : 3,
                            top: 0
                         }}
-                        onClick={() => onClickSubmitOrReplyRFA(button === 'edit' ? 'form-reply-RFA' : button === 'plus-square' ? 'form-resubmit-RFA' : null)}
+                        onClick={() => onClickSubmitOrReplyRFA(button === 'form' ? 'form-reply-RFA' : button === 'plus-square' ? 'form-resubmit-RFA' : null)}
                      />
                   </Tooltip>
                ))}
@@ -818,7 +814,13 @@ export const getConsultantReplyData = (rowData, header, companies) => {
 const cloneRfaData = (row) => {
    let obj = {};
    for (const key in row) {
-      if (key.includes('reply') || key.includes('submission') || key === 'rfaNumber') {
+      if (
+         key.includes('reply') || 
+         key.includes('submission') || 
+         key === 'rfaNumber' || 
+         key === 'Consultant Reply (T)' ||
+         key === 'Drg To Consultant (A)'
+      ) {
          obj[key] = row[key];
       };
    };

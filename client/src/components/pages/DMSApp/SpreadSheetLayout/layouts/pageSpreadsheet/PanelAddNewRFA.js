@@ -34,16 +34,15 @@ const checkIfMatchWithInputCompanyFormat = (item, listConsultants) => {
 };
 const getGroupCompanyForAdminSubmitWithoutEmail = (listGroup, listConsultants) => {
    let output = [];
-   listGroup.forEach(group => {
-      if (group.includes('_%$%_')) {
-         const companyName = extractConsultantName(group);
-         if (listConsultants.find(x => x.company === companyName)) {
-            output.push(group);
-         };
+   listConsultants.forEach(cmp => {
+      if (listGroup.find(x => x.includes(`${cmp.company}_%$%_`))) {
+         output.push(`${cmp.company}_%$%_`);
       };
    });
    return [...new Set(output)];
 };
+
+
 
 const versionArray = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
@@ -72,7 +71,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { roleTradeCompany: { role, company: companyUser }, companies, listUser, listGroup, projectNameShort: projectNameShortText } = stateProject.allDataOneSheet;
+   const { roleTradeCompany: { role, company: companyUser }, companies, listUser, listGroup: listGroupOutput, projectNameShort: projectNameShortText } = stateProject.allDataOneSheet;
    const projectNameShort = projectNameShortText || 'NO-PROJECT-NAME';
 
    const { rowsAll, loading, currentRfaToAddNewOrReplyOrEdit, rowsRfaAll, rowsRfaAllInit, drawingTypeTreeDmsView } = stateRow;
@@ -88,6 +87,11 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const listConsultants = companies.filter(x => x.companyType === 'Consultant');
 
 
+   let listGroup = (isAdminAction && isAdminActionWithNoEmailSent)
+      ? getGroupCompanyForAdminSubmitWithoutEmail(listGroupOutput, listConsultants)
+      : listGroupOutput;
+
+   
    const listRecipient = (isAdminAction && isAdminActionWithNoEmailSent)
       ? getGroupCompanyForAdminSubmitWithoutEmail(listGroup, listConsultants)
       : [...listUser, ...listGroup];
@@ -133,11 +137,13 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          if (!isFormEditting) {
             setDwgsToAddNewRFA(null);
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
-            setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
+            
+            if (isAdminAction && isAdminActionWithNoEmailSent) {
+               setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
+            };
 
          } else {
             const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
-            const oneRowInRfa = rowsToEdit[0];
             const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
             rowsToEditClone.forEach(r => {
                const dwgLink = r[`submission-$$$-drawing-${company}`];
@@ -145,23 +151,28 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             });
             setDwgsToAddNewRFA(rowsToEditClone);
 
-            const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || [];
-            setListRecipientTo([...new Set(listEmailTo)]);
 
-            const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || [];
+            if (isAdminAction && isAdminActionWithNoEmailSent) {
+               const listConsultantMustReply = getInfoValueFromRfaData(currentRfaData, 'submission', 'consultantMustReply', company) || [];
+               setListRecipientTo(listConsultantMustReply.map(cmp => `${cmp}_%$%_`));
+               setDateSendThisForm(moment(currentRfaData['Drg To Consultant (A)'], 'DD/MM/YY'));
+            } else {
+               const listEmailTo = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailTo', company) || [];
+               setListRecipientTo([...new Set(listEmailTo)]);
+            };
+            
+
+            const listEmailCc = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailCc', company) || [];
             setListRecipientCc([...new Set(listEmailCc)]);
 
+            setListConsultantMustReply(getInfoValueFromRfaData(currentRfaData, 'submission', 'consultantMustReply', company) || []);
+            setRequestedBy(getInfoValueFromRfaData(currentRfaData, 'submission', 'requestedBy', company) || '');
+            setTextEmailTitle(getInfoValueFromRfaData(currentRfaData, 'submission', 'emailTitle', company) || '');
+            setTextEmailAdditionalNotes(getInfoValueFromRfaData(currentRfaData, 'submission', 'emailAdditionalNotes', company) || '');
 
-            setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'consultantMustReply', company) || []);
-            setRequestedBy(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'requestedBy', company) || '');
-            setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTitle', company) || '');
-            setTextEmailAdditionalNotes(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailAdditionalNotes', company) || '');
-
-            setDateReplyForSubmitForm(moment(oneRowInRfa['Consultant Reply (T)'], 'DD/MM/YY'));
-
-            setDateSendThisForm(moment(oneRowInRfa['Drg To Consultant (A)'], 'DD/MM/YY'));
-
-            setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'trade', company)));
+            setDateReplyForSubmitForm(moment(currentRfaData['Consultant Reply (T)'], 'DD/MM/YY'));
+            
+            setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(currentRfaData, 'submission', 'trade', company)));
 
             const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
             setRfaNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
@@ -172,16 +183,20 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                return dwg.rfaNumber === currentRfaNumber &&
                   !dwg['RFA Ref'];
             });
-
-
             setDwgsToAddNewRFA(dwgsToResubmit.map(x => ({ ...x })));
 
-            const listEmailTo = currentRfaData[`submission-$$$-emailTo-${company}`] || [];
-            setListRecipientTo([...new Set(listEmailTo)]);
+
+            if (isAdminAction && isAdminActionWithNoEmailSent) {
+               const listConsultantMustReply = getInfoValueFromRfaData(currentRfaData, 'submission', 'consultantMustReply', company) || [];
+               setListRecipientTo(listConsultantMustReply.map(cmp => `${cmp}_%$%_`));
+               setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
+            } else {
+               const listEmailTo = currentRfaData[`submission-$$$-emailTo-${company}`] || [];
+               setListRecipientTo([...new Set(listEmailTo)]);
+            };
 
             const listEmailCc = currentRfaData[`submission-$$$-emailCc-${company}`] || [];
             setListRecipientCc([...new Set(listEmailCc)]);
-
 
             setListConsultantMustReply(currentRfaData[`submission-$$$-consultantMustReply-${company}`]);
             setRequestedBy(currentRfaData[`submission-$$$-requestedBy-${company}`]);
@@ -200,11 +215,10 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             const oneDwg = dwgsToResubmit[0];
             setTextEmailTitle('Resubmit - ' + oneDwg[`submission-$$$-emailTitle-${company}`]);
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
-            setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
+            
          } else {
 
             const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
-            const oneRowInRfa = rowsToEdit[0];
             const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
             rowsToEditClone.forEach(r => {
                const dwgLink = r[`submission-$$$-drawing-${company}`];
@@ -213,23 +227,28 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
             const versionTextSuffix = currentRfaRef.slice(currentRfaNumber.length, currentRfaRef.length);
             setRfaNewVersionResubmitSuffix(versionTextSuffix);
-
             setDwgsToAddNewRFA(rowsToEditClone);
 
-            const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || [];
-            setListRecipientTo([...new Set(listEmailTo)]);
+            if (isAdminAction && isAdminActionWithNoEmailSent) {
+               const listConsultantMustReply = getInfoValueFromRfaData(currentRfaData, 'submission', 'consultantMustReply', company) || [];
+               setListRecipientTo(listConsultantMustReply.map(cmp => `${cmp}_%$%_`));
+               setDateSendThisForm(moment(currentRfaData['Drg To Consultant (A)'], 'DD/MM/YY'));
+            } else {
+               const listEmailTo = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailTo', company) || [];
+               setListRecipientTo([...new Set(listEmailTo)]);
+            };
+            
 
-            const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || [];
+            const listEmailCc = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailCc', company) || [];
             setListRecipientCc([...new Set(listEmailCc)]);
 
-            setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'consultantMustReply', company) || []);
-            setRequestedBy(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'requestedBy', company) || '');
-            setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTitle', company) || '');
-            setTextEmailAdditionalNotes(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailAdditionalNotes', company) || '');
+            setListConsultantMustReply(getInfoValueFromRfaData(currentRfaData, 'submission', 'consultantMustReply', company) || []);
+            setRequestedBy(getInfoValueFromRfaData(currentRfaData, 'submission', 'requestedBy', company) || '');
+            setTextEmailTitle(getInfoValueFromRfaData(currentRfaData, 'submission', 'emailTitle', company) || '');
+            setTextEmailAdditionalNotes(getInfoValueFromRfaData(currentRfaData, 'submission', 'emailAdditionalNotes', company) || '');
 
-            setDateReplyForSubmitForm(moment(oneRowInRfa['Consultant Reply (T)'], 'DD/MM/YY'));
-            setDateSendThisForm(moment(oneRowInRfa['Drg To Consultant (A)'], 'DD/MM/YY'));
-            setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'trade', company)));
+            setDateReplyForSubmitForm(moment(currentRfaData['Consultant Reply (T)'], 'DD/MM/YY'));
+            setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(currentRfaData, 'submission', 'trade', company)));
 
             const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
             setRfaNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
@@ -261,11 +280,12 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             const keyEmailTitle = getInfoKeyFromRfaData(oneDwg, 'submission', 'emailTitle');
             setTextEmailTitle('Reply - ' + oneDwg[keyEmailTitle]);
 
-            setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
+            if (isAdminAction && isAdminActionWithNoEmailSent) {
+               setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
+            };
 
          } else {
             const dwgsToEditReply = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
-            const oneRowInRfa = dwgsToEditReply[0];
             const dwgsToEditReplyClone = dwgsToEditReply.map(x => ({ ...x }));
             dwgsToEditReplyClone.forEach(r => {
                const dwgLink = r[`reply-$$$-drawing-${company}`];
@@ -273,17 +293,21 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             });
             setDwgsToAddNewRFA(dwgsToEditReplyClone);
 
-            const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTo', company) || [];
+
+            const listEmailTo = getInfoValueFromRfaData(currentRfaData, 'reply', 'emailTo', company) || [];
             setListRecipientTo([...new Set(listEmailTo)]);
 
-            const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailCc', company) || [];
+            const listEmailCc = getInfoValueFromRfaData(currentRfaData, 'reply', 'emailCc', company) || [];
             setListRecipientCc([...new Set(listEmailCc)]);
 
-            setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTitle', company) || '');
-            setTextEmailAdditionalNotes(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailAdditionalNotes', company) || '');
+            setTextEmailTitle(getInfoValueFromRfaData(currentRfaData, 'reply', 'emailTitle', company) || '');
+            setTextEmailAdditionalNotes(getInfoValueFromRfaData(currentRfaData, 'reply', 'emailAdditionalNotes', company) || '');
 
-            const replyActualDate = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'date', company);
-            setDateSendThisForm(moment(moment(replyActualDate), 'DD/MM/YY'));
+
+            if (isAdminAction && isAdminActionWithNoEmailSent) {
+               const replyActualDate = getInfoValueFromRfaData(currentRfaData, 'reply', 'date', company);
+               setDateSendThisForm(moment(moment(replyActualDate), 'DD/MM/YY'));
+            };
          };
       };
    }, []);
@@ -489,7 +513,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
       setListConsultantMustReply(outputListConsultantMustReply);
    };
-
 
 
    const onClickApplyDoneFormRFA = () => {
@@ -744,7 +767,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   ) : null}
 
 
-                  {'form-reply-RFA' && (
+                  {isAdminActionWithNoEmailSent && (
                      <div style={{ display: 'flex', marginRight: 40 }}>
                         <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date Submission</div>
                         <DatePickerStyled
@@ -798,7 +821,13 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                                        isLeadConsultantIncluded = true;
                                     };
                                  });
-                                 if (!isLeadConsultantIncluded) message.warning('Email loop must include lead consultant!');
+                                 if (!isLeadConsultantIncluded) {
+                                    if (isAdminAction && isAdminActionWithNoEmailSent) {
+                                       message.warning('You must include lead consultant!');
+                                    } else {
+                                       message.warning('Email loop must include lead consultant!');
+                                    };
+                                 };
 
                                  const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
                                  if (
@@ -832,7 +861,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                                  companyNameToCheck = listRecipientTo.find(x => !list.find(item => item === x));
                                  isRemoveTag = true;
                               };
-                              // console.log('companyNameToCheck====', companyNameToCheck);
                               onClickTagRecipientTo(companyNameToCheck, isRemoveTag);
                            }}
                         >
@@ -843,7 +871,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                                  fontWeight: 'bold',
                                  color: 'white'
                               } : {};
-                              const textShown = extractConsultantName(cm) ? cm.replace('_%$%_', '_') : cm;
+                              const textShown = extractConsultantName(cm) ? cm.replace('_%$%_', ' ') : cm;
 
                               return (
                                  <Option key={cm}>

@@ -109,6 +109,11 @@ const App = () => {
                <Route exact path='/sheet-spreadsheet'><PageSpreadsheet {...propsSheet} /></Route>
                <Route exact path='/sheet-rfa'><PageRFA {...propsSheet} /></Route>
                <Route exact path='/sheet-rfam'><PageRFAM {...propsSheet} /></Route>
+               {/* <Route path='/sheet-rfi'><PageRFA {...propsSheet} /></Route>
+               <Route path='/sheet-dt'><PageRFA {...propsSheet} /></Route>
+               <Route path='/sheet-cvi'><PageRFA {...propsSheet} /></Route> */}
+
+      
 
 
                <Route path='/sheet-data-entry'>

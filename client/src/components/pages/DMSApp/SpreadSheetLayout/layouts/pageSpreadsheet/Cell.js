@@ -589,6 +589,7 @@ export const rowLocked = (roleTradeCompany, rowData, modeGroup, drawingTypeTree)
 
 
    const drawingTypeTreeClone = drawingTypeTree.map(x => ({ ...x }));
+   console.log('drawingTypeTreeClone', drawingTypeTreeClone, rowData);
    const dwgType = drawingTypeTreeClone.find(x => x.id === rowData._parentRow);
 
    let companyName;

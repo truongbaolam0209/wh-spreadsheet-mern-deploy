@@ -783,7 +783,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
                         >
                            {listRecipient.map(cm => {
                               const isLeadConsultant = listConsultantMustReply[0] && extractConsultantName(cm) === listConsultantMustReply[0];
-                              console.log(listConsultantMustReply, cm);
                               const isLeadConsultantStyled = isLeadConsultant ? {
                                  background: colorType.primary,
                                  fontWeight: 'bold',
@@ -1099,7 +1098,6 @@ const getInputForTable = (filesPDFForm, filesPDFDrawing) => {
          });
       };
    };
-   console.log('output', output);
    return output;
 };
 

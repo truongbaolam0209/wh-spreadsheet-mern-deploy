@@ -55,16 +55,14 @@ const OverallComponentDMS = (props) => {
       companies, projectIsAppliedRfaView, listUser, listGroup: listGroupData, projectNameShort, pageSheetTypeName, history
    } = props;
 
-
-
    const listGroup = listGroupData.map(x => x.toUpperCase());
    const roleTradeCompany = getUserRoleTradeCompany(role, company);
-
 
    const isUserCanSubmitRfaBothSide = isAdmin;
 
    const tableRef = useRef();
 
+   
    const handlerBeforeUnload = (e) => {
       if (window.location.pathname === '/drawing-edit') {
          e.preventDefault();
@@ -743,7 +741,7 @@ const OverallComponentDMS = (props) => {
       let headersObj = [{
          key: 'Index', dataKey: 'Index', title: '', width: 50,
          frozen: Column.FrozenDirection.LEFT,
-         cellRenderer: pageSheetTypeName === 'page-spreadsheet' ? (
+         cellRenderer: (
             <CellIndex
                contextInput={{
                   contextCell: { setCellActive },
@@ -751,7 +749,7 @@ const OverallComponentDMS = (props) => {
                   contextProject: { stateProject },
                }}
             />
-         ) : null,
+         ),
       }];
 
       let AdditionalHeadersForProjectRFA = [];
