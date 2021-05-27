@@ -373,8 +373,6 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
    if (!rowIds) return 'ERROR - rowIds';
    if (!company) return 'ERROR - company';
    if (!type) return 'ERROR - Missing type';
-   if (!listUser) return 'ERROR - Missing listUser';
-   if (!listGroup) return 'ERROR - Missing listGroup';
    if (!emailSender) return 'ERROR - Missing emailSender';
    if (!projectName) return 'ERROR - Missing projectName';
 
