@@ -52,12 +52,13 @@ const OverallComponentDMS = (props) => {
 
    let {
       email, role, isAdmin, projectId, projectName, token, company,
-      companies, projectIsAppliedRfaView, listUser, listGroup: listGroupData, projectNameShort, pageSheetTypeName, 
+      companies, projectIsAppliedRfaView, listUser, listGroup, projectNameShort, pageSheetTypeName, 
       history, localState
    } = props;
 
-   const listGroup = listGroupData.map(x => x.toUpperCase());
+
    const roleTradeCompany = getUserRoleTradeCompany(role, company);
+
 
    const isUserCanSubmitRfaBothSide = isAdmin;
 

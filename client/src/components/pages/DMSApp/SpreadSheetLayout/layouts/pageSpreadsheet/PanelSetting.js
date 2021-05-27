@@ -39,7 +39,7 @@ const PanelSetting = (props) => {
    const { state: stateCell, getCellModifiedTemp, OverwriteCellsModified } = useContext(CellContext);
    const { projectIsAppliedRfaView, companies, pageSheetTypeName } = stateProject.allDataOneSheet;
    const { isShowAllConsultant, rowsSelected } = stateRow;
-   const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading, buttonPanelFunction, 
+   const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading, buttonPanelFunction,
       history, localState } = props;
 
    const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
