@@ -1,8 +1,7 @@
 import { DatePicker, Icon, Input, message, Modal, Select, Tooltip, Upload } from 'antd';
-import Column from 'antd/lib/table/Column';
 import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
-import BaseTable, { AutoResizer } from 'react-base-table';
+import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
@@ -10,6 +9,8 @@ import { Context as RowContext } from '../../contexts/rowContext';
 import { debounceFnc, mongoObjectId, validateEmailInput } from '../../utils';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
+import TableDrawingRfaForMultiForm from './TableDrawingRfaForMultiForm';
+
 
 
 
@@ -53,7 +54,7 @@ const Table = (props) => {
 };
 
 
-const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
+const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm }) => {
 
 
    const { state: stateRow, getSheetRows } = useContext(RowContext);
@@ -65,7 +66,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
    const { rowsAll, loading, currentRefToAddNewOrReplyOrEdit, rowsRfamAll, rowsRfamAllInit, drawingTypeTreeDmsView } = stateRow;
 
    const {
-      currentRfaNumber, currentRfaRef, currentRfaData, formRefType, isFormEditting,
+      currentRefNumber, currentRefText, currentRefData, formRefType, isFormEditting,
       isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
    } = currentRefToAddNewOrReplyOrEdit || {};
 
@@ -86,26 +87,29 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
 
    const [refNumberSuffixFirstTimeSubmit, setRefNumberSuffixFirstTimeSubmit] = useState('');
 
-   // const [rfaNewVersionResubmitSuffix, setRfaNewVersionResubmitSuffix] = useState('');
+   const [rfaNewVersionResubmitSuffix, setRfaNewVersionResubmitSuffix] = useState('');
 
    const [tradeForFirstTimeSubmit, setTradeForFirstTimeSubmit] = useState('');
 
    const [dateReplyForSubmitForm, setDateReplyForSubmitForm] = useState(null);
 
-   const [tablePickDrawingRFA, setTablePickDrawingRFA] = useState(false);
-   // 
-   // const [dwgIdToAddComment, setIdToDwgAddComment] = useState(null);
-   // const [nosColumnFixed, setNosColumnFixed] = useState(1);
+   const [tablePickDrawingRefSubmitted, setTablePickDrawingRefSubmitted] = useState(false);
+
+   const [nosColumnFixed, setNosColumnFixed] = useState(1);
    // const [commentText, setCommentText] = useState('');
 
-   const [filesPDFForm, setFilesPDFForm] = useState(null);
-   const [filesPDFDrawing, setFilesPDFDrawing] = useState(null);
-   const [dwgsImportFromRFA, setDwgsImportFromRFA] = useState(null);
+   const [filesPdfForm, setFilesPdfForm] = useState({});
+   const [filesPdfDrawing, setFilesPdfDrawing] = useState({});
+   const [dwgsImportFromRFA, setDwgsImportFromRFA] = useState([]);
+
+   const [dataInputForTable, setDataInputForTable] = useState([]);
 
 
-   
+   useEffect(() => {
+      setDataInputForTable(getInputForTable(filesPdfForm, filesPdfDrawing, dwgsImportFromRFA));
+   }, [filesPdfForm, filesPdfDrawing, dwgsImportFromRFA]);
 
-   getInputForTable(filesPDFForm, filesPDFDrawing);
+
 
 
    const [listRecipientTo, setListRecipientTo] = useState([]);
@@ -118,154 +122,154 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
 
    const [description, setDescription] = useState('');
 
+   const [modalConfirmsubmitOrCancel, setModalConfirmsubmitOrCancel] = useState(null);
 
 
    useEffect(() => {
       if (formRefType === 'form-submit-multi-type') {
          if (!isFormEditting) {
-   //          setDwgsImportFromRFA(null);
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
 
          } else {
-   //          const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
-   //          const oneRowInRfa = rowsToEdit[0];
-   //          const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
-   //          rowsToEditClone.forEach(r => {
-   //             const dwgLink = r[`submission-$$$-drawing-${company}`];
-   //             r[`submission-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
-   //          });
-   //          setDwgsImportFromRFA(rowsToEditClone);
+            //          const rowsToEdit = rowsRfaAllInit.filter(x => currentRefText === x['RFA Ref']);
+            //          const oneRowInRfa = rowsToEdit[0];
+            //          const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
+            //          rowsToEditClone.forEach(r => {
+            //             const dwgLink = r[`submission-$$$-drawing-${company}`];
+            //             r[`submission-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
+            //          });
+            //          setDwgsImportFromRFA(rowsToEditClone);
 
-   //          const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || [];
-   //          setListRecipientTo([...new Set(listEmailTo)]);
+            //          const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || [];
+            //          setListRecipientTo([...new Set(listEmailTo)]);
 
-   //          const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || [];
-   //          setListRecipientCc([...new Set(listEmailCc)]);
+            //          const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || [];
+            //          setListRecipientCc([...new Set(listEmailCc)]);
 
 
-   //          setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'consultantMustReply', company) || []);
-   //          setRequestedBy(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'requestedBy', company) || '');
-   //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTitle', company) || '');
-   //          setDescription(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailAdditionalNotes', company) || '');
+            //          setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'consultantMustReply', company) || []);
+            //          setRequestedBy(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'requestedBy', company) || '');
+            //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTitle', company) || '');
+            //          setDescription(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailAdditionalNotes', company) || '');
 
-   //          setDateReplyForSubmitForm(moment(oneRowInRfa['Consultant Reply (T)'], 'DD/MM/YY'));
-   //          setTradeForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'trade', company)));
+            //          setDateReplyForSubmitForm(moment(oneRowInRfa['Consultant Reply (T)'], 'DD/MM/YY'));
+            //          setTradeForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'trade', company)));
 
-   //          const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
-   //          setRefNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
+            //          const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRefText)[0];
+            //          setRefNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
          };
-   //    } else if (formRefType === 'form-resubmit-RFA') {
-   //       if (!isFormEditting) {
-   //          const dwgsToResubmit = rowsRfaAllInit.filter(dwg => {
-   //             return dwg.rfaNumber === currentRfaNumber &&
-   //                !dwg['RFA Ref'];
-   //          });
+         //    } else if (formRefType === 'form-resubmit-RFA') {
+         //       if (!isFormEditting) {
+         //          const dwgsToResubmit = rowsRfaAllInit.filter(dwg => {
+         //             return dwg.rfaNumber === currentRefNumber &&
+         //                !dwg['RFA Ref'];
+         //          });
 
 
-   //          setDwgsImportFromRFA(dwgsToResubmit.map(x => ({ ...x })));
+         //          setDwgsImportFromRFA(dwgsToResubmit.map(x => ({ ...x })));
 
-   //          const listEmailTo = currentRfaData[`submission-$$$-emailTo-${company}`] || [];
-   //          setListRecipientTo([...new Set(listEmailTo)]);
+         //          const listEmailTo = currentRefData[`submission-$$$-emailTo-${company}`] || [];
+         //          setListRecipientTo([...new Set(listEmailTo)]);
 
-   //          const listEmailCc = currentRfaData[`submission-$$$-emailCc-${company}`] || [];
-   //          setListRecipientCc([...new Set(listEmailCc)]);
-
-
-   //          setListConsultantMustReply(currentRfaData[`submission-$$$-consultantMustReply-${company}`]);
-   //          setRequestedBy(currentRfaData[`submission-$$$-requestedBy-${company}`]);
+         //          const listEmailCc = currentRefData[`submission-$$$-emailCc-${company}`] || [];
+         //          setListRecipientCc([...new Set(listEmailCc)]);
 
 
-   //          const versionAlreadySubmit = rowsRfaAllInit
-   //             .filter(dwg => dwg.rfaNumber === currentRfaNumber && dwg['RFA Ref'])
-   //             .map(x => x['RFA Ref']);
+         //          setListConsultantMustReply(currentRefData[`submission-$$$-consultantMustReply-${company}`]);
+         //          setRequestedBy(currentRefData[`submission-$$$-requestedBy-${company}`]);
 
-   //          const versionTextAlreadySubmitArr = versionAlreadySubmit.map(rfaNum => {
-   //             return rfaNum.slice(currentRfaNumber.length, rfaNum.length);
-   //          });
-   //          const versionLeft = versionArray.filter(x => versionTextAlreadySubmitArr.indexOf(x) === -1);
-   //          setRfaNewVersionResubmitSuffix(versionLeft[0]);
 
-   //          const oneDwg = dwgsToResubmit[0];
-   //          setTextEmailTitle('Resubmit - ' + oneDwg[`submission-$$$-emailTitle-${company}`]);
-   //          setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
-   //       } else {
+         //          const versionAlreadySubmit = rowsRfaAllInit
+         //             .filter(dwg => dwg.rfaNumber === currentRefNumber && dwg['RFA Ref'])
+         //             .map(x => x['RFA Ref']);
 
-   //          const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
-   //          const oneRowInRfa = rowsToEdit[0];
-   //          const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
-   //          rowsToEditClone.forEach(r => {
-   //             const dwgLink = r[`submission-$$$-drawing-${company}`];
-   //             r[`submission-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
-   //          });
+         //          const versionTextAlreadySubmitArr = versionAlreadySubmit.map(rfaNum => {
+         //             return rfaNum.slice(currentRefNumber.length, rfaNum.length);
+         //          });
+         //          const versionLeft = versionArray.filter(x => versionTextAlreadySubmitArr.indexOf(x) === -1);
+         //          setRfaNewVersionResubmitSuffix(versionLeft[0]);
 
-   //          const versionTextSuffix = currentRfaRef.slice(currentRfaNumber.length, currentRfaRef.length);
-   //          setRfaNewVersionResubmitSuffix(versionTextSuffix);
+         //          const oneDwg = dwgsToResubmit[0];
+         //          setTextEmailTitle('Resubmit - ' + oneDwg[`submission-$$$-emailTitle-${company}`]);
+         //          setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
+         //       } else {
 
-   //          setDwgsImportFromRFA(rowsToEditClone);
+         //          const rowsToEdit = rowsRfaAllInit.filter(x => currentRefText === x['RFA Ref']);
+         //          const oneRowInRfa = rowsToEdit[0];
+         //          const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
+         //          rowsToEditClone.forEach(r => {
+         //             const dwgLink = r[`submission-$$$-drawing-${company}`];
+         //             r[`submission-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
+         //          });
 
-   //          const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || [];
-   //          setListRecipientTo([...new Set(listEmailTo)]);
+         //          const versionTextSuffix = currentRefText.slice(currentRefNumber.length, currentRefText.length);
+         //          setRfaNewVersionResubmitSuffix(versionTextSuffix);
 
-   //          const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || [];
-   //          setListRecipientCc([...new Set(listEmailCc)]);
+         //          setDwgsImportFromRFA(rowsToEditClone);
 
-   //          setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'consultantMustReply', company) || []);
-   //          setRequestedBy(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'requestedBy', company) || '');
-   //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTitle', company) || '');
-   //          setDescription(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailAdditionalNotes', company) || '');
+         //          const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || [];
+         //          setListRecipientTo([...new Set(listEmailTo)]);
 
-   //          setDateReplyForSubmitForm(moment(oneRowInRfa['Consultant Reply (T)'], 'DD/MM/YY'));
-   //          setTradeForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'trade', company)));
+         //          const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || [];
+         //          setListRecipientCc([...new Set(listEmailCc)]);
 
-   //          const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
-   //          setRefNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
+         //          setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'consultantMustReply', company) || []);
+         //          setRequestedBy(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'requestedBy', company) || '');
+         //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTitle', company) || '');
+         //          setDescription(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailAdditionalNotes', company) || '');
 
-   //       };
-   //    } else if (formRefType === 'form-reply-RFA') {
+         //          setDateReplyForSubmitForm(moment(oneRowInRfa['Consultant Reply (T)'], 'DD/MM/YY'));
+         //          setTradeForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'trade', company)));
 
-   //       if (!isFormEditting) {
-   //          const dwgsNotReplyYet = rowsRfaAllInit.filter(dwg => {
-   //             return dwg.rfaNumber === currentRfaNumber &&
-   //                dwg['RFA Ref'] === currentRfaRef &&
-   //                !currentRfaData[`reply-$$$-status-${company}`];
-   //          });
+         //          const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRefText)[0];
+         //          setRefNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
 
-   //          setDwgsImportFromRFA(dwgsNotReplyYet.map(x => ({ ...x })));
+         //       };
+         //    } else if (formRefType === 'form-reply-RFA') {
 
-   //          let arrEmailCc = [];
-   //          for (const key in currentRfaData) {
-   //             if (key.includes('submission-$$$-user-')) {
-   //                const listEmailTo = currentRfaData[key] ? [currentRfaData[key]] : [];
-   //                setListRecipientTo([...new Set(listEmailTo)]);
+         //       if (!isFormEditting) {
+         //          const dwgsNotReplyYet = rowsRfaAllInit.filter(dwg => {
+         //             return dwg.rfaNumber === currentRefNumber &&
+         //                dwg['RFA Ref'] === currentRefText &&
+         //                !currentRefData[`reply-$$$-status-${company}`];
+         //          });
 
-   //             } else if (key.includes('submission-$$$-emailTo-') || key.includes('submission-$$$-emailCc-')) {
-   //                arrEmailCc = [...new Set([...arrEmailCc, ...currentRfaData[key]])];
-   //             };
-   //          };
-   //          setListRecipientCc([...new Set(arrEmailCc)]);
-   //          const oneDwg = dwgsNotReplyYet[0];
-   //          const keyEmailTitle = getInfoKeyFromRfaData(oneDwg, 'submission', 'emailTitle');
-   //          setTextEmailTitle('Reply - ' + oneDwg[keyEmailTitle]);
+         //          setDwgsImportFromRFA(dwgsNotReplyYet.map(x => ({ ...x })));
 
-   //       } else {
-   //          const dwgsToEditReply = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
-   //          const oneRowInRfa = dwgsToEditReply[0];
-   //          const dwgsToEditReplyClone = dwgsToEditReply.map(x => ({ ...x }));
-   //          dwgsToEditReplyClone.forEach(r => {
-   //             const dwgLink = r[`reply-$$$-drawing-${company}`];
-   //             r[`reply-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
-   //          });
-   //          setDwgsImportFromRFA(dwgsToEditReplyClone);
+         //          let arrEmailCc = [];
+         //          for (const key in currentRefData) {
+         //             if (key.includes('submission-$$$-user-')) {
+         //                const listEmailTo = currentRefData[key] ? [currentRefData[key]] : [];
+         //                setListRecipientTo([...new Set(listEmailTo)]);
 
-   //          const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTo', company) || [];
-   //          setListRecipientTo([...new Set(listEmailTo)]);
+         //             } else if (key.includes('submission-$$$-emailTo-') || key.includes('submission-$$$-emailCc-')) {
+         //                arrEmailCc = [...new Set([...arrEmailCc, ...currentRefData[key]])];
+         //             };
+         //          };
+         //          setListRecipientCc([...new Set(arrEmailCc)]);
+         //          const oneDwg = dwgsNotReplyYet[0];
+         //          const keyEmailTitle = getInfoKeyFromRfaData(oneDwg, 'submission', 'emailTitle');
+         //          setTextEmailTitle('Reply - ' + oneDwg[keyEmailTitle]);
 
-   //          const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailCc', company) || [];
-   //          setListRecipientCc([...new Set(listEmailCc)]);
+         //       } else {
+         //          const dwgsToEditReply = rowsRfaAllInit.filter(x => currentRefText === x['RFA Ref']);
+         //          const oneRowInRfa = dwgsToEditReply[0];
+         //          const dwgsToEditReplyClone = dwgsToEditReply.map(x => ({ ...x }));
+         //          dwgsToEditReplyClone.forEach(r => {
+         //             const dwgLink = r[`reply-$$$-drawing-${company}`];
+         //             r[`reply-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
+         //          });
+         //          setDwgsImportFromRFA(dwgsToEditReplyClone);
 
-   //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTitle', company) || '');
-   //          setDescription(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailAdditionalNotes', company) || '');
-   //       };
+         //          const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTo', company) || [];
+         //          setListRecipientTo([...new Set(listEmailTo)]);
+
+         //          const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailCc', company) || [];
+         //          setListRecipientCc([...new Set(listEmailCc)]);
+
+         //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTitle', company) || '');
+         //          setDescription(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailAdditionalNotes', company) || '');
+         //       };
       };
    }, []);
 
@@ -334,10 +338,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
 
 
    // useEffect(() => {
-   //    if (filesPDFDrawing && Object.keys(filesPDFDrawing).length > 0) {
+   //    if (filesPdfDrawing && Object.keys(filesPdfDrawing).length > 0) {
    //       const type = formRefType === 'form-reply-RFA' ? 'reply' : 'submission';
    //       const dwgsToAddNewRfaClone = dwgsImportFromRFA.map(x => ({ ...x }));
-   //       Object.keys(filesPDFDrawing).forEach(key => {
+   //       Object.keys(filesPdfDrawing).forEach(key => {
    //          const filePdfName = key.slice(0, key.length - 4);
    //          dwgsToAddNewRfaClone.forEach(row => {
    //             if (row['Drawing Number'] && (row['Drawing Number'].includes(filePdfName) || filePdfName.includes(row['Drawing Number']))) {
@@ -347,40 +351,48 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
    //       });
    //       setDwgsImportFromRFA(dwgsToAddNewRfaClone);
    //    };
-   // }, [filesPDFDrawing]);
+   // }, [filesPdfDrawing]);
 
 
 
 
 
 
-   // const onClickApplyModalPickDrawing = (drawingTrade, dwgIds) => {
-   //    if (dwgIds && dwgIds.length > 0) {
-   //       const dwgsToAdd = rowsAll.filter(r => dwgIds.indexOf(r.id) !== -1);
-   //       setDwgsImportFromRFA(dwgsToAdd);
-   //       const dwgFound = dwgsToAdd.find(x => x['Coordinator In Charge']);
-   //       if (dwgFound) {
-   //          setRequestedBy(dwgFound['Coordinator In Charge']);
-   //       };
-   //       setTradeForFirstTimeSubmit(convertTradeCode(drawingTrade));
-   //    };
-   //    setTablePickDrawingRFA(false);
-   // };
+   const onClickApplyModalPickRfaDrawings = (dwgIds) => {
+
+   };
    // const setRevisionDwg = (id, rev) => {
    //    const row = dwgsImportFromRFA.find(x => x.id === id);
    //    row['Rev'] = rev;
    //    setDwgsImportFromRFA([...dwgsImportFromRFA]);
    // };
-   const setDwgsImportFromRef = debounceFnc((id) => {
-      // setDwgsImportFromRFA(dwgsImportFromRFA.filter(x => x.id !== id));
-      // setNosColumnFixed(2);
-      // setNosColumnFixed(1);
+   const onClickRemoveDwgBtn = debounceFnc((rowData) => {
+
+      if (rowData['Type'] === 'Form') {
+         delete filesPdfForm[rowData['File Name']];
+         let obj = {};
+         for (const key in filesPdfForm) {
+            obj[key] = filesPdfForm[key];
+         };
+         setFilesPdfForm(obj);
+
+      } else if (rowData['Type'] === 'Drawing') {
+         delete filesPdfDrawing[rowData['File Name']];
+         let obj = {};
+         for (const key in filesPdfDrawing) {
+            obj[key] = filesPdfDrawing[key];
+         };
+         setFilesPdfDrawing(obj);
+
+      } else if (!rowData['Type']) {
+         setDwgsImportFromRFA(dwgsImportFromRFA.filter(x => x.id !== rowData.id));
+      };
+
+      setNosColumnFixed(2);
+      setNosColumnFixed(1);
    }, 1);
 
 
-   // const onClickCommentBtn = (id) => {
-   //    setIdToDwgAddComment(id);
-   // };
 
 
    const onBlurInputRefNameCreateNew = () => {
@@ -394,7 +406,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
                setRefNumberSuffixFirstTimeSubmit('');
             };
          } else {
-            // const arrFilter = arr.filter(x => x !== currentRfaRef);
+            // const arrFilter = arr.filter(x => x !== currentRefText);
             // const newRefToRaiseFirstSubmit = `RFA/${projectNameShort}/${tradeForFirstTimeSubmit || '____'}/${refNumberSuffixFirstTimeSubmit}`;
             // if (arrFilter.indexOf(newRefToRaiseFirstSubmit) !== -1) {
             //    message.info('This RFA number has already existed, please choose a new number!');
@@ -403,7 +415,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
          };
       } else if (formRefType === 'form-resubmit-multi-type') {
          // if (!isFormEditting) {
-         //    const newRfaToRaiseResubmit = `${currentRfaNumber}${rfaNewVersionResubmitSuffix}`;
+         //    const newRfaToRaiseResubmit = `${currentRefNumber}${rfaNewVersionResubmitSuffix}`;
          //    if (arr.indexOf(newRfaToRaiseResubmit) !== -1) {
          //       message.info('This RFA number has already existed, please choose a new number!');
          //       setRfaNewVersionResubmitSuffix('');
@@ -428,7 +440,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
          info.fileList.forEach(file => {
             output = { ...output, [file.name]: file };
          });
-         setFilesPDFDrawing(output);
+         setFilesPdfDrawing(output);
       };
 
       // const dwgsToAddNewRFAClone = dwgsImportFromRFA.map(x => ({ ...x }));
@@ -444,7 +456,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
          info.fileList.forEach(file => {
             output = { ...output, [file.name]: file };
          });
-         setFilesPDFForm(output);
+         setFilesPdfForm(output);
       };
 
 
@@ -493,140 +505,94 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
       setListConsultantMustReply(outputListConsultantMustReply);
    };
 
-   // const onClickApplyDoneFormRFA = () => {
-   //    if (!dwgsImportFromRFA || dwgsImportFromRFA.length === 0) {
-   //       return message.info('Please insert drawings to submit!', 3);
-   //    };
+   const onClickApplyDoneFormRef = () => {
 
-   //    let isAllDataInRowFilledIn = true;
-   //    let listFilePdf;
-   //    if (formRefType === 'form-submit-RFA' || formRefType === 'form-resubmit-RFA') {
-   //       dwgsImportFromRFA.forEach(r => {
-   //          if (!r['Rev'] || !r[`submission-$$$-drawing-${company}`]) {
-   //             isAllDataInRowFilledIn = false;
-   //          };
-   //       });
-   //       listFilePdf = dwgsImportFromRFA.map(r => r[`submission-$$$-drawing-${company}`]);
-   //    } else if (formRefType === 'form-reply-RFA') {
-   //       dwgsImportFromRFA.forEach(r => {
-   //          if (!r[`reply-$$$-status-${company}`] || !r[`reply-$$$-drawing-${company}`]) {
-   //             isAllDataInRowFilledIn = false;
-   //          };
-   //       });
-   //       listFilePdf = dwgsImportFromRFA.map(r => r[`reply-$$$-drawing-${company}`]);
-   //    };
+      if (Object.keys(filesPdfForm).length === 0) {
+         return message.info('Please upload the form!', 3);
+      };
 
-   //    const dwgPdfFile = [...new Set(listFilePdf)];
-
-
-   //    let trade, rfaToSaveVersionOrToReply, rfaToSave;
-   //    if (formRefType === 'form-submit-RFA') {
-   //       trade = convertTradeCodeInverted(tradeForFirstTimeSubmit);
-   //       rfaToSaveVersionOrToReply = '-';
-   //       rfaToSave = `RFA/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
-
-   //    } else if (formRefType === 'form-resubmit-RFA') { // resubmission
-   //       trade = getInfoValueFromRfaData(currentRfaData, 'submission', 'trade');
-   //       rfaToSaveVersionOrToReply = rfaNewVersionResubmitSuffix;
-   //       rfaToSave = currentRfaNumber;
-
-   //    } else if (formRefType === 'form-reply-RFA') { // reply
-   //       trade = getInfoValueFromRfaData(currentRfaData, 'submission', 'trade');
-   //       if (currentRfaNumber === currentRfaRef) {
-   //          rfaToSaveVersionOrToReply = '-';
-   //       } else {
-   //          rfaToSaveVersionOrToReply = currentRfaRef.slice(currentRfaNumber.length, currentRfaRef.length);
-   //       };
-   //       rfaToSave = currentRfaNumber;
-   //    };
+      let trade, refToSaveVersionOrToReply, refToSave;
+      if (formRefType.includes('form-submit-multi-')) {
+         trade = convertTradeCodeInverted(tradeForFirstTimeSubmit);
+         refToSaveVersionOrToReply = '0';
+         refToSave = `RFAM/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
+      } else if (formRefType.includes('form-resubmit-multi-')) {
+         trade = currentRefData.trade;
+         refToSaveVersionOrToReply = rfaNewVersionResubmitSuffix;
+         refToSave = currentRefNumber;
+      } else if (formRefType.includes('form-reply-multi-')) { // reply
+         trade = currentRefData.trade;
+         if (currentRefNumber === currentRefText) {
+            refToSaveVersionOrToReply = '0';
+         } else {
+            refToSaveVersionOrToReply = currentRefText.slice(currentRefNumber.length, currentRefText.length);
+         };
+         refToSave = currentRefNumber;
+      };
 
 
-   //    if (projectNameShort === 'NO-PROJECT-NAME') {
-   //       return message.info('Please update project abbreviation name for RFA number!', 3);
-   //    } else if (!isAllDataInRowFilledIn) {
-   //       return message.info('Please fill in all necessary info for all drawings!', 3);
-   //    } else if (dwgsImportFromRFA.length !== dwgPdfFile.length) {
-   //       return message.info('Different drawings can not attach same Pdf file!', 3);
-   //    } else if (!filesPDFDrawing && !isFormEditting) {
-   //       return message.info('Please choose file pdf!', 3);
-   //    } else if (!textEmailTitle && !isAdminActionWithNoEmailSent) {
-   //       return message.info('Please fill in email title!', 3);
-   //    } else if (!listRecipientTo || listRecipientTo.length === 0) {
-   //       return message.info('Please fill in recipient!', 3);
-   //    } else if (formRefType === 'form-submit-RFA' && !dateReplyForSubmitForm) {
-   //       return message.info('Please fill in expected reply date!', 3);
-   //    } else if (formRefType === 'form-submit-RFA' && listConsultantMustReply.length === 0) {
-   //       return message.info('Please fill in consultant lead', 3);
-   //    } else if (formRefType === 'form-submit-RFA' && !requestedBy) {
-   //       return message.info('Please fill in person requested', 3);
-   //    } else if (!trade || !rfaToSave || !rfaToSaveVersionOrToReply) {
-   //       return message.info('Please fill in necessary info!', 3);
-   //    };
+      if (projectNameShort === 'NO-PROJECT-NAME') {
+         return message.info('Please update project abbreviation name for RFA number!', 3);
+      } else if (Object.keys(filesPdfForm).length === 0) {
+         return message.info('Please upload the form!', 3);
+      } else if (!textEmailTitle && !isAdminActionWithNoEmailSent) {
+         return message.info('Please fill in email title!', 3);
+      } else if (!description) {
+         return message.info('Please fill in description!', 3);
+      } else if (!listRecipientTo || listRecipientTo.length === 0) {
+         return message.info('Please fill in recipient!', 3);
+      } else if (formRefType.includes('form-submit-multi-') && !dateReplyForSubmitForm) {
+         return message.info('Please fill in expected reply date!', 3);
+      } else if (formRefType.includes('form-submit-multi-') && listConsultantMustReply.length === 0) {
+         return message.info('Please fill in consultant lead', 3);
+      } else if (formRefType.includes('form-submit-multi-') && !requestedBy) {
+         return message.info('Please fill in person requested', 3);
+      } else if (!trade || !refToSave || !refToSaveVersionOrToReply) {
+         return message.info('Please fill in necessary info!', 3);
+      };
+
+      getSheetRows({ ...stateRow, loading: true });
+
+      onClickApplyAddNewRefForm({
+         type: formRefType,
+         isFormEditting,
+         trade,
+         filesPdfForm: Object.values(filesPdfForm),
+         filesPdfDrawing: Object.values(filesPdfDrawing),
+         dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
+         refToSave, refToSaveVersionOrToReply,
+         recipient: {
+            to: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientTo)],
+            cc: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientCc)]
+         },
+         listConsultantMustReply: formRefType.includes('form-reply-multi-') ? [] : [...listConsultantMustReply],
+         requestedBy: formRefType.includes('form-reply-multi-') ? '' : requestedBy,
+         emailTextTitle: isAdminActionWithNoEmailSent ? '' : textEmailTitle,
+         description: isAdminActionWithNoEmailSent ? '' : description,
+         dateReplyForsubmitForm: dateReplyForSubmitForm && dateReplyForSubmitForm.format('DD/MM/YY'),
+
+         isAdminActionWithNoEmailSent,
+         adminActionConsultantToReply,
+         isAdminAction
+      });
+   };
 
 
-   //    const filesPDFOutput = {};
-   //    filesPDFDrawing && Object.keys(filesPDFDrawing).forEach(key => {
-   //       let fileFound;
-   //       if (formRefType === 'form-reply-RFA') {
-   //          fileFound = dwgsImportFromRFA.find(x => x[`reply-$$$-drawing-${company}`] === key);
-   //       } else {
-   //          fileFound = dwgsImportFromRFA.find(x => x[`submission-$$$-drawing-${company}`] === key);
-   //       };
-   //       if (fileFound) {
-   //          filesPDFOutput[key] = filesPDFDrawing[key];
-   //       };
-   //    });
+   const generateColumnsListDwgRef = (headers, nosColumnFixed) => {
 
-   //    const filesDWFXOutput = {};
-   //    filesDWFX && Object.keys(filesDWFX).forEach(key => {
-   //       const found = dwgsImportFromRFA.find(x => x[`submission-$$$-dwfxName-${company}`] === key);
-   //       if (found && !filesDWFXOutput[key]) {
-   //          filesDWFXOutput[key] = filesDWFX[key];
-   //       };
-   //    });
-
-
-   //    getSheetRows({ ...stateRow, loading: true });
-
-   //    onClickApplyAddNewRFA({
-   //       type: formRefType,
-   //       isFormEditting,
-   //       trade,
-   //       filesPDFDrawing: (filesPDFOutput && Object.values(filesPDFOutput)) || [],
-   //       filesDWFX: (filesDWFXOutput && Object.values(filesDWFXOutput)) || [],
-   //       dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
-   //       rfaToSave, rfaToSaveVersionOrToReply,
-   //       recipient: {
-   //          to: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientTo)],
-   //          cc: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientCc)]
-   //       },
-   //       listConsultantMustReply: formRefType === 'form-reply-RFA' ? [] : [...listConsultantMustReply],
-   //       requestedBy: formRefType === 'form-reply-RFA' ? '' : requestedBy,
-   //       emailTextTitle: isAdminActionWithNoEmailSent ? '' : textEmailTitle,
-   //       emailTextAdditionalNotes: isAdminActionWithNoEmailSent ? '' : description,
-   //       dateReplyForsubmitForm: dateReplyForSubmitForm && dateReplyForSubmitForm.format('DD/MM/YY'),
-
-   //       isAdminActionWithNoEmailSent,
-   //       adminActionConsultantToReply,
-   //       isAdminAction
-   //    });
-   // };
-
-
-   const generateColumnsListDwgRef = (headers) => {
-
-      const buttonRemoveDrawing = [
+      const buttonRemoveDrawing = !isFormEditting ? [
          {
             key: 'action', dataKey: 'action', title: '',
             width: 40,
             frozen: Column.FrozenDirection.RIGHT,
             cellRenderer: (
                <CellRemoveDrawing
-                  setDwgsImportFromRef={setDwgsImportFromRef}
+                  onClickRemoveDwgBtn={onClickRemoveDwgBtn}
                />
             )
          }
-      ];
+      ] : [];
+
 
       return [
          {
@@ -637,11 +603,19 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
          ...headers.map((column, index) => ({
             key: column, dataKey: column, title: column,
             resizable: true,
-            frozen: index < 1 ? Column.FrozenDirection.LEFT : undefined,
+            frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
             width: getHeaderWidthDwgRef(column),
-            cellRenderer: (props) => (
-               <div>xxx</div>
-            )
+            cellRenderer: ({ rowData, cellData }) => {
+               let cellRFA;
+               if (!rowData['Type']) {
+                  if (column === 'Type') {
+                     cellRFA = 'Submitted RFA';
+                  } else if (column === 'File Name') {
+                     cellRFA = rowData['Drawing Number'];
+                  };
+               };
+               return <div>{cellRFA || cellData}</div>;
+            }
          })),
          ...buttonRemoveDrawing,
       ];
@@ -692,10 +666,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
                         )}
                      </>
                   ) : null}
-                  
+
                   {/* formRefType === 'form-resubmit-RFA' ? (
                      <>
-                        <div style={{ marginRight: 2 }}>{currentRfaNumber}</div>
+                        <div style={{ marginRight: 2 }}>{currentRefNumber}</div>
                         <InputStyled
                            style={{ width: 50, marginBottom: 10, borderRadius: 0, marginRight: 120, transform: 'translateY(-5px)' }}
                            onChange={(e) => setRfaNewVersionResubmitSuffix(e.target.value)}
@@ -705,7 +679,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
                      </>
 
                   ) : formRefType === 'form-reply-RFA' ? (
-                     <div>{currentRfaRef}</div>
+                     <div>{currentRefText}</div>
 
                   ) : null} */}
 
@@ -723,7 +697,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
                   )}
 
 
-{/* 
+                  {/* 
                   {formRefType === 'form-reply-RFA' && adminActionConsultantToReply && (
                      <div style={{ marginLeft: 20 }}>Company reply: <span style={{ fontWeight: 'bold' }}>{adminActionConsultantToReply}</span></div>
                   )}
@@ -783,6 +757,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
                         >
                            {listRecipient.map(cm => {
                               const isLeadConsultant = listConsultantMustReply[0] && extractConsultantName(cm) === listConsultantMustReply[0];
+                              console.log(listConsultantMustReply, cm);
                               const isLeadConsultantStyled = isLeadConsultant ? {
                                  background: colorType.primary,
                                  fontWeight: 'bold',
@@ -861,7 +836,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
 
 
 
-             {formRefType !== 'form-reply-multi-type' && (
+               {formRefType !== 'form-reply-multi-type' && (
                   <>
                      <div style={{ display: 'flex', marginBottom: 5 }}>
                         <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Requested by</div>
@@ -875,7 +850,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
                )}
 
 
-                {!isAdminActionWithNoEmailSent && (
+               {!isAdminActionWithNoEmailSent && (
                   <>
                      <div style={{ display: 'flex', marginBottom: 20 }}>
                         <div style={{ width: 65, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Subject</div>
@@ -937,7 +912,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
                      <ButtonStyle
                         marginRight={10}
                         name='Add Drawing From RFA'
-                        onClick={() => setTablePickDrawingRFA(true)}
+                        onClick={() => setTablePickDrawingRefSubmitted(true)}
                      />
                   )}
 
@@ -945,28 +920,27 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
                   <div style={{ marginLeft: 5 }}>
                      {formRefType !== 'form-reply-RFA' ? (
                         <>
-                           {filesPDFDrawing ? `${Object.keys(filesPDFDrawing).length} PDF files has been chosen ` : 'No PDF files has been chosen '}
-                              / {filesPDFDrawing ? `${Object.keys(filesPDFDrawing).length} 3D models has been chosen.` : 'No 3D model has been chosen.'}
+                           {filesPdfDrawing ? `${Object.keys(filesPdfDrawing).length} PDF files has been chosen ` : 'No PDF files has been chosen '}
+                              / {filesPdfDrawing ? `${Object.keys(filesPdfDrawing).length} 3D models has been chosen.` : 'No 3D model has been chosen.'}
                         </>
                      ) : (
                         <>
-                           {filesPDFDrawing ? `${Object.keys(filesPDFDrawing).length} PDF files has been chosen ` : 'No PDF files has been chosen '}
+                           {filesPdfDrawing ? `${Object.keys(filesPdfDrawing).length} PDF files has been chosen ` : 'No PDF files has been chosen '}
                         </>
                      )}
                   </div>
                </div>
 
 
-             {(filesPDFForm || filesPDFDrawing || dwgsImportFromRFA) && (
+               {(Object.keys(filesPdfForm).length > 0 || Object.keys(filesPdfDrawing).length > 0 || dwgsImportFromRFA.length > 0) && (
                   <div style={{
                      width: window.innerWidth * 0.9 - 80,
-                     // height: dwgsImportFromRFA.length * 28 + 80
-                     height: 600
+                     height: (Object.keys(filesPdfForm).length + Object.keys(filesPdfDrawing).length + dwgsImportFromRFA.length) * 28 + 80
                   }}>
                      <TableStyled
                         fixed
-                        columns={generateColumnsListDwgRef(headersDwgRef(formRefType))}
-                        data={getInputForTable(filesPDFForm, filesPDFDrawing)}
+                        columns={generateColumnsListDwgRef(headersDwgRef(pageSheetTypeName), nosColumnFixed)}
+                        data={dataInputForTable}
                         rowHeight={28}
                      />
                   </div>
@@ -982,10 +956,8 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
                flexDirection: 'row-reverse'
             }}>
                <ButtonGroupComp
-                  // onClickCancel={() => setModalConfirmsubmitOrCancel('cancel')}
-                  // onClickApply={() => setModalConfirmsubmitOrCancel('ok')}
-                  onClickCancel={() => {}}
-                  onClickApply={() => {}}
+                  onClickCancel={() => setModalConfirmsubmitOrCancel('cancel')}
+                  onClickApply={() => setModalConfirmsubmitOrCancel('ok')}
                   newTextBtnApply={'Submit'}
                />
             </div>
@@ -994,50 +966,26 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
          </div>
 
 
-         {/* {tablePickDrawingRFA && (
+         {tablePickDrawingRefSubmitted && (
             <ModalPickDrawingRFAStyled
                title={'Select Drawings For New RFA'}
-               visible={tablePickDrawingRFA}
+               visible={tablePickDrawingRefSubmitted}
                footer={null}
                destroyOnClose={true}
                centered={true}
                width={window.innerWidth * 0.85}
-               onOk={() => setTablePickDrawingRFA(false)}
-               onCancel={() => setTablePickDrawingRFA(false)}
+               onOk={() => setTablePickDrawingRefSubmitted(false)}
+               onCancel={() => setTablePickDrawingRefSubmitted(false)}
             >
-               <TableDrawingRFA
-                  onClickCancelModalPickDrawing={() => setTablePickDrawingRFA(false)}
-                  onClickApplyModalPickDrawing={onClickApplyModalPickDrawing}
+               <TableDrawingRfaForMultiForm
+                  // onClickCancelModalPickDrawing={() => setTablePickDrawingRefSubmitted(false)}
+                  onClickApplyModalPickRfaDrawings={(dwgsRfaToAdd) => {
+                     setDwgsImportFromRFA(dwgsRfaToAdd);
+                     setTablePickDrawingRefSubmitted(false);
+                  }}
                   dwgsImportFromRFA={dwgsImportFromRFA}
-                  tradeForFirstTimeSubmit={tradeForFirstTimeSubmit}
+               // tradeForFirstTimeSubmit={tradeForFirstTimeSubmit}
                />
-            </ModalPickDrawingRFAStyled>
-         )} */}
-
-{/*
-         {dwgIdToAddComment && (
-            <ModalPickDrawingRFAStyled
-               title={'Add Drawing Comment'}
-               visible={dwgIdToAddComment ? true : false}
-               footer={null}
-               destroyOnClose={true}
-               centered={true}
-               width={window.innerWidth * 0.5}
-               onCancel={() => setIdToDwgAddComment(null)}
-            >
-               <div style={{ width: '100%', padding: 10 }}>
-                  <TextAreaStyled
-                     rows={4}
-                     onChange={(e) => setCommentText(e.target.value)}
-                     defaultValue={dwgsImportFromRFA.find(x => x.id === dwgIdToAddComment)[`reply-$$$-comment-${company}`] || ''}
-                  />
-                  <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
-                     <ButtonGroupComp
-                        onClickCancel={() => setIdToDwgAddComment(null)}
-                        onClickApply={applyAddCommentToDrawing}
-                     />
-                  </div>
-               </div>
             </ModalPickDrawingRFAStyled>
          )}
 
@@ -1053,34 +1001,34 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRFA }) => 
                <ConfirmSubmitOrCancelModal
                   typeConfirm={modalConfirmsubmitOrCancel}
                   formRefType={formRefType}
-                  rfaRef={formRefType === 'form-submit-RFA'
-                     ? `RFA/${projectNameShort}/${tradeForFirstTimeSubmit || '____'}/${refNumberSuffixFirstTimeSubmit}`
-                     : formRefType === 'form-resubmit-RFA'
-                        ? `${currentRfaNumber}${rfaNewVersionResubmitSuffix}`
-                        : formRefType === 'form-reply-RFA'
-                           ? `${currentRfaRef}` : null}
+                  refData={formRefType.includes('form-submit-multi-')
+                     ? `RFA/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`
+                     : formRefType.includes('form-resubmit-multi-')
+                        ? `${currentRefNumber}${rfaNewVersionResubmitSuffix}`
+                        : formRefType.includes('form-reply-multi-')
+                           ? `${currentRefText}` : null}
                   onClickCancelConfirmModal={() => setModalConfirmsubmitOrCancel(null)}
                   onClickApplyConfirmModal={(confirmFinal) => {
                      if (confirmFinal === 'Cancel Action Form') {
                         setModalConfirmsubmitOrCancel(null);
                         onClickCancelModal();
                      } else if (confirmFinal === 'Submit') {
-                        onClickApplyDoneFormRFA();
+                        onClickApplyDoneFormRef();
                      };
                   }}
                />
-            </ModalConfirmStyled> 
-         )}*/}
+            </ModalConfirmStyled>
+         )}
       </>
    );
 };
 export default PanelAddNewMultiForm;
 
 
-const getInputForTable = (filesPDFForm, filesPDFDrawing) => {
+const getInputForTable = (filesPdfForm, filesPdfDrawing, dwgsImportFromRFA) => {
    let output = [];
-   if (filesPDFForm) {
-      for (const pdfForm in filesPDFForm) {
+   if (filesPdfForm) {
+      for (const pdfForm in filesPdfForm) {
          output.push({
             id: mongoObjectId(),
             'Type': 'Form',
@@ -1088,9 +1036,9 @@ const getInputForTable = (filesPDFForm, filesPDFDrawing) => {
          });
       };
    };
-   
-   if (filesPDFDrawing) {
-      for (const pdfDrawing in filesPDFDrawing) {
+
+   if (filesPdfDrawing) {
+      for (const pdfDrawing in filesPdfDrawing) {
          output.push({
             id: mongoObjectId(),
             'Type': 'Drawing',
@@ -1098,46 +1046,47 @@ const getInputForTable = (filesPDFForm, filesPDFDrawing) => {
          });
       };
    };
+   if (dwgsImportFromRFA && dwgsImportFromRFA.length > 0) {
+      dwgsImportFromRFA.forEach(row => {
+         output.push(row);
+      });
+   };
    return output;
 };
 
 const CellRemoveDrawing = (props) => {
 
-   // const { setDwgsImportFromRef, rowData } = props;
-
-   const onClickRemoveDwgBtn = () => {
-      // setDwgsImportFromRef(rowData.id);
-   };
+   const { onClickRemoveDwgBtn, rowData } = props;
 
    return (
-      <Tooltip title='Remove Drawing'>
-         <Icon type='close' onClick={onClickRemoveDwgBtn} />
+      <Tooltip title='Remove File'>
+         <Icon type='close' onClick={() => onClickRemoveDwgBtn(rowData)} />
       </Tooltip>
    );
 };
 
 
 
-// const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRefType, rfaRef, onClickCancelConfirmModal, onClickApplyConfirmModal }) => {
+const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRefType, refData, onClickCancelConfirmModal, onClickApplyConfirmModal }) => {
 
-//    return (
-//       <div style={{ padding: 20, width: '100%' }}>
-//          {typeConfirm === 'ok' ? (
-//             <div>Are you sure to {formRefType === 'form-reply-RFA' ? 'reply' : 'submit'} the <span style={{ fontWeight: 'bold' }}>{rfaRef}</span>?</div>
-//          ) : typeConfirm === 'cancel' ? (
-//             <div>Are you sure to cancel the {formRefType === 'form-reply-RFA' ? 'response' : 'submission'}?</div>
-//          ) : null}
+   return (
+      <div style={{ padding: 20, width: '100%' }}>
+         {typeConfirm === 'ok' ? (
+            <div>Are you sure to {formRefType === 'form-reply-RFA' ? 'reply' : 'submit'} the <span style={{ fontWeight: 'bold' }}>{refData}</span>?</div>
+         ) : typeConfirm === 'cancel' ? (
+            <div>Are you sure to cancel the {formRefType === 'form-reply-RFA' ? 'response' : 'submission'}?</div>
+         ) : null}
 
-//          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
-//             <ButtonGroupComp
-//                onClickCancel={onClickCancelConfirmModal}
-//                onClickApply={() => onClickApplyConfirmModal(typeConfirm === 'ok' ? 'Submit' : 'Cancel Action Form')}
-//                newTextBtnApply={'Yes'}
-//             />
-//          </div>
-//       </div>
-//    );
-// };
+         <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
+            <ButtonGroupComp
+               onClickCancel={onClickCancelConfirmModal}
+               onClickApply={() => onClickApplyConfirmModal(typeConfirm === 'ok' ? 'Submit' : 'Cancel Action Form')}
+               newTextBtnApply={'Yes'}
+            />
+         </div>
+      </div>
+   );
+};
 
 
 const ModalConfirmStyled = styled(Modal)`
@@ -1163,7 +1112,7 @@ const ModalConfirmStyled = styled(Modal)`
 `;
 const getHeaderWidthDwgRef = (header) => {
    if (header === 'Type') return 350;
-   else if (header === 'File Name') return 250
+   else if (header === 'File Name') return 500;
    else return 50;
 };
 
@@ -1314,6 +1263,7 @@ const SelectTradeStyled = styled(Select)`
 
 
 const headersDwgRef = (pageSheetTypeName) => {
+
    return pageSheetTypeName === 'page-rfam' ? [
       'Type',
       'File Name',

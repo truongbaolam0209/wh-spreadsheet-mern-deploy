@@ -19,7 +19,6 @@ const ButtonAdminDeleteRowsHistory = () => {
       fileReader.readAsText(e.target.files[0], 'UTF-8');
       fileReader.onload = e => {
          setFile(JSON.parse(e.target.result));
-         // setFile(getDataSumangAndHandy(JSON.parse(e.target.result)));
       };
    };
 

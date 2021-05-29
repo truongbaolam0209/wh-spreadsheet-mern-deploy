@@ -37,8 +37,6 @@ const App = () => {
 
 
    const propsSheet = {
-      history: 'history',
-      localState: 'localState',
       email: browserName === 'Chrome' ? 'tbl@wohhup.com' : 'test@dca.com',
       company: browserName === 'Chrome' ? 'Woh Hup Private Ltd' : consultantCompany,
       role: browserName === 'Chrome' ? 'Document Controller' : 'Consultant',
@@ -47,10 +45,11 @@ const App = () => {
       // projectId: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc',
       // projectId: 'MTYxNzg5MDkxNzI2MC10ZXN0OA',
       projectId: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg',
+      // projectId: 'MTU3NDgyNTcyMzUwNC1UZXN0',
       projectIsAppliedRfaView: true,
       // projectIsAppliedRfaView: false,
       projectName: 'Punggol Digital District',
-      projectNameShort: 'PDD',
+      projectNameShort: 'RKD',
       token: 'xxx-xxxxx-xxx-x-xxxxx',
       isAdmin: true,
       companies: [
@@ -70,9 +69,11 @@ const App = () => {
          { company: 'AECOM', companyType: 'Sub-con', trade: 'M&E' },
          { company: 'HHH ME', companyType: 'Sub-con', trade: 'M&E' },
 
+         { company: 'TTT', companyType: 'Sub-con', trade: 'PRECAST' },
+
 
          { company: 'DCA', companyType: 'Consultant' },
-         { company: 'RSP', companyType: 'Consultant' },
+         { company: 'rsP', companyType: 'Consultant' },
          { company: 'HYLA', companyType: 'Consultant' },
          { company: 'K2LD', companyType: 'Consultant' },
          { company: 'ONG & ONG', companyType: 'Consultant' },
@@ -89,10 +90,10 @@ const App = () => {
          'dCA',
          'DCA_%$%_Team1',
          'RSP',
-         'rSP_%$%_Team1',
-         'RsP_%$%_Team2',
+         'RSP_%$%_Team1',
+         'rsP_%$%_Team2',
          'onG & ONG',
-         'ong & ONG_%$%_MEP_Team',
+         'ONG & ONG_%$%_MEP_Team',
          'Group Email A',
          'Team RCP',
          'K2LD',

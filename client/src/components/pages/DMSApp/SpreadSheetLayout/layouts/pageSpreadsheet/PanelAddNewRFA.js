@@ -91,7 +91,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       ? getGroupCompanyForAdminSubmitWithoutEmail(listGroupOutput, listConsultants)
       : listGroupOutput;
 
-   
+
    const listRecipient = (isAdminAction && isAdminActionWithNoEmailSent)
       ? getGroupCompanyForAdminSubmitWithoutEmail(listGroup, listConsultants)
       : [...listUser, ...listGroup];
@@ -137,7 +137,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          if (!isFormEditting) {
             setDwgsToAddNewRFA(null);
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
-            
+
             if (isAdminAction && isAdminActionWithNoEmailSent) {
                setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
             };
@@ -160,7 +160,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                const listEmailTo = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailTo', company) || [];
                setListRecipientTo([...new Set(listEmailTo)]);
             };
-            
+
 
             const listEmailCc = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailCc', company) || [];
             setListRecipientCc([...new Set(listEmailCc)]);
@@ -171,7 +171,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             setTextEmailAdditionalNotes(getInfoValueFromRfaData(currentRfaData, 'submission', 'emailAdditionalNotes', company) || '');
 
             setDateReplyForSubmitForm(moment(currentRfaData['Consultant Reply (T)'], 'DD/MM/YY'));
-            
+
             setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(currentRfaData, 'submission', 'trade', company)));
 
             const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
@@ -215,7 +215,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             const oneDwg = dwgsToResubmit[0];
             setTextEmailTitle('Resubmit - ' + oneDwg[`submission-$$$-emailTitle-${company}`]);
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
-            
+
          } else {
 
             const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
@@ -237,7 +237,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                const listEmailTo = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailTo', company) || [];
                setListRecipientTo([...new Set(listEmailTo)]);
             };
-            
+
 
             const listEmailCc = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailCc', company) || [];
             setListRecipientCc([...new Set(listEmailCc)]);
@@ -427,26 +427,37 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const onBlurInputRFANameCreateNew = () => {
       const arr = [...new Set(rowsRfaAllInit.map(x => (x['RFA Ref'] || '')))];
       if (formRfaType === 'form-submit-RFA') {
-         if (!isFormEditting) {
-            const newRfaToRaiseFirstSubmit = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${rfaNumberSuffixFirstTimeSubmit}`;
-            if (arr.indexOf(newRfaToRaiseFirstSubmit) !== -1) {
-               message.info('This RFA number has already existed, please choose a new number!');
-               setRfaNumberSuffixFirstTimeSubmit('');
-            };
+         let regExp = /[a-zA-Z]/g;
+         if (regExp.test(rfaNumberSuffixFirstTimeSubmit)) {
+            message.info('Please key in number only!');
+            setRfaNumberSuffixFirstTimeSubmit('');
          } else {
-            const arrFilter = arr.filter(x => x !== currentRfaRef);
-            const newRfaToRaiseFirstSubmit = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${rfaNumberSuffixFirstTimeSubmit}`;
-            if (arrFilter.indexOf(newRfaToRaiseFirstSubmit) !== -1) {
-               message.info('This RFA number has already existed, please choose a new number!');
-               setRfaNumberSuffixFirstTimeSubmit('');
+            if (!isFormEditting) {
+               const newRfaToRaiseFirstSubmit = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${rfaNumberSuffixFirstTimeSubmit}`;
+               if (arr.indexOf(newRfaToRaiseFirstSubmit) !== -1) {
+                  message.info('This RFA number has already existed, please choose a new number!');
+                  setRfaNumberSuffixFirstTimeSubmit('');
+               };
+            } else {
+               const arrFilter = arr.filter(x => x !== currentRfaRef);
+               const newRfaToRaiseFirstSubmit = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${rfaNumberSuffixFirstTimeSubmit}`;
+               if (arrFilter.indexOf(newRfaToRaiseFirstSubmit) !== -1) {
+                  message.info('This RFA number has already existed, please choose a new number!');
+                  setRfaNumberSuffixFirstTimeSubmit('');
+               };
             };
          };
       } else if (formRfaType === 'form-resubmit-RFA') {
-         if (!isFormEditting) {
-            const newRfaToRaiseResubmit = `${currentRfaNumber}${rfaNewVersionResubmitSuffix}`;
-            if (arr.indexOf(newRfaToRaiseResubmit) !== -1) {
-               message.info('This RFA number has already existed, please choose a new number!');
-               setRfaNewVersionResubmitSuffix('');
+         if (versionArray.indexOf(rfaNewVersionResubmitSuffix) === -1) {
+            message.info('Please key in letter only!');
+            setRfaNewVersionResubmitSuffix('');
+         } else {
+            if (!isFormEditting) {
+               const newRfaToRaiseResubmit = `${currentRfaNumber}${rfaNewVersionResubmitSuffix}`;
+               if (arr.indexOf(newRfaToRaiseResubmit) !== -1) {
+                  message.info('This RFA number has already existed, please choose a new number!');
+                  setRfaNewVersionResubmitSuffix('');
+               };
             };
          };
       };
@@ -513,7 +524,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
       setListConsultantMustReply(outputListConsultantMustReply);
    };
-
 
    const onClickApplyDoneFormRFA = () => {
       if (!dwgsToAddNewRFA || dwgsToAddNewRFA.length === 0) {
@@ -613,6 +623,9 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
       getSheetRows({ ...stateRow, loading: true });
+
+
+  
 
       onClickApplyAddNewRFA({
          type: formRfaType,

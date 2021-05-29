@@ -8,6 +8,7 @@ import { colorType, SERVER_URL } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { mongoObjectId } from '../../utils';
+import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
 import { headersConsultantWithNumber } from '../generalComponents/OverallComponentDMS';
 import CellRFA, { getConsultantReplyData, isColumnWithReplyData } from './CellRFA';
 
@@ -34,7 +35,7 @@ const Table = (props) => {
 
 const TableDrawingDetail = (props) => {
 
-   const { rowData } = props;
+   const { rowData, onClickCancelModal, onClickApply } = props;
    const { id: rowId } = rowData;
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow } = useContext(RowContext);
@@ -53,7 +54,7 @@ const TableDrawingDetail = (props) => {
       const fetchRowsHistory = async () => {
          try {
             const res = await Axios.get(`${SERVER_URL}/row/history/one-row/`, { params: { token, projectId, rowId } });
-
+            console.log('res======================', res.data);
             let rowsHistory = [];
             res.data.forEach((r, i) => {
                const { history } = r;
@@ -108,27 +109,26 @@ const TableDrawingDetail = (props) => {
 
 
    const panelHeight = window.innerHeight * 0.8;
-   const columnWidth = 210;
+   const columnWidth = 190;
    const columnHeaderWidth = 210;
 
    return (
-      <div style={{
-         height: panelHeight,
-         background: 'white',
-         padding: 10,
-         display: 'flex',
-         justifyContent: 'center',
-         // flexDirection: 'column',
-      }}>
+      // <div style={{
+      //    height: panelHeight,
+      //    background: 'white',
+      //    padding: 10,
+      //    display: 'flex',
+      //    justifyContent: 'center',
+      //    flexDirection: 'column',
+      // }}>
+      <div style={{ width: '100%', height: '100%', padding: 10 }}>
          {rowsHistoryDatabase && rowCurrent && (
-            <>
+            <div style={{ display: 'flex', paddingBottom: 10, borderBottom: `1px solid ${colorType.grey4}` }}>
                <div style={{
                   width: columnHeaderWidth + columnWidth * input.length + 17,
-                  height: panelHeight - 100,
-                  margin: '0 auto',
-                  textAlign: 'center'
+                  height: panelHeight - 50,
+                  color: 'black'
                }}>
-                  <div style={{ fontSize: 20, fontWeight: 'bold' }}>DRAWING HISTORY</div>
                   <TableStyled
                      fixed
                      columns={generateColumns(columnsData, { columnWidth, columnHeaderWidth })}
@@ -137,17 +137,28 @@ const TableDrawingDetail = (props) => {
                   />
                </div>
 
-               <div style={{ display: 'flex', padding: '15px 30px' }}>
+               <div style={{
+                  padding: '0px 30px',
+                  height: panelHeight - 50,
+                  overflowY: 'scroll'
+               }}>
                   {input.map((item, i) => (
                      <TimeLineDrawing
                         key={i}
                         data={item}
-                        version={i + 1}
+                        version={i}
                      />
                   ))}
                </div>
-            </>
+            </div>
          )}
+         <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
+            <ButtonGroupComp
+               onClickCancel={onClickCancelModal}
+               onClickApply={onClickApply}
+               newTextBtnApply='Close'
+            />
+         </div>
       </div>
    );
 };
@@ -308,7 +319,7 @@ const TimeLineDrawing = ({ data, version }) => {
    return (
       <div style={{ width: 350 }}>
          <div style={{ marginBottom: 15, fontSize: 17, fontWeight: 'bold' }}>Version {version}</div>
-         <Timeline>
+         <TimelineStyled>
             {headersForTimeline.map((hd, i) => {
                return (
                   <Timeline.Item
@@ -320,8 +331,16 @@ const TimeLineDrawing = ({ data, version }) => {
                   </Timeline.Item>
                );
             })}
-         </Timeline>
+         </TimelineStyled>
       </div>
    );
 };
 
+
+
+const TimelineStyled = styled(Timeline)`
+   .ant-timeline-item {
+      padding-bottom: 5px;
+   }
+
+`;

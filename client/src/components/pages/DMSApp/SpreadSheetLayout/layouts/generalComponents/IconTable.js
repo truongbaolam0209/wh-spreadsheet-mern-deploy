@@ -65,7 +65,7 @@ const toolTipBtn = (type, pageSheetTypeName) => {
                         type === 'eye' ? 'Rows Hide/Unhide' :
                            type === 'menu' ? 'Projects List' :
                               type === 'swap' ? 'Clear Filter/Sort/Group/Search' :
-                                 type === 'retweet' ? 'Quick Clear All Filter' :
+                                 type === 'retweet' ? 'Default View' :
                                     type === 'history' ? 'Activity History' :
                                        type === 'border-outer' ? 'PUBLIC' :
                                           type === 'radius-upright' ? 'USER' :

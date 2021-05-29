@@ -345,9 +345,10 @@ export const getActionName = (type) => {
    if (type === 'Delete Drawing') return 'Delete Drawing';
    if (type === 'colorized-ICON') return 'Drawing Colorization';
    if (type === 'viewTemplate-ICON') return 'View Template';
+   if (type === 'View Drawing Revision') return 'Drawing Revision';
 
    if (type === 'form-submit-RFA') return 'Add New RFA';
-   if (type === 'form-resubmit-RFA') return 'Resubmitted RFA';
+   if (type === 'form-resubmit-RFA') return 'Resubmit RFA';
    if (type === 'form-reply-RFA') return 'Reply RFA';
    if (type === 'form-RFA-submit-for-admin') return 'Choose Admin Action';
 

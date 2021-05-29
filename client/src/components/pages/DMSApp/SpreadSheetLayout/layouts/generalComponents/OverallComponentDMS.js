@@ -10,6 +10,7 @@ import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
 import ButtonAdminCreateAndUpdateRows from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
+import ButtonAdminDeleteRowsHistory from '../pageSpreadsheet/ButtonAdminDeleteRowsHistory';
 import ButtonAdminUploadData from '../pageSpreadsheet/ButtonAdminUploadData';
 import Cell, { columnLocked, rowLocked } from '../pageSpreadsheet/Cell';
 import CellForm from '../pageSpreadsheet/CellForm';
@@ -25,7 +26,6 @@ import IconTable from './IconTable';
 import InputSearch from './InputSearch';
 import LoadingIcon from './LoadingIcon';
 import ViewTemplateSelect from './ViewTemplateSelect';
-
 
 
 
@@ -52,9 +52,10 @@ const OverallComponentDMS = (props) => {
 
    let {
       email, role, isAdmin, projectId, projectName, token, company,
-      companies, projectIsAppliedRfaView, listUser, listGroup, projectNameShort, pageSheetTypeName, 
+      companies, projectIsAppliedRfaView, listUser, listGroup, projectNameShort, pageSheetTypeName,
       history, localState
    } = props;
+
 
 
    const roleTradeCompany = getUserRoleTradeCompany(role, company);
@@ -64,7 +65,6 @@ const OverallComponentDMS = (props) => {
 
    const tableRef = useRef();
 
-   
    const handlerBeforeUnload = (e) => {
       if (window.location.pathname === '/dms-spreadsheet') {
          e.preventDefault();
@@ -497,7 +497,7 @@ const OverallComponentDMS = (props) => {
                   projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isUserCanSubmitRfaBothSide, pageSheetTypeName
                });
 
-  
+
                setUserData(getHeadersData(res.data));
                getSheetRows(getInputDataInitially(res.data, roleTradeCompany, pageSheetTypeName));
 
@@ -614,17 +614,22 @@ const OverallComponentDMS = (props) => {
       const indent = (depth * 17).toString() + 'px';
 
       return (
-         <div style={{
-            marginLeft: indent,
-            paddingLeft: expandable ? 10 : 13 + 10,
-            paddingRight: 3,
-            background: 'transparent'
-         }}>
+         <div
+            style={{
+               marginLeft: indent,
+               paddingLeft: expandable ? 10 : 13 + 10,
+               paddingRight: 3,
+               background: 'transparent'
+            }}
+
+         >
             {expandable && (
                <Icon
                   type={expanding ? 'plus-square' : 'minus-square'}
-                  onClick={() => onExpand(expanding)}
                   style={{ color: 'black', transform: 'translate(0, -1px)' }}
+                  onClick={() => {
+                     onExpand(expanding);
+                  }}
                />
             )}
          </div>
@@ -774,6 +779,7 @@ const OverallComponentDMS = (props) => {
                   onMouseDownColumnHeader={onMouseDownColumnHeader}
                />
             ),
+
             cellRenderer: (pageSheetTypeName === 'page-rfa' || (pageSheetTypeName === 'page-spreadsheet' && projectIsAppliedRfaView &&
                (
                   isColumnWithReplyData(hd) ||
@@ -858,8 +864,18 @@ const OverallComponentDMS = (props) => {
       });
    };
 
-   const buttonSpreadsheetMode = ((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && pageSheetTypeName === 'page-spreadsheet'));
+   const onClickquickFilterStatus = (status) => {
+      getSheetRows({
+         ...stateRow,
+         modeFilter: [
+            { id: mongoObjectId(), header: 'Status', value: status },
+            { isIncludedParent: 'included' }
+         ]
+      });
+   };
 
+
+   const buttonSpreadsheetMode = ((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && pageSheetTypeName === 'page-spreadsheet'));
 
 
    return (
@@ -893,6 +909,7 @@ const OverallComponentDMS = (props) => {
             ) : (
                <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-2')} />
             )}
+
             <IconTable type='retweet' onClick={clearAllFilterSortSearchGroup} />
 
             {buttonSpreadsheetMode && (
@@ -1008,11 +1025,9 @@ const OverallComponentDMS = (props) => {
                   {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} /> */}
                   <ButtonAdminUploadData />
                   <ButtonAdminCreateAndUpdateRows />
-
+                  <ButtonAdminDeleteRowsHistory />
                   {/* 
                         <ButtonAdminUploadDataPDD />
-                        
-                        <ButtonAdminDeleteRowsHistory />
                         <ButtonAdminCreateAndUpdateRowsHistory />
                         <ButtonAdminUpdateProjectSettings /> 
                      */}
@@ -1022,27 +1037,42 @@ const OverallComponentDMS = (props) => {
 
 
             <div style={{ position: 'absolute', display: 'flex', top: 3, right: 30 }}>
-               <div style={{ display: 'flex', marginRight: 25, transform: 'translate(0, 2px)' }}>
-                  <div style={{ marginRight: 10 }}>
-                     <div style={{ display: 'flex' }}>
-                        <div style={{ width: 10, height: 10, background: colorTextRow['Approved with Comment, no submission Required'], transform: 'translate(0, 4px)', marginRight: 5 }} />
-                        <div style={{ fontSize: 10 }}>Approved with Comment, no submission Required</div>
+               <div style={{ display: 'flex', marginRight: 25, transform: 'translate(0, 5px)' }}>
+                  {[
+                     'Approved with Comment, no submission Required',
+                     'Approved with comments, to Resubmit',
+                     'Approved for Construction',
+                     'Reject and resubmit'
+                  ].map(btn => (
+                     <div
+                        style={{
+                           display: 'flex', paddingLeft: 5, paddingRight: 5, marginRight: 7, cursor: 'pointer', height: 20, borderRadius: 3,
+                           background: stateRow && stateRow.modeFilter.find(x => x['header'] === 'Status' && x.value === btn) ? colorType.grey1 : 'transparent'
+                        }}
+                        onClick={() => onClickquickFilterStatus(btn)}
+                        key={btn}
+                     >
+                        <div
+                           style={{
+                              width: 10, height: 10, marginRight: 5,
+                              background: colorTextRow[btn],
+                              transform: 'translate(0, 4px)'
+                           }}
+                        />
+                        <div style={{ fontSize: 11, paddingTop: 1 }}>
+                           <span style={{ fontWeight: 'bold', marginRight: 3 }}>
+                              {stateRow ? stateRow.rowsAll.filter(r => r['Status'] === btn).length : 0}
+                           </span>
+                           {btn === 'Approved with Comment, no submission Required'
+                              ? 'AC'
+                              : btn === 'Approved with comments, to Resubmit'
+                                 ? 'AC, resubmit'
+                                 : btn === 'Approved for Construction'
+                                    ? 'Approved'
+                                    : 'Reject'}
+                        </div>
                      </div>
-                     <div style={{ display: 'flex' }}>
-                        <div style={{ width: 10, height: 10, background: colorTextRow['Approved with comments, to Resubmit'], transform: 'translate(0, 4px)', marginRight: 5 }} />
-                        <div style={{ fontSize: 10 }}>Approved with comments, to Resubmit</div>
-                     </div>
-                  </div>
-                  <div>
-                     <div style={{ display: 'flex' }}>
-                        <div style={{ width: 10, height: 10, background: colorTextRow['Approved for Construction'], transform: 'translate(0, 4px)', marginRight: 5 }} />
-                        <div style={{ fontSize: 10 }}>Approved for Construction</div>
-                     </div>
-                     <div style={{ display: 'flex' }}>
-                        <div style={{ width: 10, height: 10, background: colorTextRow['Reject and resubmit'], transform: 'translate(0, 4px)', marginRight: 5 }} />
-                        <div style={{ fontSize: 10 }}>Reject and resubmit</div>
-                     </div>
-                  </div>
+                  ))}
                </div>
                <div style={{ fontSize: 25, color: colorType.primary }}>{projectName}</div>
             </div>
@@ -1073,7 +1103,7 @@ const OverallComponentDMS = (props) => {
                   (projectIsAppliedRfaView && pageSheetTypeName === 'page-rfa')
                      ? nosColumnFixedRfaView
                      : (projectIsAppliedRfaView && pageSheetTypeName === 'page-rfam')
-                        ? 0
+                        ? nosColumnFixedRfaView
                         : stateProject.userData.nosColumnFixed
                )}
 
@@ -1154,8 +1184,9 @@ const OverallComponentDMS = (props) => {
                         panelSettingType.includes('form-reply-'))
                   ) ? window.innerWidth * 0.9 :
                      panelSettingType === 'pickTypeTemplate-ICON' ? window.innerWidth * 0.6 :
-                        panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
-                           520
+                        panelSettingType === 'View Drawing Revision' ? window.innerWidth * 0.8 :
+                           panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
+                              520
             }
          >
             <PanelSetting
@@ -1343,7 +1374,7 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
       let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);
       const { rowsToAdd } = rearrangeRowsNotMatchTreeNode(rows, rowsAllOutput, drawingTypeTree);
       const dataRowsHistoryConverted = convertRowHistoryData(rowsHistoryData, publicSettings.headers);
-      const { rowsDataRFA, treeViewRFA, rfaStatistics } = getDataForRFASheet(rows, dataRowsHistoryConverted, drawingTypeTree, role, company);
+      const { rowsDataRFA, treeViewRFA, rfaStatistics } = getDataForRFASheet(rows, dataRowsHistoryConverted, role, company);
 
       return {
 
@@ -1378,6 +1409,10 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          modeFilter = userSettings.modeFilter || [];
          modeSort = userSettings.modeSort || {};
       };
+
+
+      const fff = rowsAllOutput.filter(x => x['rfaNumber']);
+      console.log('fff', fff);
 
       return {
          modeFilter,

@@ -24,7 +24,7 @@ const CellRFA = (props) => {
 
    const {
       roleTradeCompany, companies, company, email, projectIsAppliedRfaView,
-      isUserCanSubmitRfaBothSide, pageSheetTypeName,
+      isUserCanSubmitRfaBothSide, pageSheetTypeName, isAdmin
    } = stateProject.allDataOneSheet;
 
    const [btnShown, setBtnShown] = useState(false);
@@ -278,6 +278,7 @@ const CellRFA = (props) => {
             isEditTimeOver = checkIfEditTimeIsOver(rowData, replyCompany, EDIT_DURATION_MIN, 'check-if-status-button-ready');
          };
 
+
          if (isEditTimeOver || userReply === email) {
             if (btn === 'See Note') {
                setModalContent(
@@ -354,6 +355,7 @@ const CellRFA = (props) => {
                } else {
                   message.info('There is no drawing attached!');
                };
+
             } else if (btn === 'Open 3D File') {
                const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'dwfxLink');
                if (dwgLink) {
@@ -406,6 +408,11 @@ const CellRFA = (props) => {
    };
 
    const checkIfEditBtnShown = (header) => {
+
+      if (isAdmin) {
+         setIsEditButtonShownInCell(true);
+         return;
+      };
 
       if (header === 'RFA Ref' && (roleTradeCompany.role === 'Document Controller' || isUserCanSubmitRfaBothSide)) {
          const userSubmission = getInfoValueFromRfaData(rowData, 'submission', 'user');
@@ -502,7 +509,7 @@ const CellRFA = (props) => {
             height: '100%',
             position: 'relative',
             padding: 5,
-            color: 'black',
+            color: replyStatus ? 'white' : 'black',
             background: (column.key === 'Due Date' && overdueCount < 0)
                ? '#FFEBCD'
                : (colorTextRow[replyStatus] || 'transparent'),
@@ -527,11 +534,12 @@ const CellRFA = (props) => {
                <span style={{ marginRight: 5 }}>{rowData['rfaNumber']}</span>
                <div style={{ display: 'flex' }}>
                   {[...rowData['btn'].sort(), 'All'].map(btn => (
-                     <ButtonRFA
-                        key={btn}
-                        onClick={() => onClickRfaDrawing(rowData['rfaNumber'], btn)}
-                        isActive={btn === activeBtn}
-                     >{btn === '-' ? '0' : btn}</ButtonRFA>
+                     <Tooltip key={btn} placement='top' title={btn === '-' ? '0' : btn === 'All' ? 'Consolidate latest drawings' : btn}>
+                        <ButtonRFA
+                           onClick={() => onClickRfaDrawing(rowData['rfaNumber'], btn)}
+                           isActive={btn === activeBtn}
+                        >{btn === '-' ? '0' : btn}</ButtonRFA>
+                     </Tooltip>
                   ))}
                </div>
 
@@ -824,9 +832,9 @@ const cloneRfaData = (row) => {
    let obj = {};
    for (const key in row) {
       if (
-         key.includes('reply') || 
-         key.includes('submission') || 
-         key === 'rfaNumber' || 
+         key.includes('reply') ||
+         key.includes('submission') ||
+         key === 'rfaNumber' ||
          key === 'Consultant Reply (T)' ||
          key === 'Drg To Consultant (A)'
       ) {

@@ -128,7 +128,8 @@ const disabledBtn = (
    projectIsAppliedRfaView,
 ) => {
    const { rowData } = panelType.cellProps;
-   const { _rowLevel, treeLevel, id } = rowData;
+   const { _rowLevel, treeLevel, id, rfaNumber } = rowData;
+
 
 
    const consultantLeadName = getConsultantLeadName(rowData);
@@ -146,8 +147,10 @@ const disabledBtn = (
       (_rowLevel === 1 && rowsSelected.length > 0 && rowsSelectedToMove.length === 0 && btn !== 'Move Drawings' && btn !== 'Date Automation') ||
       (_rowLevel === 1 && rowsSelected.length > 0 && rowsSelectedToMove.length > 0 && btn !== 'Paste Drawings') ||
       (_rowLevel === 1 && (roleTradeCompany.role === 'View-Only User' || roleTradeCompany.role === 'Production') && btnLocked_2.indexOf(btn) !== -1) ||
+      (_rowLevel === 1 && rfaNumber && btn === 'Delete Drawing') ||
 
       (treeLevel === 1 && rowData.title === 'Woh Hup Private Ltd' && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
+      (treeLevel === 2 && rowData.title.includes('(SUBCON)') && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
       (treeLevel > 1 && drawingTypeTree.find(x => x.parentId === id) && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
       (treeLevel > 1 && !drawingTypeTree.find(x => x.parentId === id) && rowsSelectedToMove.length === 0 && btn === 'Paste Drawings') ||
       (treeLevel >= 1 && isLockedByCompanyOrTrade)
