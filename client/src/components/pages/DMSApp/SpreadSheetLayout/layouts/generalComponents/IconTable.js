@@ -83,6 +83,9 @@ const toolTipBtn = (type, pageSheetTypeName) => {
                                                                               type === 'rfa-button' ? 'Go To RFA Sheet' :
                                                                                  type === 'dms-button' ? 'Go To DMS Sheet' :
                                                                                     (type === 'plus-square' && pageSheetTypeName === 'page-rfam') ? 'Add New RFAM' :
+                                                                                    (type === 'plus-square' && pageSheetTypeName === 'page-rfi') ? 'Add New RFI' :
+                                                                                    (type === 'plus-square' && pageSheetTypeName === 'page-cvi') ? 'Add New CVI' :
+                                                                                    (type === 'plus-square' && pageSheetTypeName === 'page-dt') ? 'Add New DT' :
                                                                                        type === 'plus-square' ? 'Add New RFA' :
                                                                                           type === 'block' ? 'View Consultant Mode' :
                                                                                              'No Title';

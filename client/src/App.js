@@ -3,6 +3,7 @@ import React from 'react';
 import { BrowserRouter, Route, Switch } from 'react-router-dom';
 import PageDashboard from './components/pages/DMSApp/DashboardLayout/PageDashboard';
 import SheetContext from './components/pages/DMSApp/SpreadSheetLayout/contexts/sheetContextProvider';
+import PageCVI from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageCVI';
 import PageDataEntrySheet from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageDataEntrySheet';
 import PageRFA from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageRFA';
 import PageRFAM from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageRFAM';
@@ -39,7 +40,8 @@ const App = () => {
    const propsSheet = {
       email: browserName === 'Chrome' ? 'tbl@wohhup.com' : 'test@dca.com',
       company: browserName === 'Chrome' ? 'Woh Hup Private Ltd' : consultantCompany,
-      role: browserName === 'Chrome' ? 'Document Controller' : 'Consultant',
+      // role: browserName === 'Chrome' ? 'Document Controller' : 'Consultant',
+      role: browserName === 'Chrome' ? 'Document Controller' : 'Client',
       // projectId: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg',
       // projectId: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q',
       // projectId: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc',
@@ -73,7 +75,7 @@ const App = () => {
 
 
          { company: 'DCA', companyType: 'Consultant' },
-         { company: 'rsP', companyType: 'Consultant' },
+         { company: 'RSP', companyType: 'Consultant' },
          { company: 'HYLA', companyType: 'Consultant' },
          { company: 'K2LD', companyType: 'Consultant' },
          { company: 'ONG & ONG', companyType: 'Consultant' },
@@ -83,7 +85,22 @@ const App = () => {
       listUser: [
          'bql@gmail.com',
          'pmq@wohhup.com',
-         'tbl_1@gmail.com'
+         'tbl_1@gmail.com',
+         'manager@wohhup.com',
+         'manager1@wohhup.com',
+         'tran_dinhbac@wohhup.com',
+         'tran_dinhbac444@wohhup.com',
+         'coc_coc@wohhup.com',
+         'gggggggg@gmail.com',
+         'gggggggg_1@gmail.com',
+         'gggggggg_2@gmail.com',
+         'gggggggg_3@gmail.com',
+         'gggggggg_4@gmail.com',
+         'gggggggg_5@gmail.com',
+         'gggggggg_6@gmail.com',
+         'gggggggg_7@gmail.com',
+         'gggggggg_8@gmail.com',
+         'gggggggg_9@gmail.com',
       ],
       listGroup: [
          // 'DCA',
@@ -111,6 +128,7 @@ const App = () => {
                <Route exact path='/dms-spreadsheet'><PageSpreadsheet {...propsSheet} /></Route>
                <Route exact path='/dms-rfa'><PageRFA {...propsSheet} /></Route>
                <Route exact path='/dms-rfam'><PageRFAM {...propsSheet} /></Route>
+               <Route exact path='/dms-cvi'><PageCVI {...propsSheet} /></Route>
                {/* <Route path='/sheet-rfi'><PageRFA {...propsSheet} /></Route>
                <Route path='/sheet-dt'><PageRFA {...propsSheet} /></Route>
                <Route path='/sheet-cvi'><PageRFA {...propsSheet} /></Route> */}

@@ -286,7 +286,8 @@ export const getHeaderWidthForRFAView = (header) => {
    else if (header === 'Due Date') return 80;
    else if (header === 'Submission Date') return 80;
    else if (header === 'Rev') return 40;
-   else if (header === 'Requested By') return 100;
+   else if (header === 'Requested By') return 150;
+
    return getHeaderWidth(header);
 };
 export const getHeaderWidth = (header) => {
@@ -351,6 +352,15 @@ export const getActionName = (type) => {
    if (type === 'form-resubmit-RFA') return 'Resubmit RFA';
    if (type === 'form-reply-RFA') return 'Reply RFA';
    if (type === 'form-RFA-submit-for-admin') return 'Choose Admin Action';
+
+   if (type === 'form-submit-multi-type') return 'Add New Form';
+   if (type === 'form-resubmit-multi-type') return 'Resubmit Form';
+   if (type === 'form-reply-multi-type') return 'Reply Form';
+
+
+   if (type === 'goToViewDMS-ICON') return 'Go To DMS View';
+   if (type === 'goToViewRFA-ICON') return 'Go To RFA View';
+   if (type === 'acknowledgeForm') return 'Acknowledge Form';
 
 
    if (type === 'Date Automation') return 'Date Automation';

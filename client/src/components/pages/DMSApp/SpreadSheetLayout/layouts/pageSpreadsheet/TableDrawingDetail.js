@@ -54,7 +54,6 @@ const TableDrawingDetail = (props) => {
       const fetchRowsHistory = async () => {
          try {
             const res = await Axios.get(`${SERVER_URL}/row/history/one-row/`, { params: { token, projectId, rowId } });
-            console.log('res======================', res.data);
             let rowsHistory = [];
             res.data.forEach((r, i) => {
                const { history } = r;
@@ -112,6 +111,42 @@ const TableDrawingDetail = (props) => {
    const columnWidth = 190;
    const columnHeaderWidth = 210;
 
+   const generateColumns = (headers, { columnWidth, columnHeaderWidth }) => headers.map((column, columnIndex) => ({
+      key: column,
+      dataKey: column,
+      title: column === 'Info' ? '' : column,
+      resizable: true,
+      width: columnIndex === 0 ? columnHeaderWidth : columnWidth,
+      className: columnIndex === 0 ? 'column-header' : 'column-data',
+      cellRenderer: (props) => {
+
+         const { cellData, rowData, column } = props;
+         const infoCol = rowData['Info'];
+
+         if ((headersConsultantWithNumber.indexOf(infoCol) !== -1 || infoCol === 'RFA Ref') && column.key !== 'Info') {
+            return (
+               <CellRFA 
+                  {...props} 
+                  contextInput={{
+                     contextRow: { stateRow },
+                     contextProject: { stateProject },
+                  }}
+
+               />
+            );
+         } else {
+            return (
+               <div style={{
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  padding: 10
+               }}>{cellData}</div>
+            );
+         };
+      }
+   }));
+
    return (
       // <div style={{
       //    height: panelHeight,
@@ -168,34 +203,7 @@ export default TableDrawingDetail;
 
 
 
-const generateColumns = (headers, { columnWidth, columnHeaderWidth }) => headers.map((column, columnIndex) => ({
-   key: column,
-   dataKey: column,
-   title: column === 'Info' ? '' : column,
-   resizable: true,
-   width: columnIndex === 0 ? columnHeaderWidth : columnWidth,
-   className: columnIndex === 0 ? 'column-header' : 'column-data',
-   cellRenderer: (props) => {
 
-      const { cellData, rowData, column } = props;
-      const infoCol = rowData['Info'];
-
-      if ((headersConsultantWithNumber.indexOf(infoCol) !== -1 || infoCol === 'RFA Ref') && column.key !== 'Info') {
-         return (
-            <CellRFA {...props} />
-         );
-      } else {
-         return (
-            <div style={{
-               textOverflow: 'ellipsis',
-               overflow: 'hidden',
-               whiteSpace: 'nowrap',
-               padding: 10
-            }}>{cellData}</div>
-         );
-      };
-   }
-}));
 
 
 

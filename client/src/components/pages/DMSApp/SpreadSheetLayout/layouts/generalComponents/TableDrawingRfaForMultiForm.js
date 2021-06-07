@@ -155,27 +155,18 @@ const TableStyled = styled(Table)`
    
    .BaseTable__row-cell-text {
       color: black
-   }
-
-   .BaseTable__table .BaseTable__body {
-      /* -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      -khtml-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none; */
-   }
+   };
 
    .BaseTable__header-cell {
       padding: 10px;
       border-right: 1px solid #DCDCDC;
       background: ${colorType.grey1};
       color: black
-   }
+   };
 
    .BaseTable__row-cell {
       padding: 10px;
       border-right: 1px solid #DCDCDC;
       overflow: visible !important;
-   }
+   };
 `;

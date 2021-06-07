@@ -131,6 +131,9 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const [dateSendThisForm, setDateSendThisForm] = useState(null);
 
 
+   const [existingTradeOfResubmision, setExistingTradeOfResubmision] = useState(null);
+
+
 
    useEffect(() => {
       if (formRfaType === 'form-submit-RFA') {
@@ -216,6 +219,10 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             setTextEmailTitle('Resubmit - ' + oneDwg[`submission-$$$-emailTitle-${company}`]);
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
 
+
+            const tradeOfDrawing = convertTradeCodeInverted(oneDwg['rfaNumber'].split('/')[2]);
+            setExistingTradeOfResubmision(tradeOfDrawing);
+
          } else {
 
             const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
@@ -252,6 +259,10 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
             const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
             setRfaNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
+
+            const oneDwg = rowsToEditClone[0];
+            const tradeOfDrawing = convertTradeCodeInverted(oneDwg['rfaNumber'].split('/')[2]);
+            setExistingTradeOfResubmision(tradeOfDrawing);
          };
 
       } else if (formRfaType === 'form-reply-RFA') {
@@ -397,18 +408,26 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
 
-   const onClickApplyModalPickDrawing = (drawingTrade, dwgIds) => {
-      if (dwgIds && dwgIds.length > 0) {
-         const dwgsToAdd = rowsAll.filter(r => dwgIds.indexOf(r.id) !== -1);
+   const onClickApplyModalPickDrawing = (formRfaType, drawingTrade, dwgIds) => {
+      if (!dwgIds || dwgIds.length === 0) return;
+      let dwgsToAdd = [];
+      if (formRfaType === 'form-resubmit-RFA') {
+         dwgsToAdd = rowsAll.filter(r => dwgIds.indexOf(r.id) !== -1);
+         setDwgsToAddNewRFA([...dwgsToAddNewRFA, ...dwgsToAdd]);
+
+      } else {
+         dwgsToAdd = rowsAll.filter(r => dwgIds.indexOf(r.id) !== -1);
          setDwgsToAddNewRFA(dwgsToAdd);
-         const dwgFound = dwgsToAdd.find(x => x['Coordinator In Charge']);
-         if (dwgFound) {
-            setRequestedBy(dwgFound['Coordinator In Charge']);
-         };
          setTradeOfRfaForFirstTimeSubmit(convertTradeCode(drawingTrade));
+
+      };
+      const dwgFound = dwgsToAdd.find(x => x['Coordinator In Charge']);
+      if (dwgFound) {
+         setRequestedBy(dwgFound['Coordinator In Charge']);
       };
       setTablePickDrawingRFA(false);
    };
+
    const setRevisionDwg = (id, rev) => {
       const row = dwgsToAddNewRFA.find(x => x.id === id);
       row['Rev'] = rev;
@@ -517,11 +536,9 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       const originConsultant = listConsultants.find(x => x.company === consultantName);
       outputListConsultantMustReply = outputListConsultantMustReply.filter(x => x !== consultantName);
 
-
       if (originConsultant && !isRemoveTag) {
          outputListConsultantMustReply.unshift(originConsultant.company);
       };
-
       setListConsultantMustReply(outputListConsultantMustReply);
    };
 
@@ -625,7 +642,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       getSheetRows({ ...stateRow, loading: true });
 
 
-  
+
 
       onClickApplyAddNewRFA({
          type: formRfaType,
@@ -784,7 +801,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                      <div style={{ display: 'flex', marginRight: 40 }}>
                         <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date Submission</div>
                         <DatePickerStyled
-                           style={{ width: 110, transform: 'translateY(-5px)' }}
                            value={dateSendThisForm}
                            format={'DD/MM/YY'}
                            onChange={(e) => setDateSendThisForm(e)}
@@ -796,7 +812,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                      <div style={{ display: 'flex' }}>
                         <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date Reply</div>
                         <DatePickerStyled
-                           style={{ width: 110, transform: 'translateY(-5px)' }}
                            value={dateReplyForSubmitForm}
                            format={'DD/MM/YY'}
                            onChange={(e) => setDateReplyForSubmitForm(e)}
@@ -1027,7 +1042,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
                <div style={{ display: 'flex', marginBottom: 5 }}>
-                  {formRfaType === 'form-submit-RFA' && !isFormEditting && (
+                  {formRfaType !== 'form-reply-RFA' && !isFormEditting && (
                      <ButtonStyle
                         marginRight={10}
                         name='Add Drawing To List'
@@ -1131,6 +1146,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   onClickApplyModalPickDrawing={onClickApplyModalPickDrawing}
                   dwgsToAddNewRFA={dwgsToAddNewRFA}
                   tradeOfRfaForFirstTimeSubmit={tradeOfRfaForFirstTimeSubmit}
+                  formRfaType={formRfaType}
+                  existingTradeOfResubmision={existingTradeOfResubmision}
                />
             </ModalPickDrawingRFAStyled>
          )}
@@ -1564,6 +1581,7 @@ const SelectRecipientStyled = styled(Select)`
 
 
 const DatePickerStyled = styled(DatePicker)`
+   transform: translateY(-5px);
    .ant-calendar-picker-input {
       border-radius: 0;
       border-top: none;
@@ -1574,11 +1592,9 @@ const DatePickerStyled = styled(DatePicker)`
       &:focus {
          outline: none;
          box-shadow: none;
-      }
+      };
+      width: 110px;
    };
-   .anticon {
-      transform: translateY(-5px);
-   }
 `;
 
 

@@ -29,15 +29,18 @@ const Table = (props) => {
 };
 
 
-const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA, tradeOfRfaForFirstTimeSubmit }) => {
+const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA, tradeOfRfaForFirstTimeSubmit, formRfaType, existingTradeOfResubmision }) => {
 
 
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow } = useContext(RowContext);
+
    const { headers } = stateProject.allDataOneSheet.publicSettings;
+
+
    const { rowsAll, drawingTypeTreeDmsView } = stateRow;
 
-   const [drawingTrade, setDrawingTrade] = useState(convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit) || 'ARCHI');
+   const [drawingTrade, setDrawingTrade] = useState(existingTradeOfResubmision || convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit) || 'ARCHI');
    const [rowsTableInput, setRowsTableInput] = useState([]);
 
 
@@ -46,15 +49,15 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
       if (drawingTrade !== convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit)) {
          setSelectedIdRows([]);
       };
-
+      
       const rowsList = rowsAll.filter(r => {
          const trade = findTradeOfDrawing(r, drawingTypeTreeDmsView);
-
          return (r['Drawing Number'] || r['Drawing Name']) &&
             !r.rfaNumber &&
             trade.includes(drawingTrade);
       });
       setRowsTableInput(rowsList);
+
    }, [drawingTrade]);
 
 
@@ -110,6 +113,7 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
                style={{ minWidth: 100, paddingRight: 10 }}
                value={drawingTrade}
                onChange={(e) => setDrawingTrade(e)}
+               disabled={formRfaType === 'form-resubmit-RFA'}
             >
                {['ARCHI', 'C&S', 'M&E', 'PRECAST'].map(item => (
                   <Option key={item} value={item}>{item}</Option>
@@ -135,7 +139,7 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
                   if (selectedIdRows.length === 0) {
                      return message.info('Please select drawings to submit!', 3);
                   } else {
-                     onClickApplyModalPickDrawing(drawingTrade, selectedIdRows);
+                     onClickApplyModalPickDrawing(formRfaType, drawingTrade, selectedIdRows);
                   };
                }}
             />

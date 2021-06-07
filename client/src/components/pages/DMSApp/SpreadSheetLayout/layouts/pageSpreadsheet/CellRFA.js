@@ -1,11 +1,9 @@
 import { Icon, message, Modal, Tooltip } from 'antd';
 import Axios from 'axios';
 import moment from 'moment';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorTextRow, colorType, EDIT_DURATION_MIN } from '../../constants';
-import { Context as ProjectContext } from '../../contexts/projectContext';
-import { Context as RowContext } from '../../contexts/rowContext';
 import { compareDates, mongoObjectId } from '../../utils';
 import ButtonColumnTag from '../generalComponents/ButtonColumnTag';
 import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
@@ -15,16 +13,17 @@ import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
 
 const CellRFA = (props) => {
 
-   const { rowData, cellData, column, buttonPanelFunction } = props;
-
-   const { state: stateRow, getSheetRows } = useContext(RowContext);
-   const { state: stateProject } = useContext(ProjectContext);
+   const { rowData, cellData, column, buttonPanelFunction, contextInput } = props;
+   
+   const { contextRow, contextProject } = contextInput;
+   const { stateRow, getSheetRows } = contextRow;
+   const { stateProject } = contextProject;
 
    const { rowsRfaAll, rowsRfaAllInit } = stateRow;
 
    const {
       roleTradeCompany, companies, company, email, projectIsAppliedRfaView,
-      isUserCanSubmitRfaBothSide, pageSheetTypeName, isAdmin
+      isUserCanSubmitBothSide, pageSheetTypeName, isAdmin
    } = stateProject.allDataOneSheet;
 
    const [btnShown, setBtnShown] = useState(false);
@@ -80,7 +79,7 @@ const CellRFA = (props) => {
 
          const consultantMustReplyArray = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply');
 
-         if (isUserCanSubmitRfaBothSide) {
+         if (isUserCanSubmitBothSide) {
             if (allRowsChildren.find(row => !row['RFA Ref'])) {
                setThereIsDrawingWithNoRfaRef(true);
             } else {
@@ -246,7 +245,7 @@ const CellRFA = (props) => {
       };
 
 
-      if (isUserCanSubmitRfaBothSide) {
+      if (isUserCanSubmitBothSide) {
          setModalActionTypeForAdminSubmit(btn);
       } else {
          buttonPanelFunction(btn);
@@ -301,7 +300,7 @@ const CellRFA = (props) => {
             } else if (btn === 'Edit') {
                let adminEditData = {};
                const listEmailTo = getInfoValueFromRfaData(rfaData, 'reply', 'emailTo', replyCompany);
-               if (isUserCanSubmitRfaBothSide) {
+               if (isUserCanSubmitBothSide) {
                   adminEditData = {
                      isAdminAction: true,
                      isAdminActionWithNoEmailSent: !listEmailTo || listEmailTo.length === 0,
@@ -370,7 +369,7 @@ const CellRFA = (props) => {
 
                let adminEditData = {};
                const listEmailTo = getInfoValueFromRfaData(rfaData, 'submission', 'emailTo', company);
-               if (isUserCanSubmitRfaBothSide) {
+               if (isUserCanSubmitBothSide) {
                   adminEditData = {
                      isAdminAction: true,
                      isAdminActionWithNoEmailSent: !listEmailTo || listEmailTo.length === 0,
@@ -414,7 +413,7 @@ const CellRFA = (props) => {
          return;
       };
 
-      if (header === 'RFA Ref' && (roleTradeCompany.role === 'Document Controller' || isUserCanSubmitRfaBothSide)) {
+      if (header === 'RFA Ref' && (roleTradeCompany.role === 'Document Controller' || isUserCanSubmitBothSide)) {
          const userSubmission = getInfoValueFromRfaData(rowData, 'submission', 'user');
          const isEditTimeOver = checkIfEditTimeIsOver(rowData, null, EDIT_DURATION_MIN, 'check-if-rfa-button-ready');
          if (!isEditTimeOver && userSubmission === email) {
@@ -425,7 +424,7 @@ const CellRFA = (props) => {
 
       } else if (
          (isColumnWithReplyData(column.key) || isColumnConsultant(column.key) || column.key.includes('Version ')) &&
-         (roleTradeCompany.role === 'Consultant' || isUserCanSubmitRfaBothSide)
+         (roleTradeCompany.role === 'Consultant' || isUserCanSubmitBothSide)
       ) {
          const userReply = getInfoValueFromRfaData(rowData, 'reply', 'user', replyCompany);
          const isEditTimeOver = checkIfEditTimeIsOver(rowData, replyCompany, EDIT_DURATION_MIN, 'check-if-status-button-ready');
@@ -485,7 +484,7 @@ const CellRFA = (props) => {
    const additionalBtn3DModel = is3dModelAttached ? ['Open 3D File'] : [];
 
    let arrayButtonReplyAndResubmit = [];
-   if (isUserCanSubmitRfaBothSide) {
+   if (isUserCanSubmitBothSide) {
       if (thereIsDrawingWithNoRfaRef) {
          arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'plus-square'];
       };
@@ -509,11 +508,24 @@ const CellRFA = (props) => {
             height: '100%',
             position: 'relative',
             padding: 5,
+            
+
+            // meeting presentation
             color: replyStatus ? 'white' : 'black',
             background: (column.key === 'Due Date' && overdueCount < 0)
                ? '#FFEBCD'
                : (colorTextRow[replyStatus] || 'transparent'),
             fontWeight: (column.key === 'RFA Ref' && rowData.treeLevel) && 'bold'
+
+
+            // color: 'black',
+            // background: (column.key === 'Due Date' && overdueCount < 0)
+            //    ? '#FFEBCD'
+            //    : 'transparent',
+            // fontWeight: (column.key === 'RFAM Ref' && rowData.treeLevel) && 'bold'
+            // fontWeight: (column.key === 'RFI Ref' && rowData.treeLevel) && 'bold'
+            // fontWeight: (column.key === 'CVI Ref' && rowData.treeLevel) && 'bold'
+            // fontWeight: (column.key === 'DT Ref' && rowData.treeLevel) && 'bold'
          }}
          onMouseOver={() => {
             if (
@@ -529,9 +541,32 @@ const CellRFA = (props) => {
          }}
          onMouseDown={onMouseDown}
       >
-         {(pageSheetTypeName !== 'page-spreadsheet' && rowData.treeLevel === 3 && column.key === 'RFA Ref') ? (
+         {(pageSheetTypeName === 'page-rfa' && rowData.treeLevel === 3 && 
+            column.key === 'RFA Ref'
+
+            // meeting presentation
+            // column.key === 'RFAM Ref'
+            // column.key === 'RFI Ref'
+            // column.key === 'CVI Ref'
+            // column.key === 'DT Ref'
+         
+         ) ? (
             <div style={{ display: 'flex', position: 'relative' }}>
-               <span style={{ marginRight: 5 }}>{rowData['rfaNumber']}</span>
+               <span style={{ marginRight: 5 }}>
+                  {
+                  rowData['rfaNumber']
+
+                  // meeting presentation
+                  // rowData['rfaNumber'].replace('RFA', 'RFAM')
+                  // rowData['rfaNumber'].replace('RFA', 'RFI')
+                  // rowData['rfaNumber'].replace('RFA', 'CVI')
+                  // rowData['rfaNumber'].replace('RFA', 'DT')
+                  }
+
+                  
+
+                  
+               </span>
                <div style={{ display: 'flex' }}>
                   {[...rowData['btn'].sort(), 'All'].map(btn => (
                      <Tooltip key={btn} placement='top' title={btn === '-' ? '0' : btn === 'All' ? 'Consolidate latest drawings' : btn}>
@@ -559,16 +594,34 @@ const CellRFA = (props) => {
                   </Tooltip>
                ))}
             </div>
-         ) : (pageSheetTypeName !== 'page-spreadsheet' && rowData.treeLevel >= 2 && column.key === 'RFA Ref') ? rowData.title
+         ) : (pageSheetTypeName !== 'page-spreadsheet' && rowData.treeLevel >= 2 && 
+
+            column.key === 'RFA Ref'
+
+            // meeting presentation
+            // column.key === 'RFAM Ref'
+            // column.key === 'RFI Ref'
+            // column.key === 'CVI Ref'
+            // column.key === 'DT Ref'
+            
+         ) ? rowData.title
 
             : (!rowData.treeLevel && (isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) && !replyStatus && rowData['RFA Ref']) ? (
                <div>{replyCompany}</div>
-
             ) : (!rowData.treeLevel && (isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) && replyStatus) ? (
                <div>
                   <span style={{ fontWeight: 'bold' }}>{replyCompany}</span>
                   <span>{` - (${replyDate})`}</span>
                </div>
+
+
+            // meeting presentation
+            // : (!rowData.treeLevel && (isColumnWithReplyData(column.key) || isColumnConsultant(column.key))) ? (
+            //    <div>
+            //       <span style={{ fontWeight: 'bold' }}>Under review</span>
+            //    </div>
+
+
 
             ) : (
                !rowData.treeLevel &&
@@ -599,7 +652,51 @@ const CellRFA = (props) => {
             ) : (!rowData.treeLevel && column.key === 'Requested By') ? (
                <span>{requestedByCellData}</span>
 
-            ) : (!rowData.treeLevel && !isColumnWithReplyData(column.key)) ? cellData
+            ) : 
+            
+
+            // meeting presentation
+            // (
+            //    !rowData.treeLevel && column.key === 'RFAM Ref'
+            // ) ? rowData['rfaNumber'].replace('RFA', 'RFAM') 
+
+            // (
+            //    !rowData.treeLevel && column.key === 'RFI Ref'
+            // ) ? rowData['rfaNumber'].replace('RFA', 'RFI') 
+
+            // (
+            //    !rowData.treeLevel && column.key === 'CVI Ref'
+            // ) ? rowData['rfaNumber'].replace('RFA', 'CVI') 
+
+            (
+               !rowData.treeLevel && column.key === 'DT Ref'
+            ) ? rowData['rfaNumber'].replace('RFA', 'DT') 
+            
+            // meeting presentation
+            : (!rowData.treeLevel && column.key === 'Received By') ? (
+               <div style={{ display: 'flex' }}>
+                  {['DCA', 'Alpha', 'HI SERVICES', 'MAXBOND'].map(cmp => (
+                     <div style={{ 
+                        marginLeft: 5, 
+                        marginRight: 5, 
+                        background: cmp === 'DCA' ? colorType.yellow : colorType.grey1,
+                        paddingRight: 5, paddingLeft: 5
+
+                     }}>
+                        {cmp}
+                     </div>
+                  ))}
+               </div>
+            )
+
+
+
+
+
+
+
+
+            : (!rowData.treeLevel && !isColumnWithReplyData(column.key)) ? cellData
                : ''}
 
 
@@ -682,7 +779,6 @@ const CellRFA = (props) => {
                onCancel={() => setModalActionTypeForAdminSubmit(null)}
                destroyOnClose={true}
                centered={true}
-            // width={window.innerWidth * 0.5}
             >
                <div style={{ flexDirection: 'column' }}>
 
@@ -716,8 +812,6 @@ const CellRFA = (props) => {
                      />
                   </div>
                </div>
-
-
             </ModalStyledSetting>
          )}
 
@@ -999,3 +1093,11 @@ const PanelStyled = styled.div`
 `;
 
 
+
+
+const xxxxx = (str) => {
+   console.log(str);
+   const output = str.replace('RFA', 'RFAM');
+
+   return output;
+};

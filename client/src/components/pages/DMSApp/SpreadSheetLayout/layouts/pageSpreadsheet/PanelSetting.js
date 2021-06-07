@@ -2,6 +2,7 @@ import { message } from 'antd';
 import Axios from 'axios';
 import moment from 'moment';
 import React, { useContext } from 'react';
+import { useHistory } from 'react-router-dom';
 import { EDIT_DURATION_MIN, SERVER_URL } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
@@ -28,7 +29,7 @@ import TableDrawingDetail from './TableDrawingDetail';
 
 
 
-const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
+export const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
 
 const PanelSetting = (props) => {
 
@@ -40,6 +41,10 @@ const PanelSetting = (props) => {
    const { projectIsAppliedRfaView, companies, pageSheetTypeName } = stateProject.allDataOneSheet;
    const { isShowAllConsultant, rowsSelected } = stateRow;
    const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading, buttonPanelFunction, history, localState } = props;
+
+
+   const refType = getKeyTextForSheet(pageSheetTypeName);
+   const refKey = refType + 'Ref';
 
    const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
 
@@ -953,6 +958,7 @@ const PanelSetting = (props) => {
 
          if (filesPDF.length > 0 && data && data !== null) {
 
+            // const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
             const res = await Axios.post('/api/drawing/set-drawing-files', data);
             const listFileName = res.data;
 
@@ -961,6 +967,12 @@ const PanelSetting = (props) => {
                fileLink: link
             }));
 
+            // arrayFileName = filesPDF.map(fl => {
+            //    return {
+            //       fileName: fl.name,
+            //       fileLink: `https://www.google.com/${fl.name}`
+            //    };
+            // });
 
             dwgsToAddNewRFA.forEach(r => {
                const fileFound = arrayFileName.find(fl => fl.fileName === r[`${typeText}-$$$-drawing-${company}`]);
@@ -1194,7 +1206,6 @@ const PanelSetting = (props) => {
             });
          };
 
-
          message.success('Submitted Successfully', 3);
 
          const resServer = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
@@ -1221,24 +1232,26 @@ const PanelSetting = (props) => {
    };
 
 
-
-   const onClickApplyAddNewRefForm = async (dataForm) => {
+   const onClickApplySendFormToSignature = async (dataForm) => {
 
       setLoading(true);
 
       const {
-         filesPdfForm, filesPdfDrawing, type, dwgsImportFromRFA, trade, refToSave, refToSaveVersionOrToReply,
+         filesPdfDrawing, type, dwgsImportFromRFA, trade, refToSave, refToSaveVersionOrToReply,
          recipient, emailTextTitle, description, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting,
          isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
          dateSendThisForm
       } = dataForm;
 
 
-      const { currentRfaToAddNewOrReplyOrEdit } = stateRow;
+      const { currentRefToAddNewOrReplyOrEdit } = stateRow;
       const { email, projectId, projectName, token, roleTradeCompany: { role, company: companyUser } } = stateProject.allDataOneSheet;
 
 
       const company = (type.includes('form-reply-multi-') && isAdminAction && adminActionConsultantToReply) ? adminActionConsultantToReply : companyUser;
+
+      const refType = getKeyTextForSheet(pageSheetTypeName);
+      const refKey = refType + 'Ref';
 
       try {
 
@@ -1295,17 +1308,13 @@ const PanelSetting = (props) => {
          const typeText = type.includes('form-reply-multi') ? 'reply' : 'submission';
 
          let dwgsToAddNewRFA = [];
-         let filesDWFX = [];
          let emailTextAdditionalNotes = '';
-
-         const formFileName = filesPdfForm[0].name;
-         const arrayAllFilesToUpload = [...filesPdfForm, ...filesPdfDrawing];
 
 
          let data;
-         if (arrayAllFilesToUpload.length > 0) {
+         if (filesPdfDrawing.length > 0) {
             data = new FormData();
-            arrayAllFilesToUpload.forEach(file => {
+            filesPdfDrawing.forEach(file => {
                data.append('files', file.originFileObj);
             });
             data.append('projectId', projectId);
@@ -1316,7 +1325,7 @@ const PanelSetting = (props) => {
          };
          let arrayFilesPdfFormLink = [];
 
-         if (arrayAllFilesToUpload.length > 0 && data && data !== null) {
+         if (filesPdfDrawing.length > 0 && data && data !== null) {
 
             // const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
             // const res = await Axios.post('/api/drawing/set-drawing-files', data);
@@ -1325,7 +1334,7 @@ const PanelSetting = (props) => {
             //    fileName: getFileNameFromLinkResponse(link),
             //    fileLink: link
             // }));
-            arrayFilesPdfFormLink = arrayAllFilesToUpload.map(fl => {
+            arrayFilesPdfFormLink = filesPdfDrawing.map(fl => {
                return {
                   fileName: fl.name,
                   fileLink: `https://www.google.com/${fl.name}`
@@ -1334,14 +1343,13 @@ const PanelSetting = (props) => {
          };
 
 
-         const linkForm = arrayFilesPdfFormLink.find(x => x.fileName === formFileName).fileLink;
-         const linkDrawingsUpload = dwgsImportFromRFA.map(dwg => {
+         const linkRFADrawingsUploaded = dwgsImportFromRFA.map(dwg => {
             const link = getInfoValueFromRfaData(dwg, 'submission', 'drawing');
             return link;
          });
          const linkDrawings = [
-            ...linkDrawingsUpload,
-            ...arrayFilesPdfFormLink.filter(x => x.name !== formFileName).map(x => x.fileLink)
+            ...linkRFADrawingsUploaded,
+            ...arrayFilesPdfFormLink.map(x => x.fileLink)
          ];
 
 
@@ -1350,32 +1358,28 @@ const PanelSetting = (props) => {
          if (type.includes('form-submit-multi-') || type.includes('form-resubmit-multi-')) {
             rowOutput.data = {};
             rowOutput.trade = trade;
-            rowOutput.rfamRef = refToSave;
+            rowOutput[refKey] = refToSave;
             rowOutput.revision = refToSaveVersionOrToReply;
 
-            rowOutput.data[`submission-rfam-emailTo-${company}`] = recipient.to;
-            rowOutput.data[`submission-rfam-emailCc-${company}`] = recipient.cc;
-            rowOutput.data[`submission-rfam-emailTitle-${company}`] = emailTextTitle;
-            rowOutput.data[`submission-rfam-description-${company}`] = description;
-            rowOutput.data[`submission-rfam-requestedBy-${company}`] = requestedBy;
-            rowOutput.data[`submission-rfam-due-${company}`] = dateReplyForsubmitForm;
+            rowOutput.data[`submission-${refType}-emailTo-${company}`] = recipient.to;
+            rowOutput.data[`submission-${refType}-emailCc-${company}`] = recipient.cc;
+            rowOutput.data[`submission-${refType}-emailTitle-${company}`] = emailTextTitle;
+            rowOutput.data[`submission-${refType}-description-${company}`] = description;
+            rowOutput.data[`submission-${refType}-requestedBy-${company}`] = requestedBy;
+            rowOutput.data[`submission-${refType}-due-${company}`] = dateReplyForsubmitForm;
+            rowOutput.data[`submission-${refType}-consultantMustReply-${company}`] = listConsultantMustReply;
 
             if (dateSendThisForm) {
-               rowOutput.data[`submission-rfam-date-${company}`] = moment(dateSendThisForm).format('DD/MM/YY');
+               rowOutput.data[`submission-${refType}-date-${company}`] = moment(dateSendThisForm).format('DD/MM/YY');
             } else {
-               rowOutput.data[`submission-rfam-date-${company}`] = moment(new Date()).format('DD/MM/YY');
-            };
-
-            if (linkForm) {
-               rowOutput.data[`submission-rfam-linkForm-${company}`] = linkForm;
+               rowOutput.data[`submission-${refType}-date-${company}`] = moment(new Date()).format('DD/MM/YY');
             };
 
             if (linkDrawings.length > 0) {
-               rowOutput.data[`submission-rfam-linkDrawings-${company}`] = linkDrawings;
+               rowOutput.data[`submission-${refType}-linkDrawings-${company}`] = linkDrawings;
             };
          };
-         await Axios.post(`${SERVER_URL}/row-rfam/save-rows-rfam/`, { token, projectId, rows: [rowOutput] });
-
+         await Axios.post(`${SERVER_URL}/row-${refType}/save-rows-${refType}/`, { token, projectId, rows: [rowOutput] });
 
 
 
@@ -1439,18 +1443,32 @@ const PanelSetting = (props) => {
          //    projectId
          // });
 
-
-
          message.success('Submitted Successfully', 3);
-
-
-
 
       } catch (err) {
          getSheetRows({ ...stateRow, loading: false });
          commandAction({ type: 'save-data-failure' });
          console.log(err);
       };
+   };
+
+   const onClickApplyAddNewRefForm = () => {
+
+   };
+
+   const onClickAcknowledgeForm = () => {
+
+      const { currentRefToAddNewOrReplyOrEdit, rowsCviAllInit } = stateRow;
+
+      const {
+         currentRefNumber, currentRefText, currentRefData, formRefType, isFormEditting,
+         isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
+      } = currentRefToAddNewOrReplyOrEdit;
+
+
+      const rowsToAcknowledge = rowsCviAllInit.filter(x => x[refKey] + (x.revision === '0' ? '' : x.revision) === currentRefNumber);
+
+      console.log('currentRefToAddNewOrReplyOrEdit', rowsCviAllInit, currentRefNumber, rowsToAcknowledge);
    };
 
 
@@ -1662,6 +1680,7 @@ const PanelSetting = (props) => {
                <PanelAddNewMultiForm
                   onClickCancelModal={onClickCancelModal}
                   onClickApplyAddNewRefForm={onClickApplyAddNewRefForm}
+                  onClickApplySendFormToSignature={onClickApplySendFormToSignature}
                />
             )}
 
@@ -1673,7 +1692,7 @@ const PanelSetting = (props) => {
             />
          )}
 
-         {panelSettingType === 'goToViewDMS-ICON' && (
+         {(panelSettingType === 'goToViewDMS-ICON') && (
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={() => {
@@ -1683,6 +1702,14 @@ const PanelSetting = (props) => {
                   });
                }}
                content={'Do you want to go to DMS sheet ?'}
+            />
+         )}
+
+         {(panelSettingType === 'acknowledgeForm') && (
+            <PanelConfirm
+               onClickCancel={onClickCancelModal}
+               onClickApply={onClickAcknowledgeForm}
+               content={`Do you want to acknowledge this form ?`}
             />
          )}
 
@@ -1844,8 +1871,6 @@ export const getDataForRFASheet = (rows, rowsHistory, role, company) => {
          return convertTradeCodeInverted(rfaNumber.split('/')[2]) === title;
       });
 
-      console.log('rowsUnderThisTrade', title, rowsUnderThisTrade);
-
       const allRfaCode = [...new Set(rowsUnderThisTrade.map(x => x['rfaNumber']))].sort();
 
       const rfaParentNodeArray = [];
@@ -1951,7 +1976,7 @@ export const getDataForRFASheet = (rows, rowsHistory, role, company) => {
 
 
 
-export const getDataForRFAMSheet = (rows) => {
+export const getDataForMultiFormSheet = (rows, pageSheetTypeName) => {
 
    const nodeTitleArr = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
    let tree = [];
@@ -1967,29 +1992,39 @@ export const getDataForRFAMSheet = (rows) => {
 
       const rowsUnderThisTrade = rows.filter(row => row.trade === title);
 
-      const allRefCode = [...new Set(rowsUnderThisTrade.map(x => x['rfamRef']))].sort();
+      const refKey = getKeyTextForSheet(pageSheetTypeName) + 'Ref';
 
-      const rfamParentNodeArray = [];
+      const allRefCode = [...new Set(rowsUnderThisTrade.map(x => x[refKey]))].sort();
 
-      allRefCode.forEach(rfamRef => {
+      const refParentNodeArray = [];
 
-         let allDwgs = rows.filter(row => row['rfamRef'] === rfamRef);
+      allRefCode.forEach(refText => {
+         let allDwgs = rows.filter(row => row[refKey] === refText);
          const btnTextArray = [...new Set(allDwgs.map(x => x['revision']))];
 
-         rfamParentNodeArray.push({
-            id: rfamRef,
-            rfamRef,
+         refParentNodeArray.push({
+            id: refText,
+            [refKey]: refText,
             btn: btnTextArray,
             treeLevel: 3,
             expanded: true,
             parentId: title
          });
       });
-      tree = [...tree, ...rfamParentNodeArray];
+      tree = [...tree, ...refParentNodeArray];
    });
-
    return {
-      rowsDataRFAM: rows,
-      treeViewRFAM: tree
+      rowsData: rows,
+      treeView: tree,
    };
+};
+
+
+
+export const getKeyTextForSheet = (pageSheetTypeName) => {
+   return pageSheetTypeName === 'page-rfam' ? 'rfam'
+      : pageSheetTypeName === 'page-cvi' ? 'cvi'
+         : pageSheetTypeName === 'page-rfi' ? 'rfi'
+            : pageSheetTypeName === 'page-dt' ? 'dt'
+               : 'n/a';
 };

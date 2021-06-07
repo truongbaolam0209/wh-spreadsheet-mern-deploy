@@ -1,4 +1,4 @@
-import { DatePicker, Icon, Input, message, Modal, Select, Tooltip, Upload } from 'antd';
+import { Checkbox, DatePicker, Icon, Input, message, Modal, Select, TimePicker, Tooltip, Upload } from 'antd';
 import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
@@ -7,8 +7,10 @@ import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { debounceFnc, mongoObjectId, validateEmailInput } from '../../utils';
+import { getKeyTextForSheet } from '../pageSpreadsheet/PanelSetting';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
+import PrintPdf from './PrintPdf';
 import TableDrawingRfaForMultiForm from './TableDrawingRfaForMultiForm';
 
 
@@ -54,23 +56,44 @@ const Table = (props) => {
 };
 
 
-const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm }) => {
+const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignature }) => {
 
 
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { roleTradeCompany: { role, company: companyUser }, companies, listUser, email, listGroup, projectNameShort: projectNameShortText, pageSheetTypeName } = stateProject.allDataOneSheet;
+   const { roleTradeCompany: { role, company: companyUser }, companies, listUser, email, listGroup, projectName, projectNameShort: projectNameShortText, pageSheetTypeName } = stateProject.allDataOneSheet;
    const projectNameShort = projectNameShortText || 'NO-PROJECT-NAME';
 
-   const { rowsAll, loading, currentRefToAddNewOrReplyOrEdit, rowsRfamAll, rowsRfamAllInit, drawingTypeTreeDmsView } = stateRow;
+   const {
+      rowsAll, loading, currentRefToAddNewOrReplyOrEdit,
+
+      rowsRfamAll, rowsRfamAllInit,
+      rowsRfiAll, rowsRfiAllInit,
+      rowsCviAll, rowsCviAllInit,
+      rowsDtAll, rowsDtAllInit,
+   } = stateRow;
+
+   const rowsRefAllInit = pageSheetTypeName === 'page-rfam' ? rowsRfamAllInit
+      : pageSheetTypeName === 'page-rfi' ? rowsRfiAllInit
+         : pageSheetTypeName === 'page-cvi' ? rowsCviAllInit
+            : pageSheetTypeName === 'page-dt' ? rowsDtAllInit
+               : [];
+   const rowsRefAll = pageSheetTypeName === 'page-rfam' ? rowsRfamAll
+      : pageSheetTypeName === 'page-rfi' ? rowsRfiAll
+         : pageSheetTypeName === 'page-cvi' ? rowsCviAll
+            : pageSheetTypeName === 'page-dt' ? rowsDtAll
+               : [];
+
+   const refType = getKeyTextForSheet(pageSheetTypeName);
+   const refKey = refType + 'Ref';
 
    const {
       currentRefNumber, currentRefText, currentRefData, formRefType, isFormEditting,
       isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
    } = currentRefToAddNewOrReplyOrEdit || {};
 
-   // const company = (formRefType === 'form-reply-RFA' && isAdminAction && adminActionConsultantToReply) ? adminActionConsultantToReply : companyUser;
+   const company = (formRefType === 'form-reply-multi-type' && isAdminAction && adminActionConsultantToReply) ? adminActionConsultantToReply : companyUser;
 
 
    const listRecipient = (
@@ -87,18 +110,20 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
 
    const [refNumberSuffixFirstTimeSubmit, setRefNumberSuffixFirstTimeSubmit] = useState('');
 
-   const [rfaNewVersionResubmitSuffix, setRfaNewVersionResubmitSuffix] = useState('');
+   const [refNewVersionResubmitSuffix, setRefNewVersionResubmitSuffix] = useState('');
 
    const [tradeForFirstTimeSubmit, setTradeForFirstTimeSubmit] = useState('');
 
    const [dateReplyForSubmitForm, setDateReplyForSubmitForm] = useState(null);
 
+   const [dateConversation, setDateConversation] = useState(null);
+   const [timeConversation, setTimeConversation] = useState(null);
+
    const [tablePickDrawingRefSubmitted, setTablePickDrawingRefSubmitted] = useState(false);
 
    const [nosColumnFixed, setNosColumnFixed] = useState(1);
-   // const [commentText, setCommentText] = useState('');
 
-   const [filesPdfForm, setFilesPdfForm] = useState({});
+
    const [filesPdfDrawing, setFilesPdfDrawing] = useState({});
    const [dwgsImportFromRFA, setDwgsImportFromRFA] = useState([]);
 
@@ -106,10 +131,8 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
 
 
    useEffect(() => {
-      setDataInputForTable(getInputForTable(filesPdfForm, filesPdfDrawing, dwgsImportFromRFA));
-   }, [filesPdfForm, filesPdfDrawing, dwgsImportFromRFA]);
-
-
+      setDataInputForTable(getInputForTable(filesPdfDrawing, dwgsImportFromRFA));
+   }, [filesPdfDrawing, dwgsImportFromRFA]);
 
 
    const [listRecipientTo, setListRecipientTo] = useState([]);
@@ -117,12 +140,17 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
 
    const [listConsultantMustReply, setListConsultantMustReply] = useState([]);
    const [requestedBy, setRequestedBy] = useState(email);
+   const [signatureBy, setSignatureBy] = useState('');
 
    const [textEmailTitle, setTextEmailTitle] = useState('');
+   const [conversationAmong, setConversationAmong] = useState('');
 
    const [description, setDescription] = useState('');
 
    const [modalConfirmsubmitOrCancel, setModalConfirmsubmitOrCancel] = useState(null);
+
+   const [isCostImplication, setIsCostImplication] = useState(true);
+   const [isTimeExtension, setIsTimeExtension] = useState(true);
 
 
    useEffect(() => {
@@ -131,8 +159,8 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
 
          } else {
-            //          const rowsToEdit = rowsRfaAllInit.filter(x => currentRefText === x['RFA Ref']);
-            //          const oneRowInRfa = rowsToEdit[0];
+            //          const rowsToEdit = rowsRefAllInit.filter(x => currentRefText === x['RFA Ref']);
+            //          const oneRowInRef = rowsToEdit[0];
             //          const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
             //          rowsToEditClone.forEach(r => {
             //             const dwgLink = r[`submission-$$$-drawing-${company}`];
@@ -140,27 +168,27 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
             //          });
             //          setDwgsImportFromRFA(rowsToEditClone);
 
-            //          const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || [];
+            //          const listEmailTo = getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailTo', company) || [];
             //          setListRecipientTo([...new Set(listEmailTo)]);
 
-            //          const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || [];
+            //          const listEmailCc = getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailCc', company) || [];
             //          setListRecipientCc([...new Set(listEmailCc)]);
 
 
-            //          setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'consultantMustReply', company) || []);
-            //          setRequestedBy(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'requestedBy', company) || '');
-            //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTitle', company) || '');
-            //          setDescription(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailAdditionalNotes', company) || '');
+            //          setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRef, 'submission', 'consultantMustReply', company) || []);
+            //          setRequestedBy(getInfoValueFromRfaData(oneRowInRef, 'submission', 'requestedBy', company) || '');
+            //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailTitle', company) || '');
+            //          setDescription(getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailAdditionalNotes', company) || '');
 
-            //          setDateReplyForSubmitForm(moment(oneRowInRfa['Consultant Reply (T)'], 'DD/MM/YY'));
-            //          setTradeForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'trade', company)));
+            //          setDateReplyForSubmitForm(moment(oneRowInRef['Consultant Reply (T)'], 'DD/MM/YY'));
+            //          setTradeForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRef, 'submission', 'trade', company)));
 
             //          const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRefText)[0];
             //          setRefNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
          };
          //    } else if (formRefType === 'form-resubmit-RFA') {
          //       if (!isFormEditting) {
-         //          const dwgsToResubmit = rowsRfaAllInit.filter(dwg => {
+         //          const dwgsToResubmit = rowsRefAllInit.filter(dwg => {
          //             return dwg.rfaNumber === currentRefNumber &&
          //                !dwg['RFA Ref'];
          //          });
@@ -179,7 +207,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
          //          setRequestedBy(currentRefData[`submission-$$$-requestedBy-${company}`]);
 
 
-         //          const versionAlreadySubmit = rowsRfaAllInit
+         //          const versionAlreadySubmit = rowsRefAllInit
          //             .filter(dwg => dwg.rfaNumber === currentRefNumber && dwg['RFA Ref'])
          //             .map(x => x['RFA Ref']);
 
@@ -187,15 +215,15 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
          //             return rfaNum.slice(currentRefNumber.length, rfaNum.length);
          //          });
          //          const versionLeft = versionArray.filter(x => versionTextAlreadySubmitArr.indexOf(x) === -1);
-         //          setRfaNewVersionResubmitSuffix(versionLeft[0]);
+         //          setRefNewVersionResubmitSuffix(versionLeft[0]);
 
          //          const oneDwg = dwgsToResubmit[0];
          //          setTextEmailTitle('Resubmit - ' + oneDwg[`submission-$$$-emailTitle-${company}`]);
          //          setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
          //       } else {
 
-         //          const rowsToEdit = rowsRfaAllInit.filter(x => currentRefText === x['RFA Ref']);
-         //          const oneRowInRfa = rowsToEdit[0];
+         //          const rowsToEdit = rowsRefAllInit.filter(x => currentRefText === x['RFA Ref']);
+         //          const oneRowInRef = rowsToEdit[0];
          //          const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
          //          rowsToEditClone.forEach(r => {
          //             const dwgLink = r[`submission-$$$-drawing-${company}`];
@@ -203,23 +231,23 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
          //          });
 
          //          const versionTextSuffix = currentRefText.slice(currentRefNumber.length, currentRefText.length);
-         //          setRfaNewVersionResubmitSuffix(versionTextSuffix);
+         //          setRefNewVersionResubmitSuffix(versionTextSuffix);
 
          //          setDwgsImportFromRFA(rowsToEditClone);
 
-         //          const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTo', company) || [];
+         //          const listEmailTo = getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailTo', company) || [];
          //          setListRecipientTo([...new Set(listEmailTo)]);
 
-         //          const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailCc', company) || [];
+         //          const listEmailCc = getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailCc', company) || [];
          //          setListRecipientCc([...new Set(listEmailCc)]);
 
-         //          setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'consultantMustReply', company) || []);
-         //          setRequestedBy(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'requestedBy', company) || '');
-         //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailTitle', company) || '');
-         //          setDescription(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'emailAdditionalNotes', company) || '');
+         //          setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRef, 'submission', 'consultantMustReply', company) || []);
+         //          setRequestedBy(getInfoValueFromRfaData(oneRowInRef, 'submission', 'requestedBy', company) || '');
+         //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailTitle', company) || '');
+         //          setDescription(getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailAdditionalNotes', company) || '');
 
-         //          setDateReplyForSubmitForm(moment(oneRowInRfa['Consultant Reply (T)'], 'DD/MM/YY'));
-         //          setTradeForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRfa, 'submission', 'trade', company)));
+         //          setDateReplyForSubmitForm(moment(oneRowInRef['Consultant Reply (T)'], 'DD/MM/YY'));
+         //          setTradeForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRef, 'submission', 'trade', company)));
 
          //          const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRefText)[0];
          //          setRefNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
@@ -228,7 +256,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
          //    } else if (formRefType === 'form-reply-RFA') {
 
          //       if (!isFormEditting) {
-         //          const dwgsNotReplyYet = rowsRfaAllInit.filter(dwg => {
+         //          const dwgsNotReplyYet = rowsRefAllInit.filter(dwg => {
          //             return dwg.rfaNumber === currentRefNumber &&
          //                dwg['RFA Ref'] === currentRefText &&
          //                !currentRefData[`reply-$$$-status-${company}`];
@@ -252,8 +280,8 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
          //          setTextEmailTitle('Reply - ' + oneDwg[keyEmailTitle]);
 
          //       } else {
-         //          const dwgsToEditReply = rowsRfaAllInit.filter(x => currentRefText === x['RFA Ref']);
-         //          const oneRowInRfa = dwgsToEditReply[0];
+         //          const dwgsToEditReply = rowsRefAllInit.filter(x => currentRefText === x['RFA Ref']);
+         //          const oneRowInRef = dwgsToEditReply[0];
          //          const dwgsToEditReplyClone = dwgsToEditReply.map(x => ({ ...x }));
          //          dwgsToEditReplyClone.forEach(r => {
          //             const dwgLink = r[`reply-$$$-drawing-${company}`];
@@ -261,14 +289,14 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
          //          });
          //          setDwgsImportFromRFA(dwgsToEditReplyClone);
 
-         //          const listEmailTo = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTo', company) || [];
+         //          const listEmailTo = getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailTo', company) || [];
          //          setListRecipientTo([...new Set(listEmailTo)]);
 
-         //          const listEmailCc = getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailCc', company) || [];
+         //          const listEmailCc = getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailCc', company) || [];
          //          setListRecipientCc([...new Set(listEmailCc)]);
 
-         //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailTitle', company) || '');
-         //          setDescription(getInfoValueFromRfaData(oneRowInRfa, 'reply', 'emailAdditionalNotes', company) || '');
+         //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailTitle', company) || '');
+         //          setDescription(getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailAdditionalNotes', company) || '');
          //       };
       };
    }, []);
@@ -277,9 +305,9 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
    useEffect(() => {
       if (tradeForFirstTimeSubmit && formRefType === 'form-submit-multi-type' && !isFormEditting) {
 
-         const allRefNumberUnderThisTrade = rowsRfamAllInit.filter(r => r.trade === convertTradeCodeInverted(tradeForFirstTimeSubmit));
+         const allRefNumberUnderThisTrade = rowsRefAllInit.filter(r => r.trade === convertTradeCodeInverted(tradeForFirstTimeSubmit));
 
-         let refNumberExtracted = [... new Set(allRefNumberUnderThisTrade.map(x => /[^/]*$/.exec(x['rfamRef'])[0]))];
+         let refNumberExtracted = [... new Set(allRefNumberUnderThisTrade.map(x => /[^/]*$/.exec(x[refKey])[0]))];
 
          refNumberExtracted = refNumberExtracted
             .filter(x => x.length === 3 && parseInt(x) > 0)
@@ -287,13 +315,13 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
 
          if (refNumberExtracted.length > 0) {
             const lastNumber = Math.max(...refNumberExtracted);
-            const suggestedNewRfaNumber = lastNumber + 1;
-            const suggestedNewRfaNumberConverted = suggestedNewRfaNumber.toString();
-            const suggestedNewRfaNumberString = suggestedNewRfaNumberConverted.length === 3 ? suggestedNewRfaNumberConverted
-               : suggestedNewRfaNumberConverted.length === 2 ? '0' + suggestedNewRfaNumberConverted
-                  : '00' + suggestedNewRfaNumberConverted;
+            const suggestedNewRefNumber = lastNumber + 1;
+            const suggestedNewRefNumberConverted = suggestedNewRefNumber.toString();
+            const suggestedNewRefNumberString = suggestedNewRefNumberConverted.length === 3 ? suggestedNewRefNumberConverted
+               : suggestedNewRefNumberConverted.length === 2 ? '0' + suggestedNewRefNumberConverted
+                  : '00' + suggestedNewRefNumberConverted;
 
-            setRefNumberSuffixFirstTimeSubmit(suggestedNewRfaNumberString);
+            setRefNumberSuffixFirstTimeSubmit(suggestedNewRefNumberString);
 
          } else {
             setRefNumberSuffixFirstTimeSubmit('001');
@@ -357,26 +385,15 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
 
 
 
-
-   const onClickApplyModalPickRfaDrawings = (dwgIds) => {
-
-   };
    // const setRevisionDwg = (id, rev) => {
    //    const row = dwgsImportFromRFA.find(x => x.id === id);
    //    row['Rev'] = rev;
    //    setDwgsImportFromRFA([...dwgsImportFromRFA]);
    // };
+
    const onClickRemoveDwgBtn = debounceFnc((rowData) => {
 
-      if (rowData['Type'] === 'Form') {
-         delete filesPdfForm[rowData['File Name']];
-         let obj = {};
-         for (const key in filesPdfForm) {
-            obj[key] = filesPdfForm[key];
-         };
-         setFilesPdfForm(obj);
-
-      } else if (rowData['Type'] === 'Drawing') {
+      if (rowData['Type'] === 'Drawing') {
          delete filesPdfDrawing[rowData['File Name']];
          let obj = {};
          for (const key in filesPdfDrawing) {
@@ -396,29 +413,29 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
 
 
    const onBlurInputRefNameCreateNew = () => {
-      const arr = [...new Set(rowsRfamAllInit.map(x => (x['rfamRef'] || '')))];
+      const arr = [...new Set(rowsRefAllInit.map(x => (x[refKey] || '')))];
 
       if (formRefType === 'form-submit-multi-type') {
          if (!isFormEditting) {
-            const newRefToRaiseFirstSubmit = `RFAM/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
+            const newRefToRaiseFirstSubmit = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
             if (arr.indexOf(newRefToRaiseFirstSubmit) !== -1) {
-               message.info('This RFA number has already existed, please choose a new number!');
+               message.info(`This ${refType.toUpperCase()} number has already existed, please choose a new number!`);
                setRefNumberSuffixFirstTimeSubmit('');
             };
          } else {
             // const arrFilter = arr.filter(x => x !== currentRefText);
-            // const newRefToRaiseFirstSubmit = `RFA/${projectNameShort}/${tradeForFirstTimeSubmit || '____'}/${refNumberSuffixFirstTimeSubmit}`;
+            // const newRefToRaiseFirstSubmit = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit || '____'}/${refNumberSuffixFirstTimeSubmit}`;
             // if (arrFilter.indexOf(newRefToRaiseFirstSubmit) !== -1) {
-            //    message.info('This RFA number has already existed, please choose a new number!');
+            //    message.info(`This ${refType.toUpperCase()} number has already existed, please choose a new number!`);
             //    setRefNumberSuffixFirstTimeSubmit('');
             // };
          };
       } else if (formRefType === 'form-resubmit-multi-type') {
          // if (!isFormEditting) {
-         //    const newRfaToRaiseResubmit = `${currentRefNumber}${rfaNewVersionResubmitSuffix}`;
-         //    if (arr.indexOf(newRfaToRaiseResubmit) !== -1) {
-         //       message.info('This RFA number has already existed, please choose a new number!');
-         //       setRfaNewVersionResubmitSuffix('');
+         //    const newRefToRaiseResubmit = `${currentRefNumber}${refNewVersionResubmitSuffix}`;
+         //    if (arr.indexOf(newRefToRaiseResubmit) !== -1) {
+         //       message.info(`This ${refType.toUpperCase()} number has already existed, please choose a new number!`);
+         //       setRefNewVersionResubmitSuffix('');
          //    };
          // };
       };
@@ -442,31 +459,8 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
          });
          setFilesPdfDrawing(output);
       };
-
-      // const dwgsToAddNewRFAClone = dwgsImportFromRFA.map(x => ({ ...x }));
-      // dwgsToAddNewRFAClone.forEach(r => {
-      //    r[`${formRefType === 'form-reply-RFA' ? 'reply' : 'submission'}-$$$-drawing-${company}`] = '';
-      // });
-      // setDwgsImportFromRFA(dwgsToAddNewRFAClone);
    };
 
-   const onChangeUploadPDFForm = (info) => {
-      if (info.fileList) {
-         let output = {};
-         info.fileList.forEach(file => {
-            output = { ...output, [file.name]: file };
-         });
-         setFilesPdfForm(output);
-      };
-
-
-
-      // const dwgsToAddNewRFAClone = dwgsImportFromRFA.map(x => ({ ...x }));
-      // dwgsToAddNewRFAClone.forEach(r => {
-      //    r[`${formRefType === 'form-reply-RFA' ? 'reply' : 'submission'}-$$$-drawing-${company}`] = '';
-      // });
-      // setDwgsImportFromRFA(dwgsToAddNewRFAClone);
-   };
 
    // const onChangeUploadFileDWFX = (info) => {
    //    if (info.fileList) {
@@ -488,37 +482,30 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
    // };
 
 
-   const onClickTagRecipientTo = (email) => {
+   const onClickTagRecipientTo = (email, isRemoveTag) => {
+
       let outputListConsultantMustReply = [...listConsultantMustReply];
       const consultantName = extractConsultantName(email);
-
       const originConsultant = listConsultants.find(x => x.company === consultantName);
       outputListConsultantMustReply = outputListConsultantMustReply.filter(x => x !== consultantName);
 
-      if (originConsultant && formRefType === 'form-submit-multi-type') {
+      if (originConsultant && !isRemoveTag) {
          outputListConsultantMustReply.unshift(originConsultant.company);
-         message.info(`Lead consultant: ${outputListConsultantMustReply[0]}`);
-
-      } else if (originConsultant && formRefType === 'form-rsubmit-multi-type') {
-         outputListConsultantMustReply.push(originConsultant.company);
       };
       setListConsultantMustReply(outputListConsultantMustReply);
    };
 
    const onClickApplyDoneFormRef = () => {
 
-      if (Object.keys(filesPdfForm).length === 0) {
-         return message.info('Please upload the form!', 3);
-      };
 
       let trade, refToSaveVersionOrToReply, refToSave;
       if (formRefType.includes('form-submit-multi-')) {
          trade = convertTradeCodeInverted(tradeForFirstTimeSubmit);
          refToSaveVersionOrToReply = '0';
-         refToSave = `RFAM/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
+         refToSave = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
       } else if (formRefType.includes('form-resubmit-multi-')) {
          trade = currentRefData.trade;
-         refToSaveVersionOrToReply = rfaNewVersionResubmitSuffix;
+         refToSaveVersionOrToReply = refNewVersionResubmitSuffix;
          refToSave = currentRefNumber;
       } else if (formRefType.includes('form-reply-multi-')) { // reply
          trade = currentRefData.trade;
@@ -532,9 +519,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
 
 
       if (projectNameShort === 'NO-PROJECT-NAME') {
-         return message.info('Please update project abbreviation name for RFA number!', 3);
-      } else if (Object.keys(filesPdfForm).length === 0) {
-         return message.info('Please upload the form!', 3);
+         return message.info(`Please update project abbreviation name for ${refType.toUpperCase()} number!`, 3);
       } else if (!textEmailTitle && !isAdminActionWithNoEmailSent) {
          return message.info('Please fill in email title!', 3);
       } else if (!description) {
@@ -551,13 +536,21 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
          return message.info('Please fill in necessary info!', 3);
       };
 
+      let outputConsultantsToReply = [];
+      if (!formRefType.includes('form-reply-multi-')) {
+         if (pageSheetTypeName === 'page-rfam') {
+            outputConsultantsToReply = [...listConsultantMustReply];
+         } else if (pageSheetTypeName === 'page-cvi') {
+            outputConsultantsToReply = [...listConsultantMustReply].sort();
+         };
+      };
+
       getSheetRows({ ...stateRow, loading: true });
 
-      onClickApplyAddNewRefForm({
+      onClickApplySendFormToSignature({
          type: formRefType,
          isFormEditting,
          trade,
-         filesPdfForm: Object.values(filesPdfForm),
          filesPdfDrawing: Object.values(filesPdfDrawing),
          dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
          refToSave, refToSaveVersionOrToReply,
@@ -565,11 +558,15 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
             to: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientTo)],
             cc: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientCc)]
          },
-         listConsultantMustReply: formRefType.includes('form-reply-multi-') ? [] : [...listConsultantMustReply],
+         listConsultantMustReply: outputConsultantsToReply,
          requestedBy: formRefType.includes('form-reply-multi-') ? '' : requestedBy,
+         signatureBy: formRefType.includes('form-reply-multi-') ? '' : signatureBy,
+         dateConversation, timeConversation,
+         conversationAmong,
+         isCostImplication, isTimeExtension,
          emailTextTitle: isAdminActionWithNoEmailSent ? '' : textEmailTitle,
          description: isAdminActionWithNoEmailSent ? '' : description,
-         dateReplyForsubmitForm: dateReplyForSubmitForm && dateReplyForSubmitForm.format('DD/MM/YY'),
+         dateReplyForSubmitForm: dateReplyForSubmitForm && dateReplyForSubmitForm.format('DD/MM/YY'),
 
          isAdminActionWithNoEmailSent,
          adminActionConsultantToReply,
@@ -606,15 +603,15 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
             frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
             width: getHeaderWidthDwgRef(column),
             cellRenderer: ({ rowData, cellData }) => {
-               let cellRFA;
+               let cellTypeName;
                if (!rowData['Type']) {
                   if (column === 'Type') {
-                     cellRFA = 'Submitted RFA';
+                     cellTypeName = 'Submitted RFA';
                   } else if (column === 'File Name') {
-                     cellRFA = rowData['Drawing Number'];
+                     cellTypeName = rowData['Drawing Number'];
                   };
                };
-               return <div>{cellRFA || cellData}</div>;
+               return <div>{cellTypeName || cellData}</div>;
             }
          })),
          ...buttonRemoveDrawing,
@@ -622,63 +619,72 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
    };
 
 
+   const getPdfOutputFile = (file) => {
+ 
+   };
+
+
    return (
       <>
+         <PrintPdf 
+            pdfContent={{
+               refNumberText: `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`,
+               listRecipientTo: [...new Set(listRecipientTo)], listRecipientCc: [...new Set(listRecipientCc)], isCostImplication, isTimeExtension,
+               requestedBy, signatureBy, conversationAmong, textEmailTitle, dateConversation, timeConversation, description, dateReplyForSubmitForm, 
+               filesPdfDrawing: Object.values(filesPdfDrawing),
+               dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
+               projectName, listConsultantMustReply
+            }} 
+            getPdfOutputFile={getPdfOutputFile}
+         />
          <div style={{ background: 'white', width: '100%', padding: 10, color: 'black' }}>
-            <div style={{
-               padding: 20, paddingRight: 10,
-               borderBottom: `1px solid ${colorType.grey4}`,
-            }}>
+            <div style={{ padding: 20, paddingRight: 10, borderBottom: `1px solid ${colorType.grey4}` }}>
                <div style={{ display: 'flex', marginBottom: 10 }}>
-                  <div style={{ marginRight: 10, fontWeight: 'bold' }}>RFAM Number</div>
+                  <div style={{ marginRight: 10, fontWeight: 'bold' }}>{refType.toUpperCase()} Number</div>
                   {formRefType === 'form-submit-multi-type' ? (
                      <>
-                        <div style={{ marginRight: 2 }}>
-                           {`RFAM/${projectNameShort}/`}
-
-                           <SelectTradeStyled
-                              showSearch
-                              style={{ width: 200 }}
-                              optionFilterProp='children'
-                              onChange={(value) => setTradeForFirstTimeSubmit(value)}
-                              filterOption={(input, option) =>
-                                 option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                              }
-                              suffixIcon={<div></div>}
-                           >
-                              {['ARC', 'CS', 'ME', 'PC'].map(trade => (
-                                 <Select.Option key={trade} value={trade}>{trade}</Select.Option>
-                              ))}
-                           </SelectTradeStyled>
-                           {`/`}
-                        </div>
+                        <div>{`${refType.toUpperCase()}/${projectNameShort}/`}</div>
+                        <SelectTradeStyled
+                           showSearch
+                           optionFilterProp='children'
+                           onChange={(value) => setTradeForFirstTimeSubmit(value)}
+                           filterOption={(input, option) =>
+                              option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                           }
+                           suffixIcon={<div></div>}
+                        >
+                           {['ARC', 'CS', 'ME', 'PC'].map(trade => (
+                              <Select.Option key={trade} value={trade}>{trade}</Select.Option>
+                           ))}
+                        </SelectTradeStyled>
+                        <div style={{ marginLeft: 10 }}>/</div>
                         {tradeForFirstTimeSubmit ? (
                            <InputStyled
-                              style={{ width: 50, marginBottom: 10, borderRadius: 0, marginRight: 120, transform: 'translateY(-5px)' }}
+                              style={{ width: 50, marginRight: 120 }}
                               onChange={(e) => setRefNumberSuffixFirstTimeSubmit(e.target.value)}
                               onBlur={onBlurInputRefNameCreateNew}
                               value={refNumberSuffixFirstTimeSubmit}
                            />
                         ) : (
-                           <div style={{ marginRight: 120 }}>
+                           <div style={{ marginRight: 120, transform: 'translateY(8px)', color: colorType.grey1 }}>
                               <Tooltip title='Ref number automatically filled in after selecting trade'>{'____'}</Tooltip>
                            </div>
                         )}
                      </>
                   ) : null}
 
-                  {/* formRefType === 'form-resubmit-RFA' ? (
+                  {/* formRefType === 'form-resubmit-multi-form' ? (
                      <>
                         <div style={{ marginRight: 2 }}>{currentRefNumber}</div>
                         <InputStyled
                            style={{ width: 50, marginBottom: 10, borderRadius: 0, marginRight: 120, transform: 'translateY(-5px)' }}
-                           onChange={(e) => setRfaNewVersionResubmitSuffix(e.target.value)}
+                           onChange={(e) => setRefNewVersionResubmitSuffix(e.target.value)}
                            onBlur={onBlurInputRefNameCreateNew}
-                           value={rfaNewVersionResubmitSuffix}
+                           value={refNewVersionResubmitSuffix}
                         />
                      </>
 
-                  ) : formRefType === 'form-reply-RFA' ? (
+                  ) : formRefType === 'form-reply-multi-type' ? (
                      <div>{currentRefText}</div>
 
                   ) : null} */}
@@ -688,7 +694,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
                      <>
                         <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date Reply</div>
                         <DatePickerStyled
-                           style={{ width: 110, transform: 'translateY(-5px)' }}
                            value={dateReplyForSubmitForm}
                            format={'DD/MM/YY'}
                            onChange={(e) => setDateReplyForSubmitForm(e)}
@@ -698,13 +703,14 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
 
 
                   {/* 
-                  {formRefType === 'form-reply-RFA' && adminActionConsultantToReply && (
+                  {formRefType === 'form-reply-multi-type' && adminActionConsultantToReply && (
                      <div style={{ marginLeft: 20 }}>Company reply: <span style={{ fontWeight: 'bold' }}>{adminActionConsultantToReply}</span></div>
                   )}
 
  */}
                </div>
 
+   
 
                {!isAdminActionWithNoEmailSent && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -716,20 +722,24 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
                            value={listRecipientTo}
 
                            onChange={(list) => {
-
                               if (list.find(tag => !listGroup.find(x => x === tag) && !validateEmailInput(tag))) {
                                  return message.warning('Please choose an available group email or key in an email address!');
                               };
 
                               if (formRefType === 'form-submit-multi-type') {
-
                                  let isLeadConsultantIncluded = false;
                                  list.forEach(tagCompany => {
                                     if (checkIfMatchWithInputCompanyFormat(tagCompany, listConsultants)) {
                                        isLeadConsultantIncluded = true;
                                     };
                                  });
-                                 if (!isLeadConsultantIncluded) message.warning('Email loop must include lead consultant!');
+                                 if (!isLeadConsultantIncluded) {
+                                    if (pageSheetTypeName === 'page-rfam') {
+                                       message.warning('You must include lead consultant!');
+                                    } else if (pageSheetTypeName === 'page-cvi') {
+                                       message.warning('You must include consultants!');
+                                    };
+                                 };
 
                                  const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
                                  if (
@@ -739,6 +749,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
                                  ) {
                                     setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
                                  };
+
 
                               } else if (formRefType === 'form-resubmit-multi-type') {
                                  const consultantLeadFromPreviousSubmission = listConsultantMustReply[0];
@@ -753,17 +764,27 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
                                  };
                               };
                               setListRecipientTo([...new Set(list)]);
+
+                              let companyNameToCheck, isRemoveTag;
+                              if (list.length === listRecipientTo.length + 1) {
+                                 companyNameToCheck = list.find(x => !listRecipientTo.find(item => item === x));
+                                 isRemoveTag = false;
+                              } else if (list.length === listRecipientTo.length - 1) {
+                                 companyNameToCheck = listRecipientTo.find(x => !list.find(item => item === x));
+                                 isRemoveTag = true;
+                              };
+                              onClickTagRecipientTo(companyNameToCheck, isRemoveTag);
+
                            }}
                         >
                            {listRecipient.map(cm => {
                               const isLeadConsultant = listConsultantMustReply[0] && extractConsultantName(cm) === listConsultantMustReply[0];
-                              console.log(listConsultantMustReply, cm);
-                              const isLeadConsultantStyled = isLeadConsultant ? {
+                              const isLeadConsultantStyled = (isLeadConsultant && pageSheetTypeName === 'page-rfam') ? {
                                  background: colorType.primary,
                                  fontWeight: 'bold',
                                  color: 'white'
                               } : {};
-                              const textShown = extractConsultantName(cm) ? cm.replace('_%$%_', '_') : cm;
+                              const textShown = extractConsultantName(cm) ? cm.replace('_%$%_', ' ') : cm;
 
                               return (
                                  <Option key={cm}>
@@ -775,7 +796,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
                                           ...isLeadConsultantStyled,
                                           padding: '0 5px'
                                        }}
-                                       onClick={(e) => onClickTagRecipientTo(cm)}
+                                       onClick={() => onClickTagRecipientTo(cm, false)}
                                     >
                                        {textShown}
                                     </div>
@@ -784,11 +805,19 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
                            })}
                         </SelectRecipientStyled>
 
-                        {formRefType !== 'form-reply-RFA' && (
+                        {formRefType !== 'form-reply-multi-type' && (
                            <div style={{ display: 'flex', marginTop: 5, marginBottom: 10 }}>
-                              <div style={{ marginRight: 8 }}>Lead consultant :</div>
-                              <div style={{ fontWeight: 'bold', marginRight: 10 }}>{listConsultantMustReply[0] || ''}</div>
-                              {formRefType === 'form-submit-RFA' && (
+                              <div style={{ marginRight: 8 }}>{
+                                 pageSheetTypeName === 'page-rfam' ? 'Lead consultant :'
+                                    : pageSheetTypeName === 'page-cvi' ? 'Received By :'
+                                       : 'n/a'
+                              }</div>
+                              <div style={{ fontWeight: 'bold', marginRight: 10 }}>{
+                                 pageSheetTypeName === 'page-rfam' ? (listConsultantMustReply[0] || '')
+                                    : pageSheetTypeName === 'page-cvi' ? (listConsultantMustReply.sort().join(', ') || '')
+                                       : 'n/a'
+                              }</div>
+                              {formRefType === 'form-submit-multi-type' && (
                                  <div style={{ fontSize: 11, color: 'grey', fontStyle: 'italic', transform: 'translateY(3px)' }}>(Click on tag to change lead consultant)</div>
                               )}
                            </div>
@@ -837,8 +866,8 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
 
 
                {formRefType !== 'form-reply-multi-type' && (
-                  <>
-                     <div style={{ display: 'flex', marginBottom: 5 }}>
+                  <div style={{ display: 'flex' }}>
+                     <div style={{ display: 'flex', marginBottom: 5, marginRight: 120 }}>
                         <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Requested by</div>
                         <InputStyled
                            style={{ width: 250, marginBottom: 10, borderRadius: 0 }}
@@ -846,55 +875,125 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
                            value={requestedBy}
                         />
                      </div>
-                  </>
+                     <div style={{ display: 'flex', marginBottom: 5 }}>
+                        <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Signature</div>
+                        <SelectTradeStyled
+                           style={{ width: 200 }}
+                           showSearch
+                           optionFilterProp='children'
+                           onChange={(value) => setSignatureBy(value)}
+                           filterOption={(input, option) =>
+                              option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                           }
+                           suffixIcon={<div></div>}
+                        >
+                           {listUser.map((email, i) => (
+                              <Select.Option key={i} value={email}>{email}</Select.Option>
+                           ))}
+                        </SelectTradeStyled>
+                     </div>
+                  </div>
                )}
 
 
-               {!isAdminActionWithNoEmailSent && (
-                  <>
-                     <div style={{ display: 'flex', marginBottom: 20 }}>
-                        <div style={{ width: 65, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Subject</div>
-                        <InputStyled
-                           style={{ width: '90%', marginBottom: 10, borderRadius: 0 }}
-                           onChange={(e) => setTextEmailTitle(e.target.value)}
-                           value={textEmailTitle}
-                        />
+
+
+               <div style={{ display: 'flex', marginBottom: 20 }}>
+                  <div style={{ width: 65, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Subject</div>
+                  <InputStyled
+                     style={{ width: '90%', marginBottom: 10, borderRadius: 0 }}
+                     onChange={(e) => setTextEmailTitle(e.target.value)}
+                     value={textEmailTitle}
+                  />
+               </div>
+
+
+
+               <div style={{ display: 'flex', marginBottom: 20 }}>
+                  <div style={{ width: 150, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Conversation Among</div>
+                  <InputStyled
+                     style={{ width: '90%', marginBottom: 10, borderRadius: 0 }}
+                     onChange={(e) => setConversationAmong(e.target.value)}
+                     value={conversationAmong}
+                  />
+               </div>
+
+               <div style={{ display: 'flex' }}>
+                  <div style={{ display: 'flex', marginRight: 50 }}>
+                     <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date</div>
+                     <DatePickerStyled
+                        value={dateConversation}
+                        format={'DD/MM/YY'}
+                        onChange={(e) => setDateConversation(e)}
+                     />
+                  </div>
+
+                  <div style={{ display: 'flex' }}>
+                     <div style={{ marginRight: 10, fontWeight: 'bold' }}>Time</div>
+                     <TimePickerStyled 
+                        defaultValue={moment('12:08', 'HH:mm')} format={'HH:mm'} 
+                        value={timeConversation}
+                        onChange={(e) => setTimeConversation(e)}
+                     />
+                  </div>
+               </div>
+
+               <br />
+               <div style={{ display: 'flex', marginBottom: 20 }}>
+                  <div style={{ width: 90, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold', marginBottom: 10 }}>Description</div>
+                  <TextAreaStyled
+                     style={{ width: '85%', marginBottom: 10, borderRadius: 0 }}
+                     rows={5}
+                     onChange={(e) => setDescription(e.target.value)}
+                     value={description}
+                     placeholder='Write details...'
+                  />
+               </div>
+
+
+
+
+
+
+
+
+               <div style={{ display: 'flex', marginBottom: 10 }}>
+                  <div style={{ marginRight: 30 }}>
+                     <div style={{ marginBottom: 10 }}>
+                        <CheckboxStyled
+                           onChange={() => setIsCostImplication(true)}
+                           checked={isCostImplication}
+                        >Variation with cost implication</CheckboxStyled>
                      </div>
-
-                     <br />
-
-                     <div style={{ display: 'flex', marginBottom: 20 }}>
-                        <div style={{ width: 90, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold', marginBottom: 10 }}>Description</div>
-                        <TextAreaStyled
-                           style={{
-                              width: '85%',
-                              marginBottom: 10,
-                              borderRadius: 0,
-                           }}
-                           rows={3}
-                           onChange={(e) => setDescription(e.target.value)}
-                           value={description}
-                           placeholder='Write note...'
-                        />
+                     <div>
+                        <CheckboxStyled
+                           onChange={() => setIsTimeExtension(true)}
+                           checked={isTimeExtension}
+                        >With time extension</CheckboxStyled>
                      </div>
-                  </>
-               )}
+                  </div>
+                  <div>
+                     <div style={{ marginBottom: 10 }}>
+                        <CheckboxStyled
+                           onChange={() => setIsCostImplication(false)}
+                           checked={!isCostImplication}
+                        >With no cost implication</CheckboxStyled>
+                     </div>
+                     <div>
+                        <CheckboxStyled
+                           onChange={() => setIsTimeExtension(false)}
+                           checked={!isTimeExtension}
+                        >With no time extension</CheckboxStyled>
+                     </div>
+                  </div>
+               </div>
 
+               <div>This form is issued pursuant to the Conditions of Contract and also constitutes our notification of an event which may form the basis of a possible claim for additional costs or an extension of time or both.</div>
 
+               <br />
+               <br />
 
                <div style={{ display: 'flex', marginBottom: 5 }}>
-
-                  <Upload
-                     name='file' accept='application/pdf' multiple={false} showUploadList={false}
-                     headers={{ authorization: 'authorization-text' }}
-                     beforeUpload={() => { return false }}
-                     onChange={onChangeUploadPDFForm}
-                  >
-                     <ButtonStyle
-                        marginRight={5}
-                        name='Upload Form'
-                     />
-                  </Upload>
 
                   <Upload
                      name='file' accept='application/pdf' multiple={true} showUploadList={false}
@@ -918,7 +1017,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
 
 
                   <div style={{ marginLeft: 5 }}>
-                     {formRefType !== 'form-reply-RFA' ? (
+                     {formRefType !== 'form-reply-multi-type' ? (
                         <>
                            {filesPdfDrawing ? `${Object.keys(filesPdfDrawing).length} PDF files has been chosen ` : 'No PDF files has been chosen '}
                               / {filesPdfDrawing ? `${Object.keys(filesPdfDrawing).length} 3D models has been chosen.` : 'No 3D model has been chosen.'}
@@ -932,10 +1031,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
                </div>
 
 
-               {(Object.keys(filesPdfForm).length > 0 || Object.keys(filesPdfDrawing).length > 0 || dwgsImportFromRFA.length > 0) && (
+               {(Object.keys(filesPdfDrawing).length > 0 || dwgsImportFromRFA.length > 0) && (
                   <div style={{
                      width: window.innerWidth * 0.9 - 80,
-                     height: (Object.keys(filesPdfForm).length + Object.keys(filesPdfDrawing).length + dwgsImportFromRFA.length) * 28 + 80
+                     height: (Object.keys(filesPdfDrawing).length + dwgsImportFromRFA.length) * 28 + 80
                   }}>
                      <TableStyled
                         fixed
@@ -967,7 +1066,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
 
 
          {tablePickDrawingRefSubmitted && (
-            <ModalPickDrawingRFAStyled
+            <ModalStyled
                title={'Select Drawings For New RFA'}
                visible={tablePickDrawingRefSubmitted}
                footer={null}
@@ -984,14 +1083,13 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
                      setTablePickDrawingRefSubmitted(false);
                   }}
                   dwgsImportFromRFA={dwgsImportFromRFA}
-               // tradeForFirstTimeSubmit={tradeForFirstTimeSubmit}
                />
-            </ModalPickDrawingRFAStyled>
+            </ModalStyled>
          )}
 
 
          {modalConfirmsubmitOrCancel && (
-            <ModalConfirmStyled
+            <ModalStyled
                title={modalConfirmsubmitOrCancel === 'ok' ? 'Confirm Submission' : 'Cancel Submission'}
                visible={modalConfirmsubmitOrCancel !== null ? true : false}
                footer={null}
@@ -1002,9 +1100,9 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
                   typeConfirm={modalConfirmsubmitOrCancel}
                   formRefType={formRefType}
                   refData={formRefType.includes('form-submit-multi-')
-                     ? `RFA/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`
+                     ? `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`
                      : formRefType.includes('form-resubmit-multi-')
-                        ? `${currentRefNumber}${rfaNewVersionResubmitSuffix}`
+                        ? `${currentRefNumber}${refNewVersionResubmitSuffix}`
                         : formRefType.includes('form-reply-multi-')
                            ? `${currentRefText}` : null}
                   onClickCancelConfirmModal={() => setModalConfirmsubmitOrCancel(null)}
@@ -1017,25 +1115,20 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplyAddNewRefForm })
                      };
                   }}
                />
-            </ModalConfirmStyled>
+            </ModalStyled>
          )}
+
+
+
+
       </>
    );
 };
 export default PanelAddNewMultiForm;
 
 
-const getInputForTable = (filesPdfForm, filesPdfDrawing, dwgsImportFromRFA) => {
+const getInputForTable = (filesPdfDrawing, dwgsImportFromRFA) => {
    let output = [];
-   if (filesPdfForm) {
-      for (const pdfForm in filesPdfForm) {
-         output.push({
-            id: mongoObjectId(),
-            'Type': 'Form',
-            'File Name': pdfForm
-         });
-      };
-   };
 
    if (filesPdfDrawing) {
       for (const pdfDrawing in filesPdfDrawing) {
@@ -1072,9 +1165,9 @@ const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRefType, refData, onClick
    return (
       <div style={{ padding: 20, width: '100%' }}>
          {typeConfirm === 'ok' ? (
-            <div>Are you sure to {formRefType === 'form-reply-RFA' ? 'reply' : 'submit'} the <span style={{ fontWeight: 'bold' }}>{refData}</span>?</div>
+            <div>Are you sure to {formRefType === 'form-reply-multi-type' ? 'reply' : 'submit'} the <span style={{ fontWeight: 'bold' }}>{refData}</span>?</div>
          ) : typeConfirm === 'cancel' ? (
-            <div>Are you sure to cancel the {formRefType === 'form-reply-RFA' ? 'response' : 'submission'}?</div>
+            <div>Are you sure to cancel the {formRefType === 'form-reply-multi-type' ? 'response' : 'submission'}?</div>
          ) : null}
 
          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
@@ -1089,7 +1182,7 @@ const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRefType, refData, onClick
 };
 
 
-const ModalConfirmStyled = styled(Modal)`
+const ModalStyled = styled(Modal)`
     .ant-modal-content {
         border-radius: 0;
     }
@@ -1110,6 +1203,8 @@ const ModalConfirmStyled = styled(Modal)`
       justify-content: center;
    }
 `;
+
+
 const getHeaderWidthDwgRef = (header) => {
    if (header === 'Type') return 350;
    else if (header === 'File Name') return 500;
@@ -1118,25 +1213,11 @@ const getHeaderWidthDwgRef = (header) => {
 
 
 
-const ModalPickDrawingRFAStyled = styled(Modal)`
-   .ant-modal-content {
+const CheckboxStyled = styled(Checkbox)`
+   .ant-checkbox-inner {
       border-radius: 0;
-   };
-   .ant-modal-close {
-      display: none;
-   };
-   .ant-modal-header {
-      padding: 10px;
-   };
-   .ant-modal-title {
-      padding-left: 10px;
-      font-size: 20px;
-      font-weight: bold;
-   };
-   .ant-modal-body {
-      padding: 0;
-      display: flex;
-      justify-content: center;
+      border: none;
+      background: ${colorType.primary}
    };
 `;
 
@@ -1171,10 +1252,12 @@ const TableStyled = styled(Table)`
    };
 `;
 const InputStyled = styled(Input)`
+   transform: translateY(-5px);
    color: black;
    border-top: none;
    border-right: none;
    border-left: none;
+   border-radius: 0;
    &:focus {
       outline: none;
       box-shadow: none;
@@ -1234,8 +1317,29 @@ const SelectRecipientStyled = styled(Select)`
 
 `;
 
+const TimePickerStyled = styled(TimePicker)`
+   transform: translateY(-5px);
+   .ant-time-picker-input {
+      border-radius: 0;
+      border-top: none;
+      border-right: none;
+      border-left: none;
+      outline: none;
+      box-shadow: none;
+      &:focus {
+         outline: none;
+         box-shadow: none;
+      };
+      width: 110px;
+   };
+   .anticon {
+      transform: translateX(-10px);
+   }
+`;
+
 
 const DatePickerStyled = styled(DatePicker)`
+   transform: translateY(-5px);
    .ant-calendar-picker-input {
       border-radius: 0;
       border-top: none;
@@ -1246,16 +1350,34 @@ const DatePickerStyled = styled(DatePicker)`
       &:focus {
          outline: none;
          box-shadow: none;
-      }
+      };
+      width: 110px;
    };
-   .anticon {
-      transform: translateY(-5px);
-   }
 `;
 
 
 const SelectTradeStyled = styled(Select)`
+   transform: translateY(-5px);
+   width: 50px;
+   cursor: alias;
 
+   .ant-select-selection__rendered {
+      padding: 0;
+      margin: 0;
+      margin-left: 10px;
+   };
+   .ant-select-selection {
+      border-radius: 0;
+      border-top: none;
+      border-right: none;
+      border-left: none;
+      outline: none;
+      box-shadow: none;
+      &:focus {
+         outline: none;
+         box-shadow: none;
+      };
+   }
 
 `;
 
@@ -1264,16 +1386,17 @@ const SelectTradeStyled = styled(Select)`
 
 const headersDwgRef = (pageSheetTypeName) => {
 
-   return pageSheetTypeName === 'page-rfam' ? [
-      'Type',
-      'File Name',
-   ] : [
+   return pageSheetTypeName === 'page-rfa' ? [
       'Drawing Number',
       'Drawing Name',
       'Coordinator In Charge',
       'Rev',
       'File PDF',
       '3D Model'
+
+   ] : [
+      'Type',
+      'File Name',
    ];
 };
 
