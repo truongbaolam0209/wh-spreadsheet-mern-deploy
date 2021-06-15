@@ -53,6 +53,20 @@ export const processRowsFromDB = (sheetHeaders, rows) => {
          _parentRow: parentRow,
          _preRow: preRow
       };
+
+      for (const key in row) {
+         if (
+            key !== '_id' && 
+            key !== 'data' &&
+            key !== 'level' &&
+            key !== 'parentRow' &&
+            key !== 'preRow'
+         ) {
+            rowFormal[key] = row[key];
+         };
+      };
+
+      
       if (data instanceof Object) {
          for (let header of sheetHeaders) {
             let { key, text } = header;
