@@ -615,9 +615,16 @@ const PageDataEntrySheet = (props) => {
 
       const rowToSaveArr = rowsAll.map(row => {
          let rowToSave = { _id: row.id, parentRow: row._parentRow, preRow: row._preRow, level: row._rowLevel };
-         headers.forEach(hd => {
-            rowToSave.data = { ...rowToSave.data || {}, [hd.text]: row[hd.text] || '' };
-         });
+
+         for (const key in row) {
+            if (key !== 'id' && key !== '_parentRow' && key !== '_preRow' && key !== '_rowLevel') {
+               if (headers.find(hd => hd.text === key)) {
+                  rowToSave.data = { ...rowToSave.data || {}, [key]: row[key] || '' };
+               } else {
+                  rowToSave[key] = row[key];
+               };
+            };
+         };
          return rowToSave;
       });
 
