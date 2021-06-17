@@ -105,6 +105,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
    const [tradeOfRfaForFirstTimeSubmit, setTradeOfRfaForFirstTimeSubmit] = useState(null);
 
+   const [mepSubTradeFirstTime, setMepSubTradeFirstTime] = useState(null);
+
    const [dateReplyForSubmitForm, setDateReplyForSubmitForm] = useState(null);
 
    const [tablePickDrawingRFA, setTablePickDrawingRFA] = useState(false);
@@ -132,6 +134,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
    const [existingTradeOfResubmision, setExistingTradeOfResubmision] = useState(null);
+
+   const [existingSubTradeOfResubmision, setExistingSubTradeOfResubmision] = useState(null);
 
 
 
@@ -176,6 +180,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             setDateReplyForSubmitForm(moment(currentRfaData['Consultant Reply (T)'], 'DD/MM/YY'));
 
             setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(currentRfaData, 'submission', 'trade', company)));
+            setMepSubTradeFirstTime(getInfoValueFromRfaData(currentRfaData, 'submission', 'subTradeForMep', company));
 
             const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
             setRfaNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
@@ -222,6 +227,10 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
             const tradeOfDrawing = convertTradeCodeInverted(oneDwg['rfaNumber'].split('/')[2]);
             setExistingTradeOfResubmision(tradeOfDrawing);
+            const subTrade = getInfoValueFromRfaData(oneDwg, 'submission', 'subTrade', company);
+            if (subTrade) {
+               setExistingSubTradeOfResubmision(subTrade);
+            };
 
          } else {
 
@@ -256,6 +265,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
             setDateReplyForSubmitForm(moment(currentRfaData['Consultant Reply (T)'], 'DD/MM/YY'));
             setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(currentRfaData, 'submission', 'trade', company)));
+            setMepSubTradeFirstTime(getInfoValueFromRfaData(currentRfaData, 'submission', 'subTradeForMep', company));
 
             const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
             setRfaNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
@@ -263,6 +273,11 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             const oneDwg = rowsToEditClone[0];
             const tradeOfDrawing = convertTradeCodeInverted(oneDwg['rfaNumber'].split('/')[2]);
             setExistingTradeOfResubmision(tradeOfDrawing);
+
+            const subTrade = getInfoValueFromRfaData(oneDwg, 'submission', 'subTrade', company);
+            if (subTrade) {
+               setExistingSubTradeOfResubmision(subTrade);
+            };
          };
 
       } else if (formRfaType === 'form-reply-RFA') {
@@ -326,14 +341,20 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
    useEffect(() => {
       if (tradeOfRfaForFirstTimeSubmit && formRfaType === 'form-submit-RFA' && !isFormEditting) {
-         const allRfaNumberUnderThisTrade = rowsRfaAllInit.filter(r => {
-            let trade;
-            if (!r.row) {
-               trade = findTradeOfDrawing(r, drawingTypeTreeDmsView);
-            };
-            return trade && trade.includes(convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit));
+
+         let filterRows = rowsRfaAllInit.filter(x => {
+            return x.rfaNumber &&
+               x.rfaNumber.split('/')[2] === tradeOfRfaForFirstTimeSubmit;
          });
-         let rfaNumberExtracted = [...new Set(allRfaNumberUnderThisTrade.map(x => /[^/]*$/.exec(x.rfaNumber)[0]))];
+
+         if (tradeOfRfaForFirstTimeSubmit === 'ME') {
+            filterRows = filterRows.filter(x => {
+               return x.rfaNumber.split('/')[3] === mepSubTradeFirstTime;
+            });
+         };
+
+         let rfaNumberExtracted = [...new Set(filterRows.map(x => /[^/]*$/.exec(x.rfaNumber)[0]))];
+
          rfaNumberExtracted = rfaNumberExtracted
             .filter(x => x.length === 3 && parseInt(x) > 0)
             .map(x => parseInt(x));
@@ -350,7 +371,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             setRfaNumberSuffixFirstTimeSubmit('001');
          };
       };
-   }, [tradeOfRfaForFirstTimeSubmit]);
+   }, [tradeOfRfaForFirstTimeSubmit, mepSubTradeFirstTime]);
 
 
    useEffect(() => {
@@ -408,7 +429,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
 
-   const onClickApplyModalPickDrawing = (formRfaType, drawingTrade, dwgIds) => {
+   const onClickApplyModalPickDrawing = (formRfaType, drawingTrade, drawingSubTrade, dwgIds) => {
       if (!dwgIds || dwgIds.length === 0) return;
       let dwgsToAdd = [];
       if (formRfaType === 'form-resubmit-RFA') {
@@ -419,7 +440,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          dwgsToAdd = rowsAll.filter(r => dwgIds.indexOf(r.id) !== -1);
          setDwgsToAddNewRFA(dwgsToAdd);
          setTradeOfRfaForFirstTimeSubmit(convertTradeCode(drawingTrade));
-
+         setMepSubTradeFirstTime(drawingSubTrade);
       };
       const dwgFound = dwgsToAdd.find(x => x['Coordinator In Charge']);
       if (dwgFound) {
@@ -451,15 +472,17 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             message.info('Please key in number only!');
             setRfaNumberSuffixFirstTimeSubmit('');
          } else {
+
+            const subTradeForMepDwg = (mepSubTradeFirstTime && mepSubTradeFirstTime !== 'Select Sub Trade...') ? `${mepSubTradeFirstTime}/` : '';
             if (!isFormEditting) {
-               const newRfaToRaiseFirstSubmit = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${rfaNumberSuffixFirstTimeSubmit}`;
+               const newRfaToRaiseFirstSubmit = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${subTradeForMepDwg}${rfaNumberSuffixFirstTimeSubmit}`;
                if (arr.indexOf(newRfaToRaiseFirstSubmit) !== -1) {
                   message.info('This RFA number has already existed, please choose a new number!');
                   setRfaNumberSuffixFirstTimeSubmit('');
                };
             } else {
                const arrFilter = arr.filter(x => x !== currentRfaRef);
-               const newRfaToRaiseFirstSubmit = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${rfaNumberSuffixFirstTimeSubmit}`;
+               const newRfaToRaiseFirstSubmit = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${subTradeForMepDwg}${rfaNumberSuffixFirstTimeSubmit}`;
                if (arrFilter.indexOf(newRfaToRaiseFirstSubmit) !== -1) {
                   message.info('This RFA number has already existed, please choose a new number!');
                   setRfaNumberSuffixFirstTimeSubmit('');
@@ -568,19 +591,27 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       const dwgPdfFile = [...new Set(listFilePdf)];
 
 
-      let trade, rfaToSaveVersionOrToReply, rfaToSave;
+      let trade, rfaToSaveVersionOrToReply, rfaToSave, mepSubTradeInfo;
       if (formRfaType === 'form-submit-RFA') {
          trade = convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit);
+         mepSubTradeInfo = (mepSubTradeFirstTime && mepSubTradeFirstTime !== 'Select Sub Trade...') ? mepSubTradeFirstTime : null;
          rfaToSaveVersionOrToReply = '-';
-         rfaToSave = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit}/${rfaNumberSuffixFirstTimeSubmit}`;
+
+         if (tradeOfRfaForFirstTimeSubmit === 'ME') {
+            rfaToSave = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit}/${mepSubTradeInfo}/${rfaNumberSuffixFirstTimeSubmit}`;
+         } else {
+            rfaToSave = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit}/${rfaNumberSuffixFirstTimeSubmit}`;
+         };
 
       } else if (formRfaType === 'form-resubmit-RFA') { // resubmission
          trade = getInfoValueFromRfaData(currentRfaData, 'submission', 'trade');
+         mepSubTradeInfo = getInfoValueFromRfaData(currentRfaData, 'submission', 'subTradeForMep');
          rfaToSaveVersionOrToReply = rfaNewVersionResubmitSuffix;
          rfaToSave = currentRfaNumber;
 
       } else if (formRfaType === 'form-reply-RFA') { // reply
          trade = getInfoValueFromRfaData(currentRfaData, 'submission', 'trade');
+         mepSubTradeInfo = getInfoValueFromRfaData(currentRfaData, 'submission', 'subTradeForMep');
          if (currentRfaNumber === currentRfaRef) {
             rfaToSaveVersionOrToReply = '-';
          } else {
@@ -665,7 +696,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
          isAdminActionWithNoEmailSent,
          adminActionConsultantToReply,
-         isAdminAction
+         isAdminAction,
+         mepSubTradeInfo
       });
    };
 
@@ -763,8 +795,14 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   <div style={{ marginRight: 10, fontWeight: 'bold' }}>RFA Number</div>
                   {formRfaType === 'form-submit-RFA' ? (
                      <>
-                        <div style={{ marginRight: 2 }}>{`RFA/${projectNameShort}/`}
+                        <div style={{ marginRight: 2 }}>
+                           {`RFA/${projectNameShort}/`}
                            <Tooltip title='Trade info automatically filled in after selecting drawings'>{tradeOfRfaForFirstTimeSubmit || '____'}</Tooltip>
+
+                           {(mepSubTradeFirstTime && mepSubTradeFirstTime !== 'Select Sub Trade...') && (
+                              <Tooltip title='Sub trade info automatically filled in after selecting drawings'>{'/' + mepSubTradeFirstTime}</Tooltip>
+                           )}
+
                            {`/`}
                         </div>
                         {tradeOfRfaForFirstTimeSubmit ? (
@@ -1006,16 +1044,16 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                         {formRfaType === 'form-reply-RFA' ? (
                            <div>
                               <span style={{ fontWeight: 'bold' }}>{company}</span> has replied this RFA, the drawings included in this RFA are in the list below.
-                        Please review and update as per comments.
+                              Please review and update as per comments.
                            </div>
                         ) : (
                            <div>
                               <span style={{ fontWeight: 'bold' }}>{company}</span> has submitted <span style={{ fontWeight: 'bold' }}>
                                  {formRfaType === 'form-resubmit-RFA'
                                     ? `${currentRfaNumber}${rfaNewVersionResubmitSuffix}`
-                                    : `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${rfaNumberSuffixFirstTimeSubmit}`}
+                                    : `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${mepSubTradeFirstTime ? `${mepSubTradeFirstTime}/` : ''}${rfaNumberSuffixFirstTimeSubmit}`}
                               </span> for you to review, the drawings included in this RFA are in the list below.
-                        Please review and reply to us by <span style={{ fontWeight: 'bold' }}>{dateReplyForSubmitForm ? dateReplyForSubmitForm.format('DD/MM/YY') : ''}.</span>
+                              Please review and reply to us by <span style={{ fontWeight: 'bold' }}>{dateReplyForSubmitForm ? dateReplyForSubmitForm.format('DD/MM/YY') : ''}.</span>
                            </div>
                         )}
                      </div>
@@ -1089,7 +1127,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                      {formRfaType !== 'form-reply-RFA' ? (
                         <>
                            {filesPDF ? `${Object.keys(filesPDF).length} PDF files has been chosen ` : 'No PDF files has been chosen '}
-                              / {filesDWFX ? `${Object.keys(filesDWFX).length} 3D models has been chosen.` : 'No 3D model has been chosen.'}
+                           / {filesDWFX ? `${Object.keys(filesDWFX).length} 3D models has been chosen.` : 'No 3D model has been chosen.'}
                         </>
                      ) : (
                         <>
@@ -1145,9 +1183,12 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   onClickCancelModalPickDrawing={() => setTablePickDrawingRFA(false)}
                   onClickApplyModalPickDrawing={onClickApplyModalPickDrawing}
                   dwgsToAddNewRFA={dwgsToAddNewRFA}
-                  tradeOfRfaForFirstTimeSubmit={tradeOfRfaForFirstTimeSubmit}
                   formRfaType={formRfaType}
+                  tradeOfRfaForFirstTimeSubmit={tradeOfRfaForFirstTimeSubmit}
                   existingTradeOfResubmision={existingTradeOfResubmision}
+
+                  mepSubTradeFirstTime={mepSubTradeFirstTime}
+                  existingSubTradeOfResubmision={existingSubTradeOfResubmision}
                />
             </ModalPickDrawingRFAStyled>
          )}
@@ -1192,7 +1233,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   typeConfirm={modalConfirmsubmitOrCancel}
                   formRfaType={formRfaType}
                   rfaRef={formRfaType === 'form-submit-RFA'
-                     ? `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${rfaNumberSuffixFirstTimeSubmit}`
+                     ? `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${mepSubTradeFirstTime ? `${mepSubTradeFirstTime}/` : ''}${rfaNumberSuffixFirstTimeSubmit}`
                      : formRfaType === 'form-resubmit-RFA'
                         ? `${currentRfaNumber}${rfaNewVersionResubmitSuffix}`
                         : formRfaType === 'form-reply-RFA'

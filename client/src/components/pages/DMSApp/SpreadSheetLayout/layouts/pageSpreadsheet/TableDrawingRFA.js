@@ -7,6 +7,7 @@ import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { getHeaderWidth } from '../../utils';
 import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
+import { getCompanySubconNameFnc, getTradeNameFnc } from './FormDrawingTypeOrder';
 import { convertTradeCodeInverted, findTradeOfDrawing } from './PanelAddNewRFA';
 
 
@@ -29,7 +30,8 @@ const Table = (props) => {
 };
 
 
-const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA, tradeOfRfaForFirstTimeSubmit, formRfaType, existingTradeOfResubmision }) => {
+const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA,
+   existingSubTradeOfResubmision, tradeOfRfaForFirstTimeSubmit, formRfaType, existingTradeOfResubmision, mepSubTradeFirstTime }) => {
 
 
    const { state: stateProject } = useContext(ProjectContext);
@@ -41,24 +43,46 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
    const { rowsAll, drawingTypeTreeDmsView } = stateRow;
 
    const [drawingTrade, setDrawingTrade] = useState(existingTradeOfResubmision || convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit) || 'ARCHI');
+   const [drawingSubTrade, setDrawingSubTrade] = useState(existingSubTradeOfResubmision || 'Select Sub Trade...');
+
    const [rowsTableInput, setRowsTableInput] = useState([]);
+
+
+   const [arraySubTradeMEP, setArraySubTradeMEP] = useState([]);
 
 
    useEffect(() => {
 
-      if (drawingTrade !== convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit)) {
+      if (drawingTrade !== convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit) || drawingSubTrade !== mepSubTradeFirstTime) {
          setSelectedIdRows([]);
       };
-      
-      const rowsList = rowsAll.filter(r => {
+
+      let rowsList = rowsAll.filter(r => {
          const trade = findTradeOfDrawing(r, drawingTypeTreeDmsView);
          return (r['Drawing Number'] || r['Drawing Name']) &&
             !r.rfaNumber &&
             trade.includes(drawingTrade);
       });
+
+
+
+      if (drawingTrade === 'M&E') {
+         const mepTreeFolder = drawingTypeTreeDmsView.filter(x => {
+            return x.treeLevel === 3 && getTradeNameFnc(x, drawingTypeTreeDmsView).includes('M&E');
+         });
+         setArraySubTradeMEP(mepTreeFolder.map(x => x.title));
+
+         rowsList = rowsList.filter(row => {
+            const meParentFound = drawingTypeTreeDmsView.find(tr => tr.title === drawingSubTrade);
+            const parentOfRow = drawingTypeTreeDmsView.find(x => x.id === row._parentRow);
+            const parentOfParentOfRowName = getCompanySubconNameFnc(parentOfRow, drawingTypeTreeDmsView);
+            return meParentFound && meParentFound.title === parentOfParentOfRowName;
+         });
+      };
+
       setRowsTableInput(rowsList);
 
-   }, [drawingTrade]);
+   }, [drawingTrade, drawingSubTrade]);
 
 
    const [selectedIdRows, setSelectedIdRows] = useState(dwgsToAddNewRFA ? dwgsToAddNewRFA.map(x => x.id) : []);
@@ -119,6 +143,20 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
                   <Option key={item} value={item}>{item}</Option>
                ))}
             </SelectStyled>
+
+
+            {drawingTrade === 'M&E' && (
+               <SelectStyled
+                  style={{ minWidth: 100, paddingRight: 10 }}
+                  value={drawingSubTrade}
+                  onChange={(e) => setDrawingSubTrade(e)}
+                  disabled={formRfaType === 'form-resubmit-RFA'}
+               >
+                  {arraySubTradeMEP.map(item => (
+                     <Option key={item} value={item}>{item}</Option>
+                  ))}
+               </SelectStyled>
+            )}
             <div style={{ fontWeight: 'bold', marginBottom: 10 }}>{`Number of drawings selected: ${selectedIdRows.length}`}</div>
          </div>
 
@@ -139,7 +177,7 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
                   if (selectedIdRows.length === 0) {
                      return message.info('Please select drawings to submit!', 3);
                   } else {
-                     onClickApplyModalPickDrawing(formRfaType, drawingTrade, selectedIdRows);
+                     onClickApplyModalPickDrawing(formRfaType, drawingTrade, drawingSubTrade, selectedIdRows);
                   };
                }}
             />

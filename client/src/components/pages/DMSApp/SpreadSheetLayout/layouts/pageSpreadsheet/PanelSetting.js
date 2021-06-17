@@ -875,7 +875,7 @@ const PanelSetting = (props) => {
          filesPDF, filesDWFX, type, dwgsToAddNewRFA, trade, rfaToSave, rfaToSaveVersionOrToReply,
          recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting,
          isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
-         dateSendThisForm
+         dateSendThisForm, mepSubTradeInfo
       } = dataRfaForm;
 
       const { currentRfaToAddNewOrReplyOrEdit } = stateRow;
@@ -948,7 +948,7 @@ const PanelSetting = (props) => {
                data.append('files', file.originFileObj);
             });
             data.append('projectId', projectId);
-            data.append('trade', trade);
+            data.append('trade', mepSubTradeInfo ? `${mepSubTradeInfo}_${trade}` : trade);
             data.append('rfa', rfaToSave);
             data.append('rfaNumber', rfaToSaveVersionOrToReply === '-' ? '0' : rfaToSaveVersionOrToReply); // CHECK...
             data.append('type', type.includes('submit') ? 'submit' : 'reply');
@@ -1083,6 +1083,9 @@ const PanelSetting = (props) => {
                rowOutput[saveToRowOrRowHistory][`submission-$$$-consultantMustReply-${company}`] = listConsultantMustReply;
                rowOutput[saveToRowOrRowHistory][`submission-$$$-requestedBy-${company}`] = requestedBy;
                rowOutput[saveToRowOrRowHistory][`submission-$$$-trade-${company}`] = trade;
+               if (mepSubTradeInfo) {
+                  rowOutput[saveToRowOrRowHistory][`submission-$$$-subTradeForMep-${company}`] = mepSubTradeInfo;
+               };
                rowOutput[saveToRowOrRowHistory][`submission-$$$-user-${company}`] = email;
                if (dateSendThisForm) {
                   rowOutput[saveToRowOrRowHistory][`submission-$$$-date-${company}`] = dateSendThisForm;
