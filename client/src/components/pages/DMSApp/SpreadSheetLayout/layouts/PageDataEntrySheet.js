@@ -605,7 +605,7 @@ const PageDataEntrySheet = (props) => {
 
 
 
-   const saveDataSheet = () => {
+   const saveDataSheet = (type) => {
 
       const { drawingTypeTree, rowsAll, drawingsTypeDeleted, rowsDeleted } = stateRow;
       const { cellsModifiedTemp } = stateCell;
@@ -615,7 +615,6 @@ const PageDataEntrySheet = (props) => {
 
       const rowToSaveArr = rowsAll.map(row => {
          let rowToSave = { _id: row.id, parentRow: row._parentRow, preRow: row._preRow, level: row._rowLevel };
-
          for (const key in row) {
             if (key !== 'id' && key !== '_parentRow' && key !== '_preRow' && key !== '_rowLevel') {
                if (headers.find(hd => hd.text === key)) {
@@ -627,16 +626,21 @@ const PageDataEntrySheet = (props) => {
          };
          return rowToSave;
       });
-
-      
-      saveDataToServerCallback({
+      const output = {
          drawingTypeTree,
          rowsAll: rowToSaveArr,
          drawingsTypeDeleted,
          rowsDeleted,
          cellHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject, true)
-      });
+      };
+      if (type === 'save-btn') {
+         saveDataToServerCallback(output);
+      } else {
+         return output;
+      };
    };
+
+   window.getCurrentDataTable = saveDataSheet;
 
 
 
@@ -646,7 +650,7 @@ const PageDataEntrySheet = (props) => {
          onContextMenu={(e) => e.preventDefault()}
       >
          <ButtonBox>
-            <IconTable type='save' onClick={saveDataSheet} />
+            <IconTable type='save' onClick={() => saveDataSheet('save-btn')} />
             <DividerRibbon />
             <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
             <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
