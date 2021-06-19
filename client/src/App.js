@@ -20,7 +20,9 @@ const App = () => {
       console.log('dataToSave', dataToSave);
    };
 
-
+   const callbackSelectRow = (row) => {
+      console.log('row callback selected', row);
+   };
    // console.log(localStorage);
 
    // const consultantCompany = 'DCA';
@@ -153,6 +155,7 @@ const App = () => {
                      cellsHistoryInCurrentSheet={''}
                      cellOneHistory={''}
                      saveDataToServerCallback={saveDataToServerCallback}
+                     callbackSelectRow={callbackSelectRow}
                   />
                </Route>
 

@@ -22,12 +22,21 @@ const CellIndex = (props) => {
       const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
       
       setCellActive(null);
+
       if (isLockedRow) return;
+
       const row = rowsAll.find(x => x.id === rowData.id);
+
       if (!rowsSelected.find(x => x.id === rowData.id) && rowData._rowLevel === 1) {
          getSheetRows({
             ...stateRow,
             rowsSelected: [...rowsSelected, row],
+            rowsSelectedToMove: []
+         });
+      } else if (rowsSelected.find(x => x.id === rowData.id) && rowData._rowLevel === 1) {
+         getSheetRows({
+            ...stateRow,
+            rowsSelected: rowsSelected.filter(r => r.id !== row.id),
             rowsSelectedToMove: []
          });
       };

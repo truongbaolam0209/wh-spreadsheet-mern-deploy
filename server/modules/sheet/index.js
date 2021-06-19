@@ -14,7 +14,7 @@ const rowModel = require('../row/model');
 const cellHistoryModel = require('../cell-history/model');
 const rowHistoryModel = require('../row-history/model');
 const settingsModel = require('../settings/model');
-const { createPublicUrl } = require('../../../custom/aws');
+const { createPublicUrl } = require('../../../custom/s3');
 
 const handlers = genCRUDHandlers(model, {
    genQueryToFindMany

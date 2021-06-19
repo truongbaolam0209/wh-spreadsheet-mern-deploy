@@ -51,7 +51,7 @@ const PageDataEntrySheet = (props) => {
    const {
       role, email, isAdmin, token, sheetDataInput: sheetDataInputRaw, sheetId: projectId, sheetName: projectName,
       cellsHistoryInCurrentSheet, cellOneHistory,
-      saveDataToServerCallback, outputDataType
+      saveDataToServerCallback, outputDataType, callbackSelectRow
    } = props;
 
 
@@ -325,7 +325,26 @@ const PageDataEntrySheet = (props) => {
                modeSort: {}
             });
          };
+      } else if (btn === 'select-single-row-ICON') {
+         if (rowsSelected.length === 1) {
+            const { publicSettings } = stateProject.allDataOneSheet;
+            const { headers } = publicSettings;
 
+            const oneRowSelected = rowsSelected[0];
+            let rowOutput = { _id: oneRowSelected.id, parentRow: oneRowSelected._parentRow, preRow: oneRowSelected._preRow, level: oneRowSelected._rowLevel };
+            for (const key in oneRowSelected) {
+               if (key !== 'id' && key !== '_parentRow' && key !== '_preRow' && key !== '_rowLevel') {
+                  if (headers.find(hd => hd.text === key)) {
+                     rowOutput.data = { ...rowOutput.data || {}, [key]: oneRowSelected[key] || '' };
+                  } else {
+                     rowOutput[key] = oneRowSelected[key];
+                  };
+               };
+            };
+            callbackSelectRow(rowOutput);
+         } else {
+            message.warn('Please select 1 row only!', 1.5);
+         };
       } else {
          getSheetRows({
             ...stateRow,
@@ -674,6 +693,8 @@ const PageDataEntrySheet = (props) => {
             <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
             <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
             <ExcelExport2 fileName={projectName} />
+            <DividerRibbon />
+            <IconTable type='border-outer' onClick={() => buttonPanelFunction('select-single-row-ICON')} />
             <DividerRibbon />
             <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
             <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
