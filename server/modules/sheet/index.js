@@ -1,7 +1,11 @@
 const schema = require('./schema');
 const model = require('./model');
 const { genCRUDHandlers } = require('../crud');
-const { toObjectId, mongoObjectId, generateEmailInnerHTMLBackend, getInfoValueFromRfaData, validateEmailInput } = require('../utils');
+const { 
+   toObjectId, mongoObjectId, generateEmailInnerHTMLBackend, 
+   generateEmailMultiFormInnerHtml, getInfoValueFromRfaData, validateEmailInput,
+   getInfoValueFromRefDataForm, getInfoKeyFromRefDataForm
+} = require('../utils');
 const {
    findPublicSettings,
    findUserSettings,
@@ -11,9 +15,17 @@ const {
 
 const { HTTP } = require('../errors');
 const rowModel = require('../row/model');
+
 const cellHistoryModel = require('../cell-history/model');
 const rowHistoryModel = require('../row-history/model');
 const settingsModel = require('../settings/model');
+
+const rowModelRfam = require('../row-rfam/model');
+const rowModelRfi = require('../row-rfi/model');
+const rowModelCvi = require('../row-cvi/model');
+const rowModelDt = require('../row-dt/model');
+
+
 const { createPublicUrl } = require('../../../custom/s3');
 
 const handlers = genCRUDHandlers(model, {
@@ -26,7 +38,6 @@ function genQueryToFindMany() {
       populate: 'createdBy'
    };
 };
-
 
 
 
@@ -455,8 +466,6 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
       emailTitle: `${projectName}-${rfa}-${emailTitle}`
    };
 };
-
-
 const getDrawingURLFromDB = async (dwgsNewRFA, company, type) => {
    try {
       return await Promise.all(dwgsNewRFA.map(async dwg => {
@@ -469,6 +478,125 @@ const getDrawingURLFromDB = async (dwgsNewRFA, company, type) => {
       console.log(err);
    };
 };
+
+
+
+
+
+
+const findRowToEmailMultiForm = async (sheetId, qRowIds, company, formSubmitType, emailSender, projectName, emailType) => {
+
+   let rowIds = qRowIds.map(toObjectId);
+
+   if (!sheetId) return 'ERROR - sheetId';
+   if (!rowIds) return 'ERROR - rowIds';
+   if (!company) return 'ERROR - company';
+   if (!formSubmitType) return 'ERROR - Missing form submit type';
+   if (!emailSender) return 'ERROR - Missing emailSender';
+   if (!projectName) return 'ERROR - Missing projectName';
+
+
+   const rowModelMulti = formSubmitType === 'rfam' ? rowModelRfam
+   : formSubmitType === 'rfi' ? rowModelRfi
+   : formSubmitType === 'cvi' ? rowModelCvi
+   : formSubmitType === 'dt' ? rowModelDt
+   : null;
+
+
+   let rowsFound = await rowModelMulti.find({ sheet: sheetId, _id: { $in: rowIds } });
+
+   const outputRowsAll = rowsFound.map(r => {
+      let output = {
+         id: r._id,
+         trade: r.trade,
+         revision: r.revision,
+         [`${formSubmitType}Ref`]: r[`${formSubmitType}Ref`]
+      };
+      const rowData = r.data;
+      for (const key in rowData) {
+         output[key] = rowData[key];
+      };
+      return output;
+   });
+
+
+   const rowData = outputRowsAll[0];
+
+   const refNumber = rowData.revision === '0' ? rowData[`${formSubmitType}Ref`] : rowData[`${formSubmitType}Ref`] + rowData.revision;;
+   const emailTitle = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailTitle', company);
+   const emailTitleText = `${projectName}-${refNumber}-${emailTitle}`;
+   const emailSignaturedBy = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'signaturedBy', company);
+   
+
+   let listUserOutput = { to: [], cc: []};
+   let listGroupOutput = { to: [], cc: []};
+
+   if (emailType === 'submit-request-signature') {
+      // get public link
+      const resFormNoSignature = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company), 3600 * 24 * 7)
+      const keyFormNoSignature = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company);
+      rowData[keyFormNoSignature] = resFormNoSignature;
+
+      listUserOutput.to = emailSignaturedBy;
+      listUserOutput.cc = emailSender;
+
+   } else if (emailType === 'submit-signed-off-final') {
+      // get public link
+      const resFormSignedOff = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit', company), 3600 * 24 * 7)
+      const keyFormSignedOff = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit', company);
+      rowData[keyFormSignedOff] = resFormSignedOff;
+      
+
+      const arrayDrawingsAttached = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company);
+      // get public link
+      const arrayDrawingsLinkPublic = await getDrawingUrlMultiForm(arrayDrawingsAttached);
+      const keyDrawingsAttached = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company);
+      rowData[keyDrawingsAttached] = arrayDrawingsLinkPublic;
+
+      const emailListTo = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailTo', company);
+      const emailListCc = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailCc', company);
+   
+
+      emailListTo.forEach(item => {
+         if (validateEmailInput(item)) {
+            listUserOutput.to = [...new Set([...listUserOutput.to || [], item])];
+         } else {
+            listGroupOutput.to = [...new Set([...listGroupOutput.to || [], item])];
+         };
+      });
+
+      emailListCc.forEach(item => {
+         if (validateEmailInput(item)) {
+            listUserOutput.cc = [...new Set([...listUserOutput.cc || [], item])];
+         } else {
+            listGroupOutput.cc = [...new Set([...listGroupOutput.cc || [], item])];
+         };
+      });
+      listUserOutput.cc = [...new Set([...listUserOutput.cc || [], emailSender, emailSignaturedBy])];
+
+   };
+   const emailContent = generateEmailMultiFormInnerHtml(company, formSubmitType, rowData, emailType);
+
+   return {
+      emailContent,
+      listUserOutput,
+      listGroupOutput,
+      emailTitle: emailTitleText
+   };
+};
+
+
+const getDrawingUrlMultiForm = async (arrayLinks) => {
+   try {
+      return await Promise.all(arrayLinks.map(async link => {
+         const res = await createPublicUrl(link, 3600 * 24 * 7);
+         return res;
+      }));
+   } catch (err) {
+      console.log(err);
+   };
+};
+
 
 
 
@@ -487,7 +615,11 @@ module.exports = {
    deleteAllDataInCollection,
    findMany,
    getAllCollections,
+
    findManyRowsToSendEmail,
+
+   findRowToEmailMultiForm,
+
 
    saveAllDataSettingsToServer,
    saveAllDataRowsToServer,

@@ -7,10 +7,10 @@ import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { debounceFnc, mongoObjectId, validateEmailInput } from '../../utils';
+import { getInfoValueFromRefDataForm } from '../pageSpreadsheet/CellForm';
 import { getKeyTextForSheet } from '../pageSpreadsheet/PanelSetting';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
-import PrintPdf from './PrintPdf';
 import TableDrawingRfaForMultiForm from './TableDrawingRfaForMultiForm';
 
 
@@ -67,11 +67,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
    const {
       rowsAll, loading, currentRefToAddNewOrReplyOrEdit,
-
-      rowsRfamAll, rowsRfamAllInit,
-      rowsRfiAll, rowsRfiAllInit,
-      rowsCviAll, rowsCviAllInit,
-      rowsDtAll, rowsDtAllInit,
+      rowsRfamAllInit, rowsRfiAllInit, rowsCviAllInit, rowsDtAllInit
    } = stateRow;
 
    const rowsRefAllInit = pageSheetTypeName === 'page-rfam' ? rowsRfamAllInit
@@ -79,21 +75,18 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          : pageSheetTypeName === 'page-cvi' ? rowsCviAllInit
             : pageSheetTypeName === 'page-dt' ? rowsDtAllInit
                : [];
-   const rowsRefAll = pageSheetTypeName === 'page-rfam' ? rowsRfamAll
-      : pageSheetTypeName === 'page-rfi' ? rowsRfiAll
-         : pageSheetTypeName === 'page-cvi' ? rowsCviAll
-            : pageSheetTypeName === 'page-dt' ? rowsDtAll
-               : [];
+
 
    const refType = getKeyTextForSheet(pageSheetTypeName);
    const refKey = refType + 'Ref';
 
    const {
-      currentRefNumber, currentRefText, currentRefData, formRefType, isFormEditting,
+      currentRefNumber, currentRefData, formRefType, isFormEditting,
       isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
    } = currentRefToAddNewOrReplyOrEdit || {};
 
    const company = (formRefType === 'form-reply-multi-type' && isAdminAction && adminActionConsultantToReply) ? adminActionConsultantToReply : companyUser;
+
 
 
    const listRecipient = (
@@ -114,6 +107,9 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
    const [tradeForFirstTimeSubmit, setTradeForFirstTimeSubmit] = useState('');
 
+   const [consultantReplyStatus, setConsultantReplyStatus] = useState('');
+   const [submissionType, setSubmissionType] = useState('');
+
    const [dateReplyForSubmitForm, setDateReplyForSubmitForm] = useState(null);
 
    const [dateConversation, setDateConversation] = useState(null);
@@ -125,14 +121,18 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
    const [filesPdfDrawing, setFilesPdfDrawing] = useState({});
+   const [fileFormCoverReply, setFileFormCoverReply] = useState({});
+
    const [dwgsImportFromRFA, setDwgsImportFromRFA] = useState([]);
 
    const [dataInputForTable, setDataInputForTable] = useState([]);
 
 
+
+
    useEffect(() => {
-      setDataInputForTable(getInputForTable(filesPdfDrawing, dwgsImportFromRFA));
-   }, [filesPdfDrawing, dwgsImportFromRFA]);
+      setDataInputForTable(getInputForTable(fileFormCoverReply, filesPdfDrawing, dwgsImportFromRFA));
+   }, [fileFormCoverReply, filesPdfDrawing, dwgsImportFromRFA]);
 
 
    const [listRecipientTo, setListRecipientTo] = useState([]);
@@ -140,17 +140,23 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
    const [listConsultantMustReply, setListConsultantMustReply] = useState([]);
    const [requestedBy, setRequestedBy] = useState(email);
-   const [signatureBy, setSignatureBy] = useState('');
+   const [signaturedBy, setSignaturedBy] = useState('');
 
    const [textEmailTitle, setTextEmailTitle] = useState('');
    const [conversationAmong, setConversationAmong] = useState('');
 
    const [description, setDescription] = useState('');
+   const [contractSpecification, setContractSpecification] = useState('');
+   const [proposedSpecification, setProposedSpecification] = useState('');
 
    const [modalConfirmsubmitOrCancel, setModalConfirmsubmitOrCancel] = useState(null);
 
    const [isCostImplication, setIsCostImplication] = useState(true);
    const [isTimeExtension, setIsTimeExtension] = useState(true);
+
+   const [herewithForDt, setHerewithForDt] = useState('');
+   const [transmittedForDt, setTransmittedForDt] = useState('');
+
 
 
    useEffect(() => {
@@ -253,51 +259,44 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          //          setRefNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
 
          //       };
-         //    } else if (formRefType === 'form-reply-RFA') {
 
-         //       if (!isFormEditting) {
-         //          const dwgsNotReplyYet = rowsRefAllInit.filter(dwg => {
-         //             return dwg.rfaNumber === currentRefNumber &&
-         //                dwg['RFA Ref'] === currentRefText &&
-         //                !currentRefData[`reply-$$$-status-${company}`];
-         //          });
 
-         //          setDwgsImportFromRFA(dwgsNotReplyYet.map(x => ({ ...x })));
+      } else if (formRefType === 'form-reply-multi-type') {
+         if (!isFormEditting) {
 
-         //          let arrEmailCc = [];
-         //          for (const key in currentRefData) {
-         //             if (key.includes('submission-$$$-user-')) {
-         //                const listEmailTo = currentRefData[key] ? [currentRefData[key]] : [];
-         //                setListRecipientTo([...new Set(listEmailTo)]);
+            let arrEmailCc = [];
+            for (const key in currentRefData) {
+               if (key.includes(`submission-${refType}-user-`)) {
+                  const listEmailTo = currentRefData[key] ? [currentRefData[key]] : [];
+                  setListRecipientTo([...new Set(listEmailTo)]);
+               } else if (key.includes(`submission-${refType}-emailTo-`) || key.includes(`submission-${refType}-emailCc-`)) {
+                  arrEmailCc = [...new Set([...arrEmailCc, ...currentRefData[key]])];
+               };
+            };
+            setListRecipientCc([...new Set(arrEmailCc)]);
 
-         //             } else if (key.includes('submission-$$$-emailTo-') || key.includes('submission-$$$-emailCc-')) {
-         //                arrEmailCc = [...new Set([...arrEmailCc, ...currentRefData[key]])];
-         //             };
-         //          };
-         //          setListRecipientCc([...new Set(arrEmailCc)]);
-         //          const oneDwg = dwgsNotReplyYet[0];
-         //          const keyEmailTitle = getInfoKeyFromRfaData(oneDwg, 'submission', 'emailTitle');
-         //          setTextEmailTitle('Reply - ' + oneDwg[keyEmailTitle]);
+            const title = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle');
+            setTextEmailTitle('Reply - ' + title);
 
-         //       } else {
-         //          const dwgsToEditReply = rowsRefAllInit.filter(x => currentRefText === x['RFA Ref']);
-         //          const oneRowInRef = dwgsToEditReply[0];
-         //          const dwgsToEditReplyClone = dwgsToEditReply.map(x => ({ ...x }));
-         //          dwgsToEditReplyClone.forEach(r => {
-         //             const dwgLink = r[`reply-$$$-drawing-${company}`];
-         //             r[`reply-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
-         //          });
-         //          setDwgsImportFromRFA(dwgsToEditReplyClone);
+            //       } else {
+            //          const dwgsToEditReply = rowsRefAllInit.filter(x => currentRefText === x['RFA Ref']);
+            //          const oneRowInRef = dwgsToEditReply[0];
+            //          const dwgsToEditReplyClone = dwgsToEditReply.map(x => ({ ...x }));
+            //          dwgsToEditReplyClone.forEach(r => {
+            //             const dwgLink = r[`reply-$$$-drawing-${company}`];
+            //             r[`reply-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
+            //          });
+            //          setDwgsImportFromRFA(dwgsToEditReplyClone);
 
-         //          const listEmailTo = getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailTo', company) || [];
-         //          setListRecipientTo([...new Set(listEmailTo)]);
+            //          const listEmailTo = getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailTo', company) || [];
+            //          setListRecipientTo([...new Set(listEmailTo)]);
 
-         //          const listEmailCc = getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailCc', company) || [];
-         //          setListRecipientCc([...new Set(listEmailCc)]);
+            //          const listEmailCc = getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailCc', company) || [];
+            //          setListRecipientCc([...new Set(listEmailCc)]);
 
-         //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailTitle', company) || '');
-         //          setDescription(getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailAdditionalNotes', company) || '');
-         //       };
+            //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailTitle', company) || '');
+            //          setDescription(getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailAdditionalNotes', company) || '');
+         };
       };
    }, []);
 
@@ -331,11 +330,12 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    }, [tradeForFirstTimeSubmit]);
 
 
-   // useEffect(() => {
-   //    if (!loading) {
-   //       setModalConfirmsubmitOrCancel(null);
-   //    };
-   // }, [loading]);
+
+   useEffect(() => {
+      if (!loading) {
+         setModalConfirmsubmitOrCancel(null);
+      };
+   }, [loading]);
 
 
 
@@ -401,6 +401,15 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          };
          setFilesPdfDrawing(obj);
 
+      } else if (rowData['Type'] === 'Cover') {
+
+         delete fileFormCoverReply[rowData['File Name']];
+         let obj = {};
+         for (const key in fileFormCoverReply) {
+            obj[key] = fileFormCoverReply[key];
+         };
+         setFileFormCoverReply(obj);
+
       } else if (!rowData['Type']) {
          setDwgsImportFromRFA(dwgsImportFromRFA.filter(x => x.id !== rowData.id));
       };
@@ -451,7 +460,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    //    setCommentText('');
    // };
 
-   const onChangeUploadPDFDrawing = (info) => {
+   const onChangeUploadPdfDrawing = (info) => {
       if (info.fileList) {
          let output = {};
          info.fileList.forEach(file => {
@@ -462,24 +471,15 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    };
 
 
-   // const onChangeUploadFileDWFX = (info) => {
-   //    if (info.fileList) {
-   //       let output = {};
-   //       let canUploadFile = true;
-   //       info.fileList.forEach(file => {
-   //          output = { ...output, [file.name]: file };
-   //          if (file.size > 1000 * 1000 * 100) {
-   //             canUploadFile = false;
-   //          };
-   //       });
-
-   //       if (!canUploadFile) {
-   //          message.warn('File size should be less than 100MB!');
-   //       } else {
-   //          setFilesDWFX(output);
-   //       };
-   //    };
-   // };
+   const onChangeUploadFormCoverForReply = (info) => {
+      if (info.fileList) {
+         let output = {};
+         info.fileList.forEach(file => {
+            output = { [file.name]: file };
+         });
+         setFileFormCoverReply(output);
+      };
+   };
 
 
    const onClickTagRecipientTo = (email, isRemoveTag) => {
@@ -495,8 +495,9 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
       setListConsultantMustReply(outputListConsultantMustReply);
    };
 
-   const onClickApplyDoneFormRef = () => {
 
+
+   const onClickApplyDoneFormRef = (typeButton) => {
 
       let trade, refToSaveVersionOrToReply, refToSave;
       if (formRefType.includes('form-submit-multi-')) {
@@ -508,14 +509,14 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          refToSaveVersionOrToReply = refNewVersionResubmitSuffix;
          refToSave = currentRefNumber;
       } else if (formRefType.includes('form-reply-multi-')) { // reply
+
          trade = currentRefData.trade;
-         if (currentRefNumber === currentRefText) {
-            refToSaveVersionOrToReply = '0';
-         } else {
-            refToSaveVersionOrToReply = currentRefText.slice(currentRefNumber.length, currentRefText.length);
-         };
+         refToSaveVersionOrToReply = currentRefData.revision;
          refToSave = currentRefNumber;
       };
+
+
+      const isSubmitOrResubmitForm = formRefType.includes('form-submit-multi-') || formRefType.includes('form-resubmit-multi-');
 
 
       if (projectNameShort === 'NO-PROJECT-NAME') {
@@ -526,33 +527,57 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          return message.info('Please fill in description!', 3);
       } else if (!listRecipientTo || listRecipientTo.length === 0) {
          return message.info('Please fill in recipient!', 3);
-      } else if (formRefType.includes('form-submit-multi-') && !dateReplyForSubmitForm) {
+      } else if (isSubmitOrResubmitForm && !dateReplyForSubmitForm) {
          return message.info('Please fill in expected reply date!', 3);
-      } else if (formRefType.includes('form-submit-multi-') && listConsultantMustReply.length === 0) {
+      } else if (isSubmitOrResubmitForm && listConsultantMustReply.length === 0) {
          return message.info('Please fill in consultant lead', 3);
-      } else if (formRefType.includes('form-submit-multi-') && !requestedBy) {
+      } else if (isSubmitOrResubmitForm && !requestedBy) {
          return message.info('Please fill in person requested', 3);
       } else if (!trade || !refToSave || !refToSaveVersionOrToReply) {
          return message.info('Please fill in necessary info!', 3);
+      } else if (isSubmitOrResubmitForm && !signaturedBy) {
+         return message.info('Please fill in signatured by!', 3);
+      } else if (isSubmitOrResubmitForm && !submissionType && pageSheetTypeName === 'page-rfam') {
+         return message.info('Please fill in submission type!', 3);
+      } else if (isSubmitOrResubmitForm && !conversationAmong && pageSheetTypeName === 'page-cvi') {
+         return message.info('Please fill in conversation among!', 3);
+      } else if (isSubmitOrResubmitForm && (!dateConversation || !timeConversation) && pageSheetTypeName === 'page-cvi') {
+         return message.info('Please fill in date and time conversation!', 3);
+      } else if (isSubmitOrResubmitForm && !herewithForDt && pageSheetTypeName === 'page-dt') {
+         return message.info('Please fill in herewith!', 3);
+      } else if (isSubmitOrResubmitForm && !transmittedForDt && pageSheetTypeName === 'page-dt') {
+         return message.info('Please fill in transmitted for!', 3);
+      } else if (!isSubmitOrResubmitForm && !consultantReplyStatus && pageSheetTypeName === 'page-rfam') {
+         return message.info('Please fill in reply status!', 3);
       };
 
       let outputConsultantsToReply = [];
       if (!formRefType.includes('form-reply-multi-')) {
-         if (pageSheetTypeName === 'page-rfam') {
+         if (
+            pageSheetTypeName === 'page-rfam' ||
+            pageSheetTypeName === 'page-rfi'
+         ) {
             outputConsultantsToReply = [...listConsultantMustReply];
-         } else if (pageSheetTypeName === 'page-cvi') {
+         } else if (
+            pageSheetTypeName === 'page-cvi' ||
+            pageSheetTypeName === 'page-dt'
+         ) {
             outputConsultantsToReply = [...listConsultantMustReply].sort();
          };
       };
 
+
+
       getSheetRows({ ...stateRow, loading: true });
 
-      onClickApplySendFormToSignature({
+
+      onClickApplySendFormToSignature(typeButton, {
          type: formRefType,
          isFormEditting,
          trade,
          filesPdfDrawing: Object.values(filesPdfDrawing),
          dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
+         fileFormCoverReply: Object.values(fileFormCoverReply)[0],
          refToSave, refToSaveVersionOrToReply,
          recipient: {
             to: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientTo)],
@@ -560,17 +585,25 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          },
          listConsultantMustReply: outputConsultantsToReply,
          requestedBy: formRefType.includes('form-reply-multi-') ? '' : requestedBy,
-         signatureBy: formRefType.includes('form-reply-multi-') ? '' : signatureBy,
+         signaturedBy: formRefType.includes('form-reply-multi-') ? '' : signaturedBy,
          dateConversation, timeConversation,
          conversationAmong,
          isCostImplication, isTimeExtension,
          emailTextTitle: isAdminActionWithNoEmailSent ? '' : textEmailTitle,
          description: isAdminActionWithNoEmailSent ? '' : description,
-         dateReplyForSubmitForm: dateReplyForSubmitForm && dateReplyForSubmitForm.format('DD/MM/YY'),
+         dateReplyForSubmitForm,
+         consultantReplyStatus,
 
          isAdminActionWithNoEmailSent,
          adminActionConsultantToReply,
-         isAdminAction
+         isAdminAction,
+
+
+         contractSpecification,
+         proposedSpecification,
+         submissionType,
+         herewithForDt,
+         transmittedForDt
       });
    };
 
@@ -619,24 +652,13 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    };
 
 
-   const getPdfOutputFile = (file) => {
- 
-   };
+
+
+
 
 
    return (
       <>
-         <PrintPdf 
-            pdfContent={{
-               refNumberText: `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`,
-               listRecipientTo: [...new Set(listRecipientTo)], listRecipientCc: [...new Set(listRecipientCc)], isCostImplication, isTimeExtension,
-               requestedBy, signatureBy, conversationAmong, textEmailTitle, dateConversation, timeConversation, description, dateReplyForSubmitForm, 
-               filesPdfDrawing: Object.values(filesPdfDrawing),
-               dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
-               projectName, listConsultantMustReply
-            }} 
-            getPdfOutputFile={getPdfOutputFile}
-         />
          <div style={{ background: 'white', width: '100%', padding: 10, color: 'black' }}>
             <div style={{ padding: 20, paddingRight: 10, borderBottom: `1px solid ${colorType.grey4}` }}>
                <div style={{ display: 'flex', marginBottom: 10 }}>
@@ -671,23 +693,22 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                            </div>
                         )}
                      </>
-                  ) : null}
-
-                  {/* formRefType === 'form-resubmit-multi-form' ? (
-                     <>
-                        <div style={{ marginRight: 2 }}>{currentRefNumber}</div>
-                        <InputStyled
-                           style={{ width: 50, marginBottom: 10, borderRadius: 0, marginRight: 120, transform: 'translateY(-5px)' }}
-                           onChange={(e) => setRefNewVersionResubmitSuffix(e.target.value)}
-                           onBlur={onBlurInputRefNameCreateNew}
-                           value={refNewVersionResubmitSuffix}
-                        />
-                     </>
+                     // ) : formRefType === 'form-resubmit-multi-form' ? (
+                     //    <>
+                     //       <div style={{ marginRight: 2 }}>{currentRefNumber}</div>
+                     //       <InputStyled
+                     //          style={{ width: 50, marginBottom: 10, borderRadius: 0, marginRight: 120, transform: 'translateY(-5px)' }}
+                     //          onChange={(e) => setRefNewVersionResubmitSuffix(e.target.value)}
+                     //          onBlur={onBlurInputRefNameCreateNew}
+                     //          value={refNewVersionResubmitSuffix}
+                     //       />
+                     //    </>
 
                   ) : formRefType === 'form-reply-multi-type' ? (
-                     <div>{currentRefText}</div>
+                     <div>{currentRefNumber + (currentRefData.revision === '0' ? '' : currentRefData.revision)}</div>
 
-                  ) : null} */}
+                  ) : null}
+
 
 
                   {formRefType !== 'form-reply-multi-type' && (
@@ -710,7 +731,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
  */}
                </div>
 
-   
+
 
                {!isAdminActionWithNoEmailSent && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -734,9 +755,15 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                                     };
                                  });
                                  if (!isLeadConsultantIncluded) {
-                                    if (pageSheetTypeName === 'page-rfam') {
+                                    if (
+                                       pageSheetTypeName === 'page-rfam' ||
+                                       pageSheetTypeName === 'page-rfi'
+                                    ) {
                                        message.warning('You must include lead consultant!');
-                                    } else if (pageSheetTypeName === 'page-cvi') {
+                                    } else if (
+                                       pageSheetTypeName === 'page-cvi' ||
+                                       pageSheetTypeName === 'page-dt'
+                                    ) {
                                        message.warning('You must include consultants!');
                                     };
                                  };
@@ -779,7 +806,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                         >
                            {listRecipient.map(cm => {
                               const isLeadConsultant = listConsultantMustReply[0] && extractConsultantName(cm) === listConsultantMustReply[0];
-                              const isLeadConsultantStyled = (isLeadConsultant && pageSheetTypeName === 'page-rfam') ? {
+                              const isLeadConsultantStyled = (isLeadConsultant && (
+                                 pageSheetTypeName === 'page-rfam' ||
+                                 pageSheetTypeName === 'page-rfi'
+                              )) ? {
                                  background: colorType.primary,
                                  fontWeight: 'bold',
                                  color: 'white'
@@ -808,13 +838,13 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                         {formRefType !== 'form-reply-multi-type' && (
                            <div style={{ display: 'flex', marginTop: 5, marginBottom: 10 }}>
                               <div style={{ marginRight: 8 }}>{
-                                 pageSheetTypeName === 'page-rfam' ? 'Lead consultant :'
-                                    : pageSheetTypeName === 'page-cvi' ? 'Received By :'
+                                 (pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi') ? 'Lead consultant :'
+                                    : (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') ? 'Received By :'
                                        : 'n/a'
                               }</div>
                               <div style={{ fontWeight: 'bold', marginRight: 10 }}>{
-                                 pageSheetTypeName === 'page-rfam' ? (listConsultantMustReply[0] || '')
-                                    : pageSheetTypeName === 'page-cvi' ? (listConsultantMustReply.sort().join(', ') || '')
+                                 (pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi') ? (listConsultantMustReply[0] || '')
+                                    : (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') ? (listConsultantMustReply.sort().join(', ') || '')
                                        : 'n/a'
                               }</div>
                               {formRefType === 'form-submit-multi-type' && (
@@ -881,7 +911,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                            style={{ width: 200 }}
                            showSearch
                            optionFilterProp='children'
-                           onChange={(value) => setSignatureBy(value)}
+                           onChange={(value) => setSignaturedBy(value)}
                            filterOption={(input, option) =>
                               option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                            }
@@ -907,38 +937,122 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                   />
                </div>
 
+               {
+                  formRefType !== 'form-reply-multi-type' &&
+                  pageSheetTypeName === 'page-dt' &&
+                  (
+                     <div style={{ display: 'flex' }}>
+                        <div style={{ display: 'flex', marginBottom: 5, marginRight: 100 }}>
+                           <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Herewith</div>
+                           <SelectTradeStyled
+                              style={{ width: 200 }}
+                              showSearch
+                              optionFilterProp='children'
+                              onChange={(value) => setHerewithForDt(value)}
+                              filterOption={(input, option) =>
+                                 option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                              }
+                              suffixIcon={<div></div>}
+                           >
+                              {[
+                                 'Drawings', 'CD', 'Calculations', 'Method Statement', 'Document', 'Programme',
+                                 'Specifications', 'Part Prints/Sketches', 'Catalogues', 'Test Results', 'Correspondence', 'Others',
+                              ].map((typeFile, i) => (
+                                 <Select.Option key={i} value={typeFile}>{typeFile}</Select.Option>
+                              ))}
+                           </SelectTradeStyled>
+                        </div>
+
+                        <div style={{ display: 'flex', marginBottom: 5 }}>
+                           <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Transmitted For</div>
+                           <SelectTradeStyled
+                              style={{ width: 200 }}
+                              showSearch
+                              optionFilterProp='children'
+                              onChange={(value) => setTransmittedForDt(value)}
+                              filterOption={(input, option) =>
+                                 option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                              }
+                              suffixIcon={<div></div>}
+                           >
+                              {['Information / Action', 'Comments / Approval', 'Construction', 'Record'].map((typeFile, i) => (
+                                 <Select.Option key={i} value={typeFile}>{typeFile}</Select.Option>
+                              ))}
+                           </SelectTradeStyled>
+                        </div>
+                     </div>
+                  )}
 
 
-               <div style={{ display: 'flex', marginBottom: 20 }}>
-                  <div style={{ width: 150, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Conversation Among</div>
-                  <InputStyled
-                     style={{ width: '90%', marginBottom: 10, borderRadius: 0 }}
-                     onChange={(e) => setConversationAmong(e.target.value)}
-                     value={conversationAmong}
-                  />
-               </div>
 
-               <div style={{ display: 'flex' }}>
-                  <div style={{ display: 'flex', marginRight: 50 }}>
-                     <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date</div>
-                     <DatePickerStyled
-                        value={dateConversation}
-                        format={'DD/MM/YY'}
-                        onChange={(e) => setDateConversation(e)}
-                     />
-                  </div>
+               {
+                  formRefType !== 'form-reply-multi-type' &&
+                  pageSheetTypeName === 'page-rfam' &&
+                  (
+                     <div style={{ display: 'flex' }}>
+                        <div style={{ marginRight: 10, fontWeight: 'bold' }}>Submission Type</div>
+                        <SelectTradeStyled
+                           style={{ width: 150 }}
+                           showSearch
+                           optionFilterProp='children'
+                           onChange={(value) => setSubmissionType(value)}
+                           filterOption={(input, option) =>
+                              option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                           }
+                           suffixIcon={<div></div>}
+                        >
+                           {[
+                              'New Submittal',
+                              'Alternative',
+                              'Resubmittal',
+                           ].map(typeSubmit => (
+                              <Select.Option key={typeSubmit} value={typeSubmit}>{typeSubmit}</Select.Option>
+                           ))}
+                        </SelectTradeStyled>
+                     </div>
+                  )}
 
-                  <div style={{ display: 'flex' }}>
-                     <div style={{ marginRight: 10, fontWeight: 'bold' }}>Time</div>
-                     <TimePickerStyled 
-                        defaultValue={moment('12:08', 'HH:mm')} format={'HH:mm'} 
-                        value={timeConversation}
-                        onChange={(e) => setTimeConversation(e)}
-                     />
-                  </div>
-               </div>
+
+
+               {
+                  formRefType !== 'form-reply-multi-type' &&
+                  pageSheetTypeName === 'page-cvi' &&
+                  (
+                     <>
+                        <div style={{ display: 'flex', marginBottom: 20 }}>
+                           <div style={{ width: 150, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Conversation Among</div>
+                           <InputStyled
+                              style={{ width: '90%', marginBottom: 10, borderRadius: 0 }}
+                              onChange={(e) => setConversationAmong(e.target.value)}
+                              value={conversationAmong}
+                           />
+                        </div>
+
+                        <div style={{ display: 'flex' }}>
+                           <div style={{ display: 'flex', marginRight: 50 }}>
+                              <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date</div>
+                              <DatePickerStyled
+                                 value={dateConversation}
+                                 format={'DD/MM/YY'}
+                                 onChange={(e) => setDateConversation(e)}
+                              />
+                           </div>
+
+                           <div style={{ display: 'flex' }}>
+                              <div style={{ marginRight: 10, fontWeight: 'bold' }}>Time</div>
+                              <TimePickerStyled
+                                 defaultValue={moment('12:08', 'HH:mm')} format={'HH:mm'}
+                                 value={timeConversation}
+                                 onChange={(e) => setTimeConversation(e)}
+                              />
+                           </div>
+                        </div>
+                     </>
+                  )}
+
 
                <br />
+
                <div style={{ display: 'flex', marginBottom: 20 }}>
                   <div style={{ width: 90, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold', marginBottom: 10 }}>Description</div>
                   <TextAreaStyled
@@ -951,68 +1065,148 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                </div>
 
 
+               {
+                  formRefType !== 'form-reply-multi-type' &&
+                  pageSheetTypeName === 'page-rfam' &&
+                  (
+                     <>
+                        <div style={{ display: 'flex', marginBottom: 20 }}>
+                           <div style={{ width: 90, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold', marginBottom: 10 }}>Contract Specification</div>
+                           <TextAreaStyled
+                              style={{ width: '85%', marginBottom: 10, borderRadius: 0 }}
+                              rows={5}
+                              onChange={(e) => setContractSpecification(e.target.value)}
+                              value={contractSpecification}
+                              placeholder='Write contract specification...'
+                           />
+                        </div>
+                        <div style={{ display: 'flex', marginBottom: 20 }}>
+                           <div style={{ width: 90, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold', marginBottom: 10 }}>Proposed Specification</div>
+                           <TextAreaStyled
+                              style={{ width: '85%', marginBottom: 10, borderRadius: 0 }}
+                              rows={5}
+                              onChange={(e) => setProposedSpecification(e.target.value)}
+                              value={proposedSpecification}
+                              placeholder='Write proposed specification...'
+                           />
+                        </div>
+                     </>
+                  )}
 
 
 
 
+               {
+                  formRefType !== 'form-reply-multi-type' &&
+                  pageSheetTypeName === 'page-cvi' &&
+                  (
+                     <>
+                        <div style={{ display: 'flex', marginBottom: 10 }}>
+                           <div style={{ marginRight: 30 }}>
+                              <div style={{ marginBottom: 10 }}>
+                                 <CheckboxStyled
+                                    onChange={() => setIsCostImplication(true)}
+                                    checked={isCostImplication}
+                                 >Variation with cost implication</CheckboxStyled>
+                              </div>
+                              <div>
+                                 <CheckboxStyled
+                                    onChange={() => setIsTimeExtension(true)}
+                                    checked={isTimeExtension}
+                                 >With time extension</CheckboxStyled>
+                              </div>
+                           </div>
+                           <div>
+                              <div style={{ marginBottom: 10 }}>
+                                 <CheckboxStyled
+                                    onChange={() => setIsCostImplication(false)}
+                                    checked={!isCostImplication}
+                                 >With no cost implication</CheckboxStyled>
+                              </div>
+                              <div>
+                                 <CheckboxStyled
+                                    onChange={() => setIsTimeExtension(false)}
+                                    checked={!isTimeExtension}
+                                 >With no time extension</CheckboxStyled>
+                              </div>
+                           </div>
+                        </div>
+                        {/* <div>This form is issued pursuant to the Conditions of Contract and also constitutes our notification of an event which may form the basis of a possible claim for additional costs or an extension of time or both.</div> */}
+                     </>
+                  )}
 
 
-               <div style={{ display: 'flex', marginBottom: 10 }}>
-                  <div style={{ marginRight: 30 }}>
-                     <div style={{ marginBottom: 10 }}>
-                        <CheckboxStyled
-                           onChange={() => setIsCostImplication(true)}
-                           checked={isCostImplication}
-                        >Variation with cost implication</CheckboxStyled>
+               {
+                  formRefType === 'form-reply-multi-type' &&
+                  pageSheetTypeName === 'page-rfam' &&
+                  (
+                     <div style={{ display: 'flex' }}>
+                        <div style={{ marginRight: 10, fontWeight: 'bold' }}>Status</div>
+                        <SelectTradeStyled
+                           style={{ width: 400 }}
+                           showSearch
+                           optionFilterProp='children'
+                           onChange={(value) => setConsultantReplyStatus(value)}
+                           filterOption={(input, option) =>
+                              option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                           }
+                           suffixIcon={<div></div>}
+                        >
+                           {[
+                              'Reject and resubmit',
+                              'Approved with comments, to Resubmit',
+                              'Approved with Comment, no submission Required',
+                              'Approved for Construction'
+                           ].map(status => (
+                              <Select.Option key={status} value={status}>{status}</Select.Option>
+                           ))}
+                        </SelectTradeStyled>
                      </div>
-                     <div>
-                        <CheckboxStyled
-                           onChange={() => setIsTimeExtension(true)}
-                           checked={isTimeExtension}
-                        >With time extension</CheckboxStyled>
-                     </div>
-                  </div>
-                  <div>
-                     <div style={{ marginBottom: 10 }}>
-                        <CheckboxStyled
-                           onChange={() => setIsCostImplication(false)}
-                           checked={!isCostImplication}
-                        >With no cost implication</CheckboxStyled>
-                     </div>
-                     <div>
-                        <CheckboxStyled
-                           onChange={() => setIsTimeExtension(false)}
-                           checked={!isTimeExtension}
-                        >With no time extension</CheckboxStyled>
-                     </div>
-                  </div>
-               </div>
+                  )}
 
-               <div>This form is issued pursuant to the Conditions of Contract and also constitutes our notification of an event which may form the basis of a possible claim for additional costs or an extension of time or both.</div>
 
-               <br />
-               <br />
+
+
+               <br /><br />
 
                <div style={{ display: 'flex', marginBottom: 5 }}>
+                  {formRefType === 'form-reply-multi-type' && (
+                     <Upload
+                        name='file' accept='application/pdf' multiple={false} showUploadList={false}
+                        headers={{ authorization: 'authorization-text' }}
+                        beforeUpload={() => { return false }}
+                        onChange={onChangeUploadFormCoverForReply}
+                     >
+                        <ButtonStyle
+                           marginRight={5}
+                           name='Upload Reply Form'
+                        />
+                     </Upload>
+                  )}
 
-                  <Upload
-                     name='file' accept='application/pdf' multiple={true} showUploadList={false}
-                     headers={{ authorization: 'authorization-text' }}
-                     beforeUpload={() => { return false }}
-                     onChange={onChangeUploadPDFDrawing}
-                  >
-                     <ButtonStyle
-                        marginRight={5}
-                        name='Upload Drawing'
-                     />
-                  </Upload>
 
-                  {formRefType === 'form-submit-multi-type' && !isFormEditting && (
-                     <ButtonStyle
-                        marginRight={10}
-                        name='Add Drawing From RFA'
-                        onClick={() => setTablePickDrawingRefSubmitted(true)}
-                     />
+                  
+
+                  {formRefType === 'form-submit-multi-type' && (
+                     <>
+                        <Upload
+                           name='file' accept='application/pdf' multiple={true} showUploadList={false}
+                           headers={{ authorization: 'authorization-text' }}
+                           beforeUpload={() => { return false }}
+                           onChange={onChangeUploadPdfDrawing}
+                        >
+                           <ButtonStyle
+                              marginRight={5}
+                              name='Upload Documents'
+                           />
+                        </Upload>
+                        <ButtonStyle
+                           marginRight={10}
+                           name='Add Drawings From RFA'
+                           onClick={() => setTablePickDrawingRefSubmitted(true)}
+                        />
+                     </>
+                     
                   )}
 
 
@@ -1020,7 +1214,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                      {formRefType !== 'form-reply-multi-type' ? (
                         <>
                            {filesPdfDrawing ? `${Object.keys(filesPdfDrawing).length} PDF files has been chosen ` : 'No PDF files has been chosen '}
-                              / {filesPdfDrawing ? `${Object.keys(filesPdfDrawing).length} 3D models has been chosen.` : 'No 3D model has been chosen.'}
+                           / {filesPdfDrawing ? `${Object.keys(filesPdfDrawing).length} 3D models has been chosen.` : 'No 3D model has been chosen.'}
                         </>
                      ) : (
                         <>
@@ -1031,19 +1225,23 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                </div>
 
 
-               {(Object.keys(filesPdfDrawing).length > 0 || dwgsImportFromRFA.length > 0) && (
-                  <div style={{
-                     width: window.innerWidth * 0.9 - 80,
-                     height: (Object.keys(filesPdfDrawing).length + dwgsImportFromRFA.length) * 28 + 80
-                  }}>
-                     <TableStyled
-                        fixed
-                        columns={generateColumnsListDwgRef(headersDwgRef(pageSheetTypeName), nosColumnFixed)}
-                        data={dataInputForTable}
-                        rowHeight={28}
-                     />
-                  </div>
-               )}
+               {(
+                  Object.keys(filesPdfDrawing).length > 0 ||
+                  Object.keys(fileFormCoverReply).length > 0 ||
+                  dwgsImportFromRFA.length > 0
+               ) && (
+                     <div style={{
+                        width: window.innerWidth * 0.9 - 80,
+                        height: (Object.keys(filesPdfDrawing).length + dwgsImportFromRFA.length) * 28 + 80
+                     }}>
+                        <TableStyled
+                           fixed
+                           columns={generateColumnsListDwgRef(headersDwgRef(pageSheetTypeName), nosColumnFixed)}
+                           data={dataInputForTable}
+                           rowHeight={28}
+                        />
+                     </div>
+                  )}
 
 
             </div>
@@ -1057,7 +1255,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                <ButtonGroupComp
                   onClickCancel={() => setModalConfirmsubmitOrCancel('cancel')}
                   onClickApply={() => setModalConfirmsubmitOrCancel('ok')}
-                  newTextBtnApply={'Submit'}
+                  newTextBtnApply={formRefType === 'form-reply-multi-type' ? 'Submit' : 'Email For Signature'}
+
+                  onClickApplyAdditional01={() => setModalConfirmsubmitOrCancel('download')}
+                  newTextBtnApplyAdditional01={formRefType === 'form-reply-multi-type' ? null : 'Download Form Pdf'}
                />
             </div>
 
@@ -1088,9 +1289,12 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          )}
 
 
-         {modalConfirmsubmitOrCancel && (
+         {modalConfirmsubmitOrCancel && formRefType && (
             <ModalStyled
-               title={modalConfirmsubmitOrCancel === 'ok' ? 'Confirm Submission' : 'Cancel Submission'}
+               title={modalConfirmsubmitOrCancel === 'ok' ? 'Confirm Submission'
+                  : modalConfirmsubmitOrCancel === 'download' ? 'Download Form Pdf'
+                     : 'Cancel Submission'
+               }
                visible={modalConfirmsubmitOrCancel !== null ? true : false}
                footer={null}
                destroyOnClose={true}
@@ -1104,31 +1308,38 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                      : formRefType.includes('form-resubmit-multi-')
                         ? `${currentRefNumber}${refNewVersionResubmitSuffix}`
                         : formRefType.includes('form-reply-multi-')
-                           ? `${currentRefText}` : null}
+                           ? `${currentRefNumber}` : null}
                   onClickCancelConfirmModal={() => setModalConfirmsubmitOrCancel(null)}
                   onClickApplyConfirmModal={(confirmFinal) => {
                      if (confirmFinal === 'Cancel Action Form') {
                         setModalConfirmsubmitOrCancel(null);
                         onClickCancelModal();
-                     } else if (confirmFinal === 'Submit') {
-                        onClickApplyDoneFormRef();
+                     } else {
+                        onClickApplyDoneFormRef(confirmFinal);
                      };
                   }}
                />
             </ModalStyled>
          )}
 
-
-
-
       </>
    );
 };
+
 export default PanelAddNewMultiForm;
 
 
-const getInputForTable = (filesPdfDrawing, dwgsImportFromRFA) => {
+const getInputForTable = (fileFormCoverReply, filesPdfDrawing, dwgsImportFromRFA) => {
    let output = [];
+   if (fileFormCoverReply) {
+      for (const pdfDrawing in fileFormCoverReply) {
+         output.push({
+            id: mongoObjectId(),
+            'Type': 'Form Cover',
+            'File Name': pdfDrawing
+         });
+      };
+   };
 
    if (filesPdfDrawing) {
       for (const pdfDrawing in filesPdfDrawing) {
@@ -1139,11 +1350,13 @@ const getInputForTable = (filesPdfDrawing, dwgsImportFromRFA) => {
          });
       };
    };
+
    if (dwgsImportFromRFA && dwgsImportFromRFA.length > 0) {
       dwgsImportFromRFA.forEach(row => {
          output.push(row);
       });
    };
+
    return output;
 };
 
@@ -1166,6 +1379,8 @@ const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRefType, refData, onClick
       <div style={{ padding: 20, width: '100%' }}>
          {typeConfirm === 'ok' ? (
             <div>Are you sure to {formRefType === 'form-reply-multi-type' ? 'reply' : 'submit'} the <span style={{ fontWeight: 'bold' }}>{refData}</span>?</div>
+         ) : typeConfirm === 'download' ? (
+            <div>Are you sure to download Pdf form ?</div>
          ) : typeConfirm === 'cancel' ? (
             <div>Are you sure to cancel the {formRefType === 'form-reply-multi-type' ? 'response' : 'submission'}?</div>
          ) : null}
@@ -1173,7 +1388,7 @@ const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRefType, refData, onClick
          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
             <ButtonGroupComp
                onClickCancel={onClickCancelConfirmModal}
-               onClickApply={() => onClickApplyConfirmModal(typeConfirm === 'ok' ? 'Submit' : 'Cancel Action Form')}
+               onClickApply={() => onClickApplyConfirmModal(typeConfirm === 'ok' ? 'action-multiform-email' : typeConfirm === 'download' ? 'action-multiform-download' : 'Cancel Action Form')}
                newTextBtnApply={'Yes'}
             />
          </div>
@@ -1378,7 +1593,6 @@ const SelectTradeStyled = styled(Select)`
          box-shadow: none;
       };
    }
-
 `;
 
 

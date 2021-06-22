@@ -1,21 +1,23 @@
-import { Icon, message, Modal, Tooltip } from 'antd';
+import { Icon, message, Modal, Tooltip, Upload } from 'antd';
 import Axios from 'axios';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { colorType } from '../../constants';
+import { colorTextRow, colorType, SERVER_URL } from '../../constants';
 import { mongoObjectId } from '../../utils';
 import ButtonColumnTag from '../generalComponents/ButtonColumnTag';
 import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
-import PanelConfirm from '../generalComponents/PanelConfirm';
-import { getInfoValueFromRfaData } from './CellRFA';
-import { getKeyTextForSheet } from './PanelSetting';
+import ButtonStyle from '../generalComponents/ButtonStyle';
+import { convertReplyOrSubmissionDate, getInfoValueFromRfaData, isColumnConsultant, isColumnWithReplyData } from './CellRFA';
+import { getFileNameFromLinkResponse, getKeyTextForSheet } from './PanelSetting';
+
+
 
 
 
 const CellForm = (props) => {
 
-   const { rowData, cellData, column, buttonPanelFunction, contextInput } = props;
+   const { rowData, cellData, column, buttonPanelFunction, contextInput, commandAction, setLoading } = props;
 
 
    const { contextCell, contextRow, contextProject } = contextInput;
@@ -24,7 +26,7 @@ const CellForm = (props) => {
    const { stateProject } = contextProject;
 
    const {
-      roleTradeCompany, companies, company, email, projectIsAppliedRfaView,
+      token, projectId, projectName, roleTradeCompany, companies, company, email, projectIsAppliedRfaView,
       pageSheetTypeName, isAdmin, isUserCanSubmitBothSide
    } = stateProject.allDataOneSheet;
 
@@ -46,6 +48,7 @@ const CellForm = (props) => {
          : pageSheetTypeName === 'page-cvi' ? rowsCviAllInit
             : pageSheetTypeName === 'page-dt' ? rowsDtAllInit
                : [];
+
    const rowsRefAll = pageSheetTypeName === 'page-rfam' ? rowsRfamAll
       : pageSheetTypeName === 'page-rfi' ? rowsRfiAll
          : pageSheetTypeName === 'page-cvi' ? rowsCviAll
@@ -56,8 +59,12 @@ const CellForm = (props) => {
    const refType = getKeyTextForSheet(pageSheetTypeName);
    const refKey = refType + 'Ref';
 
-   const [refText, setRefText] = useState(null);
+
    const [refData, setRefData] = useState({});
+
+   const [replyStatus, setReplyStatus] = useState(null);
+   const [replyCompany, setReplyCompany] = useState(null);
+   const [replyDate, setReplyDate] = useState(null);
 
    const [modalListDrawingAttached, setModalListDrawingAttached] = useState(null);
    const [consultantsReply, setConsultantsReply] = useState([]);
@@ -71,6 +78,23 @@ const CellForm = (props) => {
 
    const [isAdminActionWithNoEmailSent, setIsAdminActionWithNoEmailSent] = useState(false);
 
+   const [overdueCount, setOverdueCount] = useState(0);
+
+
+
+   const [panelUploadSignedOffFormShown, setPanelUploadSignedOffFormShown] = useState(false);
+   const [fileSignedOffFormPdf, setFileSignedOffFormPdf] = useState(null);
+   const onChangeUploadSignedOffForm = (info) => {
+      if (info.fileList) {
+         let output = {};
+         info.fileList.forEach(file => {
+            output = { [file.name]: file };
+         });
+         setFileSignedOffFormPdf(output);
+      };
+   };
+
+
 
    useEffect(() => {
 
@@ -80,7 +104,6 @@ const CellForm = (props) => {
          const allBtn = rowData['btn'];
          const allRowsChildren = rowData.children;
          const lastBtn = allBtn[allBtn.length - 1];
-
 
          let ref;
          if (activeBtn === '0') {
@@ -97,10 +120,10 @@ const CellForm = (props) => {
          const oneRowChildren = rowsWithThisRef[0];
 
          const refDataObj = cloneRefData(oneRowChildren, refKey);
-         setRefText(ref);
+
          setRefData(refDataObj);
 
-         const consultantMustReplyArray = getInfoValueFromRfaDataForm(refDataObj, 'submission', refType, 'consultantMustReply');
+         const consultantMustReplyArray = getInfoValueFromRefDataForm(refDataObj, 'submission', refType, 'consultantMustReply');
 
          if (isUserCanSubmitBothSide) {
             if (allRowsChildren.find(row => !row[refKey])) {
@@ -110,14 +133,11 @@ const CellForm = (props) => {
             };
             let arrayConsultantNotReplyYet = [];
             consultantMustReplyArray.forEach(cst => {
-               const statusReply = getInfoValueFromRfaDataForm(refDataObj, 'reply', refType, 'status', cst);
+               const statusReply = getInfoValueFromRefDataForm(refDataObj, 'reply', refType, 'status', cst);
                if (!statusReply) {
                   arrayConsultantNotReplyYet.push(cst);
                };
             });
-
-            console.log('arrayConsultantNotReplyYet=====================', arrayConsultantNotReplyYet);
-
             if (arrayConsultantNotReplyYet.length > 0) {
                setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
                setConsultantsNotReplyYet(arrayConsultantNotReplyYet);
@@ -126,14 +146,14 @@ const CellForm = (props) => {
             };
 
          } else if (roleTradeCompany.role === 'Consultant') {
-            // if (
-            //    !refDataObj[`reply-$$$-status-${roleTradeCompany.company}`] &&
-            //    consultantMustReplyArray && consultantMustReplyArray.indexOf(company) !== -1
-            // ) {
-            //    setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
-            // } else {
-            //    setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
-            // };
+            if (
+               !refDataObj[`reply-${refType}-status-${company}`] &&
+               consultantMustReplyArray && consultantMustReplyArray.indexOf(company) !== -1
+            ) {
+               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
+            } else {
+               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
+            };
          } else if (roleTradeCompany.role === 'Document Controller') {
 
             // if (allRowsChildren.find(row => !row['RFA Ref'])) {
@@ -143,53 +163,44 @@ const CellForm = (props) => {
             // };
          };
 
+
+
       } else if (!rowData.treeLevel && rowData[refKey]) {
 
          const refDataObj = cloneRefData(rowData, refKey);
          setRefData(refDataObj);
 
-         if (column.key === 'Requested By') {
-            // setRequestedByCellData(getInfoValueFromRfaData(refDataObj, 'submission', 'requestedBy'));
+         if (column.key === 'Received By') {
 
-            // } else if (isColumnWithReplyData(column.key)) {
-            // const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyData(rowData, column.key, companies);
-
-            // setReplyStatus(replyStatusData);
-            // setReplyCompany(replyCompanyData);
-            // setReplyDate(convertReplyOrSubmissionDate(replyDateData));
+            setConsultantsReply(getInfoValueFromRefDataForm(refDataObj, 'submission', refType, 'consultantMustReply'));
 
 
-         } else if (column.key === 'Received By') {
+         } else if (isColumnWithReplyData(column.key)) {
+            const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyFormData(rowData, column.key, refType, companies);
+            setReplyStatus(replyStatusData);
+            setReplyCompany(replyCompanyData);
+            setReplyDate(convertReplyOrSubmissionDate(replyDateData));
 
-            setConsultantsReply(getInfoValueFromRfaDataForm(refDataObj, 'submission', refType, 'consultantMustReply'));
+         } else if (isColumnConsultant(column.key)) {
 
+            if (roleTradeCompany.role !== 'Consultant') {
+               const consultantLead = getInfoValueFromRefDataForm(refDataObj, 'submission', refType, 'consultantMustReply')[0];
+               setReplyStatus(refDataObj[`reply-${refType}-status-${consultantLead}`]);
+               setReplyCompany(consultantLead);
 
-            // } else if (isColumnConsultant(column.key)) {
-            // if (roleTradeCompany.role !== 'Consultant') {
-            //    const consultantLead = getInfoValueFromRfaData(refDataObj, 'submission', 'consultantMustReply')[0];
+               const dateInfo = refDataObj[`reply-${refType}-date-${consultantLead}`];
+               setReplyDate(convertReplyOrSubmissionDate(dateInfo));
 
-            //    setReplyStatus(getInfoValueFromRfaData(refDataObj, 'reply', 'status', consultantLead));
-            //    setReplyCompany(consultantLead);
+            } else {
+               const consultantMustReplyValue = getInfoValueFromRefDataForm(refDataObj, 'submission', refType, 'consultantMustReply');
+               if (consultantMustReplyValue.indexOf(company) !== -1) {
+                  setReplyStatus(refDataObj[`reply-${refType}-status-${company}`]);
+                  setReplyCompany(company);
+                  const dateInfo = refDataObj[`reply-${refType}-date-${company}`];
 
-            //    const dateInfo = getInfoValueFromRfaData(refDataObj, 'reply', 'date', consultantLead);
-            //    setReplyDate(convertReplyOrSubmissionDate(dateInfo));
-            // } else {
-            //    const consultantMustReplyValue = getInfoValueFromRfaData(refDataObj, 'submission', 'consultantMustReply');
-            //    if (consultantMustReplyValue.indexOf(company) !== -1) {
-
-            //       setReplyStatus(refDataObj[`reply-$$$-status-${company}`]);
-            //       setReplyCompany(company);
-            //       const dateInfo = refDataObj[`reply-$$$-date-${company}`];
-            //       setReplyDate(convertReplyOrSubmissionDate(dateInfo));
-            //    };
-            // };
-
-         } else if (column.key === 'Due Date') {
-            // const consultantMustReplyArray = getInfoValueFromRfaData(refDataObj, 'submission', 'consultantMustReply');
-            // if (!rowData[`reply-$$$-status-${consultantMustReplyArray[0]}`]) {
-            //    const compare = compareDates(rowData['Consultant Reply (T)']);
-            //    setOverdueCount(compare);
-            // };
+                  setReplyDate(convertReplyOrSubmissionDate(dateInfo));
+               };
+            };
          };
       };
    }, [activeBtn]);
@@ -248,14 +259,11 @@ const CellForm = (props) => {
    const onClickRefDrawing = (btn) => {
 
       const rowsNotThisRef = rowsRefAll.filter(r => r[refKey] !== refData[refKey]);
-
       let rowsThisRefFiltered;
-
       if (btn === 'All') {
          const rowsFilter = rowsRefAllInit.filter(r => r[refKey] === refData[refKey]);
          const arrayVersion = [...new Set(rowsFilter.map(x => x.revision))];
          const latestVersion = arrayVersion.sort()[arrayVersion.length - 1];
-
          rowsThisRefFiltered = rowsRefAllInit.filter(r => {
             return r.revision === latestVersion && r[refKey] === refData[refKey];
          });
@@ -264,7 +272,6 @@ const CellForm = (props) => {
             return r.revision === btn && r[refKey] === refData[refKey];
          });
       };
-
       getSheetRows({
          ...stateRow,
          [`rows${refKey}All`]: [...rowsNotThisRef, ...rowsThisRefFiltered]
@@ -287,84 +294,83 @@ const CellForm = (props) => {
          // };
       };
 
-      if (isUserCanSubmitBothSide) {
-         setModalActionTypeForAdminSubmit(btn);
+      if (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') {
+         buttonPanelFunction('acknowledge-form');
       } else {
-         buttonPanelFunction(btn);
-         getSheetRows({
-            ...stateRow,
-            currentRfaToAddNewOrReplyOrEdit: {
-               currentRefNumber: rowData[refKey],
-               currentRefRef: refText,
-               currentRefData: refData,
-               formRfaType: btn,
-               isFormEditting: false
-            },
-         });
+         if (btn === 'form-upload-signed-off') {
+            setPanelUploadSignedOffFormShown(true);
+         } else {
+            if (isUserCanSubmitBothSide) {
+               setModalActionTypeForAdminSubmit(btn);
+            } else {
+               buttonPanelFunction(btn);
+            };
+         };
       };
+
+      getSheetRows({
+         ...stateRow,
+         currentRefToAddNewOrReplyOrEdit: {
+            currentRefNumber: rowData[refKey],
+            currentRefData: refData,
+            formRefType: btn,
+            isFormEditting: false
+         },
+      });
    };
 
 
 
+   const onMouseDownCellButtonConsultant = async (btn) => {
 
-   const onMouseDownCellButtonConsultant = async (btn, replyCompany, rfaData) => {
+      try {
+         let userReply, isEditTimeOver;
+         // if (isDrawingDetailTableDms === 'drawing-detail-consultant') {
+         //    userReply = getInfoValueFromRfaData(rfaData, 'reply', 'user', replyCompany);
+         //    isEditTimeOver = checkIfEditTimeIsOver(rfaData, replyCompany, EDIT_DURATION_MIN, 'check-if-status-button-ready');
+         // } else {
+         //    userReply = getInfoValueFromRfaData(rowData, 'reply', 'user', replyCompany);
+         //    isEditTimeOver = checkIfEditTimeIsOver(rowData, replyCompany, EDIT_DURATION_MIN, 'check-if-status-button-ready');
+         // };
 
-      // try {
-      //    let userReply, isEditTimeOver;
-      //    if (isDrawingDetailTableDms === 'drawing-detail-consultant') {
-      //       userReply = getInfoValueFromRfaData(rfaData, 'reply', 'user', replyCompany);
-      //       isEditTimeOver = checkIfEditTimeIsOver(rfaData, replyCompany, EDIT_DURATION_MIN, 'check-if-status-button-ready');
-      //    } else {
-      //       userReply = getInfoValueFromRfaData(rowData, 'reply', 'user', replyCompany);
-      //       isEditTimeOver = checkIfEditTimeIsOver(rowData, replyCompany, EDIT_DURATION_MIN, 'check-if-status-button-ready');
-      //    };
+         // if (isEditTimeOver || userReply === email) {
 
-      //    if (isEditTimeOver || userReply === email) {
-      //       if (btn === 'See Note') {
-      //          setModalContent(
-      //             <div>
-      //                <div style={{ fontWeight: 'bold' }}>{rfaData[`reply-$$$-user-${replyCompany}`] || ''}</div>
-      //                <div style={{ fontWeight: 'bold' }}>{rfaData[`reply-$$$-status-${replyCompany}`] || ''}</div>
-      //                <div>{rfaData[`reply-$$$-comment-${replyCompany}`] || ''}</div>
-      //             </div>
-      //          );
+         if (btn === 'Open Form') {
 
-      //       } else if (btn === 'Open Drawing List') {
-      //          const res = await Axios.get('/api/issue/get-public-url', { params: { key: rfaData[`reply-$$$-drawing-${replyCompany}`], expire: 1000 } });
-      //          window.open(res.data);
+            const linkFormReply = getInfoValueFromRefDataForm(refData, 'reply', refType, 'linkFormReply', replyCompany);
+            const res = await Axios.get('/api/issue/get-public-url', { params: { key: linkFormReply, expire: 1000 } });
+            window.open(res.data);
 
-      //       } else if (btn === 'Open Form') {
+         } else if (btn === 'Edit') {
+            // let adminEditData = {};
+            // const listEmailTo = getInfoValueFromRfaData(rfaData, 'reply', 'emailTo', replyCompany);
+            // if (isUserCanSubmitBothSide) {
+            //    adminEditData = {
+            //       isAdminAction: true,
+            //       isAdminActionWithNoEmailSent: !listEmailTo || listEmailTo.length === 0,
+            //       adminActionConsultantToReply: replyCompany
+            //    };
+            // };
 
-      //       } else if (btn === 'Edit') {
-      //          let adminEditData = {};
-      //          const listEmailTo = getInfoValueFromRfaData(rfaData, 'reply', 'emailTo', replyCompany);
-      //          if (isUserCanSubmitBothSide) {
-      //             adminEditData = {
-      //                isAdminAction: true,
-      //                isAdminActionWithNoEmailSent: !listEmailTo || listEmailTo.length === 0,
-      //                adminActionConsultantToReply: replyCompany
-      //             };
-      //          };
-
-      //          buttonPanelFunction('form-reply-RFA');
-      //          getSheetRows({
-      //             ...stateRow,
-      //             currentRfaToAddNewOrReplyOrEdit: {
-      //                currentRfaNumber: rowData.rfaNumber,
-      //                currentRfaRef: rowData['RFA Ref'],
-      //                currentRfaData: rfaData,
-      //                formRfaType: 'form-reply-RFA',
-      //                isFormEditting: true,
-      //                ...adminEditData
-      //             },
-      //          });
-      //       };
-      //    } else {
-      //       return message.warn('Consultant is replying this RFA, please wait ...');
-      //    };
-      // } catch (err) {
-      //    console.log(err);
-      // };
+            // buttonPanelFunction('form-reply-RFA');
+            // getSheetRows({
+            //    ...stateRow,
+            //    currentRfaToAddNewOrReplyOrEdit: {
+            //       currentRfaNumber: rowData.rfaNumber,
+            //       currentRfaRef: rowData['RFA Ref'],
+            //       currentRfaData: rfaData,
+            //       formRefType: 'form-reply-RFA',
+            //       isFormEditting: true,
+            //       ...adminEditData
+            //    },
+            // });
+         };
+         // } else {
+         //    return message.warn('Consultant is replying this RFA, please wait ...');
+         // };
+      } catch (err) {
+         console.log(err);
+      };
    };
 
 
@@ -396,17 +402,15 @@ const CellForm = (props) => {
          // if (isEditTimeOver || userSubmission === email) {
          if (btn === 'Open Drawing List') {
 
-            const dwgsLinkList = getInfoValueFromRfaDataForm(refData, 'submission', refType, 'linkDrawings');
+            const dwgsLinkList = getInfoValueFromRefDataForm(refData, 'submission', refType, 'linkDrawings');
 
             setModalListDrawingAttached(dwgsLinkList);
 
          } else if (btn === 'Open Form') {
-            // const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'dwfxLink');
-            // if (dwgLink) {
-            //    window.open(dwgLink);
-            // } else {
-            //    message.info('There is no 3D model attached!');
-            // };
+
+            const linkFormSignedOff = getInfoValueFromRefDataForm(refData, 'submission', refType, 'linkSignedOffFormSubmit');
+            const res = await Axios.get('/api/issue/get-public-url', { params: { key: linkFormSignedOff, expire: 1000 } });
+            window.open(res.data);
 
          } else if (btn === 'Edit') {
             // const typeBtn = rowData['RFA Ref'] !== rowData.rfaNumber ? 'form-resubmit-RFA' : 'form-submit-RFA';
@@ -421,7 +425,7 @@ const CellForm = (props) => {
             //          currentRfaNumber: rowData.rfaNumber,
             //          currentRfaRef: rowData['RFA Ref'],
             //          currentRfaData: rfaData,
-            //          formRfaType: typeBtn,
+            //          formRefType: typeBtn,
             //          isFormEditting: true
             //       },
             //    });
@@ -476,15 +480,14 @@ const CellForm = (props) => {
 
       if (pageSheetTypeName === 'page-rfam') {
          buttonPanelFunction('form-reply-multi-type');
-      } else if (pageSheetTypeName === 'page-cvi') {
-         buttonPanelFunction('acknowledgeForm');
+      } else if (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') {
+         // buttonPanelFunction('acknowledge-form');
       };
 
       getSheetRows({
          ...stateRow,
          currentRefToAddNewOrReplyOrEdit: {
             currentRefNumber: rowData[refKey],
-            currentRefRef: refText,
             currentRefData: refData,
             formRefType: 'form-reply-multi-type',
             isFormEditting: false,
@@ -497,6 +500,106 @@ const CellForm = (props) => {
    };
 
 
+   const submitSignedOffFormSendEmail = async () => {
+
+      if (!fileSignedOffFormPdf || Object.values(fileSignedOffFormPdf).length === 0) {
+         return message.warn('Please upload pdf signed off form!', 3)
+      };
+
+      try {
+
+         setLoading(true);
+         commandAction({ type: '' });
+
+         let data;
+         data = new FormData();
+         Object.values(fileSignedOffFormPdf).forEach(file => {
+            data.append('files', file.originFileObj);
+         });
+         data.append('projectId', projectId);
+         data.append(`${refType}Number`, `${refData[`${refType}Ref`]}/${refData.revision}/submit`); 
+
+         let arrayFileName = [];
+         if (data) {
+            const res = await Axios.post('/api/drawing/set-files-multi-form', data);
+            const listFileName = res.data;
+
+            arrayFileName = listFileName.map(link => ({
+               fileName: getFileNameFromLinkResponse(link),
+               fileLink: link
+            }));
+         };
+
+
+         const rowChild = rowData.children[0];
+         let rowOutput = { _id: rowChild.id, data: {} };
+
+         rowOutput.data[`submission-${refType}-linkSignedOffFormSubmit-${company}`] = arrayFileName[0].fileLink;
+
+         await Axios.post(`${SERVER_URL}/row-${refType}/save-rows-${refType}/`, { token, projectId, rows: [rowOutput] });
+
+         await Axios.post(`/api/${refType}/mail-send`, {
+            token,
+            data: {
+               projectId,
+               company,
+               formSubmitType: refType,
+               rowIds: [rowChild.id],
+               emailSender: email,
+               projectName,
+               emailType: 'submit-signed-off-final'
+            },
+            momentToTriggerEmail: moment()
+         });
+
+         // TEST API SEND FINAL...
+         // const resEmail = await Axios.post(`${SERVER_URL}/row-${refType}/mail-test/`, {
+         //    token,
+         //    data: {
+         //       projectId,
+         //       company,
+         //       formSubmitType: refType,
+         //       rowIds: [rowChild.id],
+         //       emailSender: email,
+         //       projectName,
+         //       emailType: 'submit-signed-off-final'
+         //    },
+         // });
+
+
+         message.success('Submitted Successfully', 3);
+
+         const route = pageSheetTypeName === 'page-rfam' ? 'row-rfam'
+            : pageSheetTypeName === 'page-cvi' ? 'row-cvi'
+               : pageSheetTypeName === 'page-rfi' ? 'row-rfi'
+                  : pageSheetTypeName === 'page-dt' ? 'row-dt'
+                     : 'n/a';
+
+         const res = await Axios.get(`${SERVER_URL}/${route}/`, { params: { token, projectId, email } });
+         const rowsAllMultiForm = res.data;
+
+         const expandedRowsIdArr = [
+            'ARCHI', 'C&S', 'M&E', 'PRECAST',
+            ...rowsAllMultiForm.filter(x => x[refKey]).map(x => x[refKey])
+         ];
+
+         commandAction({
+            type: 'reload-data-view-multi-form',
+            data: {
+               rowsAllMultiForm,
+               expandedRowsIdArr,
+            }
+         });
+
+
+      } catch (err) {
+         getSheetRows({ ...stateRow, loading: false });
+         commandAction({ type: 'save-data-failure' });
+         console.log(err);
+      };
+   };
+
+
 
    const applyResubmitForAdminOnly = (isNoEmailSent) => {
       // buttonPanelFunction('form-resubmit-RFA');
@@ -506,7 +609,7 @@ const CellForm = (props) => {
       //       currentRfaNumber: rowData.rfaNumber,
       //       currentRfaRef: rfaRefText,
       //       currentRfaData: rfaData,
-      //       formRfaType: 'form-resubmit-RFA',
+      //       formRefType: 'form-resubmit-RFA',
       //       isFormEditting: false,
 
       //       isAdminAction: true,
@@ -522,23 +625,29 @@ const CellForm = (props) => {
    // const additionalBtn3DModel = is3dModelAttached ? ['Open Form'] : [];
 
    let arrayButtonReplyAndResubmit = [];
-   if (isUserCanSubmitBothSide) {
-      if (thereIsDrawingWithNoRef) {
-         arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'plus-square'];
+
+   if (rowData.treeLevel === 3 && column.key === expandedColumn) {
+      if (isUserCanSubmitBothSide) {
+         if (thereIsDrawingWithNoRef) {
+            arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'plus-square'];
+         };
+         if (thereIsDrawingWithNoReplyAndConsultantAllowedReply) {
+            arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'form'];
+         };
+      } else {
+         if (thereIsDrawingWithNoReplyAndConsultantAllowedReply && roleTradeCompany.role === 'Consultant') {
+            arrayButtonReplyAndResubmit = ['form'];
+         } else if (thereIsDrawingWithNoRef && roleTradeCompany.role === 'Document Controller') {
+            arrayButtonReplyAndResubmit = ['plus-square'];
+         };
       };
-      if (thereIsDrawingWithNoReplyAndConsultantAllowedReply) {
-         arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'form'];
-      };
-   } else {
-      if (thereIsDrawingWithNoReplyAndConsultantAllowedReply && roleTradeCompany.role === 'Consultant') {
-         arrayButtonReplyAndResubmit = ['form'];
-      } else if (thereIsDrawingWithNoRef && roleTradeCompany.role === 'Document Controller') {
-         arrayButtonReplyAndResubmit = ['plus-square'];
+      const linkSignedOffFormSubmit = getInfoValueFromRefDataForm(refData, 'submission', refType, 'linkSignedOffFormSubmit');
+      if (!linkSignedOffFormSubmit && roleTradeCompany.role === 'Document Controller') {
+         arrayButtonReplyAndResubmit = ['vertical-align-top', ...arrayButtonReplyAndResubmit];
       };
    };
-
-
    const additionalBtnToEdit = [];
+
 
 
    return (
@@ -546,7 +655,9 @@ const CellForm = (props) => {
          style={{
             width: '100%', height: '100%',
             position: 'relative', padding: 5, color: 'black',
-            background: (!rowData.treeLevel && column.key === 'Received By') ? 'white' : 'transparent',
+            background: (column.key === 'Due Date' && overdueCount < 0)
+               ? '#FFEBCD'
+               : (colorTextRow[replyStatus] || 'transparent'),
             // fontWeight: (column.key === 'RFA Ref' && rowData.treeLevel) && 'bold'
          }}
          onMouseOver={() => {
@@ -556,6 +667,7 @@ const CellForm = (props) => {
             // ) {
             //    checkIfEditBtnShown(column.key);
             // };
+
             if (!btnShown) setBtnShown(true);
          }}
          onMouseLeave={() => {
@@ -575,7 +687,6 @@ const CellForm = (props) => {
                   ))}
                </div>
 
-
                {arrayButtonReplyAndResubmit.map(button => (
                   <Tooltip key={button} placement='top' title={button === 'form' ? `Reply To This ${refType.toUpperCase()}` : button === 'plus-square' ? `Resubmit This ${refType.toUpperCase()}` : null} >
                      <Icon
@@ -587,59 +698,65 @@ const CellForm = (props) => {
                            right: arrayButtonReplyAndResubmit.length === 2 ? (button === 'form' ? 30 : 3) : 3,
                            top: 0
                         }}
-                        onClick={() => onClickSubmitOrReplyForm(button === 'form' ? 'form-reply-multi-type' : button === 'plus-square' ? 'form-resubmit-multi-form' : null)}
+                        onClick={() => onClickSubmitOrReplyForm(
+                           button === 'form' ? 'form-reply-multi-type' :
+                              button === 'plus-square' ? 'form-resubmit-multi-form' :
+                                 button === 'vertical-align-top' ? 'form-upload-signed-off' :
+                                    null
+                        )}
                      />
                   </Tooltip>
                ))}
-
             </div>
          ) : (rowData.treeLevel >= 2 && column.key === expandedColumn) ? (
             <div style={{ color: 'black', fontWeight: 'bold' }}>{rowData.title}</div>
-         )
-            : (!rowData.treeLevel && column.key === 'Received By') ? (
-               <div style={{ display: 'flex' }}>
-                  {consultantsReply.map((cmp, i) => (
-                     <div
-                        key={i}
-                        style={{
-                           marginRight: 5,
-                           background: cmp === 'DCA' ? colorType.green : 'grey',
-                        }}
-                     >{cmp}</div>
+         ) : !rowData.treeLevel ? (
+            <div>{getCellFormData(rowData, column.key, refType, consultantsReply, replyCompany, replyStatus, replyDate)}</div>
+         ) : ''}
+
+
+
+         {(
+            btnShown &&
+            !rowData.treeLevel &&
+            (
+               (isColumnSubmitOrReply(column.key) === 'column-submit' && getInfoValueFromRefDataForm(rowData, 'submission', refType, 'linkSignedOffFormSubmit')) ||
+               ((isColumnConsultant(column.key) || isColumnWithReplyData(column.key)) && getInfoValueFromRefDataForm(rowData, 'reply', refType, 'linkFormReply', replyCompany))
+            )
+         ) && (
+               <>
+                  {(isColumnSubmitOrReply(column.key) === 'column-submit'
+                     ? ['Open Drawing List', 'Open Form', ...additionalBtnToEdit]
+                     : ['Open Form', ...additionalBtnToEdit]
+                  ).map(btn => (
+                     <Tooltip key={btn} placement='top' title={btn}>
+                        <div
+                           style={{
+                              cursor: 'pointer', position: 'absolute',
+                              right: btn === 'Open Drawing List' ? 27 : btn === 'Open Form' ? 5 : 51,
+                              top: 5, height: 17, width: 17,
+                           }}
+                           onMouseDown={() => {
+                              if (isColumnSubmitOrReply(column.key) === 'column-submit') {
+                                 onMouseDownCellButtonRef(btn);
+                              } else {
+                                 onMouseDownCellButtonConsultant(btn);
+                              };
+                           }}
+                        >
+                           <Icon
+                              type={btn === 'Open Drawing List' ? 'file' : btn === 'Open Form' ? 'shake' : 'edit'}
+                              style={{ color: 'black', fontSize: 15 }}
+                           />
+                        </div>
+                     </Tooltip>
                   ))}
-
-               </div>
-            ) : (!rowData.treeLevel) ? (
-               <div>{getCellFormData(rowData, column.key, refType)}</div>
-            ) : ''}
-
-
-
-         {(btnShown && !rowData.treeLevel && isColumnSubmitOrReply(column.key) === 'column-submit') && (
-            <>
-               {['Open Drawing List', 'Open Form', ...additionalBtnToEdit].map(btn => (
-                  <Tooltip key={btn} placement='top' title={btn}>
-                     <div
-                        style={{
-                           cursor: 'pointer', position: 'absolute',
-                           right: btn === 'Open Drawing List' ? 5 : btn === 'Open Form' ? 27 : 51,
-                           top: 5, height: 17, width: 17,
-                        }}
-                        onMouseDown={() => onMouseDownCellButtonRef(btn)}
-                     >
-                        <Icon
-                           type={btn === 'Open Drawing List' ? 'file' : btn === 'Open Form' ? 'shake' : 'edit'}
-                           style={{ color: 'black', fontSize: 15 }}
-                        />
-                     </div>
-                  </Tooltip>
-               ))}
-            </>
-         )}
+               </>
+            )}
 
 
          {modalListDrawingAttached && (
-            <ModalStyledSetting
+            <ModalStyled
                title={'Drawing List'}
                visible={modalListDrawingAttached !== null ? true : false}
                footer={null}
@@ -659,12 +776,12 @@ const CellForm = (props) => {
                      >{fileName}</div>
                   );
                })}</div>
-            </ModalStyledSetting>
+            </ModalStyled>
          )}
 
 
          {modalActionTypeForAdminSubmit && (
-            <ModalStyledSetting
+            <ModalStyled
                title={'Choose Action (Admin)'}
                visible={modalActionTypeForAdminSubmit === null ? false : true}
                footer={null}
@@ -704,11 +821,12 @@ const CellForm = (props) => {
                      />
                   </div>
                </div>
-            </ModalStyledSetting>
+            </ModalStyled>
          )}
 
+
          {modalPickConsultantForAdmin && (
-            <ModalStyledSetting
+            <ModalStyled
                title={'Choose Consultant To Reply'}
                footer={null} destroyOnClose={true} centered={true}
                visible={modalPickConsultantForAdmin}
@@ -720,8 +838,48 @@ const CellForm = (props) => {
                   onClickCancelModal={() => setModalPickConsultantForAdmin(false)}
                   listConsultants={consultantsNotReplyYet}
                />
-            </ModalStyledSetting>
+            </ModalStyled>
          )}
+
+
+
+         {panelUploadSignedOffFormShown && (
+            <ModalStyled
+               title={'Submit Signed Off Cover Form'}
+               visible={panelUploadSignedOffFormShown}
+               footer={null}
+               onCancel={() => setPanelUploadSignedOffFormShown(false)}
+               destroyOnClose={true}
+               centered={true}
+            >
+               <div style={{ flexDirection: 'column' }}>
+                  <div style={{ marginBottom: 20, display: 'flex' }}>
+                     <Upload
+                        name='file' accept='application/pdf' multiple={false} showUploadList={false}
+                        headers={{ authorization: 'authorization-text' }}
+                        beforeUpload={() => { return false }}
+                        onChange={onChangeUploadSignedOffForm}
+                     >
+                        <ButtonStyle
+                           marginRight={5}
+                           name='Upload Signed Off Cover Form'
+                        />
+                     </Upload>
+                     <div>{fileSignedOffFormPdf && Object.values(fileSignedOffFormPdf)[0].name}</div>
+                  </div>
+
+
+                  <div style={{ marginTop: 20, padding: 10, float: 'right' }}>
+                     <ButtonGroupComp
+                        onClickApply={submitSignedOffFormSendEmail}
+                        onClickCancel={() => setPanelUploadSignedOffFormShown(false)}
+                        newTextBtnApply={`Submit ${refType.toUpperCase()}`}
+                     />
+                  </div>
+               </div>
+            </ModalStyled>
+         )}
+
 
       </div>
    );
@@ -746,7 +904,7 @@ const ButtonForm = styled.div`
    transition: 0.3s;
 `;
 
-const ModalStyledSetting = styled(Modal)`
+const ModalStyled = styled(Modal)`
    .ant-modal-content {
       border-radius: 0;
    }
@@ -777,7 +935,8 @@ const cloneRefData = (row, refKey) => {
          key.includes('reply') ||
          key.includes('submission') ||
          key === refKey ||
-         key === 'revision'
+         key === 'revision' ||
+         key === 'trade'
       ) {
          obj[key] = row[key];
       };
@@ -834,7 +993,7 @@ const isColumnSubmitOrReply = (header) => {
    ) return 'column-submit';
 };
 
-const getCellFormData = (row, header, refType) => {
+const getCellFormData = (row, header, refType, consultantsReply, replyCompany, replyStatus, replyDate) => {
 
    if (
       header === 'RFAM Ref' ||
@@ -843,29 +1002,80 @@ const getCellFormData = (row, header, refType) => {
       header === 'DT Ref'
    ) {
       return row[refType + 'Ref'] + row.revision;
+
+   } else if (header === 'Description') return getInfoValueFromRefDataForm(row, 'submission', refType, 'description');
+   else if (header === 'Requested By') return getInfoValueFromRefDataForm(row, 'submission', refType, 'requestedBy');
+   else if (header === 'Submission Date') {
+      const dateSubmission = getInfoValueFromRefDataForm(row, 'submission', refType, 'date');
+      return moment(dateSubmission).format('DD/MM/YY');
+   } else if (header === 'Conversation Date') {
+      const dateSubmission = getInfoValueFromRefDataForm(row, 'submission', refType, 'dateConversation');
+      const timeSubmission = getInfoValueFromRefDataForm(row, 'submission', refType, 'timeConversation');
+      return `${moment(dateSubmission).format('DD/MM/YY')} -  ${moment(timeSubmission).format('HH:mm')}`;
+   } else if (header === 'Due Date') {
+      const dateDue = getInfoValueFromRefDataForm(row, 'submission', refType, 'due');
+      return moment(dateDue).format('DD/MM/YY');
+
+   } else if (header === 'Conversation Among') {
+      return getInfoValueFromRefDataForm(row, 'submission', refType, 'conversationAmong');
+   } else if (header === 'Cost Implication') {
+      return getInfoValueFromRefDataForm(row, 'submission', refType, 'isCostImplication')
+         ? <Icon type='check' />
+         : null;
+   } else if (header === 'Time Extension') {
+      return getInfoValueFromRefDataForm(row, 'submission', refType, 'isTimeExtension')
+         ? <Icon type='check' />
+         : null;
+   } else if (header === 'Signatured By') {
+      return getInfoValueFromRefDataForm(row, 'submission', refType, 'signaturedBy');
+   } else if (header === 'Contract Specification') {
+      return getInfoValueFromRefDataForm(row, 'submission', refType, 'contractSpecification');
+   } else if (header === 'Proposed Specification') {
+      return getInfoValueFromRefDataForm(row, 'submission', refType, 'proposedSpecification');
+   } else if (header === 'Submission Type') {
+      return getInfoValueFromRefDataForm(row, 'submission', refType, 'submissionType');
+   } else if (header === 'Attachment Type') {
+      return getInfoValueFromRefDataForm(row, 'submission', refType, 'herewithForDt');
+   } else if (header === 'Transmitted For') {
+      return getInfoValueFromRefDataForm(row, 'submission', refType, 'transmittedForDt');
+   } else if (header === 'Received By') {
+      return (
+         <div style={{ display: 'flex' }}>
+            {consultantsReply.map((cmp, i) => {
+
+               const isAcknowledge = getInfoValueFromRefDataForm(row, 'reply', refType, 'acknowledge', cmp);
+
+               return (
+                  <div
+                     key={i}
+                     style={{
+                        marginRight: 5,
+                        background: isAcknowledge ? colorType.yellow : 'white',
+                        border: `1px solid ${colorType.grey1}`,
+                        paddingLeft: 4,
+                        paddingRight: 4,
+                     }}
+                  >
+                     {cmp}
+                  </div>
+               );
+            })}
+         </div>
+      );
+   } else if (isColumnConsultant(header) || isColumnWithReplyData(header)) {
+      return replyStatus ? (
+         <div>
+            <span style={{ fontWeight: 'bold' }}>{replyCompany}</span>
+            <span>{` - (${replyDate})`}</span>
+         </div>
+      ) : (
+         <div>{replyCompany}</div>
+      );
    };
-
-
-   if (header === 'Description') return getInfoValueFromRfaDataForm(row, 'submission', refType, 'description');
-   if (header === 'Requested By') return getInfoValueFromRfaDataForm(row, 'submission', refType, 'requestedBy');
 
    return 'xxx';
 };
 
-export const getInfoValueFromRfaDataForm = (obj, typeSubmit, typeForm, info, company = '') => {
-   for (const key in obj) {
-      if (key.includes(`${typeSubmit}-${typeForm}-${info}-${company}`)) {
-         return obj[key];
-      };
-   };
-};
-const getInfoKeyFromRfaDataForm = (obj, typeSubmit, typeForm, info, company = '') => {
-   for (const key in obj) {
-      if (key.includes(`${typeSubmit}-${typeForm}-${info}-${company}`)) {
-         return key;
-      };
-   };
-};
 
 
 
@@ -938,5 +1148,63 @@ const PanelStyled = styled.div`
 `;
 
 
+export const getConsultantReplyFormData = (rowData, header, refType, companies) => {
 
+   let replyStatus, replyCompany, replyDate;
+
+   const consultantHeaderNumber = parseInt(header.slice(12, header.length - 1));
+   const listConsultantMustReply = getInfoValueFromRefDataForm(rowData, 'submission', refType, 'consultantMustReply');
+
+   if (!listConsultantMustReply || listConsultantMustReply.length === 0) return { replyStatus, replyCompany, replyDate };
+
+   const consultantLeadName = listConsultantMustReply[0];
+   if (isColumnWithReplyData(header)) {
+
+      let listConsultantsAlreadyReply = [];
+      for (const key in rowData) {
+         if (key.includes(`reply-${refType}-status-`)) {
+            const companyConsultant = key.slice(`reply-${refType}-status-`.length + 1, key.length);
+            listConsultantsAlreadyReply.push(companyConsultant);
+         };
+      };
+      listConsultantsAlreadyReply = [...new Set(listConsultantsAlreadyReply)];
+
+      const listConsultantMustReplyRemaining = listConsultantMustReply.filter(x => x !== consultantLeadName);
+
+      if (consultantHeaderNumber === 1) {
+         replyStatus = rowData[`reply-${refType}-status-${consultantLeadName}`];
+         replyCompany = consultantLeadName;
+         replyDate = convertReplyOrSubmissionDate(rowData[`reply-${refType}-date-${consultantLeadName}`]);
+      } else if (consultantHeaderNumber > 1) {
+         let ConsultantIndex = 1;
+         companies.forEach(cmp => {
+            if (listConsultantMustReplyRemaining.indexOf(cmp.company) !== -1) {
+               ConsultantIndex += 1;
+               if (consultantHeaderNumber === ConsultantIndex) {
+                  replyStatus = rowData[`reply-${refType}-status-${cmp.company}`];
+                  replyCompany = cmp.company;
+                  replyDate = convertReplyOrSubmissionDate(rowData[`reply-${refType}-date-${cmp.company}`]);
+               };
+            };
+         });
+      };
+   };
+   return { replyStatus, replyCompany, replyDate };
+};
+
+
+export const getInfoValueFromRefDataForm = (obj, typeSubmit, typeForm, info, company = '') => {
+   for (const key in obj) {
+      if (key.includes(`${typeSubmit}-${typeForm}-${info}-${company}`)) {
+         return obj[key];
+      };
+   };
+};
+export const getInfoKeyFromRefDataForm = (obj, typeSubmit, typeForm, info, company = '') => {
+   for (const key in obj) {
+      if (key.includes(`${typeSubmit}-${typeForm}-${info}-${company}`)) {
+         return key;
+      };
+   };
+};
 

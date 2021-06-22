@@ -1,12 +1,14 @@
 import 'antd/dist/antd.css';
-import React from 'react';
+import React, { createRef, useRef } from 'react';
 import { BrowserRouter, Route, Switch } from 'react-router-dom';
 import PageDashboard from './components/pages/DMSApp/DashboardLayout/PageDashboard';
 import SheetContext from './components/pages/DMSApp/SpreadSheetLayout/contexts/sheetContextProvider';
 import PageCVI from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageCVI';
 import PageDataEntrySheet from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageDataEntrySheet';
+import PageDT from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageDT';
 import PageRFA from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageRFA';
 import PageRFAM from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageRFAM';
+import PageRFI from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageRFI';
 import PageSpreadsheet from './components/pages/DMSApp/SpreadSheetLayout/layouts/PageSpreadsheet';
 
 
@@ -20,16 +22,17 @@ const App = () => {
       console.log('dataToSave', dataToSave);
    };
 
+
    const callbackSelectRow = (row) => {
       console.log('row callback selected', row);
    };
+
    // console.log(localStorage);
 
-   // const consultantCompany = 'DCA';
-   const consultantCompany = 'RSP';
+   const consultantCompany = 'DCA';
+   // const consultantCompany = 'RSP';
    // const consultantCompany = 'Archi Consultant';
    // const consultantCompany = 'ONG & ONG';
-
 
 
    // const consultantCompany = 'dcA';
@@ -42,12 +45,13 @@ const App = () => {
    const propsSheet = {
       email: browserName === 'Chrome' ? 'tbl@wohhup.com' : 'test@dca.com',
       company: browserName === 'Chrome' ? 'Woh Hup Private Ltd' : consultantCompany,
-      // role: browserName === 'Chrome' ? 'Document Controller' : 'Consultant',
-      role: browserName === 'Chrome' ? 'Document Controller' : 'Client',
+      role: browserName === 'Chrome' ? 'Document Controller' : 'Consultant',
+
       // projectId: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg',
       // projectId: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q',
       // projectId: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc',
       // projectId: 'MTYxNzg5MDkxNzI2MC10ZXN0OA',
+
       projectId: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg',
       // projectId: 'MTU3NDgyNTcyMzUwNC1UZXN0',
       projectIsAppliedRfaView: true,
@@ -55,7 +59,7 @@ const App = () => {
       projectName: 'Punggol Digital District',
       projectNameShort: 'RKD',
       token: 'xxx-xxxxx-xxx-x-xxxxx',
-      isAdmin: true,
+      // isAdmin: true,
       companies: [
          { company: 'Woh Hup Private Ltd', companyType: 'Main con' },
 
@@ -120,101 +124,104 @@ const App = () => {
    };
 
 
-
    return (
-      <BrowserRouter>
-         <Switch>
-            <SheetContext>
+
+         <BrowserRouter>
+            <Switch>
+               <SheetContext>
 
 
-               <Route exact path='/dms-spreadsheet'><PageSpreadsheet {...propsSheet} /></Route>
-               <Route exact path='/dms-rfa'><PageRFA {...propsSheet} /></Route>
-               <Route exact path='/dms-rfam'><PageRFAM {...propsSheet} /></Route>
-               <Route exact path='/dms-cvi'><PageCVI {...propsSheet} /></Route>
-               {/* <Route path='/sheet-rfi'><PageRFA {...propsSheet} /></Route>
-               <Route path='/sheet-dt'><PageRFA {...propsSheet} /></Route>
-               <Route path='/sheet-cvi'><PageRFA {...propsSheet} /></Route> */}
+                  <Route exact path='/dms-spreadsheet'><PageSpreadsheet {...propsSheet} /></Route>
+                  <Route exact path='/dms-rfa'><PageRFA {...propsSheet} /></Route>
+                  <Route exact path='/dms-rfam'><PageRFAM {...propsSheet} /></Route>
+                  <Route exact path='/dms-rfi'><PageRFI {...propsSheet} /></Route>
+                  <Route exact path='/dms-cvi'><PageCVI {...propsSheet} /></Route>
+                  <Route exact path='/dms-dt'><PageDT {...propsSheet} /></Route>
 
-      
-
-
-               <Route path='/sheet-data-entry'>
-                  <PageDataEntrySheet
-                     isAdmin={true}
-                     email='michaelsss_llave@wohhup.com'
-                     role={{
-                        name: 'Document Controller',
-                        canEditParent: true
-                     }}
-                     canSaveUserSettings={false}
-                     token={'xxx-xxxxx-xx'}
-                     sheetDataInput={sheetDataInput_1}
-                     sheetName='Sheet 1'
-                     sheetId='e4ac39e4-3f5f-46bd-adc1-912a14efe801'
-
-                     cellsHistoryInCurrentSheet={''}
-                     cellOneHistory={''}
-                     saveDataToServerCallback={saveDataToServerCallback}
-                     callbackSelectRow={callbackSelectRow}
-                  />
-               </Route>
-
-
-               <Route path='/dashboard'>
-                  <PageDashboard
-                     projectsArray={[
-                        { name: 'Handy', id: 'MTU5MTY3NDI0ODUyMy1IYW5keQ' },
-                        { name: 'Punggol Digital District', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q' },
-                        { name: 'Sumang', id: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc' },
-                        { name: 'The Reef', id: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg' },
-                        { name: 'Kim Chuan Depot', id: 'MTU3NDgyNTY5OTYwMi1LaW0gQ2h1YW4gRGVwb3Q' },
-                        { name: 'Test', id: 'ETU3NDgyNTY5cTYwMi1LaW0gQ2h1YW4gRGVwb3F' },
-                        { name: 'Test-2', id: 'MTU3NzA2Njg5MTczOTEST' },
-                        { name: 'Test-3', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q5' },
-                     ]}
-
-                     company='Woh Hup Private Ltd'
-                     // role='WH Archi Modeller'
-                     // role='WH Archi Coordinator'
-
-                     role=
-                     // 'Document Controller'
-                     // 'WH Archi Coordinator'
-                     // 'WH C&S Design Engineer',
-                     // 'WH M&E Coordinator',
-                     // 'WH PRECAST Coordinator',
-
-                     // 'WH Archi Modeller',
-                     // 'WH C&S Modeller',
-                     // 'WH M&E Modeller',
-                     // 'WH PRECAST Modeller',
-
-                     // 'Production',
-
-                     // 'WH Archi Manager'
-                     // 'WH C&S Manager'
-                     // 'WH M&E Manager',
-                     // 'WH PRECAST Manager',
-
-                     // 'Planning Engineer',
-                     // 'QS',
-                     'Project Manager'
-                  // 'Corporate Manager',
-                  // 'QAQC',
-                  // 'Safety',
-                  // 'Client',
-
-                  // 'Sub-Con',
-                  // 'Consultant',
-                  />
-               </Route>
-
-            </SheetContext>
+                  {/* <Route path='/sheet-rfi'><PageRFA {...propsSheet} /></Route>
+                     <Route path='/sheet-dt'><PageRFA {...propsSheet} /></Route>
+                     <Route path='/sheet-cvi'><PageRFA {...propsSheet} /></Route> */}
 
 
 
-         </Switch>
-      </BrowserRouter>
+
+                  <Route path='/sheet-data-entry'>
+                     <PageDataEntrySheet
+                        isAdmin={true}
+                        email='michaelsss_llave@wohhup.com'
+                        role={{
+                           name: 'Document Controller',
+                           canEditParent: true
+                        }}
+                        canSaveUserSettings={false}
+                        token={'xxx-xxxxx-xx'}
+                        sheetDataInput={sheetDataInput_1}
+                        sheetName='Sheet 1'
+                        sheetId='e4ac39e4-3f5f-46bd-adc1-912a14efe801'
+
+                        cellsHistoryInCurrentSheet={''}
+                        cellOneHistory={''}
+                        saveDataToServerCallback={saveDataToServerCallback}
+                        callbackSelectRow={callbackSelectRow}
+                     />
+                  </Route>
+
+
+                  <Route path='/dashboard'>
+                     <PageDashboard
+                        projectsArray={[
+                           { name: 'Handy', id: 'MTU5MTY3NDI0ODUyMy1IYW5keQ' },
+                           { name: 'Punggol Digital District', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q' },
+                           { name: 'Sumang', id: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc' },
+                           { name: 'The Reef', id: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg' },
+                           { name: 'Kim Chuan Depot', id: 'MTU3NDgyNTY5OTYwMi1LaW0gQ2h1YW4gRGVwb3Q' },
+                           { name: 'Test', id: 'ETU3NDgyNTY5cTYwMi1LaW0gQ2h1YW4gRGVwb3F' },
+                           { name: 'Test-2', id: 'MTU3NzA2Njg5MTczOTEST' },
+                           { name: 'Test-3', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q5' },
+                        ]}
+
+                        company='Woh Hup Private Ltd'
+                        // role='WH Archi Modeller'
+                        // role='WH Archi Coordinator'
+
+                        role=
+                        // 'Document Controller'
+                        // 'WH Archi Coordinator'
+                        // 'WH C&S Design Engineer',
+                        // 'WH M&E Coordinator',
+                        // 'WH PRECAST Coordinator',
+
+                        // 'WH Archi Modeller',
+                        // 'WH C&S Modeller',
+                        // 'WH M&E Modeller',
+                        // 'WH PRECAST Modeller',
+
+                        // 'Production',
+
+                        // 'WH Archi Manager'
+                        // 'WH C&S Manager'
+                        // 'WH M&E Manager',
+                        // 'WH PRECAST Manager',
+
+                        // 'Planning Engineer',
+                        // 'QS',
+                        'Project Manager'
+                     // 'Corporate Manager',
+                     // 'QAQC',
+                     // 'Safety',
+                     // 'Client',
+
+                     // 'Sub-Con',
+                     // 'Consultant',
+                     />
+                  </Route>
+
+               </SheetContext>
+
+
+
+            </Switch>
+         </BrowserRouter>
    );
 };
 
@@ -241,13 +248,14 @@ function detectBrowser() {
 
 
 export const sheetDataInput_1 = {
-   'rows': [],
-   'rowss': [
+   'rowss': [],
+   'rows': [
       {
          '_id': 'c9841b14-2694-4aa6-a8a1-ee817271d109',
          'level': 1,
          'parentRow': 'e4ac39e4-3f5f-46bd-adc1-912a14efe801',
          'preRow': null,
+         'aaaaaaaaaaaaaaaaaa': 'ffff',
          'sheet': 'e4ac39e4-3f5f-46bd-adc1-912a14efe801',
          'data': {
             '5c5bc3bf-7cef-4326-8ec9-84d8228265c4': 'PB1-0001',

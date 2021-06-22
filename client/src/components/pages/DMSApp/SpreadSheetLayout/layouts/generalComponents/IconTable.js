@@ -2,7 +2,6 @@ import { Icon, Tooltip } from 'antd';
 import React, { useContext } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 
 
@@ -12,7 +11,6 @@ const IconTable = (props) => {
    const { type, onClick, isActivityTable, pageSheetTypeName } = props;
 
    const { state: stateRow } = useContext(RowContext);
-   const { state: stateProject } = useContext(ProjectContext);
 
 
    const modeGroup = stateRow && stateRow.modeGroup;
@@ -83,12 +81,12 @@ const toolTipBtn = (type, pageSheetTypeName) => {
                                                                               type === 'rfa-button' ? 'Go To RFA Sheet' :
                                                                                  type === 'dms-button' ? 'Go To DMS Sheet' :
                                                                                     (type === 'plus-square' && pageSheetTypeName === 'page-rfam') ? 'Add New RFAM' :
-                                                                                    (type === 'plus-square' && pageSheetTypeName === 'page-rfi') ? 'Add New RFI' :
-                                                                                    (type === 'plus-square' && pageSheetTypeName === 'page-cvi') ? 'Add New CVI' :
-                                                                                    (type === 'plus-square' && pageSheetTypeName === 'page-dt') ? 'Add New DT' :
-                                                                                       type === 'plus-square' ? 'Add New RFA' :
-                                                                                          type === 'block' ? 'View Consultant Mode' :
-                                                                                             'No Title';
+                                                                                       (type === 'plus-square' && pageSheetTypeName === 'page-rfi') ? 'Add New RFI' :
+                                                                                          (type === 'plus-square' && pageSheetTypeName === 'page-cvi') ? 'Add New CVI' :
+                                                                                             (type === 'plus-square' && pageSheetTypeName === 'page-dt') ? 'Add New DT' :
+                                                                                                type === 'plus-square' ? 'Add New RFA' :
+                                                                                                   type === 'block' ? 'View Consultant Mode' :
+                                                                                                      'No Title';
 };
 
 const DivStyled = styled.div`
@@ -122,3 +120,4 @@ const IconRFA = styled.div`
    color: ${props => props.disabled ? 'grey' : 'black'};
    pointer-events: ${props => props.disabled && 'none'};
 `;
+

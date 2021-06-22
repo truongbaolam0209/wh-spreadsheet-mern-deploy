@@ -14,7 +14,7 @@ import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
 const CellRFA = (props) => {
 
    const { rowData, cellData, column, buttonPanelFunction, contextInput } = props;
-   
+
    const { contextRow, contextProject } = contextInput;
    const { stateRow, getSheetRows } = contextRow;
    const { stateProject } = contextProject;
@@ -146,7 +146,6 @@ const CellRFA = (props) => {
             } else {
                const consultantMustReplyValue = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply');
                if (consultantMustReplyValue.indexOf(company) !== -1) {
-
                   setReplyStatus(rfaDataObj[`reply-$$$-status-${company}`]);
                   setReplyCompany(company);
                   const dateInfo = rfaDataObj[`reply-$$$-date-${company}`];
@@ -508,24 +507,12 @@ const CellRFA = (props) => {
             height: '100%',
             position: 'relative',
             padding: 5,
-            
 
-            // meeting presentation
             color: replyStatus ? 'white' : 'black',
             background: (column.key === 'Due Date' && overdueCount < 0)
                ? '#FFEBCD'
                : (colorTextRow[replyStatus] || 'transparent'),
             fontWeight: (column.key === 'RFA Ref' && rowData.treeLevel) && 'bold'
-
-
-            // color: 'black',
-            // background: (column.key === 'Due Date' && overdueCount < 0)
-            //    ? '#FFEBCD'
-            //    : 'transparent',
-            // fontWeight: (column.key === 'RFAM Ref' && rowData.treeLevel) && 'bold'
-            // fontWeight: (column.key === 'RFI Ref' && rowData.treeLevel) && 'bold'
-            // fontWeight: (column.key === 'CVI Ref' && rowData.treeLevel) && 'bold'
-            // fontWeight: (column.key === 'DT Ref' && rowData.treeLevel) && 'bold'
          }}
          onMouseOver={() => {
             if (
@@ -541,32 +528,11 @@ const CellRFA = (props) => {
          }}
          onMouseDown={onMouseDown}
       >
-         {(pageSheetTypeName === 'page-rfa' && rowData.treeLevel === 3 && 
-            column.key === 'RFA Ref'
-
-            // meeting presentation
-            // column.key === 'RFAM Ref'
-            // column.key === 'RFI Ref'
-            // column.key === 'CVI Ref'
-            // column.key === 'DT Ref'
-         
-         ) ? (
+         {(pageSheetTypeName === 'page-rfa' && rowData.treeLevel === 3 && column.key === 'RFA Ref') ? (
             <div style={{ display: 'flex', position: 'relative' }}>
-               <span style={{ marginRight: 5 }}>
-                  {
-                  rowData['rfaNumber']
 
-                  // meeting presentation
-                  // rowData['rfaNumber'].replace('RFA', 'RFAM')
-                  // rowData['rfaNumber'].replace('RFA', 'RFI')
-                  // rowData['rfaNumber'].replace('RFA', 'CVI')
-                  // rowData['rfaNumber'].replace('RFA', 'DT')
-                  }
+               <span style={{ marginRight: 5 }}>{rowData['rfaNumber']}</span>
 
-                  
-
-                  
-               </span>
                <div style={{ display: 'flex' }}>
                   {[...rowData['btn'].sort(), 'All'].map(btn => (
                      <Tooltip key={btn} placement='top' title={btn === '-' ? '0' : btn === 'All' ? 'Consolidate latest drawings' : btn}>
@@ -594,17 +560,7 @@ const CellRFA = (props) => {
                   </Tooltip>
                ))}
             </div>
-         ) : (pageSheetTypeName !== 'page-spreadsheet' && rowData.treeLevel >= 2 && 
-
-            column.key === 'RFA Ref'
-
-            // meeting presentation
-            // column.key === 'RFAM Ref'
-            // column.key === 'RFI Ref'
-            // column.key === 'CVI Ref'
-            // column.key === 'DT Ref'
-            
-         ) ? rowData.title
+         ) : (pageSheetTypeName !== 'page-spreadsheet' && rowData.treeLevel >= 2 && column.key === 'RFA Ref') ? rowData.title
 
             : (!rowData.treeLevel && (isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) && !replyStatus && rowData['RFA Ref']) ? (
                <div>{replyCompany}</div>
@@ -613,15 +569,6 @@ const CellRFA = (props) => {
                   <span style={{ fontWeight: 'bold' }}>{replyCompany}</span>
                   <span>{` - (${replyDate})`}</span>
                </div>
-
-
-            // meeting presentation
-            // : (!rowData.treeLevel && (isColumnWithReplyData(column.key) || isColumnConsultant(column.key))) ? (
-            //    <div>
-            //       <span style={{ fontWeight: 'bold' }}>Under review</span>
-            //    </div>
-
-
 
             ) : (
                !rowData.treeLevel &&
@@ -652,51 +599,7 @@ const CellRFA = (props) => {
             ) : (!rowData.treeLevel && column.key === 'Requested By') ? (
                <span>{requestedByCellData}</span>
 
-            ) : 
-            
-
-            // meeting presentation
-            // (
-            //    !rowData.treeLevel && column.key === 'RFAM Ref'
-            // ) ? rowData['rfaNumber'].replace('RFA', 'RFAM') 
-
-            // (
-            //    !rowData.treeLevel && column.key === 'RFI Ref'
-            // ) ? rowData['rfaNumber'].replace('RFA', 'RFI') 
-
-            // (
-            //    !rowData.treeLevel && column.key === 'CVI Ref'
-            // ) ? rowData['rfaNumber'].replace('RFA', 'CVI') 
-
-            (
-               !rowData.treeLevel && column.key === 'DT Ref'
-            ) ? rowData['rfaNumber'].replace('RFA', 'DT') 
-            
-            // meeting presentation
-            : (!rowData.treeLevel && column.key === 'Received By') ? (
-               <div style={{ display: 'flex' }}>
-                  {['DCA', 'Alpha', 'HI SERVICES', 'MAXBOND'].map(cmp => (
-                     <div style={{ 
-                        marginLeft: 5, 
-                        marginRight: 5, 
-                        background: cmp === 'DCA' ? colorType.yellow : colorType.grey1,
-                        paddingRight: 5, paddingLeft: 5
-
-                     }}>
-                        {cmp}
-                     </div>
-                  ))}
-               </div>
-            )
-
-
-
-
-
-
-
-
-            : (!rowData.treeLevel && !isColumnWithReplyData(column.key)) ? cellData
+            ) : (!rowData.treeLevel && !isColumnWithReplyData(column.key)) ? cellData
                : ''}
 
 
@@ -1021,11 +924,6 @@ const checkIfEditTimeIsOver = (rowData, replyCompany, editTimeAllowed, type) => 
 
 
 
-
-
-
-
-
 const FormPickConsultantToReplyForAdmin = ({ applyChooseConsultantToReplyForAdminOnly, onClickCancelModal, listConsultants }) => {
 
 
@@ -1094,10 +992,3 @@ const PanelStyled = styled.div`
 
 
 
-
-const xxxxx = (str) => {
-   console.log(str);
-   const output = str.replace('RFA', 'RFAM');
-
-   return output;
-};

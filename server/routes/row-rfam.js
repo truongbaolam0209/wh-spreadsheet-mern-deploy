@@ -7,7 +7,12 @@ const { validateToken } = require('../../custom/validate');
 
 
 router.post('/save-rows-rfam/', validateToken, RowRfam.updateOrCreateRowsRfam);
-router.get('/', validateToken, RowRfam.findRowRfamForSheet);
+router.get('/', validateToken, RowRfam.findRowsRfamForSheet);
+
+
+
+router.post('/mail-test/', validateToken, RowRfam.functionTestEmailHtml);
+
 
 
 

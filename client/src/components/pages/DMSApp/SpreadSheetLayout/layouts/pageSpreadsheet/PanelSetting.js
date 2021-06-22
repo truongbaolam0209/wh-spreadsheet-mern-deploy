@@ -1,3 +1,4 @@
+import { pdf } from '@react-pdf/renderer';
 import { message } from 'antd';
 import Axios from 'axios';
 import moment from 'moment';
@@ -8,10 +9,11 @@ import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { compareDates, convertCellTempToHistory, convertDrawingVersionToHistory, debounceFnc, extractCellInfo, genId, mongoObjectId } from '../../utils';
+import ExportPdf from '../generalComponents/ExportPdf';
 import FormFilter from '../generalComponents/FormFilter';
 import FormGroup from '../generalComponents/FormGroup';
 import FormSort from '../generalComponents/FormSort';
-import { getInputDataInitially, getOutputRowsAllSorted, headersRfaView, headersRfaViewOneConsultant } from '../generalComponents/OverallComponentDMS';
+import { getHeadersForm, getInputDataInitially, getOutputRowsAllSorted, headersConsultantWithNumber } from '../generalComponents/OverallComponentDMS';
 import PanelAddNewMultiForm, { convertTradeCodeInverted } from '../generalComponents/PanelAddNewMultiForm';
 import PanelConfirm from '../generalComponents/PanelConfirm';
 import PanelConfirmResetMode from '../generalComponents/PanelConfirmResetMode';
@@ -27,12 +29,11 @@ import TableActivityHistory from './TableActivityHistory';
 import TableCellHistory from './TableCellHistory';
 import TableDrawingDetail from './TableDrawingDetail';
 
-
-
 export const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
 
 const PanelSetting = (props) => {
 
+   let history1 = useHistory();
 
    const { state: stateRow, getSheetRows } = useContext(RowContext);
 
@@ -871,6 +872,7 @@ const PanelSetting = (props) => {
 
       setLoading(true);
 
+
       const {
          filesPDF, filesDWFX, type, dwgsToAddNewRFA, trade, rfaToSave, rfaToSaveVersionOrToReply,
          recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting,
@@ -958,7 +960,6 @@ const PanelSetting = (props) => {
 
          if (filesPDF.length > 0 && data && data !== null) {
 
-            // const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
             const res = await Axios.post('/api/drawing/set-drawing-files', data);
             const listFileName = res.data;
 
@@ -966,13 +967,6 @@ const PanelSetting = (props) => {
                fileName: getFileNameFromLinkResponse(link),
                fileLink: link
             }));
-
-            // arrayFileName = filesPDF.map(fl => {
-            //    return {
-            //       fileName: fl.name,
-            //       fileLink: `https://www.google.com/${fl.name}`
-            //    };
-            // });
 
             dwgsToAddNewRFA.forEach(r => {
                const fileFound = arrayFileName.find(fl => fl.fileName === r[`${typeText}-$$$-drawing-${company}`]);
@@ -1082,10 +1076,12 @@ const PanelSetting = (props) => {
                rowOutput[saveToRowOrRowHistory][`submission-$$$-emailAdditionalNotes-${company}`] = emailTextAdditionalNotes;
                rowOutput[saveToRowOrRowHistory][`submission-$$$-consultantMustReply-${company}`] = listConsultantMustReply;
                rowOutput[saveToRowOrRowHistory][`submission-$$$-requestedBy-${company}`] = requestedBy;
+
                rowOutput[saveToRowOrRowHistory][`submission-$$$-trade-${company}`] = trade;
                if (mepSubTradeInfo) {
                   rowOutput[saveToRowOrRowHistory][`submission-$$$-subTradeForMep-${company}`] = mepSubTradeInfo;
                };
+
                rowOutput[saveToRowOrRowHistory][`submission-$$$-user-${company}`] = email;
                if (dateSendThisForm) {
                   rowOutput[saveToRowOrRowHistory][`submission-$$$-date-${company}`] = dateSendThisForm;
@@ -1227,6 +1223,7 @@ const PanelSetting = (props) => {
             }
          });
 
+
       } catch (err) {
          getSheetRows({ ...stateRow, loading: false });
          commandAction({ type: 'save-data-failure' });
@@ -1235,20 +1232,41 @@ const PanelSetting = (props) => {
    };
 
 
-   const onClickApplySendFormToSignature = async (dataForm) => {
+   const onClickApplySendFormToSignature = async (typeButton, dataForm) => {
 
       setLoading(true);
 
       const {
-         filesPdfDrawing, type, dwgsImportFromRFA, trade, refToSave, refToSaveVersionOrToReply,
-         recipient, emailTextTitle, description, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting,
+         filesPdfDrawing, fileFormCoverReply, type, dwgsImportFromRFA, trade, refToSave, refToSaveVersionOrToReply,
+         recipient, emailTextTitle, description, listConsultantMustReply, requestedBy, signaturedBy, dateReplyForSubmitForm, isFormEditting,
          isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
-         dateSendThisForm
+         dateSendThisForm,
+         dateConversation, timeConversation,
+         conversationAmong,
+         isCostImplication, isTimeExtension,
+         consultantReplyStatus,
+
+
+         contractSpecification,
+         proposedSpecification,
+         submissionType,
+         herewithForDt,
+         transmittedForDt
       } = dataForm;
 
 
-      const { currentRefToAddNewOrReplyOrEdit } = stateRow;
-      const { email, projectId, projectName, token, roleTradeCompany: { role, company: companyUser } } = stateProject.allDataOneSheet;
+      const {
+         rowsRfamAllInit, rowsRfiAllInit, rowsCviAllInit, rowsDtAllInit,
+         currentRefToAddNewOrReplyOrEdit: { currentRefNumber, currentRefData }
+      } = stateRow;
+
+      const rowsRefAllInit = pageSheetTypeName === 'page-rfam' ? rowsRfamAllInit
+         : pageSheetTypeName === 'page-rfi' ? rowsRfiAllInit
+            : pageSheetTypeName === 'page-cvi' ? rowsCviAllInit
+               : pageSheetTypeName === 'page-dt' ? rowsDtAllInit
+                  : [];
+
+      const { email, projectId, projectName, projectNameShort, token, roleTradeCompany: { role, company: companyUser } } = stateProject.allDataOneSheet;
 
 
       const company = (type.includes('form-reply-multi-') && isAdminAction && adminActionConsultantToReply) ? adminActionConsultantToReply : companyUser;
@@ -1308,57 +1326,89 @@ const PanelSetting = (props) => {
          // };
 
 
-         const typeText = type.includes('form-reply-multi') ? 'reply' : 'submission';
-
-         let dwgsToAddNewRFA = [];
-         let emailTextAdditionalNotes = '';
 
 
-         let data;
-         if (filesPdfDrawing.length > 0) {
-            data = new FormData();
-            filesPdfDrawing.forEach(file => {
+         let linkFormPdfNoSignature, filePdfBlobOutput, pdfFilesToUpload;
+
+         const refNumberTextInfo = refToSaveVersionOrToReply === '0' ? refToSave : refToSave + refToSaveVersionOrToReply;
+         if (type === 'form-submit-multi-type') {
+            
+            const outputPdf = (
+               <ExportPdf
+                  pdfContent={{
+                     refNumberText: refNumberTextInfo, isCostImplication, isTimeExtension, projectName, listConsultantMustReply,
+                     listRecipientTo: recipient.to, listRecipientCc: recipient.cc, 
+                     requestedBy, signaturedBy, conversationAmong, emailTextTitle,
+                     dateConversation, timeConversation, description, dateReplyForSubmitForm,
+                     filesPdfDrawing: Object.values(filesPdfDrawing),
+                     dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
+                     contractSpecification, proposedSpecification, submissionType, herewithForDt, transmittedForDt, pageSheetTypeName
+                  }}
+               />
+            );
+            filePdfBlobOutput = await pdf(outputPdf).toBlob();
+            // upload BLOB file PDF Submit no signature
+            if (filePdfBlobOutput) {
+
+               const typeFolder = type.includes('form-reply-multi-') ? 'reply' : 'submit';
+               let dataForm = new FormData();
+               dataForm.append('fileForm', filePdfBlobOutput);
+               dataForm.append('projectId', projectId);
+               dataForm.append(`${refType}Number`, `${refToSave}/${refToSaveVersionOrToReply}/${typeFolder}`); 
+               dataForm.append('fileName', `${refToSave}/${refToSaveVersionOrToReply}_FormCoverNoSignature`); 
+   
+               if (dataForm) {
+                  const resLink = await Axios.post('/api/drawing/set-cover-form', dataForm);
+                  linkFormPdfNoSignature = resLink.data;
+               };
+            };
+
+            pdfFilesToUpload = filesPdfDrawing;
+         } else if (type === 'form-reply-multi-type') {
+            pdfFilesToUpload = [fileFormCoverReply];
+         };
+         
+
+         let arrayFilesPdfUploadLink = [];
+         if (pdfFilesToUpload.length > 0) {
+            let data = new FormData();
+            pdfFilesToUpload.forEach(file => {
                data.append('files', file.originFileObj);
             });
             data.append('projectId', projectId);
-            data.append('trade', trade);
-            data.append('rfa', refToSave);
-            data.append('rfaNumber', refToSaveVersionOrToReply === '-' ? '0' : refToSaveVersionOrToReply); // CHECK...
-            data.append('type', type.includes('submit') ? 'submit' : 'reply');
+            data.append(`${refType}Number`, `${refToSave}/${refToSaveVersionOrToReply}/submit`); 
+
+
+            if (pdfFilesToUpload.length > 0 && data && data !== null) {
+
+               const res = await Axios.post('/api/drawing/set-files-multi-form', data);
+               const listFileName = res.data;
+               arrayFilesPdfUploadLink = listFileName.map(link => ({
+                  fileName: getFileNameFromLinkResponse(link),
+                  fileLink: link
+               }));
+            };
          };
-         let arrayFilesPdfFormLink = [];
 
-         if (filesPdfDrawing.length > 0 && data && data !== null) {
-
-            // const res = await Axios.post('https://test.bql-app.com/api/drawing/set-drawing-files', data);
-            // const res = await Axios.post('/api/drawing/set-drawing-files', data);
-            // const listFileName = res.data;
-            // arrayFilesPdfFormLink = listFileName.map(link => ({
-            //    fileName: getFileNameFromLinkResponse(link),
-            //    fileLink: link
-            // }));
-            arrayFilesPdfFormLink = filesPdfDrawing.map(fl => {
-               return {
-                  fileName: fl.name,
-                  fileLink: `https://www.google.com/${fl.name}`
-               };
+         let linkRfaDrawingsUploaded = [];
+         if (dwgsImportFromRFA.length > 0) {
+            linkRfaDrawingsUploaded = dwgsImportFromRFA.map(dwg => {
+               const link = getInfoValueFromRfaData(dwg, 'submission', 'drawing');
+               return link;
             });
          };
 
-
-         const linkRFADrawingsUploaded = dwgsImportFromRFA.map(dwg => {
-            const link = getInfoValueFromRfaData(dwg, 'submission', 'drawing');
-            return link;
-         });
          const linkDrawings = [
-            ...linkRFADrawingsUploaded,
-            ...arrayFilesPdfFormLink.map(x => x.fileLink)
+            ...linkRfaDrawingsUploaded,
+            ...arrayFilesPdfUploadLink.map(x => x.fileLink)
          ];
 
 
-         let rowOutput = {};
-
-         if (type.includes('form-submit-multi-') || type.includes('form-resubmit-multi-')) {
+         let rowOutput;
+         if (type === 'form-submit-multi-type') {
+            rowOutput = {
+               _id: mongoObjectId()
+            };
             rowOutput.data = {};
             rowOutput.trade = trade;
             rowOutput[refKey] = refToSave;
@@ -1369,84 +1419,147 @@ const PanelSetting = (props) => {
             rowOutput.data[`submission-${refType}-emailTitle-${company}`] = emailTextTitle;
             rowOutput.data[`submission-${refType}-description-${company}`] = description;
             rowOutput.data[`submission-${refType}-requestedBy-${company}`] = requestedBy;
-            rowOutput.data[`submission-${refType}-due-${company}`] = dateReplyForsubmitForm;
+            rowOutput.data[`submission-${refType}-signaturedBy-${company}`] = signaturedBy;
+
+            // rowOutput.data[`submission-${refType}-due-${company}`] = dateReplyForSubmitForm;
+
             rowOutput.data[`submission-${refType}-consultantMustReply-${company}`] = listConsultantMustReply;
 
+
+            if (dateConversation) rowOutput.data[`submission-${refType}-dateConversation-${company}`] = dateConversation;
+            if (timeConversation) rowOutput.data[`submission-${refType}-timeConversation-${company}`] = timeConversation;
+            if (conversationAmong) rowOutput.data[`submission-${refType}-conversationAmong-${company}`] = conversationAmong;
+
+            if (pageSheetTypeName === 'page-rfam') {
+               rowOutput.data[`submission-${refType}-isCostImplication-${company}`] = isCostImplication;
+               rowOutput.data[`submission-${refType}-isTimeExtension-${company}`] = isTimeExtension;
+            };
+
+            rowOutput.data[`submission-${refType}-user-${company}`] = email;
+
             if (dateSendThisForm) {
-               rowOutput.data[`submission-${refType}-date-${company}`] = moment(dateSendThisForm).format('DD/MM/YY');
+               rowOutput.data[`submission-${refType}-date-${company}`] = dateSendThisForm;
             } else {
-               rowOutput.data[`submission-${refType}-date-${company}`] = moment(new Date()).format('DD/MM/YY');
+               rowOutput.data[`submission-${refType}-date-${company}`] = new Date();
+            };
+
+            if (linkDrawings.length > 0) rowOutput.data[`submission-${refType}-linkDrawings-${company}`] = linkDrawings;
+
+
+            if (linkFormPdfNoSignature) rowOutput.data[`submission-${refType}-linkFormNoSignature-${company}`] = linkFormPdfNoSignature;
+
+            if (contractSpecification) rowOutput.data[`submission-${refType}-contractSpecification-${company}`] = contractSpecification;
+            if (proposedSpecification) rowOutput.data[`submission-${refType}-proposedSpecification-${company}`] = proposedSpecification;
+            if (submissionType) rowOutput.data[`submission-${refType}-submissionType-${company}`] = submissionType;
+            if (herewithForDt) rowOutput.data[`submission-${refType}-herewithForDt-${company}`] = herewithForDt;
+            if (transmittedForDt) rowOutput.data[`submission-${refType}-transmittedForDt-${company}`] = transmittedForDt;
+
+
+         } else if (type === 'form-reply-multi-type') {
+
+            const rowFound = rowsRefAllInit.find(x => x[refKey] === currentRefNumber && x.revision === currentRefData.revision);
+            rowOutput = {
+               _id: rowFound.id
+            };
+            rowOutput.data = {};
+            rowOutput.data[`reply-${refType}-emailTo-${company}`] = recipient.to;
+            rowOutput.data[`reply-${refType}-emailCc-${company}`] = recipient.cc;
+            rowOutput.data[`reply-${refType}-emailTitle-${company}`] = emailTextTitle;
+            rowOutput.data[`reply-${refType}-description-${company}`] = description;
+            rowOutput.data[`reply-${refType}-user-${company}`] = email;
+
+            if (pageSheetTypeName === 'page-rfam') {
+               rowOutput.data[`reply-${refType}-status-${company}`] = consultantReplyStatus;
+            } else if (pageSheetTypeName === 'page-rfi') {
+               rowOutput.data[`reply-${refType}-status-${company}`] = 'replied';
+            };
+
+
+            if (dateSendThisForm) {
+               rowOutput.data[`reply-${refType}-date-${company}`] = dateSendThisForm;
+            } else {
+               rowOutput.data[`reply-${refType}-date-${company}`] = new Date();
             };
 
             if (linkDrawings.length > 0) {
-               rowOutput.data[`submission-${refType}-linkDrawings-${company}`] = linkDrawings;
+               rowOutput.data[`reply-${refType}-linkFormReply-${company}`] = linkDrawings[0];
             };
          };
+
+
          await Axios.post(`${SERVER_URL}/row-${refType}/save-rows-${refType}/`, { token, projectId, rows: [rowOutput] });
 
 
+         if (typeButton === 'action-multiform-download') {
 
-         if (!isFormEditting && !isAdminActionWithNoEmailSent) {
-            // const rowIdsArrayToTriggerLater = rowsToUpdate.map(row => row._id);
-            // await Axios.post('/api/rfa/mail', {
-            //    token,
-            //    data: {
-            //       projectId,
-            //       company,
-            //       type: type === 'form-reply-RFA' ? 'reply' : 'submit',
-            //       rowIds: rowIdsArrayToTriggerLater,
-            //       emailSender: email,
-            //       projectName,
-            //    },
-            //    momentToTriggerEmail: moment().add(moment.duration(EDIT_DURATION_MIN, 'minutes'))
-            // });
+            const csvURL = window.URL.createObjectURL(filePdfBlobOutput);
+            let tempLink = document.createElement('a');
+            tempLink.href = csvURL;
+            tempLink.setAttribute('download', `${refNumberTextInfo}_cover_form.pdf`);
+            tempLink.click();
+
+         } else if (typeButton === 'action-multiform-email') {
+
+            if (!isFormEditting && !isAdminActionWithNoEmailSent) {
+
+               await Axios.post(`/api/${refKey}/mail-send`, {
+                  token,
+                  data: {
+                     projectId,
+                     company,
+                     formSubmitType: refType,
+                     rowIds: [rowOutput._id],
+                     emailSender: email,
+                     projectName,
+                     emailType: 'submit-request-signature'
+                  },
+                  momentToTriggerEmail: moment().add(moment.duration(EDIT_DURATION_MIN, 'minutes'))
+               });
+
+
+               // TEST API SEND FOR SIGNATURE...
+               // const emailContentTest = await Axios.post(`${SERVER_URL}/row-${refType}/mail-test/`, {
+               //    token,
+               //    data: {
+               //       projectId,
+               //       company,
+               //       formSubmitType: refType,
+               //       rowIds: [rowOutput._id],
+               //       emailSender: email,
+               //       projectName,
+               //       emailType: 'submit-request-signature'
+               //    },
+               // });
+            };
          };
 
 
-         // let listUserOutput = {};
-         // let listGroupOutput = {};
 
-         // Object.keys(recipient).forEach(key => {
-         //    recipient[key].forEach(item => {
-         //       if (listUser.indexOf(item) !== -1) {
-         //          listUserOutput[key] = [...listUserOutput[key] || [], item];
-         //       } else if (listGroup.indexOf(item) !== -1) {
-         //          listGroupOutput[key] = [...listGroupOutput[key] || [], item];
-         //       } else if (validateEmailInput(item)) {
-         //          listUserOutput[key] = [...listUserOutput[key] || [], item];
-         //       };
-         //    });
-         // });
-         // listUserOutput.cc = [...listUserOutput.cc || [], email];
-
-         // const dwgsNewRFAClone = dwgsToAddNewRFA.map(dwg => ({ ...dwg }));
-         // const getDrawingURLFromDB = async () => {
-         //    try {
-         //       return await Promise.all(dwgsNewRFAClone.map(async dwg => {
-         //          const typeApi = type.includes('form-submit-') ? 'submission' : 'reply';
-         //          const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwg[`${typeApi}-$$$-drawing-${company}`], expire: 3600 * 24 * 7 } });
-         //          dwg[`${typeApi}-$$$-drawing-${company}`] = res.data;
-         //          return dwg;
-         //       }));
-         //    } catch (err) {
-         //       console.log(err);
-         //    };
-         // };
-
-         // const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB();
-
-         // const emailContentOutput = generateEmailInnerHTMLFrontEnd(company, type.includes('submit') ? 'submit' : 'reply', dwgsToAddNewRFAGetDrawingURL);
-
-         // await Axios.post('/api/rfa/mail', {
-         //    token,
-         //    title: `${projectName} - ${rfaRefData} - ${emailTextTitle}`,
-         //    content: emailContentOutput,
-         //    listUser: listUserOutput,
-         //    listGroup: listGroupOutput,
-         //    projectId
-         // });
 
          message.success('Submitted Successfully', 3);
+
+         const route = pageSheetTypeName === 'page-rfam' ? 'row-rfam'
+            : pageSheetTypeName === 'page-cvi' ? 'row-cvi'
+               : pageSheetTypeName === 'page-rfi' ? 'row-rfi'
+                  : pageSheetTypeName === 'page-dt' ? 'row-dt'
+                     : 'n/a';
+
+         const res = await Axios.get(`${SERVER_URL}/${route}/`, { params: { token, projectId, email } });
+         const rowsAllMultiForm = res.data;
+
+         const expandedRowsIdArr = [
+            'ARCHI', 'C&S', 'M&E', 'PRECAST',
+            ...rowsAllMultiForm.filter(x => x[refKey]).map(x => x[refKey])
+         ];
+
+         commandAction({
+            type: 'reload-data-view-multi-form',
+            data: {
+               rowsAllMultiForm,
+               expandedRowsIdArr,
+            }
+         });
+
 
       } catch (err) {
          getSheetRows({ ...stateRow, loading: false });
@@ -1459,19 +1572,45 @@ const PanelSetting = (props) => {
 
    };
 
-   const onClickAcknowledgeForm = () => {
+   const onClickAcknowledgeForm = async () => {
 
-      const { currentRefToAddNewOrReplyOrEdit, rowsCviAllInit } = stateRow;
+      try {
 
-      const {
-         currentRefNumber, currentRefText, currentRefData, formRefType, isFormEditting,
-         isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
-      } = currentRefToAddNewOrReplyOrEdit;
+         const { email, company, projectId, projectName, token, roleTradeCompany: { role, company: companyUser } } = stateProject.allDataOneSheet;
+         const { currentRefToAddNewOrReplyOrEdit, rowsCviAllInit } = stateRow;
+
+         const {
+            currentRefNumber, currentRefText, currentRefData, formRefType, isFormEditting,
+            isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
+         } = currentRefToAddNewOrReplyOrEdit;
+
+         const refType = getKeyTextForSheet(pageSheetTypeName);
+         const refKey = refType + 'Ref';
+
+         const rowsToAcknowledge = rowsCviAllInit.find(x => x[refKey] === currentRefNumber && x.revision === currentRefData.revision);
+
+         let rowOutput = {
+            _id: rowsToAcknowledge.id
+         };
+
+         rowOutput.data = {
+            [`reply-${refType}-acknowledge-${company}`]: true,
+            [`reply-${refType}-user-${company}`]: email,
+            [`reply-${refType}-date-${company}`]: new Date()
+         };
 
 
-      const rowsToAcknowledge = rowsCviAllInit.filter(x => x[refKey] + (x.revision === '0' ? '' : x.revision) === currentRefNumber);
+         await Axios.post(`${SERVER_URL}/row-${refType}/save-rows-${refType}/`, { token, projectId, rows: [rowOutput] });
 
-      console.log('currentRefToAddNewOrReplyOrEdit', rowsCviAllInit, currentRefNumber, rowsToAcknowledge);
+         message.success('Submitted Successfully', 3);
+
+      } catch (err) {
+         getSheetRows({ ...stateRow, loading: false });
+         commandAction({ type: 'save-data-failure' });
+         console.log(err);
+      };
+
+
    };
 
 
@@ -1511,7 +1650,7 @@ const PanelSetting = (props) => {
                applyFilter={applyFilter}
                onClickCancelModal={onClickCancelModal}
                headers={pageSheetTypeName !== 'page-spreadsheet'
-                  ? (isShowAllConsultant ? headersRfaView : headersRfaViewOneConsultant.filter(hd => hd !== 'Consultant'))
+                  ? (isShowAllConsultant ? [...getHeadersForm(pageSheetTypeName), ...headersConsultantWithNumber] : getHeadersForm(pageSheetTypeName))
                   : stateProject.userData.headersShown
                }
                modeFilter={stateRow.modeFilter}
@@ -1695,20 +1834,29 @@ const PanelSetting = (props) => {
             />
          )}
 
-         {(panelSettingType === 'goToViewDMS-ICON') && (
+         {(panelSettingType.includes('side-')) && (
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={() => {
-                  history.push({
-                     pathname: '/dms-spreadsheet',
-                     state: localState
-                  });
+                  const routeSuffix = panelSettingType.slice(5, panelSettingType.length);
+                  if (routeSuffix === 'dms') {
+                     history.push({
+                        pathname: '/dms-spreadsheet',
+                        state: localState
+                     });
+                  } else {
+                     history.push({
+                        pathname: `/${'dms-' + routeSuffix}`,
+                        state: localState
+                     });
+                  };
+
                }}
-               content={'Do you want to go to DMS sheet ?'}
+               content={`Do you want to go to ${panelSettingType.slice(5, panelSettingType.length).toUpperCase()} sheet ?`}
             />
          )}
 
-         {(panelSettingType === 'acknowledgeForm') && (
+         {(panelSettingType === 'acknowledge-form') && (
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={onClickAcknowledgeForm}

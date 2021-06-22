@@ -1,12 +1,12 @@
 
 const schema = require('./schema');
-const model = require('../row-rfam/model');
+const model = require('../row-rfi/model');
 const { HTTP } = require('../errors');
-const { _update_Or_Create_Rows, findRowToEmailMultiForm } = require('../sheet');
+const { _update_Or_Create_Rows } = require('../sheet');
 
 
 
-const updateOrCreateRowsRfam = async (req, res, next) => {
+const updateOrCreateRowsRfi = async (req, res, next) => {
 
    try {
       const { projectId: sheetId, rows } = req.body;
@@ -22,7 +22,7 @@ const updateOrCreateRowsRfam = async (req, res, next) => {
 };
 
 
-const findRowsRfamForSheet = async (req, res, next) => {
+const findRowsRfiForSheet = async (req, res, next) => {
    try {
       
       const { projectId: sheetId } = req.query;
@@ -36,7 +36,7 @@ const findRowsRfamForSheet = async (req, res, next) => {
       const output = data.map(row => {
          let obj = {
             id: row._id,
-            rfamRef: row.rfamRef,
+            rfiRef: row.rfiRef,
             revision: row.revision,
             trade: row.trade
          };
@@ -55,29 +55,11 @@ const findRowsRfamForSheet = async (req, res, next) => {
 
 
 
-const functionTestEmailHtml = async (req, res, next) => {
-   try {
-      
-      const { projectId, company, formSubmitType, rowIds, emailSender, projectName, emailType } = req.body.data;
-      const emailText = await findRowToEmailMultiForm(projectId, rowIds, company, formSubmitType, emailSender, projectName, emailType);
-      return res.json(emailText);
-
-   } catch (error) {
-      next(error);
-   };
-};
-
-
-
-
 
 module.exports = {
    schema,
    model,
 
-   updateOrCreateRowsRfam,
-   findRowsRfamForSheet,
-
-
-   functionTestEmailHtml,
+   updateOrCreateRowsRfi,
+   findRowsRfiForSheet
 };

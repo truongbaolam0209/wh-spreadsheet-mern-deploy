@@ -38,7 +38,6 @@ const TableDrawingRfaForMultiForm = ({ onClickCancelModalPickDrawing, onClickApp
    const [headers, setHeaders] = useState([]);
 
 
-
    useEffect(() => {
       const fetchAllRfaDrawings = async () => {
          try {
@@ -92,8 +91,6 @@ const TableDrawingRfaForMultiForm = ({ onClickCancelModalPickDrawing, onClickApp
    const rowEventHandlers = {
       onClick: (props) => {
          const { rowKey, rowData } = props;
-         console.log(props);
-         console.log();
          if (selectedRows.find(x => x.id === rowKey)) {
             setSelectedRows(selectedRows.filter(row => row.id !== rowKey));
          } else {

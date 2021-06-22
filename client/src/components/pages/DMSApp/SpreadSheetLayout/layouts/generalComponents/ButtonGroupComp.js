@@ -4,7 +4,15 @@ import ButtonStyle from './ButtonStyle';
 
 
 
-const ButtonGroupComp = ({ onClickCancel, onClickApply, newTextBtnApply, newTextBtnCancel }) => {
+const ButtonGroupComp = ({ 
+    onClickCancel, 
+    onClickApply, 
+    newTextBtnApply, 
+    newTextBtnCancel,
+
+    onClickApplyAdditional01,
+    newTextBtnApplyAdditional01
+}) => {
 
     return (
         <div style={{ display: 'flex' }}>
@@ -16,12 +24,25 @@ const ButtonGroupComp = ({ onClickCancel, onClickApply, newTextBtnApply, newText
                 onClick={onClickCancel}
                 name={newTextBtnCancel || 'Cancel'}
             />
+
+            {newTextBtnApplyAdditional01 && (
+                <ButtonStyle
+                    colorText='white'
+                    marginRight={10}
+                    background={colorType.primary}
+                    onClick={onClickApplyAdditional01}
+                    name={newTextBtnApplyAdditional01}
+                />
+            )}
+
             <ButtonStyle
                 colorText='white'
                 background={colorType.primary}
                 onClick={onClickApply}
                 name={newTextBtnApply || 'Apply'}
             />
+
+            
         </div>
     );
 };

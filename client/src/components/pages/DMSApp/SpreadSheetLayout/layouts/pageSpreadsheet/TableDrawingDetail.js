@@ -54,6 +54,7 @@ const TableDrawingDetail = (props) => {
       const fetchRowsHistory = async () => {
          try {
             const res = await Axios.get(`${SERVER_URL}/row/history/one-row/`, { params: { token, projectId, rowId } });
+
             let rowsHistory = [];
             res.data.forEach((r, i) => {
                const { history } = r;

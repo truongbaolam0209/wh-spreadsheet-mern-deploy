@@ -3,6 +3,8 @@ const ObjectId = mongoose.Types.ObjectId;
 const { HTTP } = require('../errors');
 const moment = require('moment');
 
+const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
+
 
 function toObjectId(idStr, defaultValue) {
    try {
@@ -54,24 +56,34 @@ const getInfoValueFromRfaData = (obj, type, info, company = '') => {
       };
    };
 };
+
+const getInfoValueFromRefDataForm = (obj, typeSubmit, typeForm, info, company = '') => {
+   for (const key in obj) {
+      if (key.includes(`${typeSubmit}-${typeForm}-${info}-${company}`)) {
+         return obj[key];
+      };
+   };
+};
+const getInfoKeyFromRefDataForm = (obj, typeSubmit, typeForm, info, company = '') => {
+   for (const key in obj) {
+      if (key.includes(`${typeSubmit}-${typeForm}-${info}-${company}`)) {
+         return key;
+      };
+   };
+};
 const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
    const headersArray = [
       '',
       'Drawing Number',
       'Drawing Name',
-      // 'RFA Ref',
-      // 'Drg To Consultant (A)',
-      // 'Consultant Reply (T)',
       'Rev',
       'Status',
-      // 'File'
    ];
    const typeInput = emailType === 'submit' ? 'submission' : emailType === 'reply' ? 'reply' : '';
    let emailTitle = '';
    let emailAdditionalNotes = '';
    let rfaRefText = '';
-   let consultantMustReply = [];
-   let contractorName = '';
+
    let requestedBy = '';
 
    let drgToConsultantA = '';
@@ -82,15 +94,10 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
       emailTitle = rowContainsRfaData[`${typeInput}-$$$-emailTitle-${company}`];
       emailAdditionalNotes = rowContainsRfaData[`${typeInput}-$$$-emailAdditionalNotes-${company}`];
       rfaRefText = rowContainsRfaData['RFA Ref'];
-      consultantMustReply = rowContainsRfaData[`submission-$$$-consultantMustReply-${company}`];
       requestedBy = rowContainsRfaData[`submission-$$$-requestedBy-${company}`];
 
       drgToConsultantA = rowContainsRfaData['Drg To Consultant (A)'];
       consultantReplyT = rowContainsRfaData['Consultant Reply (T)'];
-
-
-      const keyConsultantMustReply = getInfoKeyFromRfaData(rowContainsRfaData, 'submission', 'consultantMustReply');
-      contractorName = keyConsultantMustReply.slice(35, keyConsultantMustReply.length);
    };
 
    const th_td_style = `style='border: 1px solid #dddddd; text-align: left; padding: 8px; position: relative;'`;
@@ -182,11 +189,157 @@ const validateEmailInput = (email) => {
    return re.test(String(email).toLowerCase());
 };
 
+
+
+
+
+
+
+
+
+
+const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, action) => {
+   const headersArray = [
+      '',
+      'Type',
+      'File Name',
+   ];
+   const typeInput = action.includes('submit') ? 'submission' : 'reply';
+
+
+   const emailTitle = rowData[`${typeInput}-${formSubmitType}-emailTitle-${company}`];
+   const emailAdditionalNotes = rowData[`${typeInput}-${formSubmitType}-description-${company}`];
+   const refNumber = rowData.revision === '0' ? rowData[`${formSubmitType}Ref`] : rowData[`${formSubmitType}Ref`] + rowData.revision;
+
+
+   const requestedBy = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'requestedBy');
+
+   const drgToConsultantA = rowData['Drg To Consultant (A)'] || '20/01/20';
+   const consultantReplyT = rowData['Consultant Reply (T)'] || '20/01/20';
+
+
+   const th_td_style = `style='border: 1px solid #dddddd; text-align: left; padding: 8px; position: relative;'`;
+
+   let tableHeader = '';
+   headersArray.forEach(headerText => {
+      tableHeader += `<th ${th_td_style}>${headerText}</th>`;
+   });
+   tableHeader = `<tr style='background: #34495e; color: white;'>${tableHeader}</tr>`;
+
+
+
+   const linkFormNoSignature = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature');
+   const linkFormSignedOff = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit');
+
+   const linkAttachedArray = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings');
+
+
+   let tableBody = `
+      <tr>
+         <td ${th_td_style}>1</td>
+         <td ${th_td_style}>Form Cover</td>
+         <td ${th_td_style}>
+            <a style='text-decoration: none;' href='${linkFormSignedOff}' download>
+               ${refNumber}
+            </a>
+         </td>
+      </tr>
+   `;
+   
+   if (linkAttachedArray && linkAttachedArray.length > 0) {
+      linkAttachedArray.forEach((link, i) => {
+         tableBody += `
+            <tr>
+               <td ${th_td_style}>${i + 2}</td>
+               <td ${th_td_style}>Drawing</td>
+               <td ${th_td_style}>
+                  <a style='text-decoration: none;' href='${link}' download>
+                     ${getFileNameFromLinkResponse(link)}
+                  </a>
+               </td>
+            </tr>
+         `;
+      });
+   };
+   
+
+
+   const emailOutput = `
+      <div style='line-height: 1.6; font-family: Arial, Helvetica, sans-serif;'>
+         <div>Subject: <span style='font-weight: bold;'>${emailTitle}</span></div>
+         <div>${formSubmitType.toUpperCase()} Ref: <span style='font-weight: bold;'>${refNumber}</span></div>
+         ${action === 'submit-request-signature' ?
+         `
+            <div>Submission Date: <span style='font-weight: bold;'>${drgToConsultantA}</span></div>
+            <div>Requested by: <span style='font-weight: bold;'>${requestedBy}</span></div>
+            <br />
+            <div>Dear Mr/Mrs,</div>
+            <div>
+               <span style='font-weight: bold;'>${company}</span> has submitted 
+               <a href='${linkFormNoSignature}'>
+                  <span style='font-weight: bold;'>${refNumber}</span> 
+               </a>
+               for you to review.
+            </div>
+            <div>Please review, sign and reply to us.</div>
+
+         ` : action === 'submit-signed-off-final' ?
+            `
+            <div>Submission Date: <span style='font-weight: bold;'>${drgToConsultantA}</span></div>
+            <div>Requested by: <span style='font-weight: bold;'>${requestedBy}</span></div>
+            <br />
+            <div>Dear All,</div>
+            <div>
+               <span style='font-weight: bold;'>${company}</span> has submitted <span style='font-weight: bold;'>${refNumber}</span> for you to review.
+            </div>
+            <div>Please review and reply to us by <span style='font-weight: bold;'>${consultantReplyT}</span>.</div>
+            <br />
+            ${(linkAttachedArray && linkAttachedArray.length > 0) ? 
+            `
+               <div>Uploaded Documents</div>
+               <table align='center' cellpadding='0' cellspacing='0' width='100%' style='border-collapse: collapse; font-size: 14px;'>
+                  ${tableHeader}
+                  ${tableBody}
+               </table>
+               <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('MMM Do YYYY')}.</div>
+            ` : ''}
+         ` : `
+            <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
+            <br />
+            <div>Dear all,</div>
+            <div>
+               <span style='font-weight: bold;'>${company}</span> has reply <span
+                  style='font-weight: bold;'>${refNumber}</span>, the
+               replied drawings included in this RFA
+               are in the list below.
+               <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
+            </div>
+         `}
+         
+         <br />
+         <a href='https://idd.wohhup.com/projects'>Go to BIM APP</a>
+         <div>This is an automatic email from <span style='font-weight: bold;'>${company}</span>.</div>
+         <br />
+      </div>
+   `;
+
+
+   return emailOutput;
+};
+
+
+
+
+
+
 module.exports = {
    toObjectId,
    filterObject,
    mongoObjectId,
    generateEmailInnerHTMLBackend,
+   generateEmailMultiFormInnerHtml,
    getInfoValueFromRfaData,
-   validateEmailInput
+   validateEmailInput,
+   getInfoValueFromRefDataForm,
+   getInfoKeyFromRefDataForm
 };

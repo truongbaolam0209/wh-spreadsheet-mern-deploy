@@ -30,7 +30,7 @@ const Table = (props) => {
 };
 
 
-const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA,
+const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA, 
    existingSubTradeOfResubmision, tradeOfRfaForFirstTimeSubmit, formRfaType, existingTradeOfResubmision, mepSubTradeFirstTime }) => {
 
 
@@ -50,7 +50,7 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
 
    const [arraySubTradeMEP, setArraySubTradeMEP] = useState([]);
 
-
+   
    useEffect(() => {
 
       if (drawingTrade !== convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit) || drawingSubTrade !== mepSubTradeFirstTime) {

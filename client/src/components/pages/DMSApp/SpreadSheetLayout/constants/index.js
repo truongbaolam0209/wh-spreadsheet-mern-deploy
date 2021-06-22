@@ -45,6 +45,9 @@ export const imgLink = {
    btnProgress2: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/half.png?fbclid=IwAR2XF9Kvv2InZFm1hVJJIBDJS6QsH7uzS7VrhaG3APao9cRKeRHZKS1OU-4',
    btnProgress3: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/third.png?fbclid=IwAR1rhcGE7PF3xo6UuvquXaJCFo9XHnDJ87n8aVW6vwgxiY_PZJu4D67vspc',
    btnProgress4: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/full.png?fbclid=IwAR2BvxI0PvgoY3_TO6RAbgBKEjEKO8AfYpdPI8Yyd9B7RwKIqI4NjFH0blY',
+   logoWohhup: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/logo_wh.png?fbclid=IwAR25wnX3ySDe5aAcPzZOgt0jqo3yyk_YYREfHVCji-IS58yfkbcGR-qaONM',
+   imgCheckTrue: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/chekcbox-chekced.png?fbclid=IwAR3daWpKtO5ArgU6XUUK5aou0EC77syo9-2yMvkrGzz2JlaVgw3YN6u6kck',
+   imgCheckFalse: 'https://glcdn.githack.com/baoquylan/resource/-/raw/master/Image/checkbox_uncheck.png?fbclid=IwAR37O6ygVnwgdshJcRCD-08yYS89itzpyuFzjt0gCofK0g-xiuxhmb1BjhM',
 };
 
 
@@ -90,7 +93,7 @@ export const colorTextRow = {
    '1st cut of model in-progress': colorTextCode.pp,
    'Pending design': colorTextCode.grey9,
 
-
+   'replied': colorTextCode.green
 };
 
 

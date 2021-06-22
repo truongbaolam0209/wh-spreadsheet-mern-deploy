@@ -50,8 +50,8 @@ const PageDataEntrySheet = (props) => {
 
    const {
       role, email, isAdmin, token, sheetDataInput: sheetDataInputRaw, sheetId: projectId, sheetName: projectName,
-      cellsHistoryInCurrentSheet, cellOneHistory,
-      saveDataToServerCallback, outputDataType, callbackSelectRow
+      cellsHistoryInCurrentSheet, cellOneHistory, outputDataType,
+      saveDataToServerCallback, callbackSelectRow
    } = props;
 
 
@@ -251,7 +251,7 @@ const PageDataEntrySheet = (props) => {
 
    // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
    // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
-   useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
+   // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
 
 
    const [cursor, setCursor] = useState(null);
@@ -325,8 +325,10 @@ const PageDataEntrySheet = (props) => {
                modeSort: {}
             });
          };
+
       } else if (btn === 'select-single-row-ICON') {
          if (rowsSelected.length === 1) {
+
             const { publicSettings } = stateProject.allDataOneSheet;
             const { headers } = publicSettings;
 
@@ -659,8 +661,7 @@ const PageDataEntrySheet = (props) => {
       };
    };
 
-   window.getCurrentDataTable = saveDataSheet;
-
+   window.triggerFromOutsideComponent = saveDataSheet;
 
 
 
@@ -699,6 +700,7 @@ const PageDataEntrySheet = (props) => {
             <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
             <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
             <DividerRibbon />
+
             {isAdmin && (
                <div style={{ display: 'flex' }}>
                   {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} /> */}

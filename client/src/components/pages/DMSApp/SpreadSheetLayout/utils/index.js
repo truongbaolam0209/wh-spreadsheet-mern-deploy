@@ -66,7 +66,6 @@ export const processRowsFromDB = (sheetHeaders, rows) => {
          };
       };
 
-      
       if (data instanceof Object) {
          for (let header of sheetHeaders) {
             let { key, text } = header;
@@ -335,6 +334,19 @@ export const getHeaderWidth = (header) => {
 
    else if (isColumnWithReplyData(header)) return 180;
 
+   else if (header === 'Cost Implication')return 80;
+   else if (header === 'Time Extension')return 70;
+   else if (header === 'Description') return 100;
+   else if (header === 'Signatured By') return 200;
+   else if (header === 'Conversation Among') return 180;
+   else if (header === 'Conversation Date') return 150;
+   else if (header === 'Received By') return 400;
+   else if (header === 'Contract Specification') return 100;
+   else if (header === 'Proposed Specification') return 100;
+   else if (header === 'Submission Type') return 100;
+   else if (header === 'Attachment Type') return 100;
+   else if (header === 'Transmitted For') return 130;
+
    else return 300;
 
 };
@@ -374,7 +386,7 @@ export const getActionName = (type) => {
 
    if (type === 'goToViewDMS-ICON') return 'Go To DMS View';
    if (type === 'goToViewRFA-ICON') return 'Go To RFA View';
-   if (type === 'acknowledgeForm') return 'Acknowledge Form';
+   if (type === 'acknowledge-form') return 'Acknowledge Form';
 
 
    if (type === 'Date Automation') return 'Date Automation';

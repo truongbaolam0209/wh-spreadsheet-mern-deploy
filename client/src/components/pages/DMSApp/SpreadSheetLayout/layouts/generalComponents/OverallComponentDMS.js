@@ -11,6 +11,7 @@ import { Context as RowContext } from '../../contexts/rowContext';
 import { compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
 import ButtonAdminCreateAndUpdateRows from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
 import ButtonAdminDeleteRowsHistory from '../pageSpreadsheet/ButtonAdminDeleteRowsHistory';
+import ButtonAdminUploadData from '../pageSpreadsheet/ButtonAdminUploadData';
 import Cell, { columnLocked, rowLocked } from '../pageSpreadsheet/Cell';
 import CellForm from '../pageSpreadsheet/CellForm';
 import CellIndex from '../pageSpreadsheet/CellIndex';
@@ -21,12 +22,13 @@ import PanelFunction, { getPanelPosition } from '../pageSpreadsheet/PanelFunctio
 import PanelSetting, { convertRowHistoryData, getDataForMultiFormSheet, getDataForRFASheet, getKeyTextForSheet, updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from '../pageSpreadsheet/PanelSetting';
 import CellHeader from './CellHeader';
 import { sortFnc } from './FormSort';
+import IconSidePanel from './IconSidePanel';
 import IconTable from './IconTable';
 import InputSearch from './InputSearch';
 import LoadingIcon from './LoadingIcon';
 import ViewTemplateSelect from './ViewTemplateSelect';
 
-
+const offsetHeight = 99.78;
 
 const Table = forwardRef((props, ref) => {
    return (
@@ -35,7 +37,7 @@ const Table = forwardRef((props, ref) => {
             {...props}
             ref={ref}
             width={window.innerWidth}
-            height={window.innerHeight - 99.78}
+            height={window.innerHeight - offsetHeight}
          />}
       </AutoResizer>
    );
@@ -396,6 +398,16 @@ const OverallComponentDMS = (props) => {
          setLoading(false);
          setSearchInputShown(true);
 
+      } else if (update.type === 'reload-data-view-multi-form') {
+
+         getSheetRows(getInputDataInitially(update.data.rowsAllMultiForm, roleTradeCompany, pageSheetTypeName));
+         setExpandedRows(update.data.expandedRowsIdArr);
+
+         OverwriteCellsModified({});
+         setCellActive(null);
+         setLoading(false);
+         setSearchInputShown(true);
+
       } else if (update.type === 'save-data-successfully') {
          message.success('Save Data Successfully', 1.5);
       } else if (update.type === 'save-data-failure') {
@@ -511,11 +523,11 @@ const OverallComponentDMS = (props) => {
                            : 'n/a';
 
                const refKey = getKeyTextForSheet(pageSheetTypeName) + 'Ref';
-
+ 
                const res = await Axios.get(`${SERVER_URL}/${route}/`, { params: { token, projectId, email } });
                const rows = res.data;
 
-               getSheetRows(getInputDataInitially(res.data, roleTradeCompany, pageSheetTypeName));
+               getSheetRows(getInputDataInitially(rows, roleTradeCompany, pageSheetTypeName));
                setExpandedRows([
                   'ARCHI', 'C&S', 'M&E', 'PRECAST',
                   ...rows.filter(x => x[refKey]).map(x => x[refKey])
@@ -560,6 +572,9 @@ const OverallComponentDMS = (props) => {
             //    });
             //    return output;
             // };
+
+
+
 
 
             setLoading(false);
@@ -814,6 +829,8 @@ const OverallComponentDMS = (props) => {
                      contextProject: { stateProject },
                   }}
                   buttonPanelFunction={buttonPanelFunction}
+                  commandAction={commandAction}
+                  setLoading={setLoading}
                />
             ),
             className: (props) => {
@@ -834,17 +851,17 @@ const OverallComponentDMS = (props) => {
    };
 
    const [nosColumnFixedRfaView, setNosColumnFixedRfaView] = useState(0);
-   const [headersRfaViewArray, setHeadersRfaViewArray] = useState(headersRfaViewOneConsultant);
+   const [headersAllFormViewArray, setHeadersAllFormViewArray] = useState([...getHeadersForm(pageSheetTypeName), ...getHeaderConsultantColumn(pageSheetTypeName)]);
 
-   const switchRFAHeader = () => {
-      if (headersRfaViewArray.includes('Consultant (1)')) {
-         setHeadersRfaViewArray(headersRfaViewOneConsultant);
+   const switchConsultantsHeader = () => {
+      if (headersAllFormViewArray.includes('Consultant (1)')) {
+         setHeadersAllFormViewArray([...getHeadersForm(pageSheetTypeName), ...getHeaderConsultantColumn(pageSheetTypeName)]);
          getSheetRows({
             ...stateRow,
             isShowAllConsultant: false
          });
       } else {
-         setHeadersRfaViewArray(headersRfaView);
+         setHeadersAllFormViewArray([...getHeadersForm(pageSheetTypeName), ...headersConsultantWithNumber]);
          getSheetRows({
             ...stateRow,
             isShowAllConsultant: true
@@ -880,12 +897,6 @@ const OverallComponentDMS = (props) => {
 
 
    const buttonSpreadsheetMode = ((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && pageSheetTypeName === 'page-spreadsheet'));
-
-   if (role === 'Client') {
-      return (
-         <div>There is no data display for client</div>
-      );
-   };
 
    return (
       <div
@@ -941,21 +952,18 @@ const OverallComponentDMS = (props) => {
 
 
             {stateRow && projectIsAppliedRfaView && pageSheetTypeName !== 'page-spreadsheet' && (
-               <IconTable type='block' onClick={switchRFAHeader} />
+               <IconTable type='block' onClick={switchConsultantsHeader} />
             )}
 
             {stateRow && projectIsAppliedRfaView && pageSheetTypeName === 'page-spreadsheet' && (
                <IconTable type='rfa-button' onClick={() => buttonPanelFunction('goToViewRFA-ICON')} />
             )}
 
-            {/* <Icon type='edit' onClick={loadEmail} /> */}
             <DividerRibbon />
 
             {stateRow && projectIsAppliedRfaView && pageSheetTypeName !== 'page-spreadsheet' && (roleTradeCompany.role !== 'Consultant' && role !== 'Client') && (
                <>
-                  <IconTable type='dms-button'
-                     onClick={() => buttonPanelFunction('goToViewDMS-ICON')}
-                  />
+                  <IconTable type='dms-button' onClick={() => buttonPanelFunction('goToViewDMS-ICON')} />
                   <DividerRibbon />
                </>
             )}
@@ -1010,7 +1018,6 @@ const OverallComponentDMS = (props) => {
                               ...stateRow,
                               currentRefToAddNewOrReplyOrEdit: {
                                  currentRefNumber: null,
-                                 currentRefRef: null,
                                  currentRefData: null,
                                  formRefType: 'form-submit-multi-type',
                                  isFormEditting: false
@@ -1037,11 +1044,10 @@ const OverallComponentDMS = (props) => {
 
             {isAdmin && (
                <div style={{ display: 'flex' }}>
-                  {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} /> */}
-                  {/* <ButtonAdminUploadData /> */}
+                  {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
+                  <ButtonAdminUploadData /> */}
                   <ButtonAdminCreateAndUpdateRows />
-                  <ButtonAdminDeleteRowsHistory />
-                  {/* 
+                  {/* <ButtonAdminDeleteRowsHistory />
                         <ButtonAdminUploadDataPDD />
                         
                         
@@ -1078,7 +1084,7 @@ const OverallComponentDMS = (props) => {
                            />
                            <div style={{ fontSize: 11, paddingTop: 1 }}>
                               <span style={{ fontWeight: 'bold', marginRight: 3 }}>
-                                 {stateRow ? stateRow.rowsAll.filter(r => r['Status'] === btn).length : 0}
+                                 {stateRow && stateRow.rowsAll ? stateRow.rowsAll.filter(r => r['Status'] === btn).length : 0}
                               </span>
                               {btn === 'Approved with Comment, no submission Required'
                                  ? 'AC'
@@ -1099,77 +1105,53 @@ const OverallComponentDMS = (props) => {
          </ButtonBox>
 
 
+         <div style={{ display: 'flex', overflowX: 'hidden', height: window.innerHeight - offsetHeight }}>
+            <div style={{ width: 55, background: colorType.primary }}>
+               {[
+                  'side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt', 'side-mm'
+               ].map((btnType, i) => (
+                  <IconSidePanel key={i} type={btnType} onClick={() => buttonPanelFunction(btnType)} />
+               ))}
+            </div>
 
 
-         {!loading ? (
-            <TableStyled
-               dataForStyled={{
-                  stateProject,
-                  randomColorRange,
-                  randomColorRangeStatus,
-                  cellSearchFound,
-                  cellHistoryFound
-               }}
-               ref={tableRef}
-               fixed
 
-               columns={renderColumns(
-                  (projectIsAppliedRfaView && pageSheetTypeName === 'page-rfa')
-                     ? headersRfaViewArray
-                     : (projectIsAppliedRfaView && (
-                        pageSheetTypeName === 'page-rfam' ||
-                        pageSheetTypeName === 'page-rfi' ||
-                        pageSheetTypeName === 'page-cvi' ||
-                        pageSheetTypeName === 'page-dt'
-                     ))
-                        ? getHeadersForm(pageSheetTypeName)
-                        : stateProject.userData.headersShown,
-                  (projectIsAppliedRfaView && pageSheetTypeName === 'page-rfa')
-                     ? nosColumnFixedRfaView
-                     : (projectIsAppliedRfaView && (
-                        pageSheetTypeName === 'page-rfam' ||
-                        pageSheetTypeName === 'page-rfi' ||
-                        pageSheetTypeName === 'page-cvi' ||
-                        pageSheetTypeName === 'page-dt'
-                     ))
-                        ? nosColumnFixedRfaView
-                        : stateProject.userData.nosColumnFixed
-               )}
+            {!loading ? (
+               <TableStyled
+                  dataForStyled={{
+                     stateProject,
+                     randomColorRange,
+                     randomColorRangeStatus,
+                     cellSearchFound,
+                     cellHistoryFound
+                  }}
+                  ref={tableRef}
+                  fixed
 
-               data={arrangeDrawingTypeFinal(stateRow, companies, company, roleTradeCompany.role, pageSheetTypeName)}
-               expandedRowKeys={expandedRows}
+                  columns={renderColumns(
+                     (projectIsAppliedRfaView && pageSheetTypeName !== 'page-spreadsheet') ? headersAllFormViewArray : stateProject.userData.headersShown,
+                     (projectIsAppliedRfaView && pageSheetTypeName !== 'page-spreadsheet') ? nosColumnFixedRfaView : stateProject.userData.nosColumnFixed
+                  )}
 
-               expandColumnKey={
-                  (projectIsAppliedRfaView && pageSheetTypeName === 'page-rfa')
-                     ? 'RFA Ref'
+                  data={arrangeDrawingTypeFinal(stateRow, companies, company, roleTradeCompany.role, pageSheetTypeName)}
+                  expandedRowKeys={expandedRows}
 
-                     // meeting presentation
-                     // ? 'RFAM Ref'
-                     // ? 'RFI Ref'
-                     // ? 'CVI Ref'
-                     // ? 'DT Ref'
-
-                     : (projectIsAppliedRfaView && (
-                        pageSheetTypeName === 'page-rfam' ||
-                        pageSheetTypeName === 'page-rfi' ||
-                        pageSheetTypeName === 'page-cvi' ||
-                        pageSheetTypeName === 'page-dt'
-                     ))
-                        ? (pageSheetTypeName === 'page-rfam' ? 'RFAM Ref'
-                           : pageSheetTypeName === 'page-rfi' ? 'RFI Ref'
-                              : pageSheetTypeName === 'page-cvi' ? 'CVI Ref'
-                                 : 'DT Ref')
+                  expandColumnKey={
+                     (projectIsAppliedRfaView && pageSheetTypeName !== 'page-spreadsheet')
+                        ? pageSheetTypeName.slice(5, pageSheetTypeName.length).toUpperCase() + ' Ref'
                         : stateProject.userData.headersShown[0]}
 
-               expandIconProps={expandIconProps}
-               components={{ ExpandIcon }}
-               rowHeight={30}
-               overscanRowCount={0}
-               onScroll={onScroll}
-               rowClassName={rowClassName}
-               onRowExpand={onRowExpand}
-            />
-         ) : <LoadingIcon />}
+                  expandIconProps={expandIconProps}
+                  components={{ ExpandIcon }}
+                  rowHeight={30}
+                  overscanRowCount={0}
+                  onScroll={onScroll}
+                  rowClassName={rowClassName}
+                  onRowExpand={onRowExpand}
+               />
+            ) : <LoadingIcon />}
+
+         </div>
 
 
          {((stateRow && pageSheetTypeName === 'page-spreadsheet') || !projectIsAppliedRfaView) && (
@@ -1210,7 +1192,10 @@ const OverallComponentDMS = (props) => {
                   panelSettingType !== 'form-submit-RFA' &&
                   panelSettingType !== 'form-resubmit-RFA' &&
                   panelSettingType !== 'form-reply-RFA' &&
-                  panelSettingType !== 'addDrawingType-ICON'
+                  panelSettingType !== 'addDrawingType-ICON' &&
+                  panelSettingType !== 'form-submit-multi-type' &&
+                  panelSettingType !== 'form-resubmit-multi-type' &&
+                  panelSettingType !== 'form-reply-multi-type' 
                ) {
                   setPanelSettingVisible(false);
                   setPanelSettingType(null);
@@ -1284,6 +1269,7 @@ const DividerRibbon = () => {
 
 
 const TableStyled = styled(Table)`
+
    .cell-locked {
       background-color: ${colorType.lockedCell};
    };
@@ -1420,6 +1406,7 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
       const dataRowsHistoryConverted = convertRowHistoryData(rowsHistoryData, publicSettings.headers);
       const { rowsDataRFA, treeViewRFA, rfaStatistics } = getDataForRFASheet(rows, dataRowsHistoryConverted, role, company);
 
+
       return {
 
          modeFilter: [],
@@ -1463,6 +1450,7 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          rowsAll: [...rowsAllOutput, ...rowsToAdd], // handle rows can not match parent
          rowsVersionsToSave: [],
 
+
          viewTemplates,
          viewTemplateNodeId,
          drawingTypeTree: [...drawingTypeTree, ...treeNodesToAdd], // handle rows can not match parent
@@ -1491,17 +1479,20 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
             : pageSheetTypeName === 'page-rfi' ? 'Rfi'
                : 'Dt';
 
+      const keyType = pageSheetTypeName.slice(5, pageSheetTypeName.length);
+
       const { rowsData, treeView } = getDataForMultiFormSheet(data, pageSheetTypeName);
 
       let outputRowsRef = [];
-      const listRef = [... new Set(rowsData.map(x => x.rfamRef))];
+
+      const listRef = [... new Set(rowsData.map(x => x[`${keyType}Ref`]))];
       listRef.forEach(ref => {
-         const rowsThisRef = rowsData.filter(r => r['rfamRef'] === ref);
+
+         const rowsThisRef = rowsData.filter(r => r[`${keyType}Ref`] === ref);
          const arrayVersion = [...new Set(rowsThisRef.map(x => x.revision))];
          const latestVersion = arrayVersion.sort()[arrayVersion.length - 1];
          outputRowsRef.push(rowsThisRef.find(x => x.revision === latestVersion));
       });
-
 
       return {
 
@@ -1514,7 +1505,11 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          [[`rows${keySuffix}AllInit`]]: rowsData,
 
          isShowAllConsultant: false,
-         loading: false
+         loading: false,
+
+         
+
+
       };
    }
 };
@@ -1761,6 +1756,7 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTy
          };
          dataOutputMultiForm.push(newItem);
       });
+      
       const outputRowsData = convertFlattenArraytoTree1(dataOutputMultiForm);
       return outputRowsData;
    };
@@ -1862,7 +1858,10 @@ const rearrangeRowsNotMatchTreeNode = (rows, rowsArranged, drawingTypeTree) => {
 };
 
 
-
+const getHeaderConsultantColumn = (pageSheetTypeName) => {
+   if (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') return [];
+   return ['Consultant'];
+};
 
 export const headersConsultantWithNumber = [
    'Consultant (1)',
@@ -1871,73 +1870,65 @@ export const headersConsultantWithNumber = [
    'Consultant (4)',
    'Consultant (5)',
 ];
-const headersRfaViewCore = [
-   'RFA Ref',
-   'Rev',
-   'Drawing Number',
-   'Drawing Name',
-   'Requested By',
-   'Submission Date',
-   'Due Date',
-
-
-   // meeting presentation
-
-   // 'RFAM Ref',
-   // 'RFI Ref',
-   // 'Description',
-   // 'Requested By',
-   // 'Submission Date',
-   // 'Conversation With',
-   // 'Due Date',
-
-   // 'CVI Ref',
-   // 'Requested By',
-   // 'Submission Date',
-   // 'Received By',
-
-
-   // 'DT Ref',
-   // 'Document Type',
-   // 'Requested By',
-   // 'Submission Date',
-   // 'Received By',
-
-
-
-
-
-];
-export const headersRfaView = [
-   ...headersRfaViewCore,
-   ...headersConsultantWithNumber
-];
-export const headersRfaViewOneConsultant = [
-   ...headersRfaViewCore,
-
-   // meeting presentation
-   'Consultant',
-];
 
 export const getHeadersForm = (pageSheetTypeName) => {
-   if (pageSheetTypeName === 'page-rfam') {
+   if (pageSheetTypeName === 'page-rfa') {
       return [
-         'RFAM Ref',
-         'Description',
+         'RFA Ref',
+         'Rev',
+         'Drawing Number',
+         'Drawing Name',
          'Requested By',
          'Submission Date',
-         'Due Date',
-         'Consultant'
+         'Due Date'
       ];
    } else if (pageSheetTypeName === 'page-cvi') {
       return [
          'CVI Ref',
          'Description',
-         'Conversation With',
+         'Requested By',
+         'Signatured By',
+         'Conversation Among',
          'Submission Date',
+         'Conversation Date',
+         'Cost Implication',
+         'Time Extension',
          'Received By',
       ];
-   }
+   } else if (pageSheetTypeName === 'page-rfam') {
+      return [
+         'RFAM Ref',
+         'Description',
+         'Requested By',
+         'Signatured By',
+         'Submission Date',
+         'Submission Type',
+         'Contract Specification',
+         'Proposed Specification',
+      ];
+   } else if (pageSheetTypeName === 'page-rfi') {
+      return [
+         'RFI Ref',
+         'Description',
+         'Requested By',
+         'Signatured By',
+         'Submission Date',
+         'Due Date',
+      ];
+   } else if (pageSheetTypeName === 'page-dt') {
+      return [
+         'DT Ref',
+         'Description',
+         'Requested By',
+         'Signatured By',
+         'Submission Date',
+         'Attachment Type',
+         'Transmitted For',
+         'Received By',
+      ];
+   } else {
+      return [];
+   };
 };
 
 
