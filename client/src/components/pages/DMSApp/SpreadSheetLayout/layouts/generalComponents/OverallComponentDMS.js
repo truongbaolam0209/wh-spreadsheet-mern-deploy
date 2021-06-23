@@ -29,14 +29,16 @@ import LoadingIcon from './LoadingIcon';
 import ViewTemplateSelect from './ViewTemplateSelect';
 
 const offsetHeight = 99.78;
+const sideBarWidth = 55;
 
 const Table = forwardRef((props, ref) => {
+   const { projectIsAppliedRfaView } = props;
    return (
       <AutoResizer>
          {() => <BaseTable
             {...props}
             ref={ref}
-            width={window.innerWidth}
+            width={window.innerWidth - (projectIsAppliedRfaView ? sideBarWidth : 0)}
             height={window.innerHeight - offsetHeight}
          />}
       </AutoResizer>
@@ -898,6 +900,13 @@ const OverallComponentDMS = (props) => {
 
    const buttonSpreadsheetMode = ((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && pageSheetTypeName === 'page-spreadsheet'));
 
+   
+   if ((role === 'Consultant' || role === 'Client') && pageSheetTypeName === 'page-spreadsheet') {
+      return (
+         <div>There is no data display for client</div>
+      );
+   };
+
    return (
       <div
          style={{ color: 'black' }}
@@ -955,18 +964,6 @@ const OverallComponentDMS = (props) => {
                <IconTable type='block' onClick={switchConsultantsHeader} />
             )}
 
-            {stateRow && projectIsAppliedRfaView && pageSheetTypeName === 'page-spreadsheet' && (
-               <IconTable type='rfa-button' onClick={() => buttonPanelFunction('goToViewRFA-ICON')} />
-            )}
-
-            <DividerRibbon />
-
-            {stateRow && projectIsAppliedRfaView && pageSheetTypeName !== 'page-spreadsheet' && (roleTradeCompany.role !== 'Consultant' && role !== 'Client') && (
-               <>
-                  <IconTable type='dms-button' onClick={() => buttonPanelFunction('goToViewDMS-ICON')} />
-                  <DividerRibbon />
-               </>
-            )}
 
             {stateRow && projectIsAppliedRfaView && pageSheetTypeName === 'page-rfa' && role === 'Document Controller' && !isUserCanSubmitBothSide && (
                <>
@@ -1107,28 +1104,38 @@ const OverallComponentDMS = (props) => {
 
 
          <div style={{ display: 'flex', overflowX: 'hidden', height: window.innerHeight - offsetHeight }}>
-            <div style={{ width: 55, background: colorType.primary }}>
-               {[
-                  'side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt', 
-                  // 'side-mm'
-               ].map((btnType, i) => (
-                  <IconSidePanel key={i} type={btnType} onClick={() => buttonPanelFunction(btnType)} />
-               ))}
-            </div>
+
+            {projectIsAppliedRfaView && (
+               <div style={{ width: sideBarWidth, background: colorType.primary }}>
+                  {(
+                     (role !== 'Consultant' && role !== 'Client')
+                     ? ['side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
+                     : ['side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
+                  ).map((btnType, i) => {
+
+                     return (
+                     <IconSidePanel 
+                        key={i} 
+                        type={btnType} 
+                        onClick={() => buttonPanelFunction(btnType)} 
+                        isLocked={
+                           pageSheetTypeName.slice(5, pageSheetTypeName.length) === btnType.slice(5, btnType.length) ||
+                           (pageSheetTypeName.slice(5, pageSheetTypeName.length) === 'spreadsheet' && btnType.slice(5, btnType.length) === 'dms')
+                        }
+                     />
+                  )})}
+               </div>
+            )}
+               
 
 
 
             {!loading ? (
                <TableStyled
-                  dataForStyled={{
-                     stateProject,
-                     randomColorRange,
-                     randomColorRangeStatus,
-                     cellSearchFound,
-                     cellHistoryFound
-                  }}
+                  dataForStyled={{ stateProject, randomColorRange, randomColorRangeStatus, cellSearchFound, cellHistoryFound }}
                   ref={tableRef}
                   fixed
+                  projectIsAppliedRfaView={projectIsAppliedRfaView}
 
                   columns={renderColumns(
                      (projectIsAppliedRfaView && pageSheetTypeName !== 'page-spreadsheet') ? headersAllFormViewArray : stateProject.userData.headersShown,
@@ -1271,6 +1278,8 @@ const DividerRibbon = () => {
 
 
 const TableStyled = styled(Table)`
+
+  
 
    .cell-locked {
       background-color: ${colorType.lockedCell};

@@ -27,7 +27,7 @@ const App = () => {
       console.log('row callback selected', row);
    };
 
-   // console.log(localStorage);
+
 
    const consultantCompany = 'DCA';
    // const consultantCompany = 'RSP';
@@ -35,17 +35,13 @@ const App = () => {
    // const consultantCompany = 'ONG & ONG';
 
 
-   // const consultantCompany = 'dcA';
-   // const consultantCompany = 'rsp';
-   // const consultantCompany = 'onG & Ong';
-   // const consultantCompany = 'K2LD';
-   // const consultantCompany = 'HYLA';
-
 
    const propsSheet = {
       email: browserName === 'Chrome' ? 'tbl@wohhup.com' : 'test@dca.com',
       company: browserName === 'Chrome' ? 'Woh Hup Private Ltd' : consultantCompany,
+      // company: browserName === 'Chrome' ? consultantCompany : consultantCompany,
       role: browserName === 'Chrome' ? 'Document Controller' : 'Consultant',
+      // role: browserName === 'Chrome' ? 'Consultant' : 'Consultant',
 
       // projectId: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg',
       // projectId: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q',
@@ -126,102 +122,102 @@ const App = () => {
 
    return (
 
-         <BrowserRouter>
-            <Switch>
-               <SheetContext>
+      <BrowserRouter>
+         <Switch>
+            <SheetContext>
 
 
-                  <Route exact path='/dms-spreadsheet'><PageSpreadsheet {...propsSheet} /></Route>
-                  <Route exact path='/dms-rfa'><PageRFA {...propsSheet} /></Route>
-                  <Route exact path='/dms-rfam'><PageRFAM {...propsSheet} /></Route>
-                  <Route exact path='/dms-rfi'><PageRFI {...propsSheet} /></Route>
-                  <Route exact path='/dms-cvi'><PageCVI {...propsSheet} /></Route>
-                  <Route exact path='/dms-dt'><PageDT {...propsSheet} /></Route>
+               <Route exact path='/dms-spreadsheet'><PageSpreadsheet {...propsSheet} /></Route>
+               <Route exact path='/dms-rfa'><PageRFA {...propsSheet} /></Route>
+               <Route exact path='/dms-rfam'><PageRFAM {...propsSheet} /></Route>
+               <Route exact path='/dms-rfi'><PageRFI {...propsSheet} /></Route>
+               <Route exact path='/dms-cvi'><PageCVI {...propsSheet} /></Route>
+               <Route exact path='/dms-dt'><PageDT {...propsSheet} /></Route>
 
-                  {/* <Route path='/sheet-rfi'><PageRFA {...propsSheet} /></Route>
+               {/* <Route path='/sheet-rfi'><PageRFA {...propsSheet} /></Route>
                      <Route path='/sheet-dt'><PageRFA {...propsSheet} /></Route>
                      <Route path='/sheet-cvi'><PageRFA {...propsSheet} /></Route> */}
 
 
 
 
-                  <Route path='/sheet-data-entry'>
-                     <PageDataEntrySheet
-                        isAdmin={true}
-                        email='michaelsss_llave@wohhup.com'
-                        role={{
-                           name: 'Document Controller',
-                           canEditParent: true
-                        }}
-                        canSaveUserSettings={false}
-                        token={'xxx-xxxxx-xx'}
-                        sheetDataInput={sheetDataInput_1}
-                        sheetName='Sheet 1'
-                        sheetId='e4ac39e4-3f5f-46bd-adc1-912a14efe801'
+               <Route path='/sheet-data-entry'>
+                  <PageDataEntrySheet
+                     isAdmin={true}
+                     email='michaelsss_llave@wohhup.com'
+                     role={{
+                        name: 'Document Controller',
+                        canEditParent: true
+                     }}
+                     canSaveUserSettings={false}
+                     token={'xxx-xxxxx-xx'}
+                     sheetDataInput={sheetDataInput_1}
+                     sheetName='Sheet 1'
+                     sheetId='e4ac39e4-3f5f-46bd-adc1-912a14efe801'
 
-                        cellsHistoryInCurrentSheet={''}
-                        cellOneHistory={''}
-                        saveDataToServerCallback={saveDataToServerCallback}
-                        callbackSelectRow={callbackSelectRow}
-                     />
-                  </Route>
-
-
-                  <Route path='/dashboard'>
-                     <PageDashboard
-                        projectsArray={[
-                           { name: 'Handy', id: 'MTU5MTY3NDI0ODUyMy1IYW5keQ' },
-                           { name: 'Punggol Digital District', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q' },
-                           { name: 'Sumang', id: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc' },
-                           { name: 'The Reef', id: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg' },
-                           { name: 'Kim Chuan Depot', id: 'MTU3NDgyNTY5OTYwMi1LaW0gQ2h1YW4gRGVwb3Q' },
-                           { name: 'Test', id: 'ETU3NDgyNTY5cTYwMi1LaW0gQ2h1YW4gRGVwb3F' },
-                           { name: 'Test-2', id: 'MTU3NzA2Njg5MTczOTEST' },
-                           { name: 'Test-3', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q5' },
-                        ]}
-
-                        company='Woh Hup Private Ltd'
-                        // role='WH Archi Modeller'
-                        // role='WH Archi Coordinator'
-
-                        role=
-                        // 'Document Controller'
-                        // 'WH Archi Coordinator'
-                        // 'WH C&S Design Engineer',
-                        // 'WH M&E Coordinator',
-                        // 'WH PRECAST Coordinator',
-
-                        // 'WH Archi Modeller',
-                        // 'WH C&S Modeller',
-                        // 'WH M&E Modeller',
-                        // 'WH PRECAST Modeller',
-
-                        // 'Production',
-
-                        // 'WH Archi Manager'
-                        // 'WH C&S Manager'
-                        // 'WH M&E Manager',
-                        // 'WH PRECAST Manager',
-
-                        // 'Planning Engineer',
-                        // 'QS',
-                        'Project Manager'
-                     // 'Corporate Manager',
-                     // 'QAQC',
-                     // 'Safety',
-                     // 'Client',
-
-                     // 'Sub-Con',
-                     // 'Consultant',
-                     />
-                  </Route>
-
-               </SheetContext>
+                     cellsHistoryInCurrentSheet={''}
+                     cellOneHistory={''}
+                     saveDataToServerCallback={saveDataToServerCallback}
+                     callbackSelectRow={callbackSelectRow}
+                  />
+               </Route>
 
 
+               <Route path='/dashboard'>
+                  <PageDashboard
+                     projectsArray={[
+                        { name: 'Handy', id: 'MTU5MTY3NDI0ODUyMy1IYW5keQ' },
+                        { name: 'Punggol Digital District', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q' },
+                        { name: 'Sumang', id: 'MTYxMDMzOTYwMjQyNS1TdW1hbmc' },
+                        { name: 'The Reef', id: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg' },
+                        { name: 'Kim Chuan Depot', id: 'MTU3NDgyNTY5OTYwMi1LaW0gQ2h1YW4gRGVwb3Q' },
+                        { name: 'Test', id: 'ETU3NDgyNTY5cTYwMi1LaW0gQ2h1YW4gRGVwb3F' },
+                        { name: 'Test-2', id: 'MTU3NzA2Njg5MTczOTEST' },
+                        { name: 'Test-3', id: 'MTU3NzA2Njg5MTczOC1QdW5nZ29sIERpZ2l0YWwgRGlzdHJpY3Q5' },
+                     ]}
 
-            </Switch>
-         </BrowserRouter>
+                     company='Woh Hup Private Ltd'
+                     // role='WH Archi Modeller'
+                     // role='WH Archi Coordinator'
+
+                     role=
+                     // 'Document Controller'
+                     // 'WH Archi Coordinator'
+                     // 'WH C&S Design Engineer',
+                     // 'WH M&E Coordinator',
+                     // 'WH PRECAST Coordinator',
+
+                     // 'WH Archi Modeller',
+                     // 'WH C&S Modeller',
+                     // 'WH M&E Modeller',
+                     // 'WH PRECAST Modeller',
+
+                     // 'Production',
+
+                     // 'WH Archi Manager'
+                     // 'WH C&S Manager'
+                     // 'WH M&E Manager',
+                     // 'WH PRECAST Manager',
+
+                     // 'Planning Engineer',
+                     // 'QS',
+                     'Project Manager'
+                  // 'Corporate Manager',
+                  // 'QAQC',
+                  // 'Safety',
+                  // 'Client',
+
+                  // 'Sub-Con',
+                  // 'Consultant',
+                  />
+               </Route>
+
+            </SheetContext>
+
+
+
+         </Switch>
+      </BrowserRouter>
    );
 };
 

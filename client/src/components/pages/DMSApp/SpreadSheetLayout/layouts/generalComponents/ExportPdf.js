@@ -41,8 +41,6 @@ const ExportPdf = ({ pdfContent }) => {
    });
 
 
-   console.log('dataTableInput', dataTableInput);
-
    
 
    const formTitle = pageSheetTypeName === 'page-rfam' ? 'Request For Approval Of Material'

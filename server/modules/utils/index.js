@@ -71,6 +71,22 @@ const getInfoKeyFromRefDataForm = (obj, typeSubmit, typeForm, info, company = ''
       };
    };
 };
+
+const addBackgroundForCell = (stringStyle, status) => {
+   const newStr = stringStyle.slice(0, stringStyle.length - 1);
+   let colorTextAdd = `'`;
+   if (status === 'Approved with Comment, no submission Required') {
+      colorTextAdd = `background: #006400;'`;
+   } else if (status === 'Approved for Construction') {
+      colorTextAdd = `background: #90EE90;'`;
+   } else if (status === 'Reject and resubmit') {
+      colorTextAdd = `background: #b33939;'`;
+   } else if (status === 'Approved with comments, to Resubmit') {
+      colorTextAdd = `background: #ff6600;'`;
+   };
+   return newStr + colorTextAdd;
+};
+
 const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
    const headersArray = [
       '',
@@ -103,12 +119,16 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
    const th_td_style = `style='border: 1px solid #dddddd; text-align: left; padding: 8px; position: relative;'`;
 
    let tableBody = '';
+
+
    rowsData.forEach((rowData, i) => {
       let str = `<td ${th_td_style}>${i + 1}</td>`;
+
       headersArray.forEach((headerText, i) => {
          if (i !== 0) {
             if (headerText === 'Status' && emailType === 'reply') {
-               str += `<td ${th_td_style}>${rowData[`reply-$$$-status-${company}`] || ''}</td>`;
+               const status = rowData[`reply-$$$-status-${company}`] || '';
+               str += `<td ${addBackgroundForCell(th_td_style, status)}>${status}</td>`;
             } else if (headerText === 'Status' && emailType === 'submit') {
                str += `<td ${th_td_style}>Consultant reviewing</td>`;
             } else if (headerText === 'Drawing Number') {
@@ -158,10 +178,11 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
          <br />
          <div>Dear all,</div>
          <div>
-            <span style='font-weight: bold;'>${company}</span> has reply <span
-               style='font-weight: bold;'>${rfaRefText}</span>, the
-            replied drawings included in this RFA
-            are in the list below.
+            <span style='font-weight: bold;'>${company}</span> has replied <span style='font-weight: bold;'>${rfaRefText}</span>
+            , the replied and commented drawings can be found below:
+            <br />
+            <br />
+            <br />
             <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
          </div>
       `}
@@ -231,6 +252,9 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
    const linkFormNoSignature = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature');
    const linkFormSignedOff = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit');
 
+   const linkReplyForm = getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company);
+   const replyStatus = getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'status', company);
+
    const linkAttachedArray = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings');
 
 
@@ -245,7 +269,7 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
          </td>
       </tr>
    `;
-   
+
    if (linkAttachedArray && linkAttachedArray.length > 0) {
       linkAttachedArray.forEach((link, i) => {
          tableBody += `
@@ -261,7 +285,7 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
          `;
       });
    };
-   
+
 
 
    const emailOutput = `
@@ -294,8 +318,8 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
             </div>
             <div>Please review and reply to us by <span style='font-weight: bold;'>${consultantReplyT}</span>.</div>
             <br />
-            ${(linkAttachedArray && linkAttachedArray.length > 0) ? 
-            `
+            ${(linkAttachedArray && linkAttachedArray.length > 0) ?
+               `
                <div>Uploaded Documents</div>
                <table align='center' cellpadding='0' cellspacing='0' width='100%' style='border-collapse: collapse; font-size: 14px;'>
                   ${tableHeader}
@@ -303,18 +327,21 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
                </table>
                <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('MMM Do YYYY')}.</div>
             ` : ''}
-         ` : `
+         ` : action === 'reply-signed-off' ? `
             <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
+            <div>Status: <span style='font-weight: bold;'>${replyStatus}</span></div>
             <br />
             <div>Dear all,</div>
             <div>
-               <span style='font-weight: bold;'>${company}</span> has reply <span
-                  style='font-weight: bold;'>${refNumber}</span>, the
-               replied drawings included in this RFA
-               are in the list below.
+               <span style='font-weight: bold;'>${company}</span> has replied 
+               <a href='${linkReplyForm}'>
+                  <span style='font-weight: bold;'>${refNumber}</span>
+               </a>, please check replied form in the link.
+                  <br />
+                  <br />
                <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
             </div>
-         `}
+         ` : ''}
          
          <br />
          <a href='https://idd.wohhup.com/projects'>Go to BIM APP</a>

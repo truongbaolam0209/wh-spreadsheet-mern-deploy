@@ -150,10 +150,11 @@ const CellForm = (props) => {
                consultantMustReplyArray && consultantMustReplyArray.indexOf(company) !== -1 &&
                (
                   (!refDataObj[`reply-${refType}-status-${company}`] && pageSheetTypeName === 'page-rfam') ||
+                  (!refDataObj[`reply-${refType}-status-${company}`] && pageSheetTypeName === 'page-rfi') ||
                   (!refDataObj[`reply-${refType}-acknowledge-${company}`] && pageSheetTypeName === 'page-dt') ||
-                  (!refDataObj[`reply-${refType}-acknowledge-${company}`] && pageSheetTypeName === 'page-cvi')
+                  ((!refDataObj[`reply-${refType}-acknowledge-${company}`] && !refDataObj[`reply-${refType}-status-${company}`]) && pageSheetTypeName === 'page-cvi')
                )
-               
+
             ) {
                setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
             } else {
@@ -314,7 +315,7 @@ const CellForm = (props) => {
          } else if (pageSheetTypeName === 'page-cvi') {
             buttonPanelFunction('acknowledge-or-reply-form');
          };
-         
+
       } else {
          if (btn === 'form-upload-signed-off') {
             setPanelUploadSignedOffFormShown(true);
@@ -323,6 +324,7 @@ const CellForm = (props) => {
                setModalActionTypeForAdminSubmit(btn);
             } else {
                buttonPanelFunction(btn);
+
             };
          };
       };
@@ -519,6 +521,19 @@ const CellForm = (props) => {
    };
 
 
+
+   const openFormReplyForCvi = async (company) => {
+      try {
+         const linkFormReply = getInfoValueFromRefDataForm(refData, 'reply', refType, 'linkFormReply', company);
+         const res = await Axios.get('/api/issue/get-public-url', { params: { key: linkFormReply, expire: 1000 } });
+         window.open(res.data);
+
+      } catch (err) {
+         console.log(err);
+      };
+   };
+
+
    const submitSignedOffFormSendEmail = async () => {
 
       if (!fileSignedOffFormPdf || Object.values(fileSignedOffFormPdf).length === 0) {
@@ -547,6 +562,7 @@ const CellForm = (props) => {
                fileName: getFileNameFromLinkResponse(link),
                fileLink: link
             }));
+
          };
 
 
@@ -566,11 +582,11 @@ const CellForm = (props) => {
                rowIds: [rowChild.id],
                emailSender: email,
             },
-            momentToTriggerEmail: moment().add(moment.duration(0.5, 'minutes'))
+            momentToTriggerEmail: moment().add(moment.duration(0.1, 'minutes'))
          });
 
 
-         
+
          message.success('Submitted Successfully', 3);
 
          const route = pageSheetTypeName === 'page-rfam' ? 'row-rfam'
@@ -716,7 +732,7 @@ const CellForm = (props) => {
          ) : (rowData.treeLevel >= 2 && column.key === expandedColumn) ? (
             <div style={{ color: 'black', fontWeight: 'bold' }}>{rowData.title}</div>
          ) : !rowData.treeLevel ? (
-            <div>{getCellFormData(rowData, column.key, refType, consultantsReply, replyCompany, replyStatus, replyDate)}</div>
+            <div>{getCellFormData(rowData, column.key, refType, consultantsReply, replyCompany, replyStatus, replyDate, openFormReplyForCvi)}</div>
          ) : ''}
 
 
@@ -741,7 +757,7 @@ const CellForm = (props) => {
                               right: btn === 'Open Drawing List' ? 27 : btn === 'Open Form' ? 5 : 51,
                               top: 5, height: 17, width: 17,
                            }}
-                           onMouseDown={() => {
+                           onClick={() => {
                               if (isColumnSubmitOrReply(column.key) === 'column-submit') {
                                  onMouseDownCellButtonRef(btn);
                               } else {
@@ -998,7 +1014,7 @@ const isColumnSubmitOrReply = (header) => {
    ) return 'column-submit';
 };
 
-const getCellFormData = (row, header, refType, consultantsReply, replyCompany, replyStatus, replyDate) => {
+const getCellFormData = (row, header, refType, consultantsReply, replyCompany, replyStatus, replyDate, openFormReplyForCvi) => {
 
    if (
       header === 'RFAM Ref' ||
@@ -1049,19 +1065,30 @@ const getCellFormData = (row, header, refType, consultantsReply, replyCompany, r
             {consultantsReply.map((cmp, i) => {
 
                const isAcknowledge = getInfoValueFromRefDataForm(row, 'reply', refType, 'acknowledge', cmp);
-
+               const filePdfAttached = getInfoValueFromRefDataForm(row, 'reply', refType, 'linkFormReply', cmp);
                return (
                   <div
                      key={i}
                      style={{
-                        marginRight: 5,
-                        background: isAcknowledge ? colorType.yellow : 'white',
+                        marginRight: 5, paddingLeft: 4, paddingRight: 4,
+                        background: isAcknowledge ? colorType.yellow : filePdfAttached ? colorType.green : 'white',
+                        fontWeight: (isAcknowledge || filePdfAttached) ? 'bold' : 'normal',
                         border: `1px solid ${colorType.grey1}`,
-                        paddingLeft: 4,
-                        paddingRight: 4,
+                        display: 'flex'
                      }}
                   >
-                     {cmp}
+                     <div>{cmp}</div>
+                     {filePdfAttached && (
+                        <div
+                           style={{ cursor: 'pointer' }}
+                           onClick={() => openFormReplyForCvi(cmp)}
+                        >
+                           <Icon
+                              type={'shake'}
+                              style={{ color: 'black', marginLeft: 10, fontSize: 15, transform: 'translateY(1px)' }}
+                           />
+                        </div>
+                     )}
                   </div>
                );
             })}

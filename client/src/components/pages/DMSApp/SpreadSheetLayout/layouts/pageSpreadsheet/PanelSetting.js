@@ -851,14 +851,14 @@ const PanelSetting = (props) => {
 
 
 
-   const saveDataToServerAndRedirectToViewRFA = async () => {
+   const swithFromDmsToOtherSheet = async (route) => {
       try {
          setLoading(true);
          commandAction({ type: '' });
 
          await saveDataToServer();
          history.push({
-            pathname: '/dms-rfa',
+            pathname: route,
             state: localState
          });
 
@@ -867,6 +867,7 @@ const PanelSetting = (props) => {
          console.log(err);
       };
    };
+
 
    const onClickApplyAddNewRFA = async (dataRfaForm) => {
 
@@ -989,11 +990,6 @@ const PanelSetting = (props) => {
                         dataDWFX.append('projectName', projectName);
                         dataDWFX.append('email', email);
                         dataDWFX.append('rfaName', rfaRefData + `_${i}`);
-
-                        // console.log('checkFile3D=================', {
-                        //    file: fileFound.originFileObj,
-                        //    projectId, projectName, email, rfaName: rfaRefData + `_${i}`
-                        // });
 
                         let linkDWFX = '';
                         if (dataDWFX && dataDWFX !== null) {
@@ -1203,7 +1199,6 @@ const PanelSetting = (props) => {
                momentToTriggerEmail: moment().add(moment.duration(EDIT_DURATION_MIN, 'minutes'))
             });
 
-
          };
 
          message.success('Submitted Successfully', 3);
@@ -1351,16 +1346,17 @@ const PanelSetting = (props) => {
             // upload BLOB file PDF Submit no signature
             if (filePdfBlobOutput) {
                
-               let dataForm = new FormData();
-               dataForm.append('blob', filePdfBlobOutput);
-               dataForm.append('projectId', projectId);
-               dataForm.append('path', `${refToSave}/${refToSaveVersionOrToReply}/submit`);
-               dataForm.append('name', `${refToSave}/${refToSaveVersionOrToReply}_FormCoverToSign.pdf`);
+               let blobData = await filePdfBlobOutput.text();
+               const pathData = `${refToSave}/${refToSaveVersionOrToReply}/submit`;
+               let fileName = `${refToSave}/${refToSaveVersionOrToReply}_FormCoverToSign.pdf`.split('/').join('_');
 
-               if (dataForm) {
-                  const resLink = await Axios.post('/api/drawing/set-dms-buffer', dataForm);
-                  linkFormPdfNoSignature = resLink.data;
-               };
+               const resLink = await Axios.post('/api/drawing/set-dms-buffer', { 
+                  blob: blobData, 
+                  projectId, 
+                  path: pathData,
+                  name: fileName
+               });
+               linkFormPdfNoSignature = resLink.data;
             };
             pdfFilesToUpload = filesPdfDrawing;
          } else if (type === 'form-reply-multi-type') {
@@ -1429,7 +1425,7 @@ const PanelSetting = (props) => {
             if (timeConversation) rowOutput.data[`submission-${refType}-timeConversation-${company}`] = timeConversation;
             if (conversationAmong) rowOutput.data[`submission-${refType}-conversationAmong-${company}`] = conversationAmong;
 
-            if (pageSheetTypeName === 'page-rfam') {
+            if (pageSheetTypeName === 'page-cvi') {
                rowOutput.data[`submission-${refType}-isCostImplication-${company}`] = isCostImplication;
                rowOutput.data[`submission-${refType}-isTimeExtension-${company}`] = isTimeExtension;
             };
@@ -1443,7 +1439,6 @@ const PanelSetting = (props) => {
             };
 
             if (linkDrawings.length > 0) rowOutput.data[`submission-${refType}-linkDrawings-${company}`] = linkDrawings;
-
 
             if (linkFormPdfNoSignature) rowOutput.data[`submission-${refType}-linkFormNoSignature-${company}`] = linkFormPdfNoSignature;
 
@@ -1469,7 +1464,7 @@ const PanelSetting = (props) => {
 
             if (pageSheetTypeName === 'page-rfam') {
                rowOutput.data[`reply-${refType}-status-${company}`] = consultantReplyStatus;
-            } else if (pageSheetTypeName === 'page-rfi') {
+            } else if (pageSheetTypeName === 'page-rfi' || pageSheetTypeName === 'page-cvi') {
                rowOutput.data[`reply-${refType}-status-${company}`] = 'replied';
             };
 
@@ -1512,12 +1507,10 @@ const PanelSetting = (props) => {
                      rowIds: [rowOutput._id],
                      emailSender: email,
                   },
-                  momentToTriggerEmail: moment().add(moment.duration(0.5, 'minutes'))
+                  momentToTriggerEmail: moment().add(moment.duration(0.1, 'minutes'))
                });
             };
          };
-
-
 
 
          message.success('Submitted Successfully', 3);
@@ -1573,7 +1566,12 @@ const PanelSetting = (props) => {
          const refType = getKeyTextForSheet(pageSheetTypeName);
          const refKey = refType + 'Ref';
 
-         const rowsToAcknowledge = rowsDtAllInit.find(x => x[refKey] === currentRefNumber && x.revision === currentRefData.revision);
+
+         const rowsAllInitThisTypeForm = pageSheetTypeName === 'page-cvi' ? rowsCviAllInit
+         : pageSheetTypeName === 'page-dt' ? rowsDtAllInit
+         : [];
+
+         const rowsToAcknowledge = rowsAllInitThisTypeForm.find(x => x[refKey] === currentRefNumber && x.revision === currentRefData.revision);
 
 
          let rowOutput = {
@@ -1835,31 +1833,29 @@ const PanelSetting = (props) => {
                />
             )}
 
-         {panelSettingType === 'goToViewRFA-ICON' && (
-            <PanelConfirm
-               onClickCancel={onClickCancelModal}
-               onClickApply={saveDataToServerAndRedirectToViewRFA}
-               content={'Do you want to save and redirect to RFA sheet ?'}
-            />
-         )}
 
          {(panelSettingType.includes('side-')) && (
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={() => {
-                  const routeSuffix = panelSettingType.slice(5, panelSettingType.length);
-                  if (routeSuffix === 'dms') {
-                     history.push({
-                        pathname: '/dms-spreadsheet',
-                        state: localState
-                     });
-                  } else {
-                     history.push({
-                        pathname: `/${'dms-' + routeSuffix}`,
-                        state: localState
-                     });
-                  };
 
+                  const routeSuffix = panelSettingType.slice(5, panelSettingType.length);
+
+                  if (pageSheetTypeName === 'page-spreadsheet') {
+                     swithFromDmsToOtherSheet(`/${'dms-' + routeSuffix}`);
+                  } else {
+                     if (routeSuffix === 'dms') {
+                        history.push({
+                           pathname: '/dms-spreadsheet',
+                           state: localState
+                        });
+                     } else {
+                        history.push({
+                           pathname: `/${'dms-' + routeSuffix}`,
+                           state: localState
+                        });
+                     };
+                  };
                }}
                content={`Do you want to go to ${panelSettingType.slice(5, panelSettingType.length).toUpperCase()} sheet ?`}
             />
@@ -1873,7 +1869,9 @@ const PanelSetting = (props) => {
                newTextBtnApply={'Acknowledge'}
                content={panelSettingType === 'acknowledge-form' ? 'Do you want to acknowledge this form ?' : 'Do you want to acknowledge or reply this form ?'}
 
-               onClickApplyAdditional01={() => { }}
+               onClickApplyAdditional01={() => {
+                  buttonPanelFunction('form-reply-multi-type');
+               }}
                newTextBtnApplyAdditional01={panelSettingType === 'acknowledge-or-reply-form' && 'Reply'}
             />
          )}
@@ -1882,6 +1880,8 @@ const PanelSetting = (props) => {
 };
 
 export default PanelSetting;
+
+
 
 
 

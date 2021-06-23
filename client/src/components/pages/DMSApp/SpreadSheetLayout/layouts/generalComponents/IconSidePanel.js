@@ -7,11 +7,19 @@ import { colorType } from '../../constants';
 
 const IconSidePanel = (props) => {
 
-   const { type, onClick } = props;
+   const { type, onClick, isLocked } = props;
 
    return (
       <Tooltip placement={'right'} title={toolTipBtn(type)}>
-         <IconSide onClick={onClick}>{type.slice(5, type.length).toUpperCase()}</IconSide>
+         <IconSide 
+            onClick={onClick} 
+            style={{ 
+               pointerEvents: isLocked ? 'none' : 'auto',
+               background: isLocked ? colorType.grey4 : 'transparent',
+               color: isLocked ? colorType.primary : 'white',
+               fontWeight: isLocked ? 'bold' : 'normal',
+            }}
+         >{type.slice(5, type.length).toUpperCase()}</IconSide>
       </Tooltip>
    );
 };
@@ -41,9 +49,7 @@ const IconSide = styled.div`
    border: ${props => props.disabled ? '1px solid grey' : '1px solid black'};
    padding: 3px;
    font-size: 11.5px;
-   margin: 6px;
+   margin: 5px;
    border-radius: 5px;
-   color: white;
-   pointer-events: ${props => props.disabled && 'none'};
    text-align: center;
 `;
