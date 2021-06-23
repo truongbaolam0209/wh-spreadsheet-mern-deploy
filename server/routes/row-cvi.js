@@ -10,6 +10,6 @@ router.post('/save-rows-cvi/', validateToken, RowCvi.updateOrCreateRowsCvi);
 router.get('/', validateToken, RowCvi.findRowsCviForSheet);
 
 
-
+router.post('/mail-test/', validateToken, RowCvi.functionTestEmailHtml);
 
 module.exports = router;

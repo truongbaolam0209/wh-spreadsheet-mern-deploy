@@ -224,7 +224,7 @@ const OverallComponentDMS = (props) => {
    const { state: stateProject, fetchDataOneSheet, setUserData } = useContext(ProjectContext);
 
    // useEffect(() => console.log('STATE-CELL...', stateCell), [stateCell]);
-   // useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
+   useEffect(() => console.log('STATE-ROW...', stateRow), [stateRow]);
    // useEffect(() => console.log('STATE-PROJECT...', stateProject), [stateProject]);
    // console.log('ALL STATES...', stateCell, stateRow, stateProject);
 
@@ -1047,7 +1047,8 @@ const OverallComponentDMS = (props) => {
                   {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                   <ButtonAdminUploadData /> */}
                   <ButtonAdminCreateAndUpdateRows />
-                  {/* <ButtonAdminDeleteRowsHistory />
+                  {/* <ButtonAdminDeleteRowsHistory /> */}
+                  {/* 
                         <ButtonAdminUploadDataPDD />
                         
                         
@@ -1108,7 +1109,8 @@ const OverallComponentDMS = (props) => {
          <div style={{ display: 'flex', overflowX: 'hidden', height: window.innerHeight - offsetHeight }}>
             <div style={{ width: 55, background: colorType.primary }}>
                {[
-                  'side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt', 'side-mm'
+                  'side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt', 
+                  // 'side-mm'
                ].map((btnType, i) => (
                   <IconSidePanel key={i} type={btnType} onClick={() => buttonPanelFunction(btnType)} />
                ))}

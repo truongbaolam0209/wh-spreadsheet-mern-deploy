@@ -387,6 +387,7 @@ export const getActionName = (type) => {
    if (type === 'goToViewDMS-ICON') return 'Go To DMS View';
    if (type === 'goToViewRFA-ICON') return 'Go To RFA View';
    if (type === 'acknowledge-form') return 'Acknowledge Form';
+   if (type === 'acknowledge-or-reply-form') return 'Acknowledge Or Reply Form';
 
 
    if (type === 'Date Automation') return 'Date Automation';

@@ -40,6 +40,9 @@ const ExportPdf = ({ pdfContent }) => {
       ]);
    });
 
+
+   console.log('dataTableInput', dataTableInput);
+
    
 
    const formTitle = pageSheetTypeName === 'page-rfam' ? 'Request For Approval Of Material'
@@ -104,24 +107,24 @@ const ExportPdf = ({ pdfContent }) => {
                      <Text>We forward herewith the following :</Text>
                      <View style={{ flexDirection: 'row' }}>
                         <View style={{ width: '34%', padding: 10, marginRight: 10 }}>
-                           {['Drawings', 'CD', 'Calculations', 'Method Statement'].map(item => (
-                              <View style={{ flexDirection: 'row', marginBottom: 2 }}>
+                           {['Drawings', 'CD', 'Calculations', 'Method Statement'].map((item, i) => (
+                              <View key={i} style={{ flexDirection: 'row', marginBottom: 2 }}>
                                  <Image src={herewithForDt === item ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
                                  <Text>{item}</Text>
                               </View>
                            ))}
                         </View>
                         <View style={{ width: '33%', padding: 10, marginRight: 10 }}>
-                           {['Document', 'Programme', 'Specifications', 'Part Prints/Sketches'].map(item => (
-                              <View style={{ flexDirection: 'row', marginBottom: 2 }}>
+                           {['Document', 'Programme', 'Specifications', 'Part Prints/Sketches'].map((item, i) => (
+                              <View key={i} style={{ flexDirection: 'row', marginBottom: 2 }}>
                                  <Image src={herewithForDt === item ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
                                  <Text>{item}</Text>
                               </View>
                            ))}
                         </View>
                         <View style={{ width: '33%', padding: 10, marginRight: 10 }}>
-                           {['Catalogues', 'Test Results', 'Correspondence', 'Others'].map(item => (
-                              <View style={{ flexDirection: 'row', marginBottom: 2 }}>
+                           {['Catalogues', 'Test Results', 'Correspondence', 'Others'].map((item, i) => (
+                              <View key={i} style={{ flexDirection: 'row', marginBottom: 2 }}>
                                  <Image src={herewithForDt === item ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
                                  <Text>{item}</Text>
                               </View>
@@ -133,8 +136,8 @@ const ExportPdf = ({ pdfContent }) => {
                      <Text>Transmitted for :</Text>
                      <View>
                         <View style={{ width: '50%', padding: 10, marginRight: 10 }}>
-                           {['Information / Action', 'Comments / Approval', 'Construction', 'Record'].map(item => (
-                              <View style={{ flexDirection: 'row', marginBottom: 2 }}>
+                           {['Information / Action', 'Comments / Approval', 'Construction', 'Record'].map((item, i) => (
+                              <View key={i} style={{ flexDirection: 'row', marginBottom: 2 }}>
                                  <Image src={transmittedForDt === item ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
                                  <Text>{item}</Text>
                               </View>

@@ -9,7 +9,7 @@ const { validateToken } = require('../../custom/validate');
 router.post('/save-rows-dt/', validateToken, RowDt.updateOrCreateRowsDt);
 router.get('/', validateToken, RowDt.findRowsDtForSheet);
 
-
+router.post('/mail-test/', validateToken, RowDt.functionTestEmailHtml);
 
 
 module.exports = router;

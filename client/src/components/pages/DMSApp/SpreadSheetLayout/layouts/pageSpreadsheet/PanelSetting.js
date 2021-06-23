@@ -872,7 +872,6 @@ const PanelSetting = (props) => {
 
       setLoading(true);
 
-
       const {
          filesPDF, filesDWFX, type, dwgsToAddNewRFA, trade, rfaToSave, rfaToSaveVersionOrToReply,
          recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting,
@@ -942,6 +941,7 @@ const PanelSetting = (props) => {
          };
 
          const typeText = type === 'form-reply-RFA' ? 'reply' : 'submission';
+
 
          let data;
          if (filesPDF.length > 0) {
@@ -1194,15 +1194,16 @@ const PanelSetting = (props) => {
             await Axios.post('/api/rfa/mail', {
                token,
                data: {
-                  projectId,
-                  company,
+                  projectId, company, projectName,
+                  formSubmitType: 'rfa',
                   type: type === 'form-reply-RFA' ? 'reply' : 'submit',
                   rowIds: rowIdsArrayToTriggerLater,
                   emailSender: email,
-                  projectName,
                },
                momentToTriggerEmail: moment().add(moment.duration(EDIT_DURATION_MIN, 'minutes'))
             });
+
+
          };
 
          message.success('Submitted Successfully', 3);
@@ -1332,12 +1333,12 @@ const PanelSetting = (props) => {
 
          const refNumberTextInfo = refToSaveVersionOrToReply === '0' ? refToSave : refToSave + refToSaveVersionOrToReply;
          if (type === 'form-submit-multi-type') {
-            
+
             const outputPdf = (
                <ExportPdf
                   pdfContent={{
                      refNumberText: refNumberTextInfo, isCostImplication, isTimeExtension, projectName, listConsultantMustReply,
-                     listRecipientTo: recipient.to, listRecipientCc: recipient.cc, 
+                     listRecipientTo: recipient.to, listRecipientCc: recipient.cc,
                      requestedBy, signaturedBy, conversationAmong, emailTextTitle,
                      dateConversation, timeConversation, description, dateReplyForSubmitForm,
                      filesPdfDrawing: Object.values(filesPdfDrawing),
@@ -1349,39 +1350,37 @@ const PanelSetting = (props) => {
             filePdfBlobOutput = await pdf(outputPdf).toBlob();
             // upload BLOB file PDF Submit no signature
             if (filePdfBlobOutput) {
-
-               const typeFolder = type.includes('form-reply-multi-') ? 'reply' : 'submit';
+               
                let dataForm = new FormData();
-               dataForm.append('fileForm', filePdfBlobOutput);
+               dataForm.append('blob', filePdfBlobOutput);
                dataForm.append('projectId', projectId);
-               dataForm.append(`${refType}Number`, `${refToSave}/${refToSaveVersionOrToReply}/${typeFolder}`); 
-               dataForm.append('fileName', `${refToSave}/${refToSaveVersionOrToReply}_FormCoverNoSignature`); 
-   
+               dataForm.append('path', `${refToSave}/${refToSaveVersionOrToReply}/submit`);
+               dataForm.append('name', `${refToSave}/${refToSaveVersionOrToReply}_FormCoverToSign.pdf`);
+
                if (dataForm) {
-                  const resLink = await Axios.post('/api/drawing/set-cover-form', dataForm);
+                  const resLink = await Axios.post('/api/drawing/set-dms-buffer', dataForm);
                   linkFormPdfNoSignature = resLink.data;
                };
             };
-
             pdfFilesToUpload = filesPdfDrawing;
          } else if (type === 'form-reply-multi-type') {
             pdfFilesToUpload = [fileFormCoverReply];
          };
-         
+
 
          let arrayFilesPdfUploadLink = [];
          if (pdfFilesToUpload.length > 0) {
+            const typeFolder = type.includes('form-reply-multi-') ? 'reply' : 'submit';
             let data = new FormData();
             pdfFilesToUpload.forEach(file => {
                data.append('files', file.originFileObj);
             });
             data.append('projectId', projectId);
-            data.append(`${refType}Number`, `${refToSave}/${refToSaveVersionOrToReply}/submit`); 
-
+            data.append('path', `${refToSave}/${refToSaveVersionOrToReply}/${typeFolder}`);
 
             if (pdfFilesToUpload.length > 0 && data && data !== null) {
 
-               const res = await Axios.post('/api/drawing/set-files-multi-form', data);
+               const res = await Axios.post('/api/drawing/set-dms-files', data);
                const listFileName = res.data;
                arrayFilesPdfUploadLink = listFileName.map(link => ({
                   fileName: getFileNameFromLinkResponse(link),
@@ -1490,6 +1489,8 @@ const PanelSetting = (props) => {
          await Axios.post(`${SERVER_URL}/row-${refType}/save-rows-${refType}/`, { token, projectId, rows: [rowOutput] });
 
 
+
+
          if (typeButton === 'action-multiform-download') {
 
             const csvURL = window.URL.createObjectURL(filePdfBlobOutput);
@@ -1502,34 +1503,17 @@ const PanelSetting = (props) => {
 
             if (!isFormEditting && !isAdminActionWithNoEmailSent) {
 
-               await Axios.post(`/api/${refKey}/mail-send`, {
+               await Axios.post('/api/rfa/mail', {
                   token,
                   data: {
-                     projectId,
-                     company,
+                     projectId, company, projectName,
                      formSubmitType: refType,
+                     type: 'submit-request-signature',
                      rowIds: [rowOutput._id],
                      emailSender: email,
-                     projectName,
-                     emailType: 'submit-request-signature'
                   },
-                  momentToTriggerEmail: moment().add(moment.duration(EDIT_DURATION_MIN, 'minutes'))
+                  momentToTriggerEmail: moment().add(moment.duration(0.5, 'minutes'))
                });
-
-
-               // TEST API SEND FOR SIGNATURE...
-               // const emailContentTest = await Axios.post(`${SERVER_URL}/row-${refType}/mail-test/`, {
-               //    token,
-               //    data: {
-               //       projectId,
-               //       company,
-               //       formSubmitType: refType,
-               //       rowIds: [rowOutput._id],
-               //       emailSender: email,
-               //       projectName,
-               //       emailType: 'submit-request-signature'
-               //    },
-               // });
             };
          };
 
@@ -1574,10 +1558,12 @@ const PanelSetting = (props) => {
 
    const onClickAcknowledgeForm = async () => {
 
+      setLoading(true);
+
       try {
 
          const { email, company, projectId, projectName, token, roleTradeCompany: { role, company: companyUser } } = stateProject.allDataOneSheet;
-         const { currentRefToAddNewOrReplyOrEdit, rowsCviAllInit } = stateRow;
+         const { currentRefToAddNewOrReplyOrEdit, rowsDtAllInit, rowsCviAllInit } = stateRow;
 
          const {
             currentRefNumber, currentRefText, currentRefData, formRefType, isFormEditting,
@@ -1587,7 +1573,8 @@ const PanelSetting = (props) => {
          const refType = getKeyTextForSheet(pageSheetTypeName);
          const refKey = refType + 'Ref';
 
-         const rowsToAcknowledge = rowsCviAllInit.find(x => x[refKey] === currentRefNumber && x.revision === currentRefData.revision);
+         const rowsToAcknowledge = rowsDtAllInit.find(x => x[refKey] === currentRefNumber && x.revision === currentRefData.revision);
+
 
          let rowOutput = {
             _id: rowsToAcknowledge.id
@@ -1603,6 +1590,28 @@ const PanelSetting = (props) => {
          await Axios.post(`${SERVER_URL}/row-${refType}/save-rows-${refType}/`, { token, projectId, rows: [rowOutput] });
 
          message.success('Submitted Successfully', 3);
+
+         const route = pageSheetTypeName === 'page-rfam' ? 'row-rfam'
+            : pageSheetTypeName === 'page-cvi' ? 'row-cvi'
+               : pageSheetTypeName === 'page-rfi' ? 'row-rfi'
+                  : pageSheetTypeName === 'page-dt' ? 'row-dt'
+                     : 'n/a';
+
+         const res = await Axios.get(`${SERVER_URL}/${route}/`, { params: { token, projectId, email } });
+         const rowsAllMultiForm = res.data;
+
+         const expandedRowsIdArr = [
+            'ARCHI', 'C&S', 'M&E', 'PRECAST',
+            ...rowsAllMultiForm.filter(x => x[refKey]).map(x => x[refKey])
+         ];
+
+         commandAction({
+            type: 'reload-data-view-multi-form',
+            data: {
+               rowsAllMultiForm,
+               expandedRowsIdArr,
+            }
+         });
 
       } catch (err) {
          getSheetRows({ ...stateRow, loading: false });
@@ -1856,14 +1865,18 @@ const PanelSetting = (props) => {
             />
          )}
 
-         {(panelSettingType === 'acknowledge-form') && (
+
+         {(panelSettingType === 'acknowledge-form' || panelSettingType === 'acknowledge-or-reply-form') && (
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={onClickAcknowledgeForm}
-               content={`Do you want to acknowledge this form ?`}
+               newTextBtnApply={'Acknowledge'}
+               content={panelSettingType === 'acknowledge-form' ? 'Do you want to acknowledge this form ?' : 'Do you want to acknowledge or reply this form ?'}
+
+               onClickApplyAdditional01={() => { }}
+               newTextBtnApplyAdditional01={panelSettingType === 'acknowledge-or-reply-form' && 'Reply'}
             />
          )}
-
       </>
    );
 };

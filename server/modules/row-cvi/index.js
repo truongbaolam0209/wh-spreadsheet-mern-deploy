@@ -2,7 +2,7 @@
 const schema = require('./schema');
 const model = require('../row-cvi/model');
 const { HTTP } = require('../errors');
-const { _update_Or_Create_Rows } = require('../sheet');
+const { _update_Or_Create_Rows, findManyRowsToSendEmail } = require('../sheet');
 
 
 
@@ -52,7 +52,17 @@ const findRowsCviForSheet = async (req, res, next) => {
    };
 };
 
+const functionTestEmailHtml = async (req, res, next) => {
+   try {
+      
+      const { projectId, rowIds, company, type, emailSender, projectName, formSubmitType } = req.body.data;
+      const emailText = await findManyRowsToSendEmail(projectId, rowIds, company, type, emailSender, projectName, formSubmitType);
+      return res.json(emailText);
 
+   } catch (error) {
+      next(error);
+   };
+};
 
 
 
@@ -61,5 +71,6 @@ module.exports = {
    model,
 
    updateOrCreateRowsCvi,
-   findRowsCviForSheet
+   findRowsCviForSheet,
+   functionTestEmailHtml
 };

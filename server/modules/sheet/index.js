@@ -1,8 +1,8 @@
 const schema = require('./schema');
 const model = require('./model');
 const { genCRUDHandlers } = require('../crud');
-const { 
-   toObjectId, mongoObjectId, generateEmailInnerHTMLBackend, 
+const {
+   toObjectId, mongoObjectId, generateEmailInnerHTMLBackend,
    generateEmailMultiFormInnerHtml, getInfoValueFromRfaData, validateEmailInput,
    getInfoValueFromRefDataForm, getInfoKeyFromRefDataForm
 } = require('../utils');
@@ -376,95 +376,192 @@ const saveAllDataRowsToServer = async (req, res, next) => {
 
 
 
-const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSender, projectName) => {
+
+
+const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSender, projectName, formSubmitType) => {
 
    let rowIds = qRowIds.map(toObjectId);
-
    if (!sheetId) return 'ERROR - sheetId';
    if (!rowIds) return 'ERROR - rowIds';
    if (!company) return 'ERROR - company';
    if (!type) return 'ERROR - Missing type';
    if (!emailSender) return 'ERROR - Missing emailSender';
    if (!projectName) return 'ERROR - Missing projectName';
+   if (!formSubmitType) return 'ERROR - Missing formSubmitType';
 
 
-   let [rows, rowHistories, publicSettings] = await Promise.all([
-      rowModel.find({ sheet: sheetId, _id: { $in: rowIds } }),
-      rowHistoryModel.find({ sheet: sheetId, _id: { $in: rowIds } }),
-      findPublicSettings(sheetId)
-   ]);
-   const { headers } = publicSettings;
-   const rowsOutput = [...rows, ...rowHistories];
-   const outputRowsAll = rowsOutput.map(r => {
-      let output, rowData;
-      if (r.row) {
-         output = {
-            id: r._id,
-            row: r.row
-         };
-         rowData = r.history;
-      } else {
-         output = {
-            id: r._id,
-            _rowLevel: r.level,
-            _parentRow: r.parentRow,
-            _preRow: r.preRow
-         };
-         rowData = r.data;
-      };
+   if (formSubmitType === 'rfa') {
 
-      for (const key in rowData) {
-         if (key === 'rfaNumber' || key.includes('reply-$$$-') || key.includes('submission-$$$-')) {
-            output[key] = rowData[key];
+      let [rows, rowHistories, publicSettings] = await Promise.all([
+         rowModel.find({ sheet: sheetId, _id: { $in: rowIds } }),
+         rowHistoryModel.find({ sheet: sheetId, _id: { $in: rowIds } }),
+         findPublicSettings(sheetId)
+      ]);
+      const { headers } = publicSettings;
+      const rowsOutput = [...rows, ...rowHistories];
+      const outputRowsAll = rowsOutput.map(r => {
+         let output, rowData;
+         if (r.row) {
+            output = { id: r._id, row: r.row };
+            rowData = r.history;
          } else {
-            const headerFound = headers.find(x => x.key === key);
-            if (headerFound) {
-               output[headerFound.text] = rowData[key];
+            output = {
+               id: r._id,
+               _rowLevel: r.level,
+               _parentRow: r.parentRow,
+               _preRow: r.preRow
+            };
+            rowData = r.data;
+         };
+
+         for (const key in rowData) {
+            if (key === 'rfaNumber' || key.includes('reply-$$$-') || key.includes('submission-$$$-')) {
+               output[key] = rowData[key];
+            } else {
+               const headerFound = headers.find(x => x.key === key);
+               if (headerFound) {
+                  output[headerFound.text] = rowData[key];
+               };
             };
          };
+         return output;
+      });
+
+      
+      // TEST_EMAIL_API
+      const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB(outputRowsAll, company, type);
+      const emailContent = generateEmailInnerHTMLBackend(company, type, dwgsToAddNewRFAGetDrawingURL);
+
+      const oneRowData = outputRowsAll[0];
+
+      const emailListTo = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailTo', company);
+      const emailListCc = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailCc', company);
+      const emailTitle = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailTitle', company);
+      const rfa = oneRowData['RFA Ref'];
+
+      let listUserOutput = {};
+      let listGroupOutput = {};
+
+      emailListTo.forEach(item => {
+         if (validateEmailInput(item)) {
+            listUserOutput.to = [...listUserOutput.to || [], item];
+         } else {
+            listGroupOutput.to = [...listGroupOutput.to || [], item];
+         };
+      });
+
+      emailListCc.forEach(item => {
+         if (validateEmailInput(item)) {
+            listUserOutput.cc = [...listUserOutput.cc || [], item];
+         } else {
+            listGroupOutput.cc = [...listGroupOutput.cc || [], item];
+         };
+      });
+      listUserOutput.cc = [...listUserOutput.cc || [], emailSender];
+
+
+      return {
+         emailContent,
+         listUserOutput,
+         listGroupOutput,
+         emailTitle: `${projectName}-${rfa}-${emailTitle}`
       };
-      return output;
-   });
 
-   const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB(outputRowsAll, company, type);
-
-   const emailContent = generateEmailInnerHTMLBackend(company, type, dwgsToAddNewRFAGetDrawingURL);
-
-   const oneRowData = outputRowsAll[0];
-
-   const emailListTo = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailTo', company);
-   const emailListCc = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailCc', company);
-   const emailTitle = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailTitle', company);
-   const rfa = oneRowData['RFA Ref'];
+   } else {
+      const rowModelMulti = formSubmitType === 'rfam' ? rowModelRfam
+         : formSubmitType === 'rfi' ? rowModelRfi
+            : formSubmitType === 'cvi' ? rowModelCvi
+               : formSubmitType === 'dt' ? rowModelDt
+                  : null;
 
 
-   let listUserOutput = {};
-   let listGroupOutput = {};
+      let rowsFound = await rowModelMulti.find({ sheet: sheetId, _id: { $in: rowIds } });
 
-   emailListTo.forEach(item => {
-      if (validateEmailInput(item)) {
-         listUserOutput.to = [...listUserOutput.to || [], item];
-      } else {
-         listGroupOutput.to = [...listGroupOutput.to || [], item];
+      const outputRowsAll = rowsFound.map(r => {
+         let output = {
+            id: r._id,
+            trade: r.trade,
+            revision: r.revision,
+            [`${formSubmitType}Ref`]: r[`${formSubmitType}Ref`]
+         };
+         const rowData = r.data;
+         for (const key in rowData) {
+            output[key] = rowData[key];
+         };
+         return output;
+      });
+
+
+      const rowData = outputRowsAll[0];
+
+      const refNumber = rowData.revision === '0' ? rowData[`${formSubmitType}Ref`] : rowData[`${formSubmitType}Ref`] + rowData.revision;;
+      const emailTitle = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailTitle', company);
+      const emailTitleText = `${projectName}-${refNumber}-${emailTitle}`;
+      const emailSignaturedBy = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'signaturedBy', company);
+
+
+      let listUserOutput = { to: [], cc: [] };
+      let listGroupOutput = { to: [], cc: [] };
+
+      if (type === 'submit-request-signature') {
+         // TEST_EMAIL_API
+         const resFormNoSignature = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company), 3600 * 24 * 7)
+ 
+         const keyFormNoSignature = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company);
+         rowData[keyFormNoSignature] = resFormNoSignature;
+
+         listUserOutput.to = emailSignaturedBy;
+         listUserOutput.cc = emailSender;
+
+      } else if (type === 'submit-signed-off-final') {
+         // TEST_EMAIL_API
+         const resFormSignedOff = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit', company), 3600 * 24 * 7)
+  
+         const keyFormSignedOff = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit', company);
+         rowData[keyFormSignedOff] = resFormSignedOff;
+
+
+         const arrayDrawingsAttached = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company);
+         // TEST_EMAIL_API
+         const arrayDrawingsLinkPublic = await getDrawingUrlMultiForm(arrayDrawingsAttached);
+
+         const keyDrawingsAttached = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company);
+         rowData[keyDrawingsAttached] = arrayDrawingsLinkPublic;
+
+         const emailListTo = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailTo', company);
+         const emailListCc = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailCc', company);
+
+
+         emailListTo.forEach(item => {
+            if (validateEmailInput(item)) {
+               listUserOutput.to = [...new Set([...listUserOutput.to || [], item])];
+            } else {
+               listGroupOutput.to = [...new Set([...listGroupOutput.to || [], item])];
+            };
+         });
+
+         emailListCc.forEach(item => {
+            if (validateEmailInput(item)) {
+               listUserOutput.cc = [...new Set([...listUserOutput.cc || [], item])];
+            } else {
+               listGroupOutput.cc = [...new Set([...listGroupOutput.cc || [], item])];
+            };
+         });
+         listUserOutput.cc = [...new Set([...listUserOutput.cc || [], emailSender, emailSignaturedBy])];
+
       };
-   });
+      const emailContent = generateEmailMultiFormInnerHtml(company, formSubmitType, rowData, type);
 
-   emailListCc.forEach(item => {
-      if (validateEmailInput(item)) {
-         listUserOutput.cc = [...listUserOutput.cc || [], item];
-      } else {
-         listGroupOutput.cc = [...listGroupOutput.cc || [], item];
+      return {
+         emailContent,
+         listUserOutput,
+         listGroupOutput,
+         emailTitle: emailTitleText
       };
-   });
-   listUserOutput.cc = [...listUserOutput.cc || [], emailSender];
+   }
 
 
-   return {
-      emailContent,
-      listUserOutput,
-      listGroupOutput,
-      emailTitle: `${projectName}-${rfa}-${emailTitle}`
-   };
+
 };
 const getDrawingURLFromDB = async (dwgsNewRFA, company, type) => {
    try {
@@ -478,114 +575,6 @@ const getDrawingURLFromDB = async (dwgsNewRFA, company, type) => {
       console.log(err);
    };
 };
-
-
-
-
-
-
-const findRowToEmailMultiForm = async (sheetId, qRowIds, company, formSubmitType, emailSender, projectName, emailType) => {
-
-   let rowIds = qRowIds.map(toObjectId);
-
-   if (!sheetId) return 'ERROR - sheetId';
-   if (!rowIds) return 'ERROR - rowIds';
-   if (!company) return 'ERROR - company';
-   if (!formSubmitType) return 'ERROR - Missing form submit type';
-   if (!emailSender) return 'ERROR - Missing emailSender';
-   if (!projectName) return 'ERROR - Missing projectName';
-
-
-   const rowModelMulti = formSubmitType === 'rfam' ? rowModelRfam
-   : formSubmitType === 'rfi' ? rowModelRfi
-   : formSubmitType === 'cvi' ? rowModelCvi
-   : formSubmitType === 'dt' ? rowModelDt
-   : null;
-
-
-   let rowsFound = await rowModelMulti.find({ sheet: sheetId, _id: { $in: rowIds } });
-
-   const outputRowsAll = rowsFound.map(r => {
-      let output = {
-         id: r._id,
-         trade: r.trade,
-         revision: r.revision,
-         [`${formSubmitType}Ref`]: r[`${formSubmitType}Ref`]
-      };
-      const rowData = r.data;
-      for (const key in rowData) {
-         output[key] = rowData[key];
-      };
-      return output;
-   });
-
-
-   const rowData = outputRowsAll[0];
-
-   const refNumber = rowData.revision === '0' ? rowData[`${formSubmitType}Ref`] : rowData[`${formSubmitType}Ref`] + rowData.revision;;
-   const emailTitle = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailTitle', company);
-   const emailTitleText = `${projectName}-${refNumber}-${emailTitle}`;
-   const emailSignaturedBy = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'signaturedBy', company);
-   
-
-   let listUserOutput = { to: [], cc: []};
-   let listGroupOutput = { to: [], cc: []};
-
-   if (emailType === 'submit-request-signature') {
-      // get public link
-      const resFormNoSignature = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company), 3600 * 24 * 7)
-      const keyFormNoSignature = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company);
-      rowData[keyFormNoSignature] = resFormNoSignature;
-
-      listUserOutput.to = emailSignaturedBy;
-      listUserOutput.cc = emailSender;
-
-   } else if (emailType === 'submit-signed-off-final') {
-      // get public link
-      const resFormSignedOff = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit', company), 3600 * 24 * 7)
-      const keyFormSignedOff = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit', company);
-      rowData[keyFormSignedOff] = resFormSignedOff;
-      
-
-      const arrayDrawingsAttached = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company);
-      // get public link
-      const arrayDrawingsLinkPublic = await getDrawingUrlMultiForm(arrayDrawingsAttached);
-      const keyDrawingsAttached = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company);
-      rowData[keyDrawingsAttached] = arrayDrawingsLinkPublic;
-
-      const emailListTo = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailTo', company);
-      const emailListCc = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailCc', company);
-   
-
-      emailListTo.forEach(item => {
-         if (validateEmailInput(item)) {
-            listUserOutput.to = [...new Set([...listUserOutput.to || [], item])];
-         } else {
-            listGroupOutput.to = [...new Set([...listGroupOutput.to || [], item])];
-         };
-      });
-
-      emailListCc.forEach(item => {
-         if (validateEmailInput(item)) {
-            listUserOutput.cc = [...new Set([...listUserOutput.cc || [], item])];
-         } else {
-            listGroupOutput.cc = [...new Set([...listGroupOutput.cc || [], item])];
-         };
-      });
-      listUserOutput.cc = [...new Set([...listUserOutput.cc || [], emailSender, emailSignaturedBy])];
-
-   };
-   const emailContent = generateEmailMultiFormInnerHtml(company, formSubmitType, rowData, emailType);
-
-   return {
-      emailContent,
-      listUserOutput,
-      listGroupOutput,
-      emailTitle: emailTitleText
-   };
-};
-
-
 const getDrawingUrlMultiForm = async (arrayLinks) => {
    try {
       return await Promise.all(arrayLinks.map(async link => {
@@ -598,6 +587,17 @@ const getDrawingUrlMultiForm = async (arrayLinks) => {
 };
 
 
+const functionRfaTestEmailHtml = async (req, res, next) => {
+   try {
+
+      const { projectId, rowIds, company, type, emailSender, projectName, formSubmitType } = req.body.data;
+      const emailText = await findManyRowsToSendEmail(projectId, rowIds, company, type, emailSender, projectName, formSubmitType);
+      return res.json(emailText);
+
+   } catch (error) {
+      next(error);
+   };
+};
 
 
 module.exports = {
@@ -618,13 +618,10 @@ module.exports = {
 
    findManyRowsToSendEmail,
 
-   findRowToEmailMultiForm,
-
+   functionRfaTestEmailHtml,
 
    saveAllDataSettingsToServer,
    saveAllDataRowsToServer,
-
-
 
 
    _update_Or_Create_Rows,

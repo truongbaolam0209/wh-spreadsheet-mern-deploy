@@ -126,29 +126,34 @@ const CellForm = (props) => {
          const consultantMustReplyArray = getInfoValueFromRefDataForm(refDataObj, 'submission', refType, 'consultantMustReply');
 
          if (isUserCanSubmitBothSide) {
-            if (allRowsChildren.find(row => !row[refKey])) {
-               setThereIsDrawingWithNoRef(true);
-            } else {
-               setThereIsDrawingWithNoRef(false);
-            };
-            let arrayConsultantNotReplyYet = [];
-            consultantMustReplyArray.forEach(cst => {
-               const statusReply = getInfoValueFromRefDataForm(refDataObj, 'reply', refType, 'status', cst);
-               if (!statusReply) {
-                  arrayConsultantNotReplyYet.push(cst);
-               };
-            });
-            if (arrayConsultantNotReplyYet.length > 0) {
-               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
-               setConsultantsNotReplyYet(arrayConsultantNotReplyYet);
-            } else {
-               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
-            };
+            // if (allRowsChildren.find(row => !row[refKey])) {
+            //    setThereIsDrawingWithNoRef(true);
+            // } else {
+            //    setThereIsDrawingWithNoRef(false);
+            // };
+            // let arrayConsultantNotReplyYet = [];
+            // consultantMustReplyArray.forEach(cst => {
+            //    const statusReply = getInfoValueFromRefDataForm(refDataObj, 'reply', refType, 'status', cst);
+            //    if (!statusReply) {
+            //       arrayConsultantNotReplyYet.push(cst);
+            //    };
+            // });
+            // if (arrayConsultantNotReplyYet.length > 0) {
+            //    setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
+            //    setConsultantsNotReplyYet(arrayConsultantNotReplyYet);
+            // } else {
+            //    setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
+            // };
 
          } else if (roleTradeCompany.role === 'Consultant') {
             if (
-               !refDataObj[`reply-${refType}-status-${company}`] &&
-               consultantMustReplyArray && consultantMustReplyArray.indexOf(company) !== -1
+               consultantMustReplyArray && consultantMustReplyArray.indexOf(company) !== -1 &&
+               (
+                  (!refDataObj[`reply-${refType}-status-${company}`] && pageSheetTypeName === 'page-rfam') ||
+                  (!refDataObj[`reply-${refType}-acknowledge-${company}`] && pageSheetTypeName === 'page-dt') ||
+                  (!refDataObj[`reply-${refType}-acknowledge-${company}`] && pageSheetTypeName === 'page-cvi')
+               )
+               
             ) {
                setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
             } else {
@@ -294,8 +299,22 @@ const CellForm = (props) => {
          // };
       };
 
-      if (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') {
-         buttonPanelFunction('acknowledge-form');
+      // if (roleTradeCompany.role === 'Consultant') {
+
+
+      // } else if (roleTradeCompany.role === 'Document Controller') {
+
+      // };
+
+
+
+      if (roleTradeCompany.role === 'Consultant' && (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt')) {
+         if (pageSheetTypeName === 'page-dt') {
+            buttonPanelFunction('acknowledge-form');
+         } else if (pageSheetTypeName === 'page-cvi') {
+            buttonPanelFunction('acknowledge-or-reply-form');
+         };
+         
       } else {
          if (btn === 'form-upload-signed-off') {
             setPanelUploadSignedOffFormShown(true);
@@ -517,11 +536,11 @@ const CellForm = (props) => {
             data.append('files', file.originFileObj);
          });
          data.append('projectId', projectId);
-         data.append(`${refType}Number`, `${refData[`${refType}Ref`]}/${refData.revision}/submit`); 
+         data.append(`${refType}Number`, `${refData[`${refType}Ref`]}/${refData.revision}/submit`);
 
          let arrayFileName = [];
          if (data) {
-            const res = await Axios.post('/api/drawing/set-files-multi-form', data);
+            const res = await Axios.post('/api/drawing/set-dms-files', data);
             const listFileName = res.data;
 
             arrayFileName = listFileName.map(link => ({
@@ -538,35 +557,20 @@ const CellForm = (props) => {
 
          await Axios.post(`${SERVER_URL}/row-${refType}/save-rows-${refType}/`, { token, projectId, rows: [rowOutput] });
 
-         await Axios.post(`/api/${refType}/mail-send`, {
+         await Axios.post('/api/rfa/mail', {
             token,
             data: {
-               projectId,
-               company,
+               projectId, company, projectName,
                formSubmitType: refType,
+               type: 'submit-signed-off-final',
                rowIds: [rowChild.id],
                emailSender: email,
-               projectName,
-               emailType: 'submit-signed-off-final'
             },
-            momentToTriggerEmail: moment()
+            momentToTriggerEmail: moment().add(moment.duration(0.5, 'minutes'))
          });
 
-         // TEST API SEND FINAL...
-         // const resEmail = await Axios.post(`${SERVER_URL}/row-${refType}/mail-test/`, {
-         //    token,
-         //    data: {
-         //       projectId,
-         //       company,
-         //       formSubmitType: refType,
-         //       rowIds: [rowChild.id],
-         //       emailSender: email,
-         //       projectName,
-         //       emailType: 'submit-signed-off-final'
-         //    },
-         // });
 
-
+         
          message.success('Submitted Successfully', 3);
 
          const route = pageSheetTypeName === 'page-rfam' ? 'row-rfam'
@@ -628,18 +632,19 @@ const CellForm = (props) => {
 
    if (rowData.treeLevel === 3 && column.key === expandedColumn) {
       if (isUserCanSubmitBothSide) {
-         if (thereIsDrawingWithNoRef) {
-            arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'plus-square'];
-         };
-         if (thereIsDrawingWithNoReplyAndConsultantAllowedReply) {
-            arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'form'];
-         };
+         // if (thereIsDrawingWithNoRef) {
+         //    arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'plus-square'];
+         // };
+         // if (thereIsDrawingWithNoReplyAndConsultantAllowedReply) {
+         //    arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'form'];
+         // };
       } else {
          if (thereIsDrawingWithNoReplyAndConsultantAllowedReply && roleTradeCompany.role === 'Consultant') {
             arrayButtonReplyAndResubmit = ['form'];
-         } else if (thereIsDrawingWithNoRef && roleTradeCompany.role === 'Document Controller') {
-            arrayButtonReplyAndResubmit = ['plus-square'];
-         };
+         }
+         // } else if (thereIsDrawingWithNoRef && roleTradeCompany.role === 'Document Controller') {
+         //    arrayButtonReplyAndResubmit = ['plus-square'];
+         // };
       };
       const linkSignedOffFormSubmit = getInfoValueFromRefDataForm(refData, 'submission', refType, 'linkSignedOffFormSubmit');
       if (!linkSignedOffFormSubmit && roleTradeCompany.role === 'Document Controller') {

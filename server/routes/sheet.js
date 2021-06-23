@@ -5,6 +5,7 @@ const router = new Router();
 const Sheet = require('../modules/sheet');
 const { validateToken } = require('../../custom/validate');
 
+router.post('/mail-test/', validateToken, Sheet.functionRfaTestEmailHtml);
 
 router.post('/save-all-data-settings', validateToken, Sheet.saveAllDataSettingsToServer);
 router.post('/save-all-data-rows', validateToken, Sheet.saveAllDataRowsToServer);

@@ -2,7 +2,7 @@
 const schema = require('./schema');
 const model = require('../row-rfam/model');
 const { HTTP } = require('../errors');
-const { _update_Or_Create_Rows, findRowToEmailMultiForm } = require('../sheet');
+const { _update_Or_Create_Rows, findManyRowsToSendEmail } = require('../sheet');
 
 
 
@@ -58,8 +58,8 @@ const findRowsRfamForSheet = async (req, res, next) => {
 const functionTestEmailHtml = async (req, res, next) => {
    try {
       
-      const { projectId, company, formSubmitType, rowIds, emailSender, projectName, emailType } = req.body.data;
-      const emailText = await findRowToEmailMultiForm(projectId, rowIds, company, formSubmitType, emailSender, projectName, emailType);
+      const { projectId, rowIds, company, type, emailSender, projectName, formSubmitType } = req.body.data;
+      const emailText = await findManyRowsToSendEmail(projectId, rowIds, company, type, emailSender, projectName, formSubmitType);
       return res.json(emailText);
 
    } catch (error) {

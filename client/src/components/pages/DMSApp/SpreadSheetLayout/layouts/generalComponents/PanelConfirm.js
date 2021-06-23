@@ -4,7 +4,7 @@ import ButtonGroupComp from './ButtonGroupComp';
 
 
 
-const PanelConfirm = ({ onClickCancel, onClickApply, content, newTextBtnApply, newTextBtnCancel }) => {
+const PanelConfirm = ({ onClickCancel, onClickApply, content, newTextBtnApply, newTextBtnCancel, onClickApplyAdditional01, newTextBtnApplyAdditional01 }) => {
 
     const [value, setValue] = useState('');
 
@@ -39,6 +39,9 @@ const PanelConfirm = ({ onClickCancel, onClickApply, content, newTextBtnApply, n
                     onClickApply={() => onClickApply(value)}
                     newTextBtnApply={newTextBtnApply}
                     newTextBtnCancel={newTextBtnCancel}
+
+                    onClickApplyAdditional01={onClickApplyAdditional01}
+                    newTextBtnApplyAdditional01={newTextBtnApplyAdditional01}
                 />
             </div>
 
