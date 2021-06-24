@@ -1504,7 +1504,7 @@ const PanelSetting = (props) => {
                   data: {
                      projectId, company, projectName,
                      formSubmitType: refType,
-                     type: 'submit-request-signature',
+                     type: type.includes('form-reply-multi-') ? 'reply-signed-off' : 'submit-request-signature',
                      rowIds: [rowOutput._id],
                      emailSender: email,
                   },
