@@ -24,6 +24,7 @@ const rowModelRfam = require('../row-rfam/model');
 const rowModelRfi = require('../row-rfi/model');
 const rowModelCvi = require('../row-cvi/model');
 const rowModelDt = require('../row-dt/model');
+const rowModelMm = require('../row-mm/model');
 
 
 const { createPublicUrl } = require('../../../custom/s3');
@@ -435,7 +436,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
 
       const emailListTo = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailTo', company);
       const emailListCc = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailCc', company);
-      const emailTitle = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailTitle', company);
+      const emailTitleText = getInfoValueFromRfaData(oneRowData, type === 'submit' ? 'submission' : 'reply', 'emailTitle', company);
       const rfa = oneRowData['RFA Ref'];
 
       let listUserOutput = {};
@@ -459,11 +460,17 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
       listUserOutput.cc = [...listUserOutput.cc || [], emailSender];
 
 
+      const emailTitle = `
+         <div style='text-align: center; background: #DCDCDC; padding: 3px;'>
+            <p style='font-size: 20px; font-weight: bold;'>${projectName} - ${rfa}</p>
+            <p style='font-size: 17px; font-weight: bold;'>${emailTitleText}</p>
+         </div>
+      `;
+
       return {
          emailContent,
          listUserOutput,
          listGroupOutput,
-         emailRefName: `${projectName} - ${rfa}`,
          emailTitle
       };
 
@@ -472,6 +479,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
          : formSubmitType === 'rfi' ? rowModelRfi
             : formSubmitType === 'cvi' ? rowModelCvi
                : formSubmitType === 'dt' ? rowModelDt
+                  : formSubmitType === 'mm' ? rowModelMm
                   : null;
 
 
@@ -495,8 +503,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
       const rowData = outputRowsAll[0];
 
       const refNumber = rowData.revision === '0' ? rowData[`${formSubmitType}Ref`] : rowData[`${formSubmitType}Ref`] + rowData.revision;;
-      const emailTitle = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailTitle', company);
-      const emailRefName = `${projectName} - ${refNumber}`;
+      const emailTitleText = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailTitle', company);
 
       const emailSignaturedBy = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'signaturedBy', company);
 
@@ -575,11 +582,18 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
 
       const emailContent = generateEmailMultiFormInnerHtml(company, formSubmitType, rowData, type);
 
+
+      const emailTitle = `
+         <div style='text-align: center; background: #DCDCDC; padding: 3px;'>
+            <p style='font-size: 20px; font-weight: bold;'>${projectName} - ${refNumber}</p>
+            <p style='font-size: 17px; font-weight: bold;'>${emailTitleText}</p>
+         </div>
+      `;
+
       return {
          emailContent,
          listUserOutput,
          listGroupOutput,
-         emailRefName,
          emailTitle
       };
    };

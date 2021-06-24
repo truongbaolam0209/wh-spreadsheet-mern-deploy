@@ -1109,8 +1109,10 @@ const OverallComponentDMS = (props) => {
                <div style={{ width: sideBarWidth, background: colorType.primary }}>
                   {(
                      (role !== 'Consultant' && role !== 'Client')
-                     ? ['side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
-                     : ['side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
+                     ? ['side-dms', 'side-rfa']
+                     : ['side-rfa']
+                     // ? ['side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
+                     // : ['side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
                   ).map((btnType, i) => {
 
                      return (

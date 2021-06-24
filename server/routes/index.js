@@ -11,7 +11,7 @@ const rowRfamRouter = require('./row-rfam');
 const rowRfiRouter = require('./row-rfi');
 const rowCviRouter = require('./row-cvi');
 const rowDtRouter = require('./row-dt');
-
+const rowMmRouter = require('./row-mm');
 
 routes.use('/api/sheet', sheetRouter);
 routes.use('/api/cell/history', cellHistoryRouter);
@@ -22,7 +22,7 @@ routes.use('/api/row-rfam', rowRfamRouter);
 routes.use('/api/row-rfi', rowRfiRouter);
 routes.use('/api/row-cvi', rowCviRouter);
 routes.use('/api/row-dt', rowDtRouter);
-
+routes.use('/api/row-mm', rowMmRouter);
 
 
 module.exports = routes;
