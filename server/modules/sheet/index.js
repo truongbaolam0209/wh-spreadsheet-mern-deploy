@@ -461,7 +461,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
 
 
       const emailTitle = `
-         <div style='text-align: center; background: #DCDCDC; padding: 3px;'>
+         <div style='text-align: center; background: #f7f7f7; padding: 3px;'>
             <p style='font-size: 20px; font-weight: bold;'>${projectName} - ${rfa}</p>
             <p style='font-size: 17px; font-weight: bold;'>${emailTitleText}</p>
          </div>
@@ -471,7 +471,8 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
          emailContent,
          listUserOutput,
          listGroupOutput,
-         emailTitle
+         emailTitle,
+         emailSubject: `${projectName} - ${rfa} - ${emailTitleText}`
       };
 
    } else {
@@ -584,7 +585,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
 
 
       const emailTitle = `
-         <div style='text-align: center; background: #DCDCDC; padding: 3px;'>
+         <div style='text-align: center; background: #f7f7f7; padding: 3px;'>
             <p style='font-size: 20px; font-weight: bold;'>${projectName} - ${refNumber}</p>
             <p style='font-size: 17px; font-weight: bold;'>${emailTitleText}</p>
          </div>
@@ -594,7 +595,8 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
          emailContent,
          listUserOutput,
          listGroupOutput,
-         emailTitle
+         emailTitle,
+         emailSubject: `${projectName} - ${refNumber} - ${emailTitleText}`
       };
    };
 };

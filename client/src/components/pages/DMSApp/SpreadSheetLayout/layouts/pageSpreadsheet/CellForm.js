@@ -430,8 +430,14 @@ const CellForm = (props) => {
          } else if (btn === 'Open Form') {
 
             const linkFormSignedOff = getInfoValueFromRefDataForm(refData, 'submission', refType, 'linkSignedOffFormSubmit');
-            const res = await Axios.get('/api/issue/get-public-url', { params: { key: linkFormSignedOff, expire: 1000 } });
-            window.open(res.data);
+            if (linkFormSignedOff) {
+               const res = await Axios.get('/api/issue/get-public-url', { params: { key: linkFormSignedOff, expire: 1000 } });
+               window.open(res.data);
+            } else {
+               const linkFormNoSignature = getInfoValueFromRefDataForm(refData, 'submission', refType, 'linkFormNoSignature');
+               const res = await Axios.get('/api/issue/get-public-url', { params: { key: linkFormNoSignature, expire: 1000 } });
+               window.open(res.data);
+            };
 
          } else if (btn === 'Edit') {
             // const typeBtn = rowData['RFA Ref'] !== rowData.rfaNumber ? 'form-resubmit-RFA' : 'form-submit-RFA';
@@ -741,7 +747,8 @@ const CellForm = (props) => {
             btnShown &&
             !rowData.treeLevel &&
             (
-               (isColumnSubmitOrReply(column.key) === 'column-submit' && getInfoValueFromRefDataForm(rowData, 'submission', refType, 'linkSignedOffFormSubmit')) ||
+               // (isColumnSubmitOrReply(column.key) === 'column-submit' && getInfoValueFromRefDataForm(rowData, 'submission', refType, 'linkSignedOffFormSubmit')) ||
+               (isColumnSubmitOrReply(column.key) === 'column-submit') ||
                ((isColumnConsultant(column.key) || isColumnWithReplyData(column.key)) && getInfoValueFromRefDataForm(rowData, 'reply', refType, 'linkFormReply', replyCompany))
             )
          ) && (
@@ -785,6 +792,7 @@ const CellForm = (props) => {
                centered={true}
                onCancel={() => {
                   setModalListDrawingAttached(null);
+                  setBtnShown(false);
                }}
             >
                <div>{modalListDrawingAttached.map(dwgLink => {

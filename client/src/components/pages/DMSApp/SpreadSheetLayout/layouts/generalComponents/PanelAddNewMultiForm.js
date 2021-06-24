@@ -1255,10 +1255,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                <ButtonGroupComp
                   onClickCancel={() => setModalConfirmsubmitOrCancel('cancel')}
                   onClickApply={() => setModalConfirmsubmitOrCancel('ok')}
-                  newTextBtnApply={formRefType === 'form-reply-multi-type' ? 'Submit' : 'Email For Signature'}
+                  newTextBtnApply={formRefType === 'form-reply-multi-type' ? 'Submit' : 'Create Form & Email For Signature'}
 
                   onClickApplyAdditional01={() => setModalConfirmsubmitOrCancel('download')}
-                  newTextBtnApplyAdditional01={formRefType === 'form-reply-multi-type' ? null : 'Download Form Pdf'}
+                  newTextBtnApplyAdditional01={formRefType === 'form-reply-multi-type' ? null : 'Create Form & Download Pdf'}
                />
             </div>
 
