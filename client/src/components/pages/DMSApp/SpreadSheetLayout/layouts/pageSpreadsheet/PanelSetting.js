@@ -1346,17 +1346,18 @@ const PanelSetting = (props) => {
             // upload BLOB file PDF Submit no signature
             if (filePdfBlobOutput) {
                
-               let blobData = await filePdfBlobOutput.text();
+               let blobData = filePdfBlobOutput;
                const pathData = `${refToSave}/${refToSaveVersionOrToReply}/submit`;
                let fileName = `${refToSave}/${refToSaveVersionOrToReply}_FormCoverToSign.pdf`.split('/').join('_');
 
-               const resLink = await Axios.post('/api/drawing/set-dms-buffer', { 
-                  blob: blobData, 
-                  projectId, 
-                  path: pathData,
-                  name: fileName
-               });
+               let fd = new FormData();
+               fd.append('projectId', projectId);
+               fd.append('path', pathData);
+               fd.append('file', blobData, fileName);
+
+               const resLink = await Axios.post('/api/drawing/set-dms-file', fd);
                linkFormPdfNoSignature = resLink.data;
+
             };
             pdfFilesToUpload = filesPdfDrawing;
          } else if (type === 'form-reply-multi-type') {

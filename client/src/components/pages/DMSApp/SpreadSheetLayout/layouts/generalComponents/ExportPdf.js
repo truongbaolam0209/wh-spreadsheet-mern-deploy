@@ -41,7 +41,7 @@ const ExportPdf = ({ pdfContent }) => {
    });
 
 
-   
+
 
    const formTitle = pageSheetTypeName === 'page-rfam' ? 'Request For Approval Of Material'
       : pageSheetTypeName === 'page-rfi' ? 'Request For Information'
@@ -221,7 +221,7 @@ const ExportPdf = ({ pdfContent }) => {
                      col={['34%', '33%', '33%']}
                      children={[
                         ['DESCRIPTION OF ITEM SUBMITTED', 'CONTRACT SPECIFICATION / SUPPLIER', 'PROPOSED SPECIFICATION / SUPPLIER'],
-                        [testLorem1, testLorem2, testLorem3]
+                        [description, contractSpecification, proposedSpecification]
                      ]}
                      isRfamDescriptionTable={true}
                   />
@@ -231,7 +231,7 @@ const ExportPdf = ({ pdfContent }) => {
                {pageSheetTypeName === 'page-rfi' && (
                   <View style={{ marginBottom: 35, paddingBottom: 10, borderBottom: '1px solid black' }}>
                      <Text>Description:</Text>
-                     <Text>{testLorem1}</Text>
+                     <Text>{description}</Text>
                   </View>
                )}
 
