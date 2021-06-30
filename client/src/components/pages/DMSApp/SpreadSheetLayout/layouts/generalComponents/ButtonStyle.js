@@ -1,5 +1,5 @@
 import { Button } from 'antd';
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Context as RowContext } from '../../contexts/rowContext';
 
 
@@ -18,8 +18,27 @@ const ButtonStyle = ({
    disabled
 }) => {
 
+
    const { state: stateRow } = useContext(RowContext);
    const { loading } = stateRow;
+
+   const [isClicked, setIsClicked] = useState(false);
+
+
+   const arrayButtonUpload = [
+      'Choose PDF File',
+      'Upload Reply Form',
+      'Upload Documents',
+      'Upload Signed Off Cover Form',
+      'Upload 3D Model',
+   ];
+
+
+   const arrayButtonToLockAfterClick = [
+      'Send Email',
+      'Apply',
+   ];
+
 
    return (
       <Button
@@ -33,9 +52,18 @@ const ButtonStyle = ({
             marginLeft,
             border: `1px solid ${borderOverwritten ? borderColor : (borderColor || background)}`,
          }}
-         onClick={onClick}
-         disabled={disabled || (loading && name !== 'Yes')}
+
+         disabled={disabled || (loading && name !== 'Yes') || (!loading && isClicked && arrayButtonToLockAfterClick.indexOf(name) !== -1)}
          loading={loading && name === 'Yes'}
+
+         onClick={() => {
+            if (arrayButtonToLockAfterClick.indexOf(name) !== -1) {
+               setIsClicked(true);
+            };
+            if (arrayButtonUpload.indexOf(name) === -1) {
+               onClick();
+            };
+         }}
       >
          {name}
       </Button>
