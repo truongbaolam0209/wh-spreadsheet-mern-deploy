@@ -97,6 +97,9 @@ export const colorTextRow = {
 };
 
 
+export const tradeArrayForm = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
+export const tradeArrayMeetingMinutesForm = ['PROJECT PROGRESS MEETING', 'TECHNICAL MEETING', 'ICE MEETING'];
+
 
 export const EDIT_DURATION_MIN = 15;
 

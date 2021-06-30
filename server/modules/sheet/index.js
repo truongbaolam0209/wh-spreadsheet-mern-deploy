@@ -26,7 +26,6 @@ const rowModelCvi = require('../row-cvi/model');
 const rowModelDt = require('../row-dt/model');
 const rowModelMm = require('../row-mm/model');
 
-
 const { createPublicUrl } = require('../../../custom/s3');
 
 const handlers = genCRUDHandlers(model, {
@@ -43,31 +42,6 @@ function genQueryToFindMany() {
 
 
 
-const createRowsEmptyInit = (drawingTypeTree) => {
-   const genId = (nosOfRows) => {
-      let arr = [];
-      for (let i = 0; i < nosOfRows; i++) {
-         arr.push(mongoObjectId());
-      };
-      return arr;
-   };
-   let output = [];
-   drawingTypeTree.forEach(row => {
-      if (row._rowLevel === 0) {
-         let idsArr = genId(5);
-         const newRows = idsArr.map((id, i) => {
-            return ({
-               _id: id,
-               level: 1,
-               parentRow: row.id,
-               preRow: i === 0 ? null : idsArr[i - 1]
-            });
-         });
-         output = [...output, ...newRows];
-      };
-   });
-   return output;
-};
 
 const findOneWithUserEmail = async (req, res, next) => {
    try {
@@ -184,6 +158,7 @@ const findMany = async (req, res, next) => {
    };
 };
 
+
 const findSheetIncludingRowsSortedFnc = async (sheetId) => {
    let [publicSettings, dataRows] = await Promise.all([
       findPublicSettings(sheetId),
@@ -199,16 +174,11 @@ const findSheetIncludingRowsSortedFnc = async (sheetId) => {
 
    let { drawingTypeTree } = publicSettings;
 
-   if (dataRows.length === 0) {
-      let emptyRows = createRowsEmptyInit(drawingTypeTree);
-      let manyRows = await _update_Or_Create_Rows(emptyRows, sheetId, rowModel);
-      rows = manyRows.rowsToCreate;
 
-   } else {
-      for (let row of dataRows) {
-         if (row.level == 1) rows.push(row);
-      };
+   for (let row of dataRows) {
+      if (row.level == 1) rows.push(row);
    };
+
 
    sheet.rows = _process_Rows(headers, rows);
 
@@ -246,6 +216,8 @@ const _update_Or_Create_Rows = async (rowsData, sheetId, rowModel) => {
       ...rowsToUpdate.map((r) => rowModel.updateOne({ _id: r._id }, _genUpdateRowQuery(r))),
       rowModel.create(rowsToCreate),
    ]);
+
+
    return {
       created: rowsToCreate.length,
       updated: rowsToUpdate.length,
@@ -288,7 +260,6 @@ const _process_Rows_Data = async (rowsData, sheetId, rowModel) => {
 };
 
 const _process_Rows = (sheetHeaders, rows) => {
-
    let rowsProcessed = [];
 
    const _formalRowData = (row, sheetHeaders) => {
@@ -465,6 +436,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
          <p style='font-size: 17px; font-weight: bold;'>${emailTitleText}</p>
       `;
 
+
       return {
          emailContent,
          listUserOutput,
@@ -479,7 +451,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
             : formSubmitType === 'cvi' ? rowModelCvi
                : formSubmitType === 'dt' ? rowModelDt
                   : formSubmitType === 'mm' ? rowModelMm
-                  : null;
+                     : null;
 
 
       let rowsFound = await rowModelMulti.find({ sheet: sheetId, _id: { $in: rowIds } });
@@ -504,6 +476,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
       const refNumber = rowData.revision === '0' ? rowData[`${formSubmitType}Ref`] : rowData[`${formSubmitType}Ref`] + rowData.revision;;
       const emailTitleText = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailTitle', company);
 
+
       const emailSignaturedBy = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'signaturedBy', company);
 
 
@@ -511,6 +484,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
       let listGroupOutput = { to: [], cc: [] };
 
       if (type === 'submit-request-signature') {
+
          const resFormNoSignature = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company), 3600 * 24 * 7);
          const keyFormNoSignature = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company);
          rowData[keyFormNoSignature] = resFormNoSignature;
@@ -526,7 +500,9 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
 
 
          const arrayDrawingsAttached = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company);
+
          if (arrayDrawingsAttached && arrayDrawingsAttached.length > 0) {
+
             const arrayDrawingsLinkPublic = await getDrawingUrlMultiForm(arrayDrawingsAttached);
             const keyDrawingsAttached = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company);
             rowData[keyDrawingsAttached] = arrayDrawingsLinkPublic;
@@ -554,6 +530,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
          listUserOutput.cc = [...new Set([...listUserOutput.cc || [], emailSender, emailSignaturedBy])];
 
       } else if (type === 'reply-signed-off') {
+
          const resFormSignedOff = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company), 3600 * 24 * 7);
          const keyFormSignedOff = getInfoKeyFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company);
          rowData[keyFormSignedOff] = resFormSignedOff;
@@ -580,7 +557,6 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
       };
 
       const emailContent = generateEmailMultiFormInnerHtml(company, formSubmitType, rowData, type);
-
 
       const emailTitle = `
          <p style='font-size: 20px; font-weight: bold;'>${projectName} - ${refNumber}</p>

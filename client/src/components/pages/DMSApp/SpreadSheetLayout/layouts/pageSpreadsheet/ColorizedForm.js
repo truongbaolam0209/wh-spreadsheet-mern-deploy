@@ -6,12 +6,14 @@ import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
 
+
 const { Option } = Select;
 
 const ColorizedForm = ({ applyColorization, onClickCancelModal }) => {
 
     const { state: stateRow } = useContext(RowContext);
     const { state: stateProject } = useContext(ProjectContext);
+    
     let colorization = stateProject.userData.colorization;
 
     const arr = [

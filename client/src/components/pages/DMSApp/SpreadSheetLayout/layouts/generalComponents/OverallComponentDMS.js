@@ -4,12 +4,13 @@ import React, { forwardRef, useContext, useEffect, useRef, useState } from 'reac
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import 'react-base-table/styles.css';
 import styled from 'styled-components';
-import { colorTextRow, colorType, SERVER_URL } from '../../constants';
+import { colorTextRow, colorType, SERVER_URL, tradeArrayForm, tradeArrayMeetingMinutesForm } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
 import ButtonAdminCreateAndUpdateRows from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
+import ButtonAdminCreateAndUpdateRowsHistory from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRowsHistory';
 import ButtonAdminDeleteRowsHistory from '../pageSpreadsheet/ButtonAdminDeleteRowsHistory';
 import Cell, { columnLocked, rowLocked } from '../pageSpreadsheet/Cell';
 import CellForm from '../pageSpreadsheet/CellForm';
@@ -26,6 +27,8 @@ import IconTable from './IconTable';
 import InputSearch from './InputSearch';
 import LoadingIcon from './LoadingIcon';
 import ViewTemplateSelect from './ViewTemplateSelect';
+
+
 
 const offsetHeight = 99.78;
 const sideBarWidth = 55;
@@ -53,14 +56,28 @@ let addedEvent = false;
 const OverallComponentDMS = (props) => {
 
    let {
-      email, role, isAdmin, projectId, projectName, token, company,
+      email, role: roleInit, isAdmin, projectId, projectName, token, company,
       companies, projectIsAppliedRfaView, listUser, listGroup, projectNameShort, pageSheetTypeName,
-      history, localState
+      history, localState,
+
+      // sheet-data-entry
+      sheetDataInput: sheetDataInputRaw, sheetId, sheetName, canEditParent,
+      saveDataToServerCallback, callbackSelectRow,
    } = props;
 
 
 
-   const roleTradeCompany = getUserRoleTradeCompany(role, company);
+   let role = roleInit;
+   let sheetDataInput;
+   if (pageSheetTypeName === 'page-data-entry') {
+      role = roleInit.name;
+      sheetDataInput = convertDataEntryInput(sheetDataInputRaw);
+   };
+
+
+   
+
+   const roleTradeCompany = getUserRoleTradeCompany(role, company, pageSheetTypeName);
 
 
    const isUserCanSubmitBothSide = isAdmin;
@@ -303,6 +320,26 @@ const OverallComponentDMS = (props) => {
             });
          };
 
+      } else if (btn === 'select-single-row-ICON') {
+         if (rowsSelected.length === 1) {
+            const { publicSettings } = stateProject.allDataOneSheet;
+            const { headers } = publicSettings;
+
+            const oneRowSelected = rowsSelected[0];
+            let rowOutput = { _id: oneRowSelected.id, parentRow: oneRowSelected._parentRow, preRow: oneRowSelected._preRow, level: oneRowSelected._rowLevel };
+            for (const key in oneRowSelected) {
+               if (key !== 'id' && key !== '_parentRow' && key !== '_preRow' && key !== '_rowLevel') {
+                  if (headers.find(hd => hd.text === key)) {
+                     rowOutput.data = { ...rowOutput.data || {}, [key]: oneRowSelected[key] || '' };
+                  } else {
+                     rowOutput[key] = oneRowSelected[key];
+                  };
+               };
+            };
+            callbackSelectRow(rowOutput);
+         } else {
+            message.warn('Please select 1 row only!', 1.5);
+         };
       } else {
          setCellActive(null);
          copyTempData(null);
@@ -364,7 +401,7 @@ const OverallComponentDMS = (props) => {
 
          setCellSearchFound(null);
 
-         if (pageSheetTypeName !== 'page-spreadsheet') {
+         if (pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry') {
             setSearchInputShown(false);
          };
 
@@ -433,22 +470,48 @@ const OverallComponentDMS = (props) => {
          setCellSearchFound(null);
          setCellHistoryFound(null);
 
+      } else if (update.type === 'reload-data-entry-from-server') {
+         
+         const dataLoadedFromServer = convertDataEntryInput(update.data);
 
-         if (update.isBackToDms) {
-            setSearchInputShown(false);
-         };
+         fetchDataOneSheet({
+            ...dataLoadedFromServer, roleTradeCompany,
+            email, sheetId, sheetName, canEditParent, role, token, isAdmin, pageSheetTypeName
+         });
+
+         setUserData(getHeadersData(dataLoadedFromServer));
+         getSheetRows(getInputDataInitially(dataLoadedFromServer, roleTradeCompany, pageSheetTypeName));
+
+         setExpandedRows(getRowsKeyExpanded(
+            dataLoadedFromServer.publicSettings.drawingTypeTree,
+            dataLoadedFromServer.userSettings ? dataLoadedFromServer.userSettings.viewTemplateNodeId : null
+         ));
+
+         OverwriteCellsModified({});
+         setCellActive(null);
+         setLoading(false);
+
+         setCellSearchFound(null);
+         setCellHistoryFound(null);
+
+         saveDataToServerCallback(update.data);
       };
 
+
+
       if (update.type !== 'save-data-failure') {
-         setPanelSettingVisible(false);
-         setPanelSettingType(null);
-         setPanelType(null);
+         resetAllPanelInitMode();
       };
    };
    const onScroll = () => {
       if (stateCell.cellActive) setCellActive(null);
    };
 
+   const resetAllPanelInitMode = () => {
+      setPanelSettingVisible(false);
+      setPanelSettingType(null);
+      setPanelType(null);
+   };
 
 
    const [adminFncInitPanel, setAdminFncInitPanel] = useState(false);
@@ -497,6 +560,25 @@ const OverallComponentDMS = (props) => {
                   res.data.publicSettings.drawingTypeTree,
                   res.data.userSettings ? res.data.userSettings.viewTemplateNodeId : null
                ));
+
+            } else if (pageSheetTypeName === 'page-data-entry') {
+
+
+               fetchDataOneSheet({
+                  ...sheetDataInput, roleTradeCompany,
+                  email, sheetId, sheetName, canEditParent, role, token, isAdmin, pageSheetTypeName
+               });
+
+               setUserData(getHeadersData(sheetDataInput));
+               getSheetRows(getInputDataInitially(sheetDataInput, roleTradeCompany, pageSheetTypeName));
+
+               setExpandedRows(getRowsKeyExpanded(
+                  sheetDataInput.publicSettings.drawingTypeTree,
+                  sheetDataInput.userSettings ? sheetDataInput.userSettings.viewTemplateNodeId : null
+               ));
+
+
+
             } else if (pageSheetTypeName === 'page-rfa') {
 
                const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
@@ -513,24 +595,32 @@ const OverallComponentDMS = (props) => {
                   'ARCHI', 'C&S', 'M&E', 'PRECAST',
                   ...rows.filter(x => x.rfaNumber).map(x => x.rfaNumber)
                ]);
+
                setSearchInputShown(true);
 
-            } else if (pageSheetTypeName && pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-rfa') {
+            } else if (pageSheetTypeName && (
+               pageSheetTypeName === 'page-rfam' ||
+               pageSheetTypeName === 'page-rfi' ||
+               pageSheetTypeName === 'page-cvi' ||
+               pageSheetTypeName === 'page-dt' ||
+               pageSheetTypeName === 'page-mm'
+            )) {
 
                const route = pageSheetTypeName === 'page-rfam' ? 'row-rfam'
                   : pageSheetTypeName === 'page-cvi' ? 'row-cvi'
                      : pageSheetTypeName === 'page-rfi' ? 'row-rfi'
                         : pageSheetTypeName === 'page-dt' ? 'row-dt'
-                           : 'n/a';
+                           : pageSheetTypeName === 'page-mm' ? 'row-mm'
+                              : 'n/a';
 
                const refKey = getKeyTextForSheet(pageSheetTypeName) + 'Ref';
- 
+
                const res = await Axios.get(`${SERVER_URL}/${route}/`, { params: { token, projectId, email } });
                const rows = res.data;
 
                getSheetRows(getInputDataInitially(rows, roleTradeCompany, pageSheetTypeName));
                setExpandedRows([
-                  'ARCHI', 'C&S', 'M&E', 'PRECAST',
+                  ...(pageSheetTypeName === 'page-mm' ? tradeArrayMeetingMinutesForm : tradeArrayForm),
                   ...rows.filter(x => x[refKey]).map(x => x[refKey])
                ]);
 
@@ -575,9 +665,6 @@ const OverallComponentDMS = (props) => {
             // };
 
 
-
-
-
             setLoading(false);
          } catch (err) {
             console.log(err);
@@ -585,6 +672,7 @@ const OverallComponentDMS = (props) => {
       };
       fetchOneProject();
    }, []);
+
 
 
    useEffect(() => {
@@ -637,7 +725,6 @@ const OverallComponentDMS = (props) => {
                paddingRight: 3,
                background: 'transparent'
             }}
-
          >
             {expandable && (
                <Icon
@@ -658,12 +745,12 @@ const OverallComponentDMS = (props) => {
       const { rowsSelected, modeGroup, drawingTypeTree } = stateRow;
       const { rowData } = props;
 
-      if (rowData.treeLevel) {
+      if (rowData.treeLevel || rowData._rowLevel < 1) {
          return 'row-drawing-type';
       };
 
       let isRowLocked;
-      if (pageSheetTypeName === 'page-spreadsheet') {
+      if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
          isRowLocked = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
          if (isRowLocked) {
             return 'row-locked';
@@ -692,7 +779,7 @@ const OverallComponentDMS = (props) => {
 
    const [searchInputShown, setSearchInputShown] = useState(false);
    const searchGlobal = debounceFnc((textSearch) => {
-      if (pageSheetTypeName === 'page-spreadsheet') {
+      if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
          let searchDataObj = {};
          if (textSearch !== '') {
             stateRow.rowsAll.forEach(row => {
@@ -751,7 +838,7 @@ const OverallComponentDMS = (props) => {
          modeSearch: {},
          modeGroup: []
       });
-      if (pageSheetTypeName === 'page-spreadsheet') {
+      if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
          setSearchInputShown(false);
       };
       setCellSearchFound(null);
@@ -810,7 +897,7 @@ const OverallComponentDMS = (props) => {
                      contextProject: { stateProject },
                   }}
                />
-            ) : pageSheetTypeName === 'page-spreadsheet' ? (
+            ) : (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') ? (
                <Cell
                   setPosition={setPosition}
                   onRightClickCell={onRightClickCell}
@@ -897,9 +984,9 @@ const OverallComponentDMS = (props) => {
    };
 
 
-   const buttonSpreadsheetMode = ((stateRow && !projectIsAppliedRfaView) || (stateRow && projectIsAppliedRfaView && pageSheetTypeName === 'page-spreadsheet'));
+   const buttonSpreadsheetMode = (stateRow && (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry'));
 
-   
+
    if ((role === 'Consultant' || role === 'Client') && pageSheetTypeName === 'page-spreadsheet') {
       return (
          <div>There is no data display for client</div>
@@ -945,21 +1032,40 @@ const OverallComponentDMS = (props) => {
                <>
                   <DividerRibbon />
                   <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
-                  <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
-                  <DividerRibbon />
-                  <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
-                  <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
+
+                  {pageSheetTypeName === 'page-spreadsheet' && (
+                     <>
+                        <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
+                        <DividerRibbon />
+                        <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
+                        <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
+                     </>
+                  )}
+
+
+
                   <ExcelExport fileName={projectName} />
                   <DividerRibbon />
-                  <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
-                  <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
-                  <DividerRibbon />
+                  {pageSheetTypeName === 'page-data-entry' && (
+                     <>
+                        <IconTable type='border-outer' onClick={() => buttonPanelFunction('select-single-row-ICON')} />
+                        <DividerRibbon />
+                     </>
+                  )}
+                  {pageSheetTypeName === 'page-spreadsheet' && (
+                     <>
+                        <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
+                        <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
+                        <DividerRibbon />
+                     </>
+                  )}
+
                </>
             )}
 
 
 
-            {stateRow && projectIsAppliedRfaView && pageSheetTypeName !== 'page-spreadsheet' && (
+            {stateRow && projectIsAppliedRfaView && (pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry') && (
                <IconTable type='block' onClick={switchConsultantsHeader} />
             )}
 
@@ -1002,7 +1108,8 @@ const OverallComponentDMS = (props) => {
                pageSheetTypeName === 'page-rfam' ||
                pageSheetTypeName === 'page-rfi' ||
                pageSheetTypeName === 'page-cvi' ||
-               pageSheetTypeName === 'page-dt'
+               pageSheetTypeName === 'page-dt' ||
+               pageSheetTypeName === 'page-mm'
             ) && (
                   <>
                      <IconTable
@@ -1040,17 +1147,9 @@ const OverallComponentDMS = (props) => {
 
             {isAdmin && (
                <div style={{ display: 'flex' }}>
-                  {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
-                  <ButtonAdminUploadData /> */}
                   <ButtonAdminCreateAndUpdateRows />
                   <ButtonAdminDeleteRowsHistory />
-                  {/* 
-                        <ButtonAdminUploadDataPDD />
-                        
-                        
-                        <ButtonAdminCreateAndUpdateRowsHistory />
-                        <ButtonAdminUpdateProjectSettings /> 
-                     */}
+                  <ButtonAdminCreateAndUpdateRowsHistory />
 
                </div>
             )}
@@ -1108,26 +1207,27 @@ const OverallComponentDMS = (props) => {
                <div style={{ width: sideBarWidth, background: colorType.primary }}>
                   {(
                      (role !== 'Consultant' && role !== 'Client')
-                     ? ['side-dms', 'side-rfa']
-                     : ['side-rfa']
+                        ? ['side-dms', 'side-rfa']
+                        : ['side-rfa']
                      // ? ['side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
                      // : ['side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
                   ).map((btnType, i) => {
 
                      return (
-                     <IconSidePanel 
-                        key={i} 
-                        type={btnType} 
-                        onClick={() => buttonPanelFunction(btnType)} 
-                        isLocked={
-                           pageSheetTypeName.slice(5, pageSheetTypeName.length) === btnType.slice(5, btnType.length) ||
-                           (pageSheetTypeName.slice(5, pageSheetTypeName.length) === 'spreadsheet' && btnType.slice(5, btnType.length) === 'dms')
-                        }
-                     />
-                  )})}
+                        <IconSidePanel
+                           key={i}
+                           type={btnType}
+                           onClick={() => buttonPanelFunction(btnType)}
+                           isLocked={
+                              pageSheetTypeName.slice(5, pageSheetTypeName.length) === btnType.slice(5, btnType.length) ||
+                              (pageSheetTypeName.slice(5, pageSheetTypeName.length) === 'spreadsheet' && btnType.slice(5, btnType.length) === 'dms')
+                           }
+                        />
+                     )
+                  })}
                </div>
             )}
-               
+
 
 
 
@@ -1139,15 +1239,15 @@ const OverallComponentDMS = (props) => {
                   projectIsAppliedRfaView={projectIsAppliedRfaView}
 
                   columns={renderColumns(
-                     (projectIsAppliedRfaView && pageSheetTypeName !== 'page-spreadsheet') ? headersAllFormViewArray : stateProject.userData.headersShown,
-                     (projectIsAppliedRfaView && pageSheetTypeName !== 'page-spreadsheet') ? nosColumnFixedRfaView : stateProject.userData.nosColumnFixed
+                     (projectIsAppliedRfaView && (pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry')) ? headersAllFormViewArray : stateProject.userData.headersShown,
+                     (projectIsAppliedRfaView && (pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry')) ? nosColumnFixedRfaView : stateProject.userData.nosColumnFixed
                   )}
 
                   data={arrangeDrawingTypeFinal(stateRow, companies, company, roleTradeCompany.role, pageSheetTypeName)}
                   expandedRowKeys={expandedRows}
 
                   expandColumnKey={
-                     (projectIsAppliedRfaView && pageSheetTypeName !== 'page-spreadsheet')
+                     (projectIsAppliedRfaView && (pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry'))
                         ? pageSheetTypeName.slice(5, pageSheetTypeName.length).toUpperCase() + ' Ref'
                         : stateProject.userData.headersShown[0]}
 
@@ -1164,7 +1264,7 @@ const OverallComponentDMS = (props) => {
          </div>
 
 
-         {((stateRow && pageSheetTypeName === 'page-spreadsheet') || !projectIsAppliedRfaView) && (
+         {(stateRow && (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry')) && (
             <ModalStyleFunction
                visible={panelFunctionVisible}
                footer={null}
@@ -1205,11 +1305,9 @@ const OverallComponentDMS = (props) => {
                   panelSettingType !== 'addDrawingType-ICON' &&
                   panelSettingType !== 'form-submit-multi-type' &&
                   panelSettingType !== 'form-resubmit-multi-type' &&
-                  panelSettingType !== 'form-reply-multi-type' 
+                  panelSettingType !== 'form-reply-multi-type'
                ) {
-                  setPanelSettingVisible(false);
-                  setPanelSettingType(null);
-                  setPanelType(null);
+                  resetAllPanelInitMode();
                };
             }}
             destroyOnClose={true}
@@ -1233,15 +1331,14 @@ const OverallComponentDMS = (props) => {
                panelSettingType={panelSettingType}
                commandAction={commandAction}
                onClickCancelModal={() => {
-                  setPanelSettingVisible(false);
-                  setPanelSettingType(null);
-                  setPanelType(null);
+                  resetAllPanelInitMode();
                   getSheetRows({ ...stateRow, currentRfaToAddNewOrReplyOrEdit: null });
                }}
                setLoading={setLoading}
                buttonPanelFunction={buttonPanelFunction}
                history={history}
                localState={localState}
+               resetAllPanelInitMode={resetAllPanelInitMode}
             />
          </ModalStyledSetting>
 
@@ -1408,7 +1505,6 @@ const ButtonBox = styled.div`
 export const getInputDataInitially = (data, { role, company }, pageSheetTypeName) => {
 
 
-
    if (pageSheetTypeName === 'page-rfa') {
       const { sheetData, rowsHistoryData } = data;
       const { rows, publicSettings } = sheetData;
@@ -1436,11 +1532,43 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          loading: false
       };
 
-   } else if (pageSheetTypeName === 'page-spreadsheet') {
+   } else if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
       const { rows, publicSettings, userSettings } = data;
-      const { drawingTypeTree } = publicSettings;
+
+      const { drawingTypeTree, sheetId } = publicSettings;
+   
       let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);
+ 
       const { treeNodesToAdd, rowsToAdd, rowsUpdatePreOrParent } = rearrangeRowsNotMatchTreeNode(rows, rowsAllOutput, drawingTypeTree);
+
+      let rowsAllOutputCombined = [...rowsAllOutput, ...rowsToAdd];
+
+
+      let idRowsNew = [];
+      let rowsUpdatePreRowOrParentRow = { ...rowsUpdatePreOrParent }; // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
+
+      
+
+      if (pageSheetTypeName === 'page-data-entry' && rowsAllOutputCombined.length === 0 && drawingTypeTree.length === 0) {
+         const newRowId = mongoObjectId();
+         idRowsNew = [newRowId];
+         rowsUpdatePreRowOrParentRow = {
+            [newRowId]: {
+               id: newRowId,
+               _parentRow: sheetId,
+               _preRow: null
+            }
+         };
+         rowsAllOutputCombined = [
+            {
+               id: newRowId,
+               _parentRow: sheetId,
+               _preRow: null,
+               _rowLevel: 1
+            }
+         ];
+      };
+
 
       let viewTemplates = [];
       let viewTemplateNodeId = null;
@@ -1459,20 +1587,20 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          modeSearch: {},
          modeGroup: [],
 
-         rowsAll: [...rowsAllOutput, ...rowsToAdd], // handle rows can not match parent
+         rowsAll: rowsAllOutputCombined, // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
          rowsVersionsToSave: [],
 
 
          viewTemplates,
          viewTemplateNodeId,
-         drawingTypeTree: [...drawingTypeTree, ...treeNodesToAdd], // handle rows can not match parent
+         drawingTypeTree: [...drawingTypeTree, ...treeNodesToAdd], // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
          drawingTypeTreeInit: drawingTypeTree,
          drawingsTypeDeleted: [],
-         drawingsTypeNewIds: [...treeNodesToAdd.map(x => x.id)], // handle rows can not match parent
+         drawingsTypeNewIds: [...treeNodesToAdd.map(x => x.id)], // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
 
          rowsDeleted: [],
-         idRowsNew: [],
-         rowsUpdatePreRowOrParentRow: { ...rowsUpdatePreOrParent }, // handle rows can not match parent
+         idRowsNew,
+         rowsUpdatePreRowOrParentRow,
          rowsUpdateSubmissionOrReplyForNewDrawingRev: [],
 
          rowsSelected: [],
@@ -1483,13 +1611,15 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
       pageSheetTypeName === 'page-rfam' ||
       pageSheetTypeName === 'page-rfi' ||
       pageSheetTypeName === 'page-cvi' ||
-      pageSheetTypeName === 'page-dt'
+      pageSheetTypeName === 'page-dt' ||
+      pageSheetTypeName === 'page-mm'
    ) {
 
       const keySuffix = pageSheetTypeName === 'page-rfam' ? 'Rfam'
          : pageSheetTypeName === 'page-cvi' ? 'Cvi'
             : pageSheetTypeName === 'page-rfi' ? 'Rfi'
-               : 'Dt';
+               : pageSheetTypeName === 'page-dt' ? 'Dt'
+                  : 'Mm';
 
       const keyType = pageSheetTypeName.slice(5, pageSheetTypeName.length);
 
@@ -1498,13 +1628,14 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
       let outputRowsRef = [];
 
       const listRef = [... new Set(rowsData.map(x => x[`${keyType}Ref`]))];
-      listRef.forEach(ref => {
 
+      listRef.forEach(ref => {
          const rowsThisRef = rowsData.filter(r => r[`${keyType}Ref`] === ref);
          const arrayVersion = [...new Set(rowsThisRef.map(x => x.revision))];
          const latestVersion = arrayVersion.sort()[arrayVersion.length - 1];
          outputRowsRef.push(rowsThisRef.find(x => x.revision === latestVersion));
       });
+
 
       return {
 
@@ -1519,7 +1650,6 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          isShowAllConsultant: false,
          loading: false,
 
-         
 
 
       };
@@ -1534,7 +1664,7 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTy
 
       rowsRfaAll,
 
-      rowsRfamAll, rowsRfiAll, rowsCviAll, rowsDtAll
+      rowsRfamAll, rowsRfiAll, rowsCviAll, rowsDtAll, rowsMmAll
    } = stateRow;
 
 
@@ -1644,8 +1774,8 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTy
 
       return outputRFA;
 
-   } else if (pageSheetTypeName === 'page-spreadsheet') {
-      // DMS VIEW .......................................
+   } else if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
+
       let drawingTypeTreeTemplate;
       let rowsAllInTemplate;
       const templateNode = drawingTypeTree.find(x => x.id === viewTemplateNodeId);
@@ -1728,25 +1858,31 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTy
 
 
       let dataOutput = [];
-      drawingTypeTreeTemplate.forEach(item => {
-         let newItem = { ...item };
-         let rowsChildren = rowsAllInTemplate.filter(r => r._parentRow === newItem.id);
-         if (rowsChildren.length > 0) {
-            newItem.children = rowsChildren;
-         };
-         dataOutput.push(newItem);
-      });
 
-      const output = convertFlattenArraytoTree1(dataOutput);
+      if (drawingTypeTreeTemplate.length === 0) {
+         return rowsAllInTemplate;
+      } else {
+         drawingTypeTreeTemplate.forEach(item => {
+            let newItem = { ...item };
+            let rowsChildren = rowsAllInTemplate.filter(r => r._parentRow === newItem.id);
+            if (rowsChildren.length > 0) {
+               newItem.children = rowsChildren;
+            };
+            dataOutput.push(newItem);
+         });
+         const output = convertFlattenArraytoTree1(dataOutput);
 
-      return output;
+         return output;
+      };
+
 
 
    } else if (
       pageSheetTypeName === 'page-rfam' ||
       pageSheetTypeName === 'page-rfi' ||
       pageSheetTypeName === 'page-cvi' ||
-      pageSheetTypeName === 'page-dt'
+      pageSheetTypeName === 'page-dt' ||
+      pageSheetTypeName === 'page-mm'
    ) {
 
 
@@ -1760,15 +1896,17 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTy
             pageSheetTypeName === 'page-rfam' ? rowsRfamAll
                : pageSheetTypeName === 'page-rfi' ? rowsRfiAll
                   : pageSheetTypeName === 'page-cvi' ? rowsCviAll
-                     : rowsDtAll
-         ).filter(r => r[keyRef] === item.id);
+                     : pageSheetTypeName === 'page-dt' ? rowsDtAll
+                        : rowsMmAll
+            // ).filter(r => r[keyRef] === item.id);  // REF_ROW_WITH_HEADER_OPTION
+         ).filter(r => r.parentId === item.id);
 
          if (rowsChildren.length > 0) {
             newItem.children = rowsChildren;
          };
          dataOutputMultiForm.push(newItem);
       });
-      
+
       const outputRowsData = convertFlattenArraytoTree1(dataOutputMultiForm);
       return outputRowsData;
    };
@@ -1787,7 +1925,8 @@ export const getRowsKeyExpanded = (drawingTypeTree, viewTemplateNodeId) => {
 export const getHeadersData = (projectData) => {
 
    const { publicSettings, userSettings } = projectData;
-   let { headers } = publicSettings;
+   const { headers } = publicSettings;
+
 
    let headersShown, headersHidden, colorization, nosColumnFixed;
 
@@ -1810,24 +1949,29 @@ export const getHeadersData = (projectData) => {
       colorization,
    };
 };
+
 export const getOutputRowsAllSorted = (drawingTypeTree, rowsAll) => {
 
    const drawingTypeTreeClone = drawingTypeTree.map(x => ({ ...x }));
    const treeTemp = convertFlattenArraytoTree1(drawingTypeTreeClone);
 
-   let rowsOutput = [];
-   const getIndex = (arr) => {
-      arr.forEach(i => {
-         if (i.children.length > 0) {
-            getIndex(i.children);
-         } else if (i.children.length === 0) {
-            const rows = rowsAll.filter(r => r._parentRow === i.id);
-            rowsOutput = [...rowsOutput, ...rows];
-         };
-      });
+   if (treeTemp.length === 0) {
+      return rowsAll;
+   } else {
+      let rowsOutput = [];
+      const getIndex = (arr) => {
+         arr.forEach(i => {
+            if (i.children.length > 0) {
+               getIndex(i.children);
+            } else if (i.children.length === 0) {
+               const rows = rowsAll.filter(r => r._parentRow === i.id);
+               rowsOutput = [...rowsOutput, ...rows];
+            };
+         });
+      };
+      getIndex(treeTemp);
+      return rowsOutput;
    };
-   getIndex(treeTemp);
-   return rowsOutput;
 };
 
 
@@ -1938,6 +2082,14 @@ export const getHeadersForm = (pageSheetTypeName) => {
          'Transmitted For',
          'Received By',
       ];
+   } else if (pageSheetTypeName === 'page-mm') {
+      return [
+         'MM Ref',
+         'Description',
+         'Submission Date',
+         'Conversation Date',
+         'Conversation Among',
+      ];
    } else {
       return [];
    };
@@ -1984,8 +2136,62 @@ const DataStatisticRibbon = ({ onClickQuickFilter, item }) => {
 
 
 
+export const converHeaderForDataEntryOutput = (headers) => {
+   return headers.map(hd => {
+      const obj = { ...hd };
+      obj.id = obj.key;
+      obj.name = obj.text;
+
+      delete obj.key;
+      delete obj.text;
+      return obj;
+   });
+};
+
+export const convertDataEntryInput = (inputData) => {
+   const { publicSettings, userSettings, rows } = inputData;
+
+   const { headers } = publicSettings;
+   const headersOutput = headers.map(hd => {
+      const obj = { ...hd };
+      obj.key = obj.id;
+      obj.text = obj.name;
+      delete obj.id;
+      delete obj.name;
+      return obj;
+   });
 
 
+   const rowsOutput = rows.map(r => {
+      const obj = {
+         id: r._id,
+         _rowLevel: r.level,
+         _preRow: r.preRow,
+         _parentRow: r.parentRow
+      };
+      const data = r.data || {};
+      for (const key in data) {
+         const headerFound = headersOutput.find(hd => hd.key === key);
+         if (headerFound) {
+            obj[headerFound.text] = data[key];
+         };
+      };
+      return obj;
+   });
+
+
+
+   return {
+      publicSettings: {
+         headers: headersOutput,
+         sheetId: publicSettings.sheetId,
+         drawingTypeTree: publicSettings.drawingTypeTree,
+         activityRecorded: publicSettings.activityRecorded,
+      },
+      userSettings,
+      rows: rowsOutput
+   };
+};
 
 
 

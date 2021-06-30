@@ -672,9 +672,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
       getSheetRows({ ...stateRow, loading: true });
 
-
-
-
       onClickApplyAddNewRFA({
          type: formRfaType,
          isFormEditting,

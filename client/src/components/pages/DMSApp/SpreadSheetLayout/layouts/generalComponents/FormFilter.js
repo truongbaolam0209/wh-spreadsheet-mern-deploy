@@ -14,9 +14,11 @@ const { Option } = Select;
 const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFilter, pageSheetTypeName, rowsRfaAll, companies }) => {
 
 
+   const isSpreadsheetOrDataEntry = pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry';
+
 
    const [filterColumn, setFilterColumn] = useState(
-      pageSheetTypeName === 'page-spreadsheet'
+      isSpreadsheetOrDataEntry
          ? (modeFilter.length > 1
             ? modeFilter.map(item => ({...item}))
             : [
@@ -69,6 +71,9 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
       filterObj && filterObj.isIncludedParent === 'included' ? true :
          filterObj && filterObj.isIncludedParent === 'not included' ? false :
             true);
+
+
+
    const onChangeBox = () => {
 
       setIsChecked(!isChecked);
@@ -123,13 +128,13 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
                   setFilterSelect={setFilterSelect}
                   removeFilterTag={removeFilterTag}
                   headers={headers}
-                  rows={pageSheetTypeName === 'page-spreadsheet' ? rowsAll : rowsRfaAll}
-                  pageSheetTypeName={pageSheetTypeName}
+                  rows={isSpreadsheetOrDataEntry ? rowsAll : rowsRfaAll}
+                  isSpreadsheetOrDataEntry={isSpreadsheetOrDataEntry}
                   companies={companies}
                />
             ))}
 
-            {pageSheetTypeName === 'page-spreadsheet' && (
+            {isSpreadsheetOrDataEntry && (
                <div>
                   <CheckboxStyled
                      onChange={onChangeBox}
@@ -177,10 +182,9 @@ const IconStyled = styled.div`
 
 
 
-const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rows, pageSheetTypeName, companies }) => {
+const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rows, isSpreadsheetOrDataEntry, companies }) => {
 
-
-   const columnsValueArr = getColumnsValue(rows, headers, pageSheetTypeName, companies);
+   const columnsValueArr = getColumnsValue(rows, headers, isSpreadsheetOrDataEntry, companies);
 
    const [column, setColumn] = useState(data.header);
 
@@ -258,7 +262,7 @@ const SelectStyled = styled(Select)`
 `;
 
 
-const getColumnsValue = (rows, headers, pageSheetTypeName, companies) => {
+const getColumnsValue = (rows, headers, isSpreadsheetOrDataEntry, companies) => {
 
    let valueObj = {};
 
@@ -271,22 +275,22 @@ const getColumnsValue = (rows, headers, pageSheetTypeName, companies) => {
    [...headers, ...arrayHeaderRFA].forEach(hd => {
       let valueArr = [];
       rows.forEach(row => {
-         if (pageSheetTypeName !== 'page-spreadsheet' && isColumnWithReplyData(hd)) {
+         if (!isSpreadsheetOrDataEntry && isColumnWithReplyData(hd)) {
             const { replyCompany } = getConsultantReplyData(row, hd, companies);
             valueArr.push(replyCompany || '');
 
-         } else if (pageSheetTypeName !== 'page-spreadsheet' && hd === 'Overdue RFA') {
+         } else if (!isSpreadsheetOrDataEntry && hd === 'Overdue RFA') {
             valueArr = [...valueArr, 'Overdue', 'Due in 3 days', 'RFA outstanding'];
 
-         } else if (pageSheetTypeName !== 'page-spreadsheet' && hd === 'Due Date') {
+         } else if (!isSpreadsheetOrDataEntry && hd === 'Due Date') {
             const dueDate = row['Consultant Reply (T)'];
             valueArr.push(dueDate || '');
 
-         } else if (pageSheetTypeName !== 'page-spreadsheet' && hd === 'Requested By') {
+         } else if (!isSpreadsheetOrDataEntry && hd === 'Requested By') {
             const requestedBy = getInfoValueFromRfaData(row, 'submission', 'requestedBy');
             valueArr.push(requestedBy || '');
 
-         } else if (pageSheetTypeName !== 'page-spreadsheet' && hd === 'Submission Date') {
+         } else if (!isSpreadsheetOrDataEntry && hd === 'Submission Date') {
             const submissionDate = row['Drg To Consultant (A)'];
             valueArr.push(submissionDate || '');
             

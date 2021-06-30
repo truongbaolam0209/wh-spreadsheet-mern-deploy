@@ -14,19 +14,18 @@ const CellIndex = (props) => {
    const { drawingTypeTree, rowsAll, rowsRfaAll, modeGroup, rowsSelected } = stateRow;
    const { roleTradeCompany, pageSheetTypeName } = stateProject.allDataOneSheet;
 
-   
+
 
    const onClickCellIndex = () => {
-      if (pageSheetTypeName !== 'page-spreadsheet') return;
+      if (pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry') return;
 
-      const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
-      
+      if (pageSheetTypeName === 'page-spreadsheet') {
+         const isLockedRow = rowLocked(roleTradeCompany, rowData, modeGroup, drawingTypeTree);
+         if (isLockedRow) return;
+      };
+
       setCellActive(null);
-
-      if (isLockedRow) return;
-
       const row = rowsAll.find(x => x.id === rowData.id);
-
       if (!rowsSelected.find(x => x.id === rowData.id) && rowData._rowLevel === 1) {
          getSheetRows({
             ...stateRow,
@@ -41,6 +40,9 @@ const CellIndex = (props) => {
          });
       };
    };
+
+
+
 
    let indexRfa;
    if (pageSheetTypeName === 'page-rfa' && !rowData.treeLevel) {
@@ -62,8 +64,8 @@ const CellIndex = (props) => {
 
    return (
       <Styled onClick={onClickCellIndex}>
-         {(pageSheetTypeName === 'page-spreadsheet' && !rowData.treeLevel)
-            ? rowsAll.indexOf(rowsAll.find(r => r.id === rowData.id)) + 1
+         {((pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') && !rowData.treeLevel)
+            ? (rowData._rowLevel < 1 ? null : (rowsAll.indexOf(rowsAll.find(r => r.id === rowData.id)) + 1))
             : (pageSheetTypeName === 'page-rfa' && !rowData.treeLevel)
                ? indexRfa
                : ''}

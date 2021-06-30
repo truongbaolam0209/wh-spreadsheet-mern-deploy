@@ -9,6 +9,7 @@ import { Context as RowContext } from '../../contexts/rowContext';
 const ViewTemplateSelect = ({ updateExpandedRowIdsArray }) => {
 
 
+
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject, setUserData } = useContext(ProjectContext);
 
@@ -20,6 +21,7 @@ const ViewTemplateSelect = ({ updateExpandedRowIdsArray }) => {
       listArrayStringFolder = getListOfStringFolder(drawingTypeTree, viewTemplates);
    };
 
+   
    const selectViewTemplate = (value) => {
       const { allDataOneSheet: { publicSettings: { headers } } } = stateProject;
       const nodeId = listArrayStringFolder.find(x => x.text === value).treeNodeId;

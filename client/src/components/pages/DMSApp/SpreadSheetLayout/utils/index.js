@@ -455,7 +455,9 @@ export const validateEmailInput = (email) => {
 
 
 
-export const getUserRoleTradeCompany = (role, company) => {
+export const getUserRoleTradeCompany = (role, company, pageSheetTypeName) => {
+
+   if (pageSheetTypeName === 'page-data-entry') return { role, trade: null, company: null };
 
    const roleArray = [
       'Document Controller',

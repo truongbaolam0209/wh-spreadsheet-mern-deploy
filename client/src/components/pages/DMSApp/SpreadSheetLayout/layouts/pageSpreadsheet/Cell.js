@@ -1,4 +1,4 @@
-import { message } from 'antd';
+import { Checkbox, message } from 'antd';
 import moment from 'moment';
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
@@ -37,7 +37,12 @@ const Cell = (props) => {
 
 
 
-   const { roleTradeCompany, projectIsAppliedRfaView, company, pageSheetTypeName } = stateProject.allDataOneSheet;
+   const { roleTradeCompany, projectIsAppliedRfaView, company, pageSheetTypeName, publicSettings: { headers } } = stateProject.allDataOneSheet;
+
+   let headerDataEntry;
+   if (pageSheetTypeName === 'page-data-entry') {
+      headerDataEntry = headers.find(hd => hd.text === column.key);
+   };
 
 
    let info = '';
@@ -106,49 +111,72 @@ const Cell = (props) => {
    const [panelData, setPanelData] = useState(false);
    const [btnDrawingShown, setBtnDrawingShown] = useState(false);
 
-   const cellDataTypeBtn = checkCellDataFormat(column.key);
+   const cellDataTypeBtn = checkCellDataFormat(column.key, headerDataEntry, pageSheetTypeName);
 
    const getCellTempId = () => `${rowData['id']}~#&&#~${column.key}`;
 
    const cellEditDone = (value) => {
       if (rowData._rowLevel === 1) {
 
+         let cellDrgTypeFormatArrText = [];
          const parentNode = drawingTypeTree.find(x => x.id === rowData._parentRow);
-         const tradeName = getTradeNameFnc(parentNode, drawingTypeTree);
-         let cellDrgTypeFormatArrText;
-         if (tradeName.includes('(SUBCON)')) {
-            cellDrgTypeFormatArrText = ['Other'];
-         } else {
-            cellDrgTypeFormatArrText = cellDrgTypeFormat[tradeName];
+         if (parentNode && pageSheetTypeName === 'page-data-enrty-new') {
+            const tradeName = getTradeNameFnc(parentNode, drawingTypeTree);
+            if (tradeName.includes('(SUBCON)')) {
+               cellDrgTypeFormatArrText = ['Other'];
+            } else {
+               cellDrgTypeFormatArrText = cellDrgTypeFormat[tradeName];
+            };
          };
 
+
+
+
          if (
-            (cellDataTypeBtn === 'cell-type-date' && !(moment(value, 'DD/MM/YY').format('DD/MM/YY') === value) && value !== '') ||
-            (column.key === 'Status' && cellStatusFormat.indexOf(value) === -1 && value !== '') ||
-            (column.key === 'Use For' && cellUseForFormat.indexOf(value) === -1 && value !== '') ||
-            ((column.key === 'Model Progress' || column.key === 'Drawing Progress') && cellProgressFormatData.indexOf(value) === -1 && value !== '') ||
-            (column.key === 'Drg Type' && cellDrgTypeFormatArrText.indexOf(value) === -1 && value !== '')
+            pageSheetTypeName === 'page-spreadsheet' && (
+               (cellDataTypeBtn === 'cell-type-date' && !(moment(value, 'DD/MM/YY').format('DD/MM/YY') === value) && value !== '') ||
+               (column.key === 'Status' && cellStatusFormat.indexOf(value) === -1 && value !== '') ||
+               (column.key === 'Use For' && cellUseForFormat.indexOf(value) === -1 && value !== '') ||
+               ((column.key === 'Model Progress' || column.key === 'Drawing Progress') && cellProgressFormatData.indexOf(value) === -1 && value !== '') ||
+               (column.key === 'Drg Type' && cellDrgTypeFormatArrText.indexOf(value) === -1 && value !== '')
+            )
          ) {
             setValueInput({ ...valueInput, current: valueInput.init });
             message.info('Data input should be in correct format', 1);
 
+         } else if (
+            pageSheetTypeName === 'page-data-entry' && (
+               (headerDataEntry.type === 'date' && !(moment(value, 'DD/MM/YY').format('DD/MM/YY') === value) && value !== '') ||
+               (headerDataEntry.type === 'dropdown' && headerDataEntry.valueArray.indexOf(value) === -1 && value !== '')
+            )
+         ) {
+            setValueInput({ ...valueInput, current: valueInput.init });
+            message.info('Data input should be in correct format', 1);
+
+         } else if (pageSheetTypeName === 'page-data-entry' && headerDataEntry.type === 'checkbox') {
+            getCellModifiedTemp({ [getCellTempId()]: !value || value === 'unchecked' ? 'unchecked' : 'checked' });
+            
+            let row = rowsAll.find(r => r.id === rowData.id);
+
+            row[column.key] = value ? 'checked' : 'unchecked';
+            getSheetRows({ ...stateRow, rowsAll });
+
          } else {
+
             setValueInput({ ...valueInput, current: value });
 
             getCellModifiedTemp({ [getCellTempId()]: value });
             let row = rowsAll.find(r => r.id === rowData.id);
             row[column.key] = value;
 
-            getSheetRows({
-               ...stateRow,
-               rowsAll
-            });
+            getSheetRows({ ...stateRow, rowsAll });
          };
       };
    };
 
 
    const onDoubleClick = () => {
+      if (pageSheetTypeName === 'page-data-entry' && headerDataEntry.type === 'checkbox') return;
       if (isLockedColumn || isLockedRow) return;
       setInputRender(true);
       setBtnShown(false);
@@ -220,6 +248,11 @@ const Cell = (props) => {
       setValueInput({ ...valueInput, current: e.target.value });
    };
 
+   const [checkBoxValue, setCheckBoxValue] = useState(cellData);
+   const onChangeCheckBox = () => {
+      setCheckBoxValue(!checkBoxValue || checkBoxValue === 'unchecked' ? 'checked' : 'unchecked');
+      cellEditDone(!checkBoxValue || checkBoxValue === 'unchecked' ? 'checked' : 'unchecked');
+   };
 
 
 
@@ -317,44 +350,56 @@ const Cell = (props) => {
                overflow: !rowData.treeLevel && column.key === columnKeyToPutFolderName ? 'hidden' : 'visible' // fix bug frozen panel move to the left
             }}
          >
-            {inputRender ? (
-               <input
-                  value={valueInput.current}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  onKeyDown={onKeyDown}
-                  ref={inputRef}
-                  style={{
-                     outline: 'none',
-                     border: 'none',
-                     background: 'transparent',
-                     width: column.width - 30
-                  }}
+            {rowData._rowLevel === 1 && cellDataTypeBtn === 'cell-type-checkbox' ? (
+               <CheckboxStyled
+                  onChange={onChangeCheckBox}
+                  checked={checkBoxValue === 'checked' ? true : false}
                />
-
             ) : (
-               <div style={{
-                  textOverflow: column.key === columnKeyToPutFolderName ? 'unset' : 'ellipsis',
-                  overflow: column.key === columnKeyToPutFolderName ? 'visible' : 'hidden',
-                  whiteSpace: 'nowrap',
-                  width: column.width - 30,
-                  color: (rowData['Status'] === 'Revise In-Progress' ? '#DAA520' : colorTextRow[rowData['Status']]) || 'black'
-               }}>
-                  {
-                     ((column.key === 'Model Progress' || column.key === 'Drawing Progress') && <BtnProgress type={cellData} />) ||
-                     (
-                        columnKeyToPutFolderName && columnKeyToPutFolderName === column.key &&
-                        <><span style={{ fontWeight: 'bold' }}>{rowData.title}</span><span>{info}</span></>
-                     ) ||
-                     stateCell.cellsModifiedTemp[getCellTempId()] ||  // there is modified data
-                     (getCellTempId() in stateCell.cellsModifiedTemp && ' ') || // there is modified data === empty, MUST BE ' ', not ''
-                     cellData // there is no modification
-                  }
-               </div>
+               <>
+                  {inputRender ? (
+                     <input
+                        value={valueInput.current}
+                        onChange={onChange}
+                        onBlur={onBlur}
+                        onKeyDown={onKeyDown}
+                        ref={inputRef}
+                        style={{
+                           outline: 'none',
+                           border: 'none',
+                           background: 'transparent',
+                           width: column.width - 30
+                        }}
+                     />
+
+                  ) : (
+                     <div style={{
+                        textOverflow: column.key === columnKeyToPutFolderName ? 'unset' : 'ellipsis',
+                        overflow: column.key === columnKeyToPutFolderName ? 'visible' : 'hidden',
+                        whiteSpace: 'nowrap',
+                        width: column.width - 30,
+                        color: (rowData['Status'] === 'Revise In-Progress' ? '#DAA520' : colorTextRow[rowData['Status']]) || 'black'
+                     }}>
+                        {
+                           ((column.key === 'Model Progress' || column.key === 'Drawing Progress') && <BtnProgress type={cellData} />) ||
+                           (
+                              columnKeyToPutFolderName && columnKeyToPutFolderName === column.key &&
+                              <><span style={{ fontWeight: 'bold' }}>{rowData.title}</span><span>{info}</span></>
+                           ) ||
+                           stateCell.cellsModifiedTemp[getCellTempId()] ||  // there is modified data
+                           (getCellTempId() in stateCell.cellsModifiedTemp && ' ') || // there is modified data === empty, MUST BE ' ', not ''
+                           cellData // there is no modification
+                        }
+                     </div>
+                  )}
+               </>
             )}
 
 
-            {btnShown && !cellBtnDisabled(column.key) && pageSheetTypeName === 'page-spreadsheet' && (
+
+
+
+            {btnShown && !cellBtnDisabled(column.key, pageSheetTypeName, headerDataEntry) && (
                <div
                   style={{
                      cursor: 'pointer', position: 'absolute',
@@ -373,7 +418,6 @@ const Cell = (props) => {
             )}
 
 
-
             {panelData && (
                <div style={{
                   position: 'absolute', background: 'white', top: 30, left: 0, zIndex: 999,
@@ -386,7 +430,7 @@ const Cell = (props) => {
                >
                   {cellDataTypeBtn === 'cell-type-date' ? (
                      <PanelCalendar pickDate={(item) => pickDataSelect('date', item)} />
-                  ) : getColumnsValue(rowsAll, column.key, { rowData, drawingTypeTree }, cellStatusFormat).map(item => {
+                  ) : getColumnsValue(rowsAll, column.key, { rowData, drawingTypeTree }, cellStatusFormat, headerDataEntry, pageSheetTypeName).map(item => {
                      return (
                         <SelectStyled
                            key={(column.key === 'Drawing Progress' || column.key === 'Model Progress') ? item.key : item}
@@ -453,27 +497,54 @@ const cellProgressFormatData = [
    'Empty', 'Quarter', 'Half', 'Third Quarter', 'Full'
 ];
 
-const checkCellDataFormat = (header) => {
-   if (
-      header.includes('(A)') ||
-      header.includes('(T)') ||
-      header === 'Construction Issuance Date' ||
-      header === 'Construction Start'
-   ) return 'cell-type-date';
+const checkCellDataFormat = (header, headerDataEntry, pageSheetTypeName) => {
+   if (pageSheetTypeName === 'page-data-entry') {
+      if (headerDataEntry.type === 'date') {
+         return 'cell-type-date';
+      } else if (headerDataEntry.type === 'dropdown') {
+         return 'cell-type-text';
+      } else if (headerDataEntry.type === 'checkbox') {
+         return 'cell-type-checkbox';
+      } else if (headerDataEntry.type === 'text') {
+         return 'cell-type-none';
+      };
 
-   else if (
-      header === 'Index' ||
-      header === 'Drawing Number' ||
-      header === 'Drawing Name'
-      // header === 'RFA Ref'
-   ) return 'cell-type-none';
+   } else {
+      if (
+         header.includes('(A)') ||
+         header.includes('(T)') ||
+         header === 'Construction Issuance Date' ||
+         header === 'Construction Start'
+      ) return 'cell-type-date';
 
-   else return 'cell-type-text';
+      else if (
+         header === 'Index' ||
+         header === 'Drawing Number' ||
+         header === 'Drawing Name'
+         // header === 'RFA Ref'
+      ) return 'cell-type-none';
+
+      else return 'cell-type-text';
+   };
 };
-const cellBtnDisabled = (headerId) => {
-   if (headerId === 'Index' || headerId === 'Drawing Number' || headerId === 'Drawing Name') return true;
+const cellBtnDisabled = (headerId, pageSheetTypeName, headerDataEntry) => {
+   if (pageSheetTypeName === 'page-data-entry') {
+      if (headerDataEntry.type === 'text' || headerDataEntry.type === 'checkbox') {
+         return true;
+      } else {
+         return false;
+      };
+   } else if (pageSheetTypeName === 'page-spreadsheet') {
+      if (headerId === 'Index' || headerId === 'Drawing Number' || headerId === 'Drawing Name') return true;
+   } else {
+      return true;
+   };
 };
-const getColumnsValue = (rows, headerKey, drgTypeCheckData, cellStatusFormat) => {
+const getColumnsValue = (rows, headerKey, drgTypeCheckData, cellStatusFormat, headerDataEntry, pageSheetTypeName) => {
+
+   if (pageSheetTypeName === 'page-data-entry' && headerDataEntry.type === 'dropdown') return headerDataEntry.valueArray;
+
+
    if (headerKey === 'Status') return cellStatusFormat;
    if (headerKey === 'Use For') return cellUseForFormat;
    if (headerKey === 'Model Progress' || headerKey === 'Drawing Progress') return cellProgressFormat;
@@ -505,6 +576,12 @@ const getColumnsValue = (rows, headerKey, drgTypeCheckData, cellStatusFormat) =>
 
 
 
+const CheckboxStyled = styled(Checkbox)`
+   
+   .ant-checkbox-inner {
+      border-radius: 0;
+   };
+`;
 
 const cellUseForFormat = [
    'Coordination',
@@ -584,7 +661,9 @@ export const columnLocked = (roleTradeCompany, rowData, modeGroup, column, proje
 };
 export const rowLocked = (roleTradeCompany, rowData, modeGroup, drawingTypeTree) => {
    if (!rowData._rowLevel || rowData._rowLevel < 1) return true;
+
    if (modeGroup.length > 0) return true;
+
    if (roleTradeCompany.role === 'Document Controller') return false;
 
 

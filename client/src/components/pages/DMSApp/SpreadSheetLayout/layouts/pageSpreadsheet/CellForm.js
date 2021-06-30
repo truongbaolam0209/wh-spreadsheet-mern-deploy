@@ -3,7 +3,7 @@ import Axios from 'axios';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { colorTextRow, colorType, SERVER_URL } from '../../constants';
+import { colorTextRow, colorType, SERVER_URL, tradeArrayForm, tradeArrayMeetingMinutesForm } from '../../constants';
 import { mongoObjectId } from '../../utils';
 import ButtonColumnTag from '../generalComponents/ButtonColumnTag';
 import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
@@ -35,32 +35,33 @@ const CellForm = (props) => {
       : pageSheetTypeName === 'page-rfi' ? 'RFI Ref'
          : pageSheetTypeName === 'page-cvi' ? 'CVI Ref'
             : pageSheetTypeName === 'page-dt' ? 'DT Ref'
-               : 'n/a';
+               : pageSheetTypeName === 'page-mm' ? 'MM Ref'
+                  : 'n/a';
 
    const [activeBtn, setActiveBtn] = useState('All');
 
    const [btnShown, setBtnShown] = useState(false);
 
-   const { rowsRfamAllInit, rowsRfamAll, rowsRfiAllInit, rowsRfiAll, rowsCviAllInit, rowsCviAll, rowsDtAllInit, rowsDtAll } = stateRow;
+   const { rowsRfamAllInit, rowsRfamAll, rowsRfiAllInit, rowsRfiAll, rowsCviAllInit, rowsCviAll, rowsDtAllInit, rowsDtAll, rowsMmAllInit, rowsMmAll } = stateRow;
 
    const rowsRefAllInit = pageSheetTypeName === 'page-rfam' ? rowsRfamAllInit
       : pageSheetTypeName === 'page-rfi' ? rowsRfiAllInit
          : pageSheetTypeName === 'page-cvi' ? rowsCviAllInit
             : pageSheetTypeName === 'page-dt' ? rowsDtAllInit
-               : [];
+               : pageSheetTypeName === 'page-mm' ? rowsMmAllInit
+                  : [];
 
    const rowsRefAll = pageSheetTypeName === 'page-rfam' ? rowsRfamAll
       : pageSheetTypeName === 'page-rfi' ? rowsRfiAll
          : pageSheetTypeName === 'page-cvi' ? rowsCviAll
             : pageSheetTypeName === 'page-dt' ? rowsDtAll
-               : [];
+               : pageSheetTypeName === 'page-mm' ? rowsMmAll
+                  : [];
 
 
    const refType = getKeyTextForSheet(pageSheetTypeName);
    const refKey = refType + 'Ref';
 
-
-   const [refData, setRefData] = useState({});
 
    const [replyStatus, setReplyStatus] = useState(null);
    const [replyCompany, setReplyCompany] = useState(null);
@@ -98,113 +99,86 @@ const CellForm = (props) => {
 
    useEffect(() => {
 
-      if (rowData.treeLevel === 3 && column.key === expandedColumn) {
+      if (!rowData.treeLevel) {
+         if (column.key === expandedColumn) {
 
-         const refNumber = rowData.id;
-         const allBtn = rowData['btn'];
-         const allRowsChildren = rowData.children;
-         const lastBtn = allBtn[allBtn.length - 1];
+            const consultantMustReplyArray = getInfoValueFromRefDataForm(rowData, 'submission', refType, 'consultantMustReply');
 
-         let ref;
-         if (activeBtn === '0') {
-            ref = refNumber;
-         } else if (activeBtn === 'All') {
-            ref = refNumber + (lastBtn === '0' ? '' : lastBtn);
-         } else if (activeBtn) { // A, B, C, ....
-            ref = refNumber + activeBtn;
-         };
+            if (isUserCanSubmitBothSide) {
+               // if (allRowsChildren.find(row => !row[refKey])) {
+               //    setThereIsDrawingWithNoRef(true);
+               // } else {
+               //    setThereIsDrawingWithNoRef(false);
+               // };
+               // let arrayConsultantNotReplyYet = [];
+               // consultantMustReplyArray.forEach(cst => {
+               //    const statusReply = getInfoValueFromRefDataForm(rowData, 'reply', refType, 'status', cst);
+               //    if (!statusReply) {
+               //       arrayConsultantNotReplyYet.push(cst);
+               //    };
+               // });
+               // if (arrayConsultantNotReplyYet.length > 0) {
+               //    setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
+               //    setConsultantsNotReplyYet(arrayConsultantNotReplyYet);
+               // } else {
+               //    setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
+               // };
 
-         const rowsWithThisRef = rowsRefAllInit.filter(x => {
-            return x[refKey] === rowData[refKey];
-         });
-         const oneRowChildren = rowsWithThisRef[0];
+            } else if (roleTradeCompany.role === 'Consultant') {
+               if (
+                  consultantMustReplyArray && consultantMustReplyArray.indexOf(company) !== -1 &&
+                  (
+                     (!rowData[`reply-${refType}-status-${company}`] && pageSheetTypeName === 'page-rfam') ||
+                     (!rowData[`reply-${refType}-status-${company}`] && pageSheetTypeName === 'page-rfi') ||
+                     (!rowData[`reply-${refType}-acknowledge-${company}`] && pageSheetTypeName === 'page-dt') ||
+                     ((!rowData[`reply-${refType}-acknowledge-${company}`] && !rowData[`reply-${refType}-status-${company}`]) && pageSheetTypeName === 'page-cvi')
+                  )
 
-         const refDataObj = cloneRefData(oneRowChildren, refKey);
+               ) {
+                  setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
+               } else {
+                  setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
+               };
+            } else if (roleTradeCompany.role === 'Document Controller') {
 
-         setRefData(refDataObj);
-
-         const consultantMustReplyArray = getInfoValueFromRefDataForm(refDataObj, 'submission', refType, 'consultantMustReply');
-
-         if (isUserCanSubmitBothSide) {
-            // if (allRowsChildren.find(row => !row[refKey])) {
-            //    setThereIsDrawingWithNoRef(true);
-            // } else {
-            //    setThereIsDrawingWithNoRef(false);
-            // };
-            // let arrayConsultantNotReplyYet = [];
-            // consultantMustReplyArray.forEach(cst => {
-            //    const statusReply = getInfoValueFromRefDataForm(refDataObj, 'reply', refType, 'status', cst);
-            //    if (!statusReply) {
-            //       arrayConsultantNotReplyYet.push(cst);
-            //    };
-            // });
-            // if (arrayConsultantNotReplyYet.length > 0) {
-            //    setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
-            //    setConsultantsNotReplyYet(arrayConsultantNotReplyYet);
-            // } else {
-            //    setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
-            // };
-
-         } else if (roleTradeCompany.role === 'Consultant') {
-            if (
-               consultantMustReplyArray && consultantMustReplyArray.indexOf(company) !== -1 &&
-               (
-                  (!refDataObj[`reply-${refType}-status-${company}`] && pageSheetTypeName === 'page-rfam') ||
-                  (!refDataObj[`reply-${refType}-status-${company}`] && pageSheetTypeName === 'page-rfi') ||
-                  (!refDataObj[`reply-${refType}-acknowledge-${company}`] && pageSheetTypeName === 'page-dt') ||
-                  ((!refDataObj[`reply-${refType}-acknowledge-${company}`] && !refDataObj[`reply-${refType}-status-${company}`]) && pageSheetTypeName === 'page-cvi')
-               )
-
-            ) {
-               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
-            } else {
-               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
+               // if (allRowsChildren.find(row => !row['RFA Ref'])) {
+               //    setThereIsDrawingWithNoRef(true);
+               // } else {
+               //    setThereIsDrawingWithNoRef(false);
+               // };
             };
-         } else if (roleTradeCompany.role === 'Document Controller') {
+         } else {
 
-            // if (allRowsChildren.find(row => !row['RFA Ref'])) {
-            //    setThereIsDrawingWithNoRef(true);
-            // } else {
-            //    setThereIsDrawingWithNoRef(false);
-            // };
-         };
+            if (column.key === 'Received By') {
+
+               setConsultantsReply(getInfoValueFromRefDataForm(rowData, 'submission', refType, 'consultantMustReply'));
 
 
+            } else if (isColumnWithReplyData(column.key)) {
+               const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyFormData(rowData, column.key, refType, companies);
+               setReplyStatus(replyStatusData);
+               setReplyCompany(replyCompanyData);
+               setReplyDate(convertReplyOrSubmissionDate(replyDateData));
 
-      } else if (!rowData.treeLevel && rowData[refKey]) {
+            } else if (isColumnConsultant(column.key)) {
 
-         const refDataObj = cloneRefData(rowData, refKey);
-         setRefData(refDataObj);
+               if (roleTradeCompany.role !== 'Consultant') {
+                  const consultantLead = getInfoValueFromRefDataForm(rowData, 'submission', refType, 'consultantMustReply')[0];
+                  setReplyStatus(rowData[`reply-${refType}-status-${consultantLead}`]);
+                  setReplyCompany(consultantLead);
 
-         if (column.key === 'Received By') {
-
-            setConsultantsReply(getInfoValueFromRefDataForm(refDataObj, 'submission', refType, 'consultantMustReply'));
-
-
-         } else if (isColumnWithReplyData(column.key)) {
-            const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyFormData(rowData, column.key, refType, companies);
-            setReplyStatus(replyStatusData);
-            setReplyCompany(replyCompanyData);
-            setReplyDate(convertReplyOrSubmissionDate(replyDateData));
-
-         } else if (isColumnConsultant(column.key)) {
-
-            if (roleTradeCompany.role !== 'Consultant') {
-               const consultantLead = getInfoValueFromRefDataForm(refDataObj, 'submission', refType, 'consultantMustReply')[0];
-               setReplyStatus(refDataObj[`reply-${refType}-status-${consultantLead}`]);
-               setReplyCompany(consultantLead);
-
-               const dateInfo = refDataObj[`reply-${refType}-date-${consultantLead}`];
-               setReplyDate(convertReplyOrSubmissionDate(dateInfo));
-
-            } else {
-               const consultantMustReplyValue = getInfoValueFromRefDataForm(refDataObj, 'submission', refType, 'consultantMustReply');
-               if (consultantMustReplyValue.indexOf(company) !== -1) {
-                  setReplyStatus(refDataObj[`reply-${refType}-status-${company}`]);
-                  setReplyCompany(company);
-                  const dateInfo = refDataObj[`reply-${refType}-date-${company}`];
-
+                  const dateInfo = rowData[`reply-${refType}-date-${consultantLead}`];
                   setReplyDate(convertReplyOrSubmissionDate(dateInfo));
+
+               } else {
+                  const consultantMustReplyValue = getInfoValueFromRefDataForm(rowData, 'submission', refType, 'consultantMustReply');
+                  if (consultantMustReplyValue.indexOf(company) !== -1) {
+                     setReplyStatus(rowData[`reply-${refType}-status-${company}`]);
+                     setReplyCompany(company);
+                     const dateInfo = rowData[`reply-${refType}-date-${company}`];
+
+                     setReplyDate(convertReplyOrSubmissionDate(dateInfo));
+                  };
                };
             };
          };
@@ -264,23 +238,15 @@ const CellForm = (props) => {
 
    const onClickRefDrawing = (btn) => {
 
-      const rowsNotThisRef = rowsRefAll.filter(r => r[refKey] !== refData[refKey]);
-      let rowsThisRefFiltered;
-      if (btn === 'All') {
-         const rowsFilter = rowsRefAllInit.filter(r => r[refKey] === refData[refKey]);
-         const arrayVersion = [...new Set(rowsFilter.map(x => x.revision))];
-         const latestVersion = arrayVersion.sort()[arrayVersion.length - 1];
-         rowsThisRefFiltered = rowsRefAllInit.filter(r => {
-            return r.revision === latestVersion && r[refKey] === refData[refKey];
-         });
-      } else {
-         rowsThisRefFiltered = rowsRefAllInit.filter(r => {
-            return r.revision === btn && r[refKey] === refData[refKey];
-         });
-      };
+      const rowsNotThisRef = rowsRefAll.filter(r => r[refKey] !== rowData[refKey]);
+
+      let rowsThisRefFiltered = rowsRefAllInit.filter(r => {
+         return r.revision === btn && r[refKey] === rowData[refKey];
+      });
+      
       getSheetRows({
          ...stateRow,
-         [`rows${refKey}All`]: [...rowsNotThisRef, ...rowsThisRefFiltered]
+         [`rows${refType.charAt(0).toUpperCase() + refType.slice(1)}All`]: [...rowsNotThisRef, ...rowsThisRefFiltered]
       });
       setActiveBtn(btn);
    };
@@ -333,7 +299,7 @@ const CellForm = (props) => {
          ...stateRow,
          currentRefToAddNewOrReplyOrEdit: {
             currentRefNumber: rowData[refKey],
-            currentRefData: refData,
+            currentRefData: rowData,
             formRefType: btn,
             isFormEditting: false
          },
@@ -358,7 +324,7 @@ const CellForm = (props) => {
 
          if (btn === 'Open Form') {
 
-            const linkFormReply = getInfoValueFromRefDataForm(refData, 'reply', refType, 'linkFormReply', replyCompany);
+            const linkFormReply = getInfoValueFromRefDataForm(rowData, 'reply', refType, 'linkFormReply', replyCompany);
             const res = await Axios.get('/api/issue/get-public-url', { params: { key: linkFormReply, expire: 1000 } });
             window.open(res.data);
 
@@ -423,21 +389,22 @@ const CellForm = (props) => {
          // if (isEditTimeOver || userSubmission === email) {
          if (btn === 'Open Drawing List') {
 
-            const dwgsLinkList = getInfoValueFromRefDataForm(refData, 'submission', refType, 'linkDrawings');
+            const dwgsLinkList = getInfoValueFromRefDataForm(rowData, 'submission', refType, 'linkDrawings');
 
             setModalListDrawingAttached(dwgsLinkList);
 
          } else if (btn === 'Open Form') {
 
-            const linkFormSignedOff = getInfoValueFromRefDataForm(refData, 'submission', refType, 'linkSignedOffFormSubmit');
+            const linkFormSignedOff = getInfoValueFromRefDataForm(rowData, 'submission', refType, 'linkSignedOffFormSubmit');
             if (linkFormSignedOff) {
                const res = await Axios.get('/api/issue/get-public-url', { params: { key: linkFormSignedOff, expire: 1000 } });
                window.open(res.data);
             } else {
-               const linkFormNoSignature = getInfoValueFromRefDataForm(refData, 'submission', refType, 'linkFormNoSignature');
+               const linkFormNoSignature = getInfoValueFromRefDataForm(rowData, 'submission', refType, 'linkFormNoSignature');
                const res = await Axios.get('/api/issue/get-public-url', { params: { key: linkFormNoSignature, expire: 1000 } });
                window.open(res.data);
             };
+
 
          } else if (btn === 'Edit') {
             // const typeBtn = rowData['RFA Ref'] !== rowData.rfaNumber ? 'form-resubmit-RFA' : 'form-submit-RFA';
@@ -515,7 +482,7 @@ const CellForm = (props) => {
          ...stateRow,
          currentRefToAddNewOrReplyOrEdit: {
             currentRefNumber: rowData[refKey],
-            currentRefData: refData,
+            currentRefData: rowData,
             formRefType: 'form-reply-multi-type',
             isFormEditting: false,
 
@@ -530,7 +497,7 @@ const CellForm = (props) => {
 
    const openFormReplyForCvi = async (company) => {
       try {
-         const linkFormReply = getInfoValueFromRefDataForm(refData, 'reply', refType, 'linkFormReply', company);
+         const linkFormReply = getInfoValueFromRefDataForm(rowData, 'reply', refType, 'linkFormReply', company);
          const res = await Axios.get('/api/issue/get-public-url', { params: { key: linkFormReply, expire: 1000 } });
          window.open(res.data);
 
@@ -557,7 +524,7 @@ const CellForm = (props) => {
             data.append('files', file.originFileObj);
          });
          data.append('projectId', projectId);
-         data.append(`${refType}Number`, `${refData[`${refType}Ref`]}/${refData.revision}/submit`);
+         data.append(`${refType}Number`, `${rowData[`${refType}Ref`]}/${rowData.revision}/submit`);
 
          let arrayFileName = [];
          if (data) {
@@ -579,6 +546,7 @@ const CellForm = (props) => {
 
          await Axios.post(`${SERVER_URL}/row-${refType}/save-rows-${refType}/`, { token, projectId, rows: [rowOutput] });
 
+         
          await Axios.post('/api/rfa/mail', {
             token,
             data: {
@@ -588,7 +556,7 @@ const CellForm = (props) => {
                rowIds: [rowChild.id],
                emailSender: email,
             },
-            momentToTriggerEmail: moment().add(moment.duration(0.1, 'minutes'))
+            momentToTriggerEmail: moment().add(moment.duration(0.5, 'minutes'))
          });
 
 
@@ -599,15 +567,17 @@ const CellForm = (props) => {
             : pageSheetTypeName === 'page-cvi' ? 'row-cvi'
                : pageSheetTypeName === 'page-rfi' ? 'row-rfi'
                   : pageSheetTypeName === 'page-dt' ? 'row-dt'
-                     : 'n/a';
+                     : pageSheetTypeName === 'page-mm' ? 'row-mm'
+                        : 'n/a';
 
          const res = await Axios.get(`${SERVER_URL}/${route}/`, { params: { token, projectId, email } });
          const rowsAllMultiForm = res.data;
 
          const expandedRowsIdArr = [
-            'ARCHI', 'C&S', 'M&E', 'PRECAST',
+            ...(pageSheetTypeName === 'page-mm' ? tradeArrayMeetingMinutesForm : tradeArrayForm),
             ...rowsAllMultiForm.filter(x => x[refKey]).map(x => x[refKey])
          ];
+
 
          commandAction({
             type: 'reload-data-view-multi-form',
@@ -652,7 +622,7 @@ const CellForm = (props) => {
 
    let arrayButtonReplyAndResubmit = [];
 
-   if (rowData.treeLevel === 3 && column.key === expandedColumn) {
+   if (!rowData.treeLevel && column.key === expandedColumn) {
       if (isUserCanSubmitBothSide) {
          // if (thereIsDrawingWithNoRef) {
          //    arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'plus-square'];
@@ -668,7 +638,8 @@ const CellForm = (props) => {
          //    arrayButtonReplyAndResubmit = ['plus-square'];
          // };
       };
-      const linkSignedOffFormSubmit = getInfoValueFromRefDataForm(refData, 'submission', refType, 'linkSignedOffFormSubmit');
+
+      const linkSignedOffFormSubmit = getInfoValueFromRefDataForm(rowData, 'submission', refType, 'linkSignedOffFormSubmit');
       if (!linkSignedOffFormSubmit && roleTradeCompany.role === 'Document Controller') {
          arrayButtonReplyAndResubmit = ['vertical-align-top', ...arrayButtonReplyAndResubmit];
       };
@@ -676,16 +647,16 @@ const CellForm = (props) => {
    const additionalBtnToEdit = [];
 
 
-
    return (
       <div
          style={{
             width: '100%', height: '100%',
-            position: 'relative', padding: 5, color: 'black',
+            position: 'relative', 
+            display: 'flex',
+            padding: 5, color: 'black',
             background: (column.key === 'Due Date' && overdueCount < 0)
                ? '#FFEBCD'
                : (colorTextRow[replyStatus] || 'transparent'),
-            // fontWeight: (column.key === 'RFA Ref' && rowData.treeLevel) && 'bold'
          }}
          onMouseOver={() => {
             // if (
@@ -701,44 +672,26 @@ const CellForm = (props) => {
             if (btnShown) setBtnShown(false);
          }}
       >
-         {(rowData.treeLevel === 3 && column.key === expandedColumn) ? (
-            <div style={{ display: 'flex', position: 'relative', color: 'black', fontWeight: 'bold' }}>
-               <span style={{ marginRight: 5 }}>{rowData[refKey]}</span>
-               <div style={{ display: 'flex' }}>
-                  {[...rowData['btn'].sort(), 'All'].map(btn => (
-                     <ButtonForm
-                        key={btn}
-                        onClick={() => onClickRefDrawing(btn)}
-                        isActive={btn === activeBtn}
-                     >{btn}</ButtonForm>
-                  ))}
-               </div>
-
-               {arrayButtonReplyAndResubmit.map(button => (
-                  <Tooltip key={button} placement='top' title={button === 'form' ? `Reply To This ${refType.toUpperCase()}` : button === 'plus-square' ? `Resubmit This ${refType.toUpperCase()}` : null} >
-                     <Icon
-                        type={button}
-                        style={{
-                           fontSize: 17,
-                           transform: 'translateY(1.5px)',
-                           position: 'absolute',
-                           right: arrayButtonReplyAndResubmit.length === 2 ? (button === 'form' ? 30 : 3) : 3,
-                           top: 0
-                        }}
-                        onClick={() => onClickSubmitOrReplyForm(
-                           button === 'form' ? 'form-reply-multi-type' :
-                              button === 'plus-square' ? 'form-resubmit-multi-form' :
-                                 button === 'vertical-align-top' ? 'form-upload-signed-off' :
-                                    null
-                        )}
-                     />
-                  </Tooltip>
-               ))}
-            </div>
-         ) : (rowData.treeLevel >= 2 && column.key === expandedColumn) ? (
+         {(rowData.treeLevel && column.key === expandedColumn) ? (
             <div style={{ color: 'black', fontWeight: 'bold' }}>{rowData.title}</div>
          ) : !rowData.treeLevel ? (
-            <div>{getCellFormData(rowData, column.key, refType, consultantsReply, replyCompany, replyStatus, replyDate, openFormReplyForCvi)}</div>
+            <div style={{ display: 'flex' }}>
+               <span>{getCellFormData(rowData, column.key, refType, consultantsReply, replyCompany, replyStatus, replyDate, openFormReplyForCvi)}</span>
+               {column.key === expandedColumn && (
+                  <div style={{ 
+                     display: 'flex',
+                     marginLeft: rowData['revision'] === '0' ? 14 : 7
+                  }}>
+                     {rowData['btn'].map(btn => (
+                        <ButtonForm
+                           key={btn}
+                           onClick={() => onClickRefDrawing(btn)}
+                           isActive={btn === activeBtn}
+                        >{btn}</ButtonForm>
+                     ))}
+                  </div>
+               )}
+            </div>
          ) : ''}
 
 
@@ -756,13 +709,13 @@ const CellForm = (props) => {
                   {(isColumnSubmitOrReply(column.key) === 'column-submit'
                      ? ['Open Drawing List', 'Open Form', ...additionalBtnToEdit]
                      : ['Open Form', ...additionalBtnToEdit]
-                  ).map(btn => (
+                  ).map((btn, i) => (
                      <Tooltip key={btn} placement='top' title={btn}>
                         <div
                            style={{
-                              cursor: 'pointer', position: 'absolute',
-                              right: btn === 'Open Drawing List' ? 27 : btn === 'Open Form' ? 5 : 51,
-                              top: 5, height: 17, width: 17,
+                              cursor: 'pointer',
+                              marginLeft: i === 0 ? 10 : 5,
+                              height: 17, width: 17,
                            }}
                            onClick={() => {
                               if (isColumnSubmitOrReply(column.key) === 'column-submit') {
@@ -781,6 +734,28 @@ const CellForm = (props) => {
                   ))}
                </>
             )}
+
+
+         {arrayButtonReplyAndResubmit.map(button => (
+            <Tooltip key={button} placement='top' title={button === 'form' ? `Reply To This ${refType.toUpperCase()}` : button === 'plus-square' ? `Resubmit This ${refType.toUpperCase()}` : null} >
+               <Icon
+                  type={button}
+                  style={{
+                     fontSize: 17,
+                     transform: 'translateY(1.5px)',
+                     position: 'absolute',
+                     right: arrayButtonReplyAndResubmit.length === 2 ? (button === 'form' ? 30 : 3) : 3,
+                     top: 0
+                  }}
+                  onClick={() => onClickSubmitOrReplyForm(
+                     button === 'form' ? 'form-reply-multi-type' :
+                        button === 'plus-square' ? 'form-resubmit-multi-form' :
+                           button === 'vertical-align-top' ? 'form-upload-signed-off' :
+                              null
+                  )}
+               />
+            </Tooltip>
+         ))}
 
 
          {modalListDrawingAttached && (
@@ -921,11 +896,10 @@ export default CellForm;
 const ButtonForm = styled.div`
    &:hover {
       cursor: pointer;
-      /* background: yellow; */
    };
    border-radius: 0;
    border: 1px solid grey;
-   background: ${props => props.isActive ? colorType.yellow : 'white'};
+   background: ${props => props.isActive ? colorType.yellow : colorType.grey4};
    min-width: 24px;
    margin-right: 3px;
    
@@ -1030,7 +1004,7 @@ const getCellFormData = (row, header, refType, consultantsReply, replyCompany, r
       header === 'CVI Ref' ||
       header === 'DT Ref'
    ) {
-      return row[refType + 'Ref'] + row.revision;
+      return row.revision === '0' ? row[refType + 'Ref'] : row[refType + 'Ref'] + row.revision;
 
    } else if (header === 'Description') return getInfoValueFromRefDataForm(row, 'submission', refType, 'description');
    else if (header === 'Requested By') return getInfoValueFromRefDataForm(row, 'submission', refType, 'requestedBy');
@@ -1113,7 +1087,7 @@ const getCellFormData = (row, header, refType, consultantsReply, replyCompany, r
       );
    };
 
-   return 'xxx';
+   return 'xxx-xx';
 };
 
 
@@ -1164,9 +1138,7 @@ const FormPickConsultantToReplyForAdmin = ({ applyChooseConsultantToReplyForAdmi
                      actionType='admin-pick-consultant-to-reply'
                   />
                ))}
-
             </div>
-
          </PanelStyled>
          <div style={{ marginTop: 20, padding: 10, display: 'flex', flexDirection: 'row-reverse' }}>
             <ButtonGroupComp

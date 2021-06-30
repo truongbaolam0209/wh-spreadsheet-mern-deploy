@@ -52,6 +52,18 @@ const prepareDataToExport = (stateProject, stateRow) => {
    };
 
    const treeArr = convertFlattenArraytoTree1(tree);
+
+
+   if (treeArr.length === 0) return rowsAll.map(r => {
+      let obj = {};
+      headers.forEach(hd => {
+         obj[hd.text] = r[hd.text] || '';
+      });
+      return obj;
+   });
+
+
+
    let finalArr = [];
 
    const getAllChildren = (arr) => {

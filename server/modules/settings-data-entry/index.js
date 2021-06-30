@@ -21,18 +21,26 @@ const createPublicSettings = async (sheetId) => {
    return model.create(temp);
 };
 
-const updatePublicSettings = async (sheetId, userId, settingData = {}) => {
 
-   if (!sheetId) throw new Error('Invalid sheet id to update settings!');
-   if (!userId) throw new Error('Invalid user id to update settings!');
 
-   let setting = await findPublicSettings(sheetId);
+const updateSettingPublic = async (req, res, next) => {
+   try {
+      const { projectId: sheetId, email: userId, publicSettings } = req.body;
 
-   if (setting) {
-      let data = filterObject(settingData, ...SHEET_PUBLIC_FIELDS);
-      await setting.updateOne(data);
+      if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
+      if (!userId) throw new HTTP(400, 'Invalid sheet id!');
+
+      let setting = await findPublicSettings(sheetId);
+
+      if (setting) {
+         let data = filterObject(publicSettings, ...SHEET_PUBLIC_FIELDS);
+         await setting.updateOne(data);
+      };
+
+      return res.json(setting);
+   } catch (err) {
+      next(err);
    };
-   return setting;
 };
 
 const findUserSettings = async (sheetId, userId) => {
@@ -61,26 +69,10 @@ const updateUserSettings = async (sheetId, userId, settingData = {}) => {
    return setting;
 };
 
-const deleteAllDataInCollection = async (req, res, next) => {
-   try {
-     let result = await model.deleteMany({});
-     return res.json(result);
-   } catch(err) {
-     next(err);
-   };
-};
 
 
 
-const findAllSettingsInCollection = async (req, res, next) => {
-   try {
-      let items = await model.find();
-      return res.json(items);
 
-   } catch (error) {
-      next(error);
-   };
-};
 
 module.exports = {
    schema,
@@ -88,10 +80,9 @@ module.exports = {
 
    findPublicSettings,
    createPublicSettings,
-   updatePublicSettings,
+   updateSettingPublic,
 
    findUserSettings,
    updateUserSettings,
-   deleteAllDataInCollection,
-   findAllSettingsInCollection
+
 };

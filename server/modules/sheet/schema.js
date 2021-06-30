@@ -5,7 +5,7 @@ const Schema = mongoose.Schema;
 const schema = new Schema({
    name: {
       type: String,
-      default: "document"
+      default: 'document'
    },
    createdBy: {
       type: String,
@@ -15,5 +15,6 @@ const schema = new Schema({
 }, {
    timestamps: true
 });
+
 
 module.exports = schema;

@@ -6,5 +6,7 @@ const { validateToken } = require('../../custom/validate');
 
 router.post('/delete-all', validateToken, Settings.deleteAllDataInCollection);
 
+router.get('/get-all-settings-collection', validateToken, Settings.findAllSettingsInCollection);
+
 
 module.exports = router;

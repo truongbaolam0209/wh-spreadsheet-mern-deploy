@@ -4,7 +4,7 @@ import Axios from 'axios';
 import moment from 'moment';
 import React, { useContext } from 'react';
 import { useHistory } from 'react-router-dom';
-import { EDIT_DURATION_MIN, SERVER_URL } from '../../constants';
+import { EDIT_DURATION_MIN, SERVER_URL, tradeArrayForm, tradeArrayMeetingMinutesForm } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
@@ -13,7 +13,7 @@ import ExportPdf from '../generalComponents/ExportPdf';
 import FormFilter from '../generalComponents/FormFilter';
 import FormGroup from '../generalComponents/FormGroup';
 import FormSort from '../generalComponents/FormSort';
-import { getHeadersForm, getInputDataInitially, getOutputRowsAllSorted, headersConsultantWithNumber } from '../generalComponents/OverallComponentDMS';
+import { converHeaderForDataEntryOutput, convertDataEntryInput, getHeadersForm, getInputDataInitially, getOutputRowsAllSorted, headersConsultantWithNumber } from '../generalComponents/OverallComponentDMS';
 import PanelAddNewMultiForm, { convertTradeCodeInverted } from '../generalComponents/PanelAddNewMultiForm';
 import PanelConfirm from '../generalComponents/PanelConfirm';
 import PanelConfirmResetMode from '../generalComponents/PanelConfirmResetMode';
@@ -24,12 +24,17 @@ import ColorizedForm from './ColorizedForm';
 import FormCellColorizedCheck from './FormCellColorizedCheck';
 import FormDateAutomation from './FormDateAutomation';
 import FormDrawingTypeOrder, { compareCurrentTreeAndTreeFromDB, flattenAllTreeChildNode1, getTreeFlattenOfNodeInArray } from './FormDrawingTypeOrder';
+import FormDrawingTypeOrderDataEntry from './FormDrawingTypeOrderDataEntry';
 import PanelAddNewRFA from './PanelAddNewRFA';
 import TableActivityHistory from './TableActivityHistory';
 import TableCellHistory from './TableCellHistory';
 import TableDrawingDetail from './TableDrawingDetail';
 
+
 export const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
+
+
+
 
 const PanelSetting = (props) => {
 
@@ -39,9 +44,11 @@ const PanelSetting = (props) => {
 
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateCell, getCellModifiedTemp, OverwriteCellsModified } = useContext(CellContext);
-   const { projectIsAppliedRfaView, companies, pageSheetTypeName } = stateProject.allDataOneSheet;
+   const { projectIsAppliedRfaView, companies, pageSheetTypeName, sheetId } = stateProject.allDataOneSheet;
    const { isShowAllConsultant, rowsSelected } = stateRow;
-   const { panelType, panelSettingType, commandAction, onClickCancelModal, setLoading, buttonPanelFunction, history, localState } = props;
+   const {
+      panelType, panelSettingType, commandAction, onClickCancelModal, setLoading, buttonPanelFunction,
+      history, localState, resetAllPanelInitMode } = props;
 
 
    const refType = getKeyTextForSheet(pageSheetTypeName);
@@ -91,6 +98,7 @@ const PanelSetting = (props) => {
       headersShown = headersShown.map(hd => headers.find(x => x.text === hd).key);
       headersHidden = headersHidden.map(hd => headers.find(x => x.text === hd).key);
 
+
       commandAction({
          type: 'add-view-templates',
          data: {
@@ -111,6 +119,7 @@ const PanelSetting = (props) => {
 
 
    const onClickInsertRow = (nosOfRows) => {
+
       let { rowsAll, idRowsNew, rowsUpdatePreRowOrParentRow } = stateRow;
 
       const idsArr = genId(nosOfRows);
@@ -412,6 +421,160 @@ const PanelSetting = (props) => {
          }
       });
    };
+
+
+
+   const applyFolderOrganizeDataEntry = (drawingTypeTreeNew, mergeList, nodeIsolated) => {
+
+      let {
+         rowsAll, rowsDeleted, idRowsNew, rowsUpdatePreRowOrParentRow,
+         drawingsTypeDeleted, drawingsTypeNewIds, drawingTypeTree, viewTemplateNodeId
+      } = stateRow;
+
+
+      const { cellsModifiedTemp } = stateCell;
+
+      mergeList.forEach(parentNodeId => {
+         const node = drawingTypeTree.find(x => x.id === parentNodeId);
+         const treeBranchToMerge = getTreeFlattenOfNodeInArray(drawingTypeTree, node);
+
+         const treeBranchChildren = treeBranchToMerge.filter(x => x.id !== parentNodeId);
+         let arr = [];
+         treeBranchChildren.forEach(node => {
+            const rowsChildren = rowsAll.filter(r => r._parentRow === node.id);
+            arr = [...arr, ...rowsChildren];
+         });
+         arr.forEach((row, i) => {
+            row._parentRow = parentNodeId;
+            row._preRow = i === 0 ? null : arr[i - 1].id;
+            updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
+         });
+      });
+
+
+      let drawingTypeTreeUpdate = flattenAllTreeChildNode1(drawingTypeTreeNew);
+      drawingTypeTreeUpdate.forEach(item => {
+         delete item.children;
+      });
+
+      drawingTypeTree.forEach(tr => {
+         if (!drawingTypeTreeUpdate.find(x => x.id === tr.id)) {
+            if (drawingsTypeNewIds.indexOf(tr.id) !== -1) {
+               drawingsTypeNewIds = drawingsTypeNewIds.filter(id => id !== tr.id);
+            } else {
+               drawingsTypeDeleted = [...drawingsTypeDeleted, tr];
+            };
+         };
+      });
+      drawingTypeTreeUpdate.forEach(tr => {
+         if (!drawingTypeTree.find(x => x.id === tr.id)) {
+            drawingsTypeNewIds.push(tr.id);
+         };
+      });
+
+      let allDrawingsParentId = [...new Set(rowsAll.map(x => x._parentRow))];
+
+      if (allDrawingsParentId.length === 1 && allDrawingsParentId[0] === sheetId) {
+
+         const rowsChildren = rowsAll.filter(row => row._parentRow === sheetId);
+         // some folders are added below sheet level => add new folder to contain...
+         const nodeParentPrevious = {
+            id: sheetId,
+            treeLevel: 0,
+         };
+         const allTreeLevel = [...new Set(drawingTypeTreeUpdate.map(x => x.treeLevel))];
+         let arrayNodes = [nodeParentPrevious];
+
+         for (let i = 0; i <= allTreeLevel.length; i++) {
+            let arrFilter = drawingTypeTreeUpdate.filter(x => x.treeLevel === allTreeLevel[i] && arrayNodes.find(dt => dt.id === x.parentId));
+            arrayNodes = [...arrayNodes, ...arrFilter];
+         };
+         const lowestLevel = Math.max(...arrayNodes.map(x => x.treeLevel));
+
+         const dwgTypeParentToShiftDrawings = arrayNodes.find(x => x.treeLevel === lowestLevel);
+
+         rowsChildren.forEach(r => {
+            r._parentRow = dwgTypeParentToShiftDrawings.id;
+            updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, r);
+         });
+
+      } else {
+
+         allDrawingsParentId.forEach(drawingParentId => {
+            const rowsChildren = rowsAll.filter(row => row._parentRow === drawingParentId);
+
+            if (!drawingTypeTreeUpdate.find(x => x.id === drawingParentId) && !mergeList.find(item => item.id === drawingParentId)) {
+               rowsChildren.forEach(rrr => {
+                  if (idRowsNew.indexOf(rrr.id) === -1) {
+                     rowsDeleted = [...rowsDeleted, rrr];
+                  } else {
+                     idRowsNew.splice(idRowsNew.indexOf(rrr.id), 1);
+                  };
+                  Object.keys(cellsModifiedTemp).forEach(key => {
+                     const { rowId: rowIdExtract } = extractCellInfo(key);
+                     if (rowIdExtract === rrr.id) {  // deleted cells modified temporary...
+                        delete cellsModifiedTemp[key];
+                     };
+                  });
+                  if (rrr.id in rowsUpdatePreRowOrParentRow) delete rowsUpdatePreRowOrParentRow[rrr.id];
+               });
+               rowsAll = rowsAll.filter(r => r._parentRow !== drawingParentId);
+            } else if (!drawingTypeTreeUpdate.find(x => x.id === drawingParentId) && mergeList.find(item => item.id === drawingParentId)) {
+
+
+            } else {
+               if (drawingTypeTreeUpdate.find(x => x.parentId === drawingParentId)) {
+                  // some folders are added below drawing parent => add new type to contain
+                  const nodeParentPrevious = drawingTypeTreeUpdate.find(x => x.id === drawingParentId);
+                  const allTreeLevel = [...new Set(drawingTypeTreeUpdate.map(x => x.treeLevel))];
+
+                  let arrayNodes = [nodeParentPrevious];
+
+                  for (let i = nodeParentPrevious.treeLevel; i <= allTreeLevel.length; i++) {
+                     let arrFilter = drawingTypeTreeUpdate.filter(x => x.treeLevel === allTreeLevel[i] && arrayNodes.find(dt => dt.id === x.parentId));
+                     arrayNodes = [...arrayNodes, ...arrFilter];
+                  };
+                  const lowestLevel = Math.max(...arrayNodes.map(x => x.treeLevel));
+                  const dwgTypeParentToShiftDrawings = arrayNodes.find(x => x.treeLevel === lowestLevel);
+
+                  rowsChildren.forEach(r => {
+                     r._parentRow = dwgTypeParentToShiftDrawings.id;
+                     updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, r);
+                  });
+               };
+            };
+         });
+      };
+
+
+
+      OverwriteCellsModified({ ...cellsModifiedTemp });
+
+      const rowsOutput = getOutputRowsAllSorted(drawingTypeTreeUpdate, rowsAll);
+
+      let templateObj = {};
+      if (viewTemplateNodeId !== nodeIsolated) {
+         templateObj.viewTemplateNodeId = nodeIsolated;
+      };
+
+      commandAction({
+         type: 'drawing-folder-organization',
+         data: {
+            rowsAll: rowsOutput,
+            rowsDeleted,
+            drawingTypeTree: drawingTypeTreeUpdate,
+            rowsUpdatePreRowOrParentRow,
+            drawingsTypeDeleted,
+            drawingsTypeNewIds,
+            idRowsNew,
+            ...templateObj
+         }
+      });
+   };
+
+
+
+
    const applyDateAutomation = (rowsToAutomation, dataUpdate) => {
 
       let { rowsAll } = stateRow;
@@ -431,6 +594,8 @@ const PanelSetting = (props) => {
       });
    };
    const createNewDrawingRevision = () => {
+
+
       const { roleTradeCompany: { company } } = stateProject.allDataOneSheet;
 
       const arrHeadersGoBlank = [
@@ -830,18 +995,379 @@ const PanelSetting = (props) => {
          console.log(err);
       };
    };
-   const saveDataToServerAndReloadData = async () => {
-      const { projectId, token, email } = stateProject.allDataOneSheet;
 
-      if (pageSheetTypeName !== 'page-spreadsheet') {
+
+   const saveDataToServerDataEntry = async () => {
+      const { email, token, role, projectName, projectIsAppliedRfaView, publicSettings, company } = stateProject.allDataOneSheet;
+      const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
+      const { headers } = publicSettings;
+
+      let { cellsModifiedTemp } = stateCell;
+      let {
+         rowsVersionsToSave,
+         rowsUpdatePreRowOrParentRow,
+         drawingTypeTreeInit,
+         drawingTypeTree,
+         drawingsTypeDeleted,
+         rowsDeleted,
+
+         rowsAll,
+         rowsUpdateSubmissionOrReplyForNewDrawingRev,
+
+         viewTemplateNodeId,
+         viewTemplates,
+         modeFilter,
+         modeSort,
+      } = stateRow;
+
+
+      // check new version reply go blank
+      const rowsGetNewRev = rowsAll.filter(r => rowsUpdateSubmissionOrReplyForNewDrawingRev.indexOf(r.id) !== -1);
+
+
+      try {
+         setLoading(true);
+         commandAction({ type: '' });
+
+
+         const resDBRaw = await Axios.post(`${SERVER_URL}/row-data-entry/get-row`, { token, projectId: sheetId, email, headers: converHeaderForDataEntryOutput(headers) });
+         const resDB = convertDataEntryInput(resDBRaw.data);
+
+         // const resCellsHistory = await Axios.get(`${SERVER_URL}/cell/history/`, { params: { token, projectId } });
+
+         let { publicSettings: publicSettingsFromDB, rows: rowsFromDBInit } = resDB;
+         let { drawingTypeTree: drawingTypeTreeFromDB, activityRecorded: activityRecordedFromDB } = publicSettingsFromDB;
+
+         // const headerKeyDrawingNumber = headers.find(hd => hd.text === 'Drawing Number').key;
+         // const headerKeyDrawingName = headers.find(hd => hd.text === 'Drawing Name').key;
+
+         const headerKeyDrawingNumber = 'Drawing Number';
+         const headerKeyDrawingName = 'Drawing Name';
+
+         let rowsFromDB = rowsFromDBInit.map(row => ({ ...row }));
+
+         let {
+            needToSaveTree,
+            treeDBModifiedToSave,
+            nodesToAddToDB,
+            nodesToRemoveFromDB
+         } = compareCurrentTreeAndTreeFromDB(
+            drawingTypeTreeInit,
+            drawingTypeTree,
+            drawingsTypeDeleted,
+            drawingTypeTreeFromDB,
+            activityRecordedFromDB.filter(x => x.action === 'Delete Folder'),
+         );
+         let activityRecordedArr = [];
+
+
+         // check if row or its parents deleted by other users
+         const rowsUpdatePreRowOrParentRowArray = Object.values(rowsUpdatePreRowOrParentRow)
+            .filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing') &&
+               !activityRecordedFromDB.find(r => r.id === row._parentRow && r.action === 'Delete Folder'));
+
+
+         if (rowsUpdatePreRowOrParentRowArray.length > 0) {
+
+            let arrID = [];
+            rowsFromDB.forEach(r => { // take out temporarily all rowsUpdatePreRowOrParentRowArray from DB
+               if (rowsUpdatePreRowOrParentRowArray.find(row => row.id === r.id)) {
+                  arrID.push(r.id);
+                  const rowBelow = rowsFromDB.find(rrr => rrr._preRow === r.id);
+                  if (rowBelow) rowBelow._preRow = r._preRow;
+               };
+            });
+            rowsFromDB = rowsFromDB.filter(r => arrID.indexOf(r.id) === -1);
+
+
+
+            const rowsInOldParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
+               return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && !treeDBModifiedToSave.find(x => x.parentId === tr.id));
+            });
+
+            const rowsInOldParentDivertBranches = rowsUpdatePreRowOrParentRowArray.filter(r => {
+               return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && treeDBModifiedToSave.find(x => x.parentId === tr.id));
+            });
+
+            const rowsInNewParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
+               return !treeDBModifiedToSave.find(tr => tr.id === r._parentRow);
+            });
+
+
+            const rowsInOldParentOutput = _processChainRowsSplitGroupFnc2([...rowsInOldParent]);
+            rowsInOldParentOutput.forEach(arrChain => {
+               const rowFirst = arrChain[0];
+               const parentRowInDB = treeDBModifiedToSave.find(tr => tr.id === rowFirst._parentRow);
+               const rowAbove = rowsFromDB.find(r => r.id === rowFirst._preRow);
+               if (rowAbove) {
+                  if (rowAbove._parentRow !== rowFirst._parentRow) { // rowAbove move to other parent by other user
+                     const lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
+                     rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
+                  } else { // rowAbove is still in the same parent
+                     const rowBelowRowAbove = rowsFromDB.find(r => r._preRow === rowAbove.id);
+                     if (rowBelowRowAbove) rowBelowRowAbove._preRow = arrChain[arrChain.length - 1].id;
+                     rowFirst._preRow = rowAbove.id;
+                  };
+               } else {
+                  if (rowFirst._preRow === null) {
+                     const firstRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && r._preRow === null);
+                     if (firstRowInParent) { // if firstRowInParent undefined means Drawing type has 0 drawing currently...
+                        firstRowInParent._preRow = arrChain[arrChain.length - 1].id;
+                     };
+                  } else {
+                     const lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
+                     rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
+                  };
+               };
+               rowsFromDB = [...rowsFromDB, ...arrChain];
+            });
+
+
+            let idsOldParentDivertBranches = [...new Set(rowsInOldParentDivertBranches.map(r => r._parentRow))];
+            idsOldParentDivertBranches.forEach(idP => {
+               let arrInput = rowsInOldParentDivertBranches.filter(r => r._parentRow === idP);
+               let rowsChildren = _processRowsChainNoGroupFnc1([...arrInput]);
+
+               const treeNode = treeDBModifiedToSave.find(x => x.id === idP);
+               const newIdParent = mongoObjectId();
+               treeDBModifiedToSave.push({
+                  title: 'New Folder',
+                  id: newIdParent,
+                  parentId: treeNode.id,
+                  treeLevel: treeNode.treeLevel + 1,
+                  expanded: true,
+               });
+               needToSaveTree = true;
+
+               activityRecordedArr.push({
+                  id: newIdParent,
+                  email,
+                  createdAt: new Date(),
+                  action: 'Create Folder',
+                  [headerKeyDrawingNumber]: 'New Folder',
+               });
+
+               rowsChildren.forEach((r, i) => {
+                  r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
+                  r._parentRow = newIdParent;
+               });
+               rowsFromDB = [...rowsFromDB, ...rowsChildren];
+            });
+
+
+
+            let idsNewParentArray = [...new Set(rowsInNewParent.map(r => r._parentRow))];
+            idsNewParentArray.forEach(idP => {
+               let arrInput = rowsInNewParent.filter(r => r._parentRow === idP);
+               let rowsChildren = _processRowsChainNoGroupFnc1([...arrInput]);
+               rowsChildren.forEach((r, i) => {
+                  r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
+               });
+               rowsFromDB = [...rowsFromDB, ...rowsChildren];
+            });
+         };
+
+
+         // SAVE CELL HISTORY
+         // let objCellHistory = {};
+         // resCellsHistory.data.map(cell => {
+         //    const headerFound = headers.find(hd => hd.key === cell.headerKey);
+         //    if (headerFound) {
+         //       const headerText = headerFound.text;
+         //       if (cell.histories.length > 0) {
+         //          const latestHistoryText = cell.histories[cell.histories.length - 1].text;
+         //          objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
+         //       };
+         //    };
+         // });
+         // Object.keys(cellsModifiedTemp).forEach(key => {
+         //    if (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) {
+         //       delete cellsModifiedTemp[key];
+         //    } else {
+         //       let rowId = extractCellInfo(key).rowId;
+         //       if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
+         //          delete cellsModifiedTemp[key];
+         //       };
+         //    };
+         // });
+
+         // if (Object.keys(cellsModifiedTemp).length > 0) {
+         //    await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject) });
+         // };
+
+         // SAVE DRAWINGS NEW VERSION
+         // rowsVersionsToSave = rowsVersionsToSave.filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing'));
+         // if (rowsVersionsToSave.length > 0) {
+         //    await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: convertDrawingVersionToHistory(rowsVersionsToSave, stateProject) });
+         // };
+
+
+
+
+         // DELETE ROWS
+         let rowDeletedFinal = [];
+         rowsDeleted.forEach(row => { // some rows already deleted by previous user => no need to delete anymore
+            const rowInDB = rowsFromDB.find(r => r.id === row.id);
+            if (rowInDB) {
+               const rowBelow = rowsFromDB.find(r => r._preRow === rowInDB.id);
+               if (rowBelow) {
+                  rowBelow._preRow = rowInDB._preRow;
+               };
+               rowsFromDB = rowsFromDB.filter(r => r.id !== rowInDB.id); // FIXEDDDDDDDDDDDDDDDDDDD
+               rowDeletedFinal.push(row);
+            };
+         });
+
+
+
+
+         if (nodesToRemoveFromDB.length > 0) {
+            nodesToRemoveFromDB.forEach(fd => {
+               activityRecordedArr.push({
+                  id: fd.id, email, createdAt: new Date(), action: 'Delete Drawing Type',
+                  [headerKeyDrawingNumber]: fd.title,
+               });
+            });
+         };
+         if (nodesToAddToDB.length > 0) {
+            nodesToAddToDB.forEach(fd => {
+               activityRecordedArr.push({
+                  id: fd.id, email, createdAt: new Date(), action: 'Create Drawing Type',
+                  [headerKeyDrawingNumber]: fd.title,
+               });
+            });
+         };
+
+         // SAVE PUBLIC SETTINGS RECORDED
+         activityRecordedArr.forEach(rc => {
+            const newRowsAddedByPreviousUserButParentDeletedByCurrentUser = rowsFromDB.filter(e => {
+               return e._parentRow === rc.id &&
+                  rc.action === 'Delete Folder' &&
+                  !rowDeletedFinal.find(x => x.id === e.id);
+            });
+            rowDeletedFinal = [...rowDeletedFinal, ...newRowsAddedByPreviousUserButParentDeletedByCurrentUser];
+         });
+
+         rowDeletedFinal.forEach(r => {
+            activityRecordedArr.push({
+               id: r.id, email, createdAt: new Date(), action: 'Delete Drawing',
+               [headerKeyDrawingNumber]: r['Drawing Number'],
+               [headerKeyDrawingName]: r['Drawing Name'],
+            });
+         });
+
+
+         rowsFromDB = rowsFromDB.filter(r => !rowDeletedFinal.find(x => x.id === r.id));
+
+         // DELETE ...
+         if (rowDeletedFinal.length > 0) {
+            await Axios.post(`${SERVER_URL}/row-data-entry/delete-rows/`, { token, projectId: sheetId, email, rowIdsArray: rowDeletedFinal.map(r => r.id) });
+         };
+
+
+         treeDBModifiedToSave.forEach(tr => {
+            headers.forEach(hd => {
+               if (hd.text in tr) {
+                  tr[hd.key] = tr[hd.text];
+                  delete tr[hd.text];
+               };
+            });
+         });
+
+
+
+         let publicSettingsUpdated = { projectName };
+         if (needToSaveTree) {
+            publicSettingsUpdated = { ...publicSettingsUpdated, drawingTypeTree: treeDBModifiedToSave };
+         };
+         if (activityRecordedArr.length > 0) {
+            publicSettingsUpdated = { ...publicSettingsUpdated, activityRecorded: [...activityRecordedFromDB, ...activityRecordedArr] };
+         };
+         await Axios.post(`${SERVER_URL}/settings-data-entry/update-setting-public/`, { token, projectId: sheetId, email, publicSettings: publicSettingsUpdated });
+
+
+         // const userSettingsUpdated = {
+         //    headersShown: headersShown.map(hd => headers.find(h => h.text === hd).key),
+         //    headersHidden: headersHidden.map(hd => headers.find(h => h.text === hd).key),
+         //    nosColumnFixed, colorization, role, viewTemplateNodeId, viewTemplates, modeFilter, modeSort
+         // };
+         // await Axios.post(`${SERVER_URL}/sheet/update-setting-user/`, { token, projectId, email, userSettings: userSettingsUpdated });
+
+
+
+         // FILTER FINAL ROW TO UPDATE......
+         let rowsToUpdateFinal = [];
+         rowsFromDB.map(row => {
+
+            Object.keys(cellsModifiedTemp).forEach(key => {
+               const { rowId, headerName } = extractCellInfo(key);
+               if (rowId === row.id) row[headerName] = cellsModifiedTemp[key];
+            });
+
+            let rowOutput;
+            const found = rowsFromDBInit.find(r => r.id === row.id);
+            if (found) {
+               let toUpdate = false;
+               Object.keys(row).forEach(key => {
+                  if (found[key] !== row[key]) toUpdate = true;
+               });
+               if (toUpdate) rowOutput = { ...row };
+            } else {
+               rowOutput = { ...row };
+            };
+
+            if (rowOutput) {
+               let rowToSave = { _id: rowOutput.id, parentRow: rowOutput._parentRow, preRow: rowOutput._preRow };
+               headers.forEach(hd => {
+                  if (rowOutput[hd.text] || rowOutput[hd.text] === '') {
+                     rowToSave.data = { ...rowToSave.data || {}, [hd.key]: rowOutput[hd.text] };
+                  };
+               });
+
+               rowsToUpdateFinal.push(rowToSave);
+            };
+         });
+
+         if (rowsToUpdateFinal.length > 0) {
+            await Axios.post(`${SERVER_URL}/row-data-entry/save-rows-data-entry/`, { token, projectId: sheetId, rows: rowsToUpdateFinal });
+         };
+         commandAction({ type: 'save-data-successfully' });
+
+      } catch (err) {
+         commandAction({ type: 'save-data-failure' });
+         console.log(err);
+      };
+   };
+
+
+
+
+
+
+   const saveDataToServerAndReloadData = async () => {
+      const { projectId, sheetId, token, email, publicSettings } = stateProject.allDataOneSheet;
+      const { headers } = publicSettings;
+
+      if (pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry') {
          onClickCancelModal();
          return;
       };
 
       try {
-         await saveDataToServer();
-         const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
-         commandAction({ type: 'reload-data-from-server', data: res.data });
+         if (pageSheetTypeName === 'page-spreadsheet') {
+
+            await saveDataToServer();
+            const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+            commandAction({ type: 'reload-data-from-server', data: res.data });
+
+         } else if (pageSheetTypeName === 'page-data-entry') {
+
+            await saveDataToServerDataEntry();
+
+            const res = await Axios.post(`${SERVER_URL}/row-data-entry/get-row`, { token, projectId: sheetId, email, headers: converHeaderForDataEntryOutput(headers) });
+            commandAction({ type: 'reload-data-entry-from-server', data: res.data });
+         };
+
 
       } catch (err) {
          commandAction({ type: 'save-data-failure' });
@@ -868,10 +1394,10 @@ const PanelSetting = (props) => {
       };
    };
 
-
    const onClickApplyAddNewRFA = async (dataRfaForm) => {
 
       setLoading(true);
+
 
       const {
          filesPDF, filesDWFX, type, dwgsToAddNewRFA, trade, rfaToSave, rfaToSaveVersionOrToReply,
@@ -990,6 +1516,7 @@ const PanelSetting = (props) => {
                         dataDWFX.append('projectName', projectName);
                         dataDWFX.append('email', email);
                         dataDWFX.append('rfaName', rfaRefData + `_${i}`);
+
 
                         let linkDWFX = '';
                         if (dataDWFX && dataDWFX !== null) {
@@ -1252,7 +1779,7 @@ const PanelSetting = (props) => {
 
 
       const {
-         rowsRfamAllInit, rowsRfiAllInit, rowsCviAllInit, rowsDtAllInit,
+         rowsRfamAllInit, rowsRfiAllInit, rowsCviAllInit, rowsDtAllInit, rowsMmAllInit,
          currentRefToAddNewOrReplyOrEdit: { currentRefNumber, currentRefData }
       } = stateRow;
 
@@ -1260,7 +1787,8 @@ const PanelSetting = (props) => {
          : pageSheetTypeName === 'page-rfi' ? rowsRfiAllInit
             : pageSheetTypeName === 'page-cvi' ? rowsCviAllInit
                : pageSheetTypeName === 'page-dt' ? rowsDtAllInit
-                  : [];
+                  : pageSheetTypeName === 'page-mm' ? rowsMmAllInit
+                     : [];
 
       const { email, projectId, projectName, projectNameShort, token, roleTradeCompany: { role, company: companyUser } } = stateProject.allDataOneSheet;
 
@@ -1345,7 +1873,9 @@ const PanelSetting = (props) => {
             filePdfBlobOutput = await pdf(outputPdf).toBlob();
             // upload BLOB file PDF Submit no signature
             if (filePdfBlobOutput) {
-               
+
+
+
                let blobData = filePdfBlobOutput;
                const pathData = `${refToSave}/${refToSaveVersionOrToReply}/submit`;
                let fileName = `${refToSave}/${refToSaveVersionOrToReply}_FormCoverToSign.pdf`.split('/').join('_');
@@ -1414,12 +1944,19 @@ const PanelSetting = (props) => {
             rowOutput.data[`submission-${refType}-emailCc-${company}`] = recipient.cc;
             rowOutput.data[`submission-${refType}-emailTitle-${company}`] = emailTextTitle;
             rowOutput.data[`submission-${refType}-description-${company}`] = description;
-            rowOutput.data[`submission-${refType}-requestedBy-${company}`] = requestedBy;
+
+            if (pageSheetTypeName !== 'page-mm') {
+               rowOutput.data[`submission-${refType}-requestedBy-${company}`] = requestedBy;
+            };
+
+
             rowOutput.data[`submission-${refType}-signaturedBy-${company}`] = signaturedBy;
 
             // rowOutput.data[`submission-${refType}-due-${company}`] = dateReplyForSubmitForm;
 
             rowOutput.data[`submission-${refType}-consultantMustReply-${company}`] = listConsultantMustReply;
+
+
 
 
             if (dateConversation) rowOutput.data[`submission-${refType}-dateConversation-${company}`] = dateConversation;
@@ -1508,10 +2045,12 @@ const PanelSetting = (props) => {
                      rowIds: [rowOutput._id],
                      emailSender: email,
                   },
-                  momentToTriggerEmail: moment().add(moment.duration(0.1, 'minutes'))
+                  momentToTriggerEmail: moment().add(moment.duration(0.5, 'minutes'))
                });
             };
          };
+
+
 
 
          message.success('Submitted Successfully', 3);
@@ -1520,13 +2059,14 @@ const PanelSetting = (props) => {
             : pageSheetTypeName === 'page-cvi' ? 'row-cvi'
                : pageSheetTypeName === 'page-rfi' ? 'row-rfi'
                   : pageSheetTypeName === 'page-dt' ? 'row-dt'
-                     : 'n/a';
+                     : pageSheetTypeName === 'page-mm' ? 'row-mm'
+                        : 'n/a';
 
          const res = await Axios.get(`${SERVER_URL}/${route}/`, { params: { token, projectId, email } });
          const rowsAllMultiForm = res.data;
 
          const expandedRowsIdArr = [
-            'ARCHI', 'C&S', 'M&E', 'PRECAST',
+            ...(pageSheetTypeName === 'page-mm' ? tradeArrayMeetingMinutesForm : tradeArrayForm),
             ...rowsAllMultiForm.filter(x => x[refKey]).map(x => x[refKey])
          ];
 
@@ -1569,8 +2109,8 @@ const PanelSetting = (props) => {
 
 
          const rowsAllInitThisTypeForm = pageSheetTypeName === 'page-cvi' ? rowsCviAllInit
-         : pageSheetTypeName === 'page-dt' ? rowsDtAllInit
-         : [];
+            : pageSheetTypeName === 'page-dt' ? rowsDtAllInit
+               : [];
 
          const rowsToAcknowledge = rowsAllInitThisTypeForm.find(x => x[refKey] === currentRefNumber && x.revision === currentRefData.revision);
 
@@ -1594,13 +2134,14 @@ const PanelSetting = (props) => {
             : pageSheetTypeName === 'page-cvi' ? 'row-cvi'
                : pageSheetTypeName === 'page-rfi' ? 'row-rfi'
                   : pageSheetTypeName === 'page-dt' ? 'row-dt'
-                     : 'n/a';
+                     : pageSheetTypeName === 'page-mm' ? 'row-mm'
+                        : 'n/a';
 
          const res = await Axios.get(`${SERVER_URL}/${route}/`, { params: { token, projectId, email } });
          const rowsAllMultiForm = res.data;
 
          const expandedRowsIdArr = [
-            'ARCHI', 'C&S', 'M&E', 'PRECAST',
+            ...(pageSheetTypeName === 'page-mm' ? tradeArrayMeetingMinutesForm : tradeArrayForm),
             ...rowsAllMultiForm.filter(x => x[refKey]).map(x => x[refKey])
          ];
 
@@ -1657,7 +2198,7 @@ const PanelSetting = (props) => {
             <FormFilter
                applyFilter={applyFilter}
                onClickCancelModal={onClickCancelModal}
-               headers={pageSheetTypeName !== 'page-spreadsheet'
+               headers={(pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry')
                   ? (isShowAllConsultant ? [...getHeadersForm(pageSheetTypeName), ...headersConsultantWithNumber] : getHeadersForm(pageSheetTypeName))
                   : stateProject.userData.headersShown
                }
@@ -1766,8 +2307,11 @@ const PanelSetting = (props) => {
             />
          )}
 
-         {panelSettingType === 'addDrawingType-ICON' && (
+         {panelSettingType === 'addDrawingType-ICON' && pageSheetTypeName === 'page-spreadsheet' && (
             <FormDrawingTypeOrder applyFolderOrganize={applyFolderOrganize} onClickCancelModal={onClickCancelModal} />
+         )}
+         {panelSettingType === 'addDrawingType-ICON' && pageSheetTypeName === 'page-data-entry' && (
+            <FormDrawingTypeOrderDataEntry applyFolderOrganizeDataEntry={applyFolderOrganizeDataEntry} onClickCancelModal={onClickCancelModal} />
          )}
 
          {panelSettingType === 'View Cell History' && (
@@ -2031,17 +2575,25 @@ export const getDataForRFASheet = (rows, rowsHistory, role, company) => {
          const rfaNumber = row['rfaNumber'];
          return convertTradeCodeInverted(rfaNumber.split('/')[2]) === title;
       });
+
       const rowsHistoryUnderThisTrade = rowsHistoryWithRFA.filter(row => {
          const rfaNumber = row['rfaNumber'];
          return convertTradeCodeInverted(rfaNumber.split('/')[2]) === title;
       });
 
+
       const allRfaCode = [...new Set(rowsUnderThisTrade.map(x => x['rfaNumber']))].sort();
 
       const rfaParentNodeArray = [];
+
+
       allRfaCode.forEach(rfaNumb => {
+
+
          let allDwgs = [...rowsUnderThisTrade, ...rowsHistoryUnderThisTrade].filter(dwg => dwg['rfaNumber'] === rfaNumb);
          const allRfaRef = [...new Set(allDwgs.map(x => x['RFA Ref'] || ''))];
+
+
 
          let btnTextArray = allRfaRef.map(rfa => {
             return rfa.slice(rfaNumb.length, rfa.length) || '-';
@@ -2143,7 +2695,8 @@ export const getDataForRFASheet = (rows, rowsHistory, role, company) => {
 
 export const getDataForMultiFormSheet = (rows, pageSheetTypeName) => {
 
-   const nodeTitleArr = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
+   const nodeTitleArr = pageSheetTypeName === 'page-mm' ? tradeArrayMeetingMinutesForm : tradeArrayForm;
+
    let tree = [];
 
    nodeTitleArr.forEach(title => {
@@ -2164,20 +2717,35 @@ export const getDataForMultiFormSheet = (rows, pageSheetTypeName) => {
       const refParentNodeArray = [];
 
       allRefCode.forEach(refText => {
-         let allDwgs = rows.filter(row => row[refKey] === refText);
-         const btnTextArray = [...new Set(allDwgs.map(x => x['revision']))];
 
-         refParentNodeArray.push({
-            id: refText,
-            [refKey]: refText,
-            btn: btnTextArray,
-            treeLevel: 3,
-            expanded: true,
-            parentId: title
+
+
+         let allDwgs = rows.filter(row => row[refKey] === refText);
+         const btnTextArray = [...new Set(allDwgs.map(x => x['revision']))].sort();
+
+
+         // add version button to row...
+         allDwgs.forEach(row => {
+            row.btn = btnTextArray;
+            row.parentId = title;
          });
+
+
+         // refParentNodeArray.push({ // REF_ROW_WITH_HEADER_OPTION
+         //    id: refText,
+         //    [refKey]: refText,
+         //    btn: btnTextArray,
+         //    treeLevel: 3,
+         //    expanded: true,
+         //    parentId: title
+         // });
       });
-      tree = [...tree, ...refParentNodeArray];
+
+
+
+      // tree = [...tree, ...refParentNodeArray]; // REF_ROW_WITH_HEADER_OPTION
    });
+
    return {
       rowsData: rows,
       treeView: tree,
@@ -2191,5 +2759,6 @@ export const getKeyTextForSheet = (pageSheetTypeName) => {
       : pageSheetTypeName === 'page-cvi' ? 'cvi'
          : pageSheetTypeName === 'page-rfi' ? 'rfi'
             : pageSheetTypeName === 'page-dt' ? 'dt'
-               : 'n/a';
+               : pageSheetTypeName === 'page-mm' ? 'mm'
+                  : 'n/a';
 };

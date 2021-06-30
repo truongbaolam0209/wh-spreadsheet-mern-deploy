@@ -6,9 +6,10 @@ import ButtonStyle from './ButtonStyle';
 
 const ButtonGroupComp = ({ 
     onClickCancel, 
+    newTextBtnCancel,
+
     onClickApply, 
     newTextBtnApply, 
-    newTextBtnCancel,
 
     onClickApplyAdditional01,
     newTextBtnApplyAdditional01

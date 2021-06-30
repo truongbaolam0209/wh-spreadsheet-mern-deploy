@@ -67,14 +67,15 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
    const {
       rowsAll, loading, currentRefToAddNewOrReplyOrEdit,
-      rowsRfamAllInit, rowsRfiAllInit, rowsCviAllInit, rowsDtAllInit
+      rowsRfamAllInit, rowsRfiAllInit, rowsCviAllInit, rowsDtAllInit, rowsMmAllInit
    } = stateRow;
 
    const rowsRefAllInit = pageSheetTypeName === 'page-rfam' ? rowsRfamAllInit
       : pageSheetTypeName === 'page-rfi' ? rowsRfiAllInit
          : pageSheetTypeName === 'page-cvi' ? rowsCviAllInit
             : pageSheetTypeName === 'page-dt' ? rowsDtAllInit
-               : [];
+               : pageSheetTypeName === 'page-mm' ? rowsMmAllInit
+                  : [];
 
 
    const refType = getKeyTextForSheet(pageSheetTypeName);
@@ -483,16 +484,17 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
    const onClickTagRecipientTo = (email, isRemoveTag) => {
+      if (formRefType !== 'page-mm') {
+         let outputListConsultantMustReply = [...listConsultantMustReply];
+         const consultantName = extractConsultantName(email);
+         const originConsultant = listConsultants.find(x => x.company === consultantName);
+         outputListConsultantMustReply = outputListConsultantMustReply.filter(x => x !== consultantName);
 
-      let outputListConsultantMustReply = [...listConsultantMustReply];
-      const consultantName = extractConsultantName(email);
-      const originConsultant = listConsultants.find(x => x.company === consultantName);
-      outputListConsultantMustReply = outputListConsultantMustReply.filter(x => x !== consultantName);
-
-      if (originConsultant && !isRemoveTag) {
-         outputListConsultantMustReply.unshift(originConsultant.company);
+         if (originConsultant && !isRemoveTag) {
+            outputListConsultantMustReply.unshift(originConsultant.company);
+         };
+         setListConsultantMustReply(outputListConsultantMustReply);
       };
-      setListConsultantMustReply(outputListConsultantMustReply);
    };
 
 
@@ -501,13 +503,18 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
       let trade, refToSaveVersionOrToReply, refToSave;
       if (formRefType.includes('form-submit-multi-')) {
-         trade = convertTradeCodeInverted(tradeForFirstTimeSubmit);
+         if (pageSheetTypeName === 'page-mm') {
+            trade = convertTradeCodeMeetingMinutesInverted(tradeForFirstTimeSubmit);
+         } else {
+            trade = convertTradeCodeInverted(tradeForFirstTimeSubmit);
+         };
+
          refToSaveVersionOrToReply = '0';
          refToSave = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
       } else if (formRefType.includes('form-resubmit-multi-')) {
-         trade = currentRefData.trade;
-         refToSaveVersionOrToReply = refNewVersionResubmitSuffix;
-         refToSave = currentRefNumber;
+         // trade = currentRefData.trade;
+         // refToSaveVersionOrToReply = refNewVersionResubmitSuffix;
+         // refToSave = currentRefNumber;
       } else if (formRefType.includes('form-reply-multi-')) { // reply
 
          trade = currentRefData.trade;
@@ -529,19 +536,19 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          return message.info('Please fill in recipient!', 3);
       } else if (isSubmitOrResubmitForm && !dateReplyForSubmitForm) {
          return message.info('Please fill in expected reply date!', 3);
-      } else if (isSubmitOrResubmitForm && listConsultantMustReply.length === 0) {
+      } else if (isSubmitOrResubmitForm && listConsultantMustReply.length === 0 && pageSheetTypeName !== 'page-mm') {
          return message.info('Please fill in consultant lead', 3);
       } else if (isSubmitOrResubmitForm && !requestedBy) {
          return message.info('Please fill in person requested', 3);
       } else if (!trade || !refToSave || !refToSaveVersionOrToReply) {
          return message.info('Please fill in necessary info!', 3);
-      } else if (isSubmitOrResubmitForm && !signaturedBy) {
+      } else if (isSubmitOrResubmitForm && !signaturedBy && pageSheetTypeName !== 'page-mm') {
          return message.info('Please fill in signatured by!', 3);
       } else if (isSubmitOrResubmitForm && !submissionType && pageSheetTypeName === 'page-rfam') {
          return message.info('Please fill in submission type!', 3);
-      } else if (isSubmitOrResubmitForm && !conversationAmong && pageSheetTypeName === 'page-cvi') {
+      } else if (isSubmitOrResubmitForm && !conversationAmong && (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm')) {
          return message.info('Please fill in conversation among!', 3);
-      } else if (isSubmitOrResubmitForm && (!dateConversation || !timeConversation) && pageSheetTypeName === 'page-cvi') {
+      } else if (isSubmitOrResubmitForm && (!dateConversation || !timeConversation) && (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm')) {
          return message.info('Please fill in date and time conversation!', 3);
       } else if (isSubmitOrResubmitForm && !herewithForDt && pageSheetTypeName === 'page-dt') {
          return message.info('Please fill in herewith!', 3);
@@ -675,7 +682,11 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                            }
                            suffixIcon={<div></div>}
                         >
-                           {['ARC', 'CS', 'ME', 'PC'].map(trade => (
+                           {(
+                              pageSheetTypeName === 'page-mm'
+                                 ? ['PRO', 'TEC', 'ICE']
+                                 : ['ARC', 'CS', 'ME', 'PC']
+                           ).map(trade => (
                               <Select.Option key={trade} value={trade}>{trade}</Select.Option>
                            ))}
                         </SelectTradeStyled>
@@ -711,7 +722,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
 
-                  {formRefType !== 'form-reply-multi-type' && (
+                  {formRefType !== 'form-reply-multi-type' && pageSheetTypeName !== 'page-mm' && (
                      <>
                         <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date Reply</div>
                         <DatePickerStyled
@@ -754,7 +765,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                                        isLeadConsultantIncluded = true;
                                     };
                                  });
-                                 if (!isLeadConsultantIncluded) {
+                                 if (!isLeadConsultantIncluded && pageSheetTypeName !== 'page-mm') {
                                     if (
                                        pageSheetTypeName === 'page-rfam' ||
                                        pageSheetTypeName === 'page-rfi'
@@ -779,16 +790,16 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
                               } else if (formRefType === 'form-resubmit-multi-type') {
-                                 const consultantLeadFromPreviousSubmission = listConsultantMustReply[0];
-                                 const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
-                                 if (
-                                    itemJustRemoved &&
-                                    listConsultantMustReply.find(x => x === extractConsultantName(itemJustRemoved)) &&
-                                    consultantLeadFromPreviousSubmission !== extractConsultantName(itemJustRemoved) &&
-                                    !list.find(tg => extractConsultantName(tg) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved))
-                                 ) {
-                                    setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
-                                 };
+                                 // const consultantLeadFromPreviousSubmission = listConsultantMustReply[0];
+                                 // const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
+                                 // if (
+                                 //    itemJustRemoved &&
+                                 //    listConsultantMustReply.find(x => x === extractConsultantName(itemJustRemoved)) &&
+                                 //    consultantLeadFromPreviousSubmission !== extractConsultantName(itemJustRemoved) &&
+                                 //    !list.find(tg => extractConsultantName(tg) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved))
+                                 // ) {
+                                 //    setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
+                                 // };
                               };
                               setListRecipientTo([...new Set(list)]);
 
@@ -800,8 +811,8 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                                  companyNameToCheck = listRecipientTo.find(x => !list.find(item => item === x));
                                  isRemoveTag = true;
                               };
-                              onClickTagRecipientTo(companyNameToCheck, isRemoveTag);
 
+                              onClickTagRecipientTo(companyNameToCheck, isRemoveTag);
                            }}
                         >
                            {listRecipient.map(cm => {
@@ -837,19 +848,29 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
                         {formRefType !== 'form-reply-multi-type' && (
                            <div style={{ display: 'flex', marginTop: 5, marginBottom: 10 }}>
-                              <div style={{ marginRight: 8 }}>{
-                                 (pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi') ? 'Lead consultant :'
-                                    : (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') ? 'Received By :'
-                                       : 'n/a'
-                              }</div>
-                              <div style={{ fontWeight: 'bold', marginRight: 10 }}>{
-                                 (pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi') ? (listConsultantMustReply[0] || '')
-                                    : (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') ? (listConsultantMustReply.sort().join(', ') || '')
-                                       : 'n/a'
-                              }</div>
-                              {formRefType === 'form-submit-multi-type' && (
+                              {pageSheetTypeName !== 'page-mm' && (
+                                 <div style={{ marginRight: 8 }}>
+                                    {(pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi') ? 'Lead consultant :'
+                                       : (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') ? 'Received By :'
+                                          : 'n/a'
+                                    }
+                                 </div>
+                              )}
+                              {pageSheetTypeName !== 'page-mm' && (
+                                 <div style={{ fontWeight: 'bold', marginRight: 10 }}>
+                                    {(pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi') ? (listConsultantMustReply[0] || '')
+                                       : (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') ? (listConsultantMustReply.sort().join(', ') || '')
+                                          : 'n/a'
+                                    }
+                                 </div>
+                              )}
+
+
+
+                              {formRefType === 'form-submit-multi-type' && pageSheetTypeName !== 'page-mm' && (
                                  <div style={{ fontSize: 11, color: 'grey', fontStyle: 'italic', transform: 'translateY(3px)' }}>(Click on tag to change lead consultant)</div>
                               )}
+
                            </div>
                         )}
                      </div>
@@ -895,7 +916,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
 
-               {formRefType !== 'form-reply-multi-type' && (
+               {formRefType !== 'form-reply-multi-type' && pageSheetTypeName !== 'page-mm' && (
                   <div style={{ display: 'flex' }}>
                      <div style={{ display: 'flex', marginBottom: 5, marginRight: 120 }}>
                         <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Requested by</div>
@@ -1016,7 +1037,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
                {
                   formRefType !== 'form-reply-multi-type' &&
-                  pageSheetTypeName === 'page-cvi' &&
+                  (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm') &&
                   (
                      <>
                         <div style={{ display: 'flex', marginBottom: 20 }}>
@@ -1185,7 +1206,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                   )}
 
 
-                  
+
 
                   {formRefType === 'form-submit-multi-type' && (
                      <>
@@ -1200,13 +1221,16 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                               name='Upload Documents'
                            />
                         </Upload>
-                        <ButtonStyle
-                           marginRight={10}
-                           name='Add Drawings From RFA'
-                           onClick={() => setTablePickDrawingRefSubmitted(true)}
-                        />
+
+                        {pageSheetTypeName !== 'page-mm' && (
+                           <ButtonStyle
+                              marginRight={10}
+                              name='Add Drawings From RFA'
+                              onClick={() => setTablePickDrawingRefSubmitted(true)}
+                           />
+                        )}
                      </>
-                     
+
                   )}
 
 
@@ -1573,7 +1597,7 @@ const DatePickerStyled = styled(DatePicker)`
 
 const SelectTradeStyled = styled(Select)`
    transform: translateY(-5px);
-   width: 50px;
+   width: 60px;
    cursor: alias;
 
    .ant-select-selection__rendered {
@@ -1634,4 +1658,9 @@ export const convertTradeCodeInverted = (trade) => {
    if (trade === 'CS') return 'C&S';
    if (trade === 'ME') return 'M&E';
    if (trade === 'PC') return 'PRECAST';
+};
+export const convertTradeCodeMeetingMinutesInverted = (trade) => {
+   if (trade === 'PRO') return 'PROJECT PROGRESS MEETING';
+   if (trade === 'TEC') return 'TECHNICAL MEETING';
+   if (trade === 'ICE') return 'ICE MEETING';
 };

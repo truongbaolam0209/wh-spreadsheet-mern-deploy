@@ -36,15 +36,20 @@ const PanelFunction = (props) => {
       trade = getTradeNameFnc(dwgType, drawingTypeTree);
    };
 
-   const isLockedByCompanyOrTrade =
-      roleTradeCompany.role === 'Document Controller' && roleTradeCompany.company === 'Woh Hup Private Ltd'
-         ? false
-         : roleTradeCompany.company === 'Woh Hup Private Ltd'
-            ? (companyName !== roleTradeCompany.company || trade !== roleTradeCompany.trade)
-            : companyName !== roleTradeCompany.company;
+
+   let isLockedByCompanyOrTrade = false;
+   if (pageSheetTypeName === 'page-spreadsheet') {
+      isLockedByCompanyOrTrade =
+         roleTradeCompany.role === 'Document Controller' && roleTradeCompany.company === 'Woh Hup Private Ltd'
+            ? false
+            : roleTradeCompany.company === 'Woh Hup Private Ltd'
+               ? (companyName !== roleTradeCompany.company || trade !== roleTradeCompany.trade)
+               : companyName !== roleTradeCompany.company;
+   };
 
 
-   const listButton = (rowData._rowLevel && rowData._rowLevel === 1 && !isLockedColumn && !isLockedRow) ? [
+
+   const listButton = (pageSheetTypeName === 'page-spreadsheet' && rowData._rowLevel && rowData._rowLevel === 1 && !isLockedColumn && !isLockedRow) ? [
       'View Drawing Revision',
       'Create New Drawing Revision',
       'Date Automation',
@@ -64,6 +69,13 @@ const PanelFunction = (props) => {
       'Paste Drawings',
       'Insert Drawings By Type'
 
+   ] : (pageSheetTypeName === 'page-data-entry') ? [
+      'Duplicate Drawings',
+      'Insert Drawings Below',
+      'Insert Drawings Above',
+      'Move Drawings',
+      'Paste Drawings',
+      'Delete Drawing'
    ] : [];
 
 
@@ -92,6 +104,7 @@ const PanelFunction = (props) => {
                   rowsSelected,
                   drawingTypeTree,
                   projectIsAppliedRfaView,
+                  pageSheetTypeName
                )}
             >
                {btn}
@@ -126,6 +139,7 @@ const disabledBtn = (
    rowsSelected,
    drawingTypeTree,
    projectIsAppliedRfaView,
+   pageSheetTypeName
 ) => {
    const { rowData } = panelType.cellProps;
    const { _rowLevel, treeLevel, id, rfaNumber } = rowData;
@@ -138,6 +152,8 @@ const disabledBtn = (
       consultantLeadReply = getInfoValueFromRfaData(rowData, 'reply', 'status', consultantLeadName);
    };
 
+
+
    if (
       (projectIsAppliedRfaView && (!consultantLeadReply || roleTradeCompany.role !== 'Document Controller') && btn === 'Create New Drawing Revision') ||
 
@@ -149,15 +165,29 @@ const disabledBtn = (
       (_rowLevel === 1 && (roleTradeCompany.role === 'View-Only User' || roleTradeCompany.role === 'Production') && btnLocked_2.indexOf(btn) !== -1) ||
       (_rowLevel === 1 && rfaNumber && btn === 'Delete Drawing') ||
 
-      (treeLevel === 1 && rowData.title === 'Woh Hup Private Ltd' && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
-      (treeLevel === 2 && rowData.title.includes('(SUBCON)') && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
-      (treeLevel > 1 && drawingTypeTree.find(x => x.parentId === id) && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
+      (pageSheetTypeName === 'page-spreadsheet' && (
+         (treeLevel === 1 && rowData.title === 'Woh Hup Private Ltd' && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
+         (treeLevel === 2 && rowData.title.includes('(SUBCON)') && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
+         (treeLevel > 1 && drawingTypeTree.find(x => x.parentId === id) && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type'))
+      )) ||
+
+      (pageSheetTypeName === 'page-data-entry' && (
+         (treeLevel >= 1 && drawingTypeTree.find(x => x.parentId === id) && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type'))
+      )) ||
+
+
+
+
+
+
       (treeLevel > 1 && !drawingTypeTree.find(x => x.parentId === id) && rowsSelectedToMove.length === 0 && btn === 'Paste Drawings') ||
       (treeLevel >= 1 && isLockedByCompanyOrTrade)
 
-   ) return {
-      pointerEvents: 'none',
-      color: 'grey'
+   ) {
+      return {
+         pointerEvents: 'none',
+         color: 'grey'
+      };
    };
 };
 
