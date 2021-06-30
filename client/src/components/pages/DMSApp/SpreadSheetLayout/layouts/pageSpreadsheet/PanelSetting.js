@@ -2041,7 +2041,7 @@ export const getDataForRFASheet = (rows, rowsHistory, role, company) => {
       const rfaParentNodeArray = [];
       allRfaCode.forEach(rfaNumb => {
          let allDwgs = [...rowsUnderThisTrade, ...rowsHistoryUnderThisTrade].filter(dwg => dwg['rfaNumber'] === rfaNumb);
-         const allRfaRef = [...new Set(allDwgs.map(x => x['RFA Ref']))];
+         const allRfaRef = [...new Set(allDwgs.map(x => x['RFA Ref'] || ''))];
 
          let btnTextArray = allRfaRef.map(rfa => {
             return rfa.slice(rfaNumb.length, rfa.length) || '-';
