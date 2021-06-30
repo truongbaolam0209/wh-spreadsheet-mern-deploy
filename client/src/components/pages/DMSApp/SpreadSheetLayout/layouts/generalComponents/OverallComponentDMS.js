@@ -11,7 +11,6 @@ import { Context as RowContext } from '../../contexts/rowContext';
 import { compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
 import ButtonAdminCreateAndUpdateRows from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
 import ButtonAdminDeleteRowsHistory from '../pageSpreadsheet/ButtonAdminDeleteRowsHistory';
-import ButtonAdminUploadData from '../pageSpreadsheet/ButtonAdminUploadData';
 import Cell, { columnLocked, rowLocked } from '../pageSpreadsheet/Cell';
 import CellForm from '../pageSpreadsheet/CellForm';
 import CellIndex from '../pageSpreadsheet/CellIndex';
@@ -1044,7 +1043,7 @@ const OverallComponentDMS = (props) => {
                   {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} />
                   <ButtonAdminUploadData /> */}
                   <ButtonAdminCreateAndUpdateRows />
-                  {/* <ButtonAdminDeleteRowsHistory /> */}
+                  <ButtonAdminDeleteRowsHistory />
                   {/* 
                         <ButtonAdminUploadDataPDD />
                         
