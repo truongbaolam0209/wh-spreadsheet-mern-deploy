@@ -235,8 +235,8 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
 
    const requestedBy = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'requestedBy');
 
-   const drgToConsultantA = rowData['Drg To Consultant (A)'] || '20/01/20';
-   const consultantReplyT = rowData['Consultant Reply (T)'] || '20/01/20';
+   const dateSubmission = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'date');
+   const dueDate = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'due');
 
 
    const th_td_style = `style='border: 1px solid #dddddd; text-align: left; padding: 8px; position: relative;'`;
@@ -277,8 +277,8 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
                <td ${th_td_style}>${i + 2}</td>
                <td ${th_td_style}>Drawing</td>
                <td ${th_td_style}>
-                  <a style='text-decoration: none;' href='${link}' download>
-                     ${getFileNameFromLinkResponse(link)}
+                  <a style='text-decoration: none;' href='${link.fileLink}' download>
+                     ${link.fileName}
                   </a>
                </td>
             </tr>
@@ -294,29 +294,32 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
          <div>${formSubmitType.toUpperCase()} Ref: <span style='font-weight: bold;'>${refNumber}</span></div>
          ${action === 'submit-request-signature' ?
          `
-            <div>Submission Date: <span style='font-weight: bold;'>${drgToConsultantA}</span></div>
+            <div>Submission Date: <span style='font-weight: bold;'>${moment(dateSubmission).format('MMM Do YYYY')}</span></div>
             <div>Requested by: <span style='font-weight: bold;'>${requestedBy}</span></div>
             <br />
             <div>Dear Mr/Mrs,</div>
             <div>
-               <span style='font-weight: bold;'>${company}</span> has submitted 
+               Please help to sign in cover form 
                <a href='${linkFormNoSignature}'>
                   <span style='font-weight: bold;'>${refNumber}</span> 
                </a>
-               for you to review.
+               for submission. Please pass this back to DC by attached signed form to DC or give him by hand.
+	            The form can find in this 
+               <a href='${linkFormNoSignature}'>
+                  <span style='font-weight: bold;'>link</span> 
+               </a>.
             </div>
-            <div>Please review, sign and reply to us.</div>
 
          ` : action === 'submit-signed-off-final' ?
             `
-            <div>Submission Date: <span style='font-weight: bold;'>${drgToConsultantA}</span></div>
+            <div>Submission Date: <span style='font-weight: bold;'>${moment(dateSubmission).format('MMM Do YYYY')}</span></div>
             <div>Requested by: <span style='font-weight: bold;'>${requestedBy}</span></div>
             <br />
             <div>Dear All,</div>
             <div>
                <span style='font-weight: bold;'>${company}</span> has submitted <span style='font-weight: bold;'>${refNumber}</span> for you to review.
             </div>
-            <div>Please review and reply to us by <span style='font-weight: bold;'>${consultantReplyT}</span>.</div>
+            <div>Please review and reply to us by <span style='font-weight: bold;'>${moment(dueDate).format('MMM Do YYYY')}</span>.</div>
             <br />
             ${(linkAttachedArray && linkAttachedArray.length > 0) ?
                `
@@ -327,6 +330,14 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
                </table>
                <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('MMM Do YYYY')}.</div>
             ` : ''}
+         ` : action === 'submit-meeting-minutes' ?
+            `
+            <div>Submission Date: <span style='font-weight: bold;'>${moment(dateSubmission).format('MMM Do YYYY')}</span></div>
+            <br />
+            <div>Dear All,</div>
+            <div>
+               <span style='font-weight: bold;'>${company}</span> has submitted <span style='font-weight: bold;'>${refNumber}</span> for you to review.
+            </div>
          ` : action === 'reply-signed-off' ? `
             <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
             <div>Status: <span style='font-weight: bold;'>${replyStatus}</span></div>

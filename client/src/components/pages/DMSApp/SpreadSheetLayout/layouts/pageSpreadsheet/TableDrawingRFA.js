@@ -47,7 +47,6 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
 
    const [rowsTableInput, setRowsTableInput] = useState([]);
 
-
    const [arraySubTradeMEP, setArraySubTradeMEP] = useState([]);
 
    
@@ -59,7 +58,7 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
 
       let rowsList = rowsAll.filter(r => {
          const trade = findTradeOfDrawing(r, drawingTypeTreeDmsView);
-         return (r['Drawing Number'] || r['Drawing Name']) &&
+         return (r['Drawing Number']) &&
             !r.rfaNumber &&
             trade.includes(drawingTrade);
       });
@@ -175,7 +174,7 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
                onClickCancel={onClickCancelModalPickDrawing}
                onClickApply={() => {
                   if (selectedIdRows.length === 0) {
-                     return message.info('Please select drawings to submit!', 3);
+                     return message.info('Please select drawings to submit!', 2);
                   } else {
                      onClickApplyModalPickDrawing(formRfaType, drawingTrade, drawingSubTrade, selectedIdRows);
                   };

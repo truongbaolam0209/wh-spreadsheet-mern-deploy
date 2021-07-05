@@ -347,6 +347,10 @@ export const getHeaderWidth = (header) => {
    else if (header === 'Attachment Type') return 100;
    else if (header === 'Transmitted For') return 130;
 
+
+   else if (header === 'RFAM Ref') return 400;
+
+
    else return 300;
 
 };

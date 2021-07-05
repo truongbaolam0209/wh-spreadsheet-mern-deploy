@@ -57,6 +57,7 @@ const findSheetIncludingRowsSortedFnc = async (sheetId, headers) => {
 
    const rowsProcessed = _process_Rows(headers, rows);
    const rowsOutput = rowsProcessed.map(row => {
+      
       const output = {
          _id: row.id,
          level: row._rowLevel,
@@ -174,7 +175,23 @@ const deleteRows = async (req, res, next) => {
 };
 
 
-
+const deleteAllDataInThisCollection = async (req, res, next) => {
+   try {
+     let result = await model.deleteMany({});
+     return res.json(result);
+   } catch(err) {
+     next(err);
+   };
+};
+const saveAllDataToServer = async (req, res, next) => {
+   try {
+      const { dataToSave } = req.body;
+      const data = await model.insertMany(dataToSave);
+      return res.json(data);
+   } catch (error) {
+      next(error);
+   };
+};
 
 module.exports = {
    schema,
@@ -183,5 +200,8 @@ module.exports = {
 
    findOneWithUserEmail,
    updateOrCreateRowsDataEntry,
-   deleteRows
+   deleteRows,
+
+   saveAllDataToServer,
+   deleteAllDataInThisCollection
 };

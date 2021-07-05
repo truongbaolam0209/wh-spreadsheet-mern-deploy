@@ -8,18 +8,19 @@ import { colorTextRow, colorType, SERVER_URL, tradeArrayForm, tradeArrayMeetingM
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
+import { compareDates, debounceFnc, extractCellInfo, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
 import ButtonAdminCreateAndUpdateRows from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
-import ButtonAdminCreateAndUpdateRowsHistory from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRowsHistory';
 import ButtonAdminDeleteRowsHistory from '../pageSpreadsheet/ButtonAdminDeleteRowsHistory';
+import ButtonAdminUploadData from '../pageSpreadsheet/ButtonAdminUploadData';
 import Cell, { columnLocked, rowLocked } from '../pageSpreadsheet/Cell';
 import CellForm from '../pageSpreadsheet/CellForm';
 import CellIndex from '../pageSpreadsheet/CellIndex';
 import CellRFA, { getConsultantLeadName, getConsultantReplyData, getInfoValueFromRfaData, isColumnConsultant, isColumnWithReplyData } from '../pageSpreadsheet/CellRFA';
 import ExcelExport from '../pageSpreadsheet/ExcelExport';
 import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from '../pageSpreadsheet/FormDrawingTypeOrder';
+import { compareCurrentTreeAndTreeFromDB } from '../pageSpreadsheet/FormDrawingTypeOrderDataEntry';
 import PanelFunction, { getPanelPosition } from '../pageSpreadsheet/PanelFunction';
-import PanelSetting, { convertRowHistoryData, getDataForMultiFormSheet, getDataForRFASheet, getKeyTextForSheet, updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from '../pageSpreadsheet/PanelSetting';
+import PanelSetting, { convertRowHistoryData, getDataForMultiFormSheet, getDataForRFASheet, getKeyTextForSheet, updatePreRowParentRowToState, _processChainRowsSplitGroupFnc2, _processRowsChainNoGroupFnc1 } from '../pageSpreadsheet/PanelSetting';
 import CellHeader from './CellHeader';
 import { sortFnc } from './FormSort';
 import IconSidePanel from './IconSidePanel';
@@ -55,6 +56,8 @@ let addedEvent = false;
 
 const OverallComponentDMS = (props) => {
 
+
+
    let {
       email, role: roleInit, isAdmin, projectId, projectName, token, company,
       companies, projectIsAppliedRfaView, listUser, listGroup, projectNameShort, pageSheetTypeName,
@@ -75,7 +78,7 @@ const OverallComponentDMS = (props) => {
    };
 
 
-   
+
 
    const roleTradeCompany = getUserRoleTradeCompany(role, company, pageSheetTypeName);
 
@@ -471,7 +474,6 @@ const OverallComponentDMS = (props) => {
          setCellHistoryFound(null);
 
       } else if (update.type === 'reload-data-entry-from-server') {
-         
          const dataLoadedFromServer = convertDataEntryInput(update.data);
 
          fetchDataOneSheet({
@@ -527,6 +529,14 @@ const OverallComponentDMS = (props) => {
             await Axios.post(`${SERVER_URL}/row/history/delete-all/`, { token });
             await Axios.post(`${SERVER_URL}/sheet/delete-all/`, { token });
             await Axios.post(`${SERVER_URL}/settings/delete-all/`, { token });
+
+            await Axios.post(`${SERVER_URL}/row-data-entry/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/settings-data-entry/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/row-rfam/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/row-rfi/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/row-cvi/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/row-dt/delete-all/`, { token });
+            await Axios.post(`${SERVER_URL}/row-mm/delete-all/`, { token });
             message.info('DONE...Delete All Data In Every DB Collections');
          };
       } catch (err) {
@@ -993,6 +1003,361 @@ const OverallComponentDMS = (props) => {
       );
    };
 
+
+
+
+   const triggerFromOutsideComponent = async () => {
+      const { email, token, role, projectName, projectIsAppliedRfaView, publicSettings, company } = stateProject.allDataOneSheet;
+      const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
+      const { headers } = publicSettings;
+
+      let { cellsModifiedTemp } = stateCell;
+      let {
+         rowsVersionsToSave,
+         rowsUpdatePreRowOrParentRow,
+         drawingTypeTreeInit,
+         drawingTypeTree,
+         drawingsTypeDeleted,
+         rowsDeleted,
+
+         rowsAll,
+         rowsUpdateSubmissionOrReplyForNewDrawingRev,
+
+         viewTemplateNodeId,
+         viewTemplates,
+         modeFilter,
+         modeSort,
+      } = stateRow;
+
+
+      // check new version reply go blank
+      const rowsGetNewRev = rowsAll.filter(r => rowsUpdateSubmissionOrReplyForNewDrawingRev.indexOf(r.id) !== -1);
+
+
+      try {
+         setLoading(true);
+         commandAction({ type: '' });
+
+
+         const resDBRaw = await Axios.post(`${SERVER_URL}/row-data-entry/get-row`, { token, projectId: sheetId, email, headers: converHeaderForDataEntryOutput(headers) });
+         const resDB = convertDataEntryInput(resDBRaw.data);
+
+         // const resCellsHistory = await Axios.get(`${SERVER_URL}/cell/history/`, { params: { token, projectId } });
+
+         let { publicSettings: publicSettingsFromDB, rows: rowsFromDBInit } = resDB;
+         let { drawingTypeTree: drawingTypeTreeFromDB, activityRecorded: activityRecordedFromDB } = publicSettingsFromDB;
+
+         // const headerKeyDrawingNumber = headers.find(hd => hd.text === 'Drawing Number').key;
+         // const headerKeyDrawingName = headers.find(hd => hd.text === 'Drawing Name').key;
+
+         const headerKeyDrawingNumber = 'Drawing Number';
+         const headerKeyDrawingName = 'Drawing Name';
+
+         let rowsFromDB = rowsFromDBInit.map(row => ({ ...row }));
+
+         let {
+            needToSaveTree,
+            treeDBModifiedToSave,
+            nodesToAddToDB,
+            nodesToRemoveFromDB
+         } = compareCurrentTreeAndTreeFromDB(
+            drawingTypeTreeInit,
+            drawingTypeTree,
+            drawingsTypeDeleted,
+            drawingTypeTreeFromDB,
+            activityRecordedFromDB.filter(x => x.action === 'Delete Folder'),
+         );
+         let activityRecordedArr = [];
+
+
+         // check if row or its parents deleted by other users
+         const rowsUpdatePreRowOrParentRowArray = Object.values(rowsUpdatePreRowOrParentRow)
+            .filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing') &&
+               !activityRecordedFromDB.find(r => r.id === row._parentRow && r.action === 'Delete Folder'));
+
+
+         if (rowsUpdatePreRowOrParentRowArray.length > 0) {
+
+            let arrID = [];
+            rowsFromDB.forEach(r => { // take out temporarily all rowsUpdatePreRowOrParentRowArray from DB
+               if (rowsUpdatePreRowOrParentRowArray.find(row => row.id === r.id)) {
+                  arrID.push(r.id);
+                  const rowBelow = rowsFromDB.find(rrr => rrr._preRow === r.id);
+                  if (rowBelow) rowBelow._preRow = r._preRow;
+               };
+            });
+            rowsFromDB = rowsFromDB.filter(r => arrID.indexOf(r.id) === -1);
+
+
+
+            const rowsInOldParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
+               return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && !treeDBModifiedToSave.find(x => x.parentId === tr.id));
+            });
+
+            const rowsInOldParentDivertBranches = rowsUpdatePreRowOrParentRowArray.filter(r => {
+               return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && treeDBModifiedToSave.find(x => x.parentId === tr.id));
+            });
+
+            const rowsInNewParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
+               return !treeDBModifiedToSave.find(tr => tr.id === r._parentRow);
+            });
+
+
+            const rowsInOldParentOutput = _processChainRowsSplitGroupFnc2([...rowsInOldParent]);
+            rowsInOldParentOutput.forEach(arrChain => {
+               const rowFirst = arrChain[0];
+               const parentRowInDB = treeDBModifiedToSave.find(tr => tr.id === rowFirst._parentRow);
+               const rowAbove = rowsFromDB.find(r => r.id === rowFirst._preRow);
+               if (rowAbove) {
+                  if (rowAbove._parentRow !== rowFirst._parentRow) { // rowAbove move to other parent by other user
+                     const lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
+                     rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
+                  } else { // rowAbove is still in the same parent
+                     const rowBelowRowAbove = rowsFromDB.find(r => r._preRow === rowAbove.id);
+                     if (rowBelowRowAbove) rowBelowRowAbove._preRow = arrChain[arrChain.length - 1].id;
+                     rowFirst._preRow = rowAbove.id;
+                  };
+               } else {
+                  if (rowFirst._preRow === null) {
+                     const firstRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && r._preRow === null);
+                     if (firstRowInParent) { // if firstRowInParent undefined means Drawing type has 0 drawing currently...
+                        firstRowInParent._preRow = arrChain[arrChain.length - 1].id;
+                     };
+                  } else {
+                     const lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
+                     rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
+                  };
+               };
+               rowsFromDB = [...rowsFromDB, ...arrChain];
+            });
+
+
+            let idsOldParentDivertBranches = [...new Set(rowsInOldParentDivertBranches.map(r => r._parentRow))];
+            idsOldParentDivertBranches.forEach(idP => {
+               let arrInput = rowsInOldParentDivertBranches.filter(r => r._parentRow === idP);
+               let rowsChildren = _processRowsChainNoGroupFnc1([...arrInput]);
+
+               const treeNode = treeDBModifiedToSave.find(x => x.id === idP);
+               const newIdParent = mongoObjectId();
+               treeDBModifiedToSave.push({
+                  title: 'New Folder',
+                  id: newIdParent,
+                  parentId: treeNode.id,
+                  treeLevel: treeNode.treeLevel + 1,
+                  expanded: true,
+               });
+               needToSaveTree = true;
+
+               activityRecordedArr.push({
+                  id: newIdParent,
+                  email,
+                  createdAt: new Date(),
+                  action: 'Create Folder',
+                  [headerKeyDrawingNumber]: 'New Folder',
+               });
+
+               rowsChildren.forEach((r, i) => {
+                  r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
+                  r._parentRow = newIdParent;
+               });
+               rowsFromDB = [...rowsFromDB, ...rowsChildren];
+            });
+
+
+
+            let idsNewParentArray = [...new Set(rowsInNewParent.map(r => r._parentRow))];
+            idsNewParentArray.forEach(idP => {
+               let arrInput = rowsInNewParent.filter(r => r._parentRow === idP);
+               let rowsChildren = _processRowsChainNoGroupFnc1([...arrInput]);
+               rowsChildren.forEach((r, i) => {
+                  r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
+               });
+               rowsFromDB = [...rowsFromDB, ...rowsChildren];
+            });
+         };
+
+
+         // SAVE CELL HISTORY
+         // let objCellHistory = {};
+         // resCellsHistory.data.map(cell => {
+         //    const headerFound = headers.find(hd => hd.key === cell.headerKey);
+         //    if (headerFound) {
+         //       const headerText = headerFound.text;
+         //       if (cell.histories.length > 0) {
+         //          const latestHistoryText = cell.histories[cell.histories.length - 1].text;
+         //          objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
+         //       };
+         //    };
+         // });
+         // Object.keys(cellsModifiedTemp).forEach(key => {
+         //    if (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) {
+         //       delete cellsModifiedTemp[key];
+         //    } else {
+         //       let rowId = extractCellInfo(key).rowId;
+         //       if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
+         //          delete cellsModifiedTemp[key];
+         //       };
+         //    };
+         // });
+
+         // if (Object.keys(cellsModifiedTemp).length > 0) {
+         //    await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject) });
+         // };
+
+         // SAVE DRAWINGS NEW VERSION
+         // rowsVersionsToSave = rowsVersionsToSave.filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing'));
+         // if (rowsVersionsToSave.length > 0) {
+         //    await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: convertDrawingVersionToHistory(rowsVersionsToSave, stateProject) });
+         // };
+
+
+
+
+         // DELETE ROWS
+         let rowDeletedFinal = [];
+         rowsDeleted.forEach(row => { // some rows already deleted by previous user => no need to delete anymore
+            const rowInDB = rowsFromDB.find(r => r.id === row.id);
+            if (rowInDB) {
+               const rowBelow = rowsFromDB.find(r => r._preRow === rowInDB.id);
+               if (rowBelow) {
+                  rowBelow._preRow = rowInDB._preRow;
+               };
+               rowsFromDB = rowsFromDB.filter(r => r.id !== rowInDB.id); // FIXEDDDDDDDDDDDDDDDDDDD
+               rowDeletedFinal.push(row);
+            };
+         });
+
+
+
+
+         if (nodesToRemoveFromDB.length > 0) {
+            nodesToRemoveFromDB.forEach(fd => {
+               activityRecordedArr.push({
+                  id: fd.id, email, createdAt: new Date(), action: 'Delete Drawing Type',
+                  [headerKeyDrawingNumber]: fd.title,
+               });
+            });
+         };
+         if (nodesToAddToDB.length > 0) {
+            nodesToAddToDB.forEach(fd => {
+               activityRecordedArr.push({
+                  id: fd.id, email, createdAt: new Date(), action: 'Create Drawing Type',
+                  [headerKeyDrawingNumber]: fd.title,
+               });
+            });
+         };
+
+         // SAVE PUBLIC SETTINGS RECORDED
+         activityRecordedArr.forEach(rc => {
+            const newRowsAddedByPreviousUserButParentDeletedByCurrentUser = rowsFromDB.filter(e => {
+               return e._parentRow === rc.id &&
+                  rc.action === 'Delete Folder' &&
+                  !rowDeletedFinal.find(x => x.id === e.id);
+            });
+            rowDeletedFinal = [...rowDeletedFinal, ...newRowsAddedByPreviousUserButParentDeletedByCurrentUser];
+         });
+
+         rowDeletedFinal.forEach(r => {
+            activityRecordedArr.push({
+               id: r.id, email, createdAt: new Date(), action: 'Delete Drawing',
+               [headerKeyDrawingNumber]: r['Drawing Number'],
+               [headerKeyDrawingName]: r['Drawing Name'],
+            });
+         });
+
+
+         rowsFromDB = rowsFromDB.filter(r => !rowDeletedFinal.find(x => x.id === r.id));
+
+         // DELETE ...
+         if (rowDeletedFinal.length > 0) {
+            await Axios.post(`${SERVER_URL}/row-data-entry/delete-rows/`, { token, projectId: sheetId, email, rowIdsArray: rowDeletedFinal.map(r => r.id) });
+         };
+
+
+         treeDBModifiedToSave.forEach(tr => {
+            headers.forEach(hd => {
+               if (hd.text in tr) {
+                  tr[hd.key] = tr[hd.text];
+                  delete tr[hd.text];
+               };
+            });
+         });
+
+
+
+         let publicSettingsUpdated = { projectName };
+         if (needToSaveTree) {
+            publicSettingsUpdated = { ...publicSettingsUpdated, drawingTypeTree: treeDBModifiedToSave };
+         };
+         if (activityRecordedArr.length > 0) {
+            publicSettingsUpdated = { ...publicSettingsUpdated, activityRecorded: [...activityRecordedFromDB, ...activityRecordedArr] };
+         };
+         await Axios.post(`${SERVER_URL}/settings-data-entry/update-setting-public/`, { token, projectId: sheetId, email, publicSettings: publicSettingsUpdated });
+
+
+         // const userSettingsUpdated = {
+         //    headersShown: headersShown.map(hd => headers.find(h => h.text === hd).key),
+         //    headersHidden: headersHidden.map(hd => headers.find(h => h.text === hd).key),
+         //    nosColumnFixed, colorization, role, viewTemplateNodeId, viewTemplates, modeFilter, modeSort
+         // };
+         // await Axios.post(`${SERVER_URL}/sheet/update-setting-user/`, { token, projectId, email, userSettings: userSettingsUpdated });
+
+
+         // FILTER FINAL ROW TO UPDATE......
+         let rowsToUpdateFinal = [];
+         rowsFromDB.map(row => {
+
+            Object.keys(cellsModifiedTemp).forEach(key => {
+               const { rowId, headerName } = extractCellInfo(key);
+               if (rowId === row.id) row[headerName] = cellsModifiedTemp[key];
+            });
+
+            let rowOutput;
+            const found = rowsFromDBInit.find(r => r.id === row.id);
+            if (found) {
+               let toUpdate = false;
+               Object.keys(row).forEach(key => {
+                  if (found[key] !== row[key]) toUpdate = true;
+               });
+               if (toUpdate) rowOutput = { ...row };
+            } else {
+               rowOutput = { ...row };
+            };
+
+            if (rowOutput) {
+               let rowToSave = { _id: rowOutput.id, parentRow: rowOutput._parentRow, preRow: rowOutput._preRow };
+               headers.forEach(hd => {
+                  if (rowOutput[hd.text] || rowOutput[hd.text] === '') {
+                     rowToSave.data = { ...rowToSave.data || {}, [hd.key]: rowOutput[hd.text] };
+                  };
+               });
+
+               rowsToUpdateFinal.push(rowToSave);
+            };
+         });
+
+         if (rowsToUpdateFinal.length > 0) {
+            await Axios.post(`${SERVER_URL}/row-data-entry/save-rows-data-entry/`, { token, projectId: sheetId, rows: rowsToUpdateFinal });
+         };
+         commandAction({ type: 'save-data-successfully' });
+         const res = await Axios.post(`${SERVER_URL}/row-data-entry/get-row`, { token, projectId: sheetId, email, headers: converHeaderForDataEntryOutput(headers) });
+
+         OverwriteCellsModified({});
+         setCellActive(null);
+         setLoading(false);
+
+         setCellSearchFound(null);
+         setCellHistoryFound(null);
+
+         return res.data;
+      } catch (err) {
+         commandAction({ type: 'save-data-failure' });
+         console.log(err);
+      };
+   };
+   window.triggerFromOutsideComponent = triggerFromOutsideComponent;
+
+
    return (
       <div
          style={{ color: 'black' }}
@@ -1010,7 +1375,15 @@ const OverallComponentDMS = (props) => {
                </>
             )}
 
-            <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
+            <IconTable type='filter' onClick={() => {
+               if (
+                  pageSheetTypeName === 'page-spreadsheet' ||
+                  pageSheetTypeName === 'page-rfa' ||
+                  pageSheetTypeName === 'page-data-entry'
+               ) {
+                  buttonPanelFunction('filter-ICON');
+               };
+            }} />
             {searchInputShown
                ? <InputSearch
                   searchGlobal={searchGlobal}
@@ -1120,7 +1493,6 @@ const OverallComponentDMS = (props) => {
                            getSheetRows({
                               ...stateRow,
                               currentRefToAddNewOrReplyOrEdit: {
-                                 currentRefNumber: null,
                                  currentRefData: null,
                                  formRefType: 'form-submit-multi-type',
                                  isFormEditting: false
@@ -1147,9 +1519,16 @@ const OverallComponentDMS = (props) => {
 
             {isAdmin && (
                <div style={{ display: 'flex' }}>
+                  {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} /> */}
+                  {/* <ButtonAdminUploadData /> */}
                   <ButtonAdminCreateAndUpdateRows />
                   <ButtonAdminDeleteRowsHistory />
-                  <ButtonAdminCreateAndUpdateRowsHistory />
+                  {/* 
+                        <ButtonAdminUploadDataPDD />
+                        
+                        <ButtonAdminCreateAndUpdateRowsHistory />
+                        <ButtonAdminUpdateProjectSettings /> 
+                     */}
 
                </div>
             )}
@@ -1490,7 +1869,7 @@ const ModalStyledSetting = styled(Modal)`
    }
 `;
 const ButtonBox = styled.div`
-   width: ${`${window.innerWidth}px`};
+   width: 100%;
    position: relative;
    display: flex;
    padding-top: 7px;
@@ -1503,6 +1882,7 @@ const ButtonBox = styled.div`
 
 
 export const getInputDataInitially = (data, { role, company }, pageSheetTypeName) => {
+
 
 
    if (pageSheetTypeName === 'page-rfa') {
@@ -1536,9 +1916,11 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
       const { rows, publicSettings, userSettings } = data;
 
       const { drawingTypeTree, sheetId } = publicSettings;
-   
+
+
+
       let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);
- 
+
       const { treeNodesToAdd, rowsToAdd, rowsUpdatePreOrParent } = rearrangeRowsNotMatchTreeNode(rows, rowsAllOutput, drawingTypeTree);
 
       let rowsAllOutputCombined = [...rowsAllOutput, ...rowsToAdd];
@@ -1547,7 +1929,7 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
       let idRowsNew = [];
       let rowsUpdatePreRowOrParentRow = { ...rowsUpdatePreOrParent }; // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
 
-      
+
 
       if (pageSheetTypeName === 'page-data-entry' && rowsAllOutputCombined.length === 0 && drawingTypeTree.length === 0) {
          const newRowId = mongoObjectId();

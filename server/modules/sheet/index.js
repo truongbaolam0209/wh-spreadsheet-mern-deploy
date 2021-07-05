@@ -20,11 +20,15 @@ const cellHistoryModel = require('../cell-history/model');
 const rowHistoryModel = require('../row-history/model');
 const settingsModel = require('../settings/model');
 
+const rowModelDataEntry = require('../row-data-entry/model');
+const settingsModelDataEntry = require('../settings-data-entry/model');
 const rowModelRfam = require('../row-rfam/model');
 const rowModelRfi = require('../row-rfi/model');
 const rowModelCvi = require('../row-cvi/model');
 const rowModelDt = require('../row-dt/model');
 const rowModelMm = require('../row-mm/model');
+
+const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
 
 const { createPublicUrl } = require('../../../custom/s3');
 
@@ -171,14 +175,14 @@ const findSheetIncludingRowsSortedFnc = async (sheetId) => {
    let sheet = { _id: sheetId };
    let rows = [];
    let headers = publicSettings && publicSettings.headers instanceof Array ? publicSettings.headers : [];
-
+   
    let { drawingTypeTree } = publicSettings;
 
 
    for (let row of dataRows) {
       if (row.level == 1) rows.push(row);
    };
-
+   
 
    sheet.rows = _process_Rows(headers, rows);
 
@@ -217,7 +221,7 @@ const _update_Or_Create_Rows = async (rowsData, sheetId, rowModel) => {
       rowModel.create(rowsToCreate),
    ]);
 
-
+   
    return {
       created: rowsToCreate.length,
       updated: rowsToUpdate.length,
@@ -307,17 +311,26 @@ const _process_Rows = (sheetHeaders, rows) => {
 };
 
 const getAllCollections = async (req, res, next) => {
-
+ 
    try {
       const { user } = req.query;
       if (user === 'truongbaolam0209') {
-         let [rows, cellHistories, rowHistories, settings] = await Promise.all([
+         let [rows, cellHistories, rowHistories, settings, rowsDataEntry, settingsDataEntry, rowsRfam, rowsRfi, rowsCvi, rowsDt, rowsMm] = await Promise.all([
             rowModel.find({}),
             cellHistoryModel.find({}),
             rowHistoryModel.find({}),
-            settingsModel.find({})
+            settingsModel.find({}),
+
+            rowModelDataEntry.find({}),
+            settingsModelDataEntry.find({}),
+            rowModelRfam.find({}),
+            rowModelRfi.find({}),
+            rowModelCvi.find({}),
+            rowModelDt.find({}),
+            rowModelMm.find({}),
+
          ]);
-         return res.json({ rows, cellHistories, rowHistories, settings });
+         return res.json({ rows, cellHistories, rowHistories, settings, rowsDataEntry, settingsDataEntry, rowsRfam, rowsRfi, rowsCvi, rowsDt, rowsMm });
       };
    } catch (error) {
       next(error);
@@ -361,7 +374,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
    if (!projectName) return 'ERROR - Missing projectName';
    if (!formSubmitType) return 'ERROR - Missing formSubmitType';
 
-
+   
    if (formSubmitType === 'rfa') {
 
       let [rows, rowHistories, publicSettings] = await Promise.all([
@@ -401,7 +414,6 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
 
       const dwgsToAddNewRFAGetDrawingURL = await getDrawingURLFromDB(outputRowsAll, company, type);
       const emailContent = generateEmailInnerHTMLBackend(company, type, dwgsToAddNewRFAGetDrawingURL);
-
 
       const oneRowData = outputRowsAll[0];
 
@@ -484,7 +496,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
       let listGroupOutput = { to: [], cc: [] };
 
       if (type === 'submit-request-signature') {
-
+         // TEST_EMAIL_API
          const resFormNoSignature = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company), 3600 * 24 * 7);
          const keyFormNoSignature = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company);
          rowData[keyFormNoSignature] = resFormNoSignature;
@@ -493,17 +505,20 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
          listUserOutput.cc = emailSender;
 
       } else if (type === 'submit-signed-off-final') {
-
+         // TEST_EMAIL_API
          const resFormSignedOff = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit', company), 3600 * 24 * 7);
          const keyFormSignedOff = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit', company);
          rowData[keyFormSignedOff] = resFormSignedOff;
 
+         const linkDrawingsArr = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company) || [];
+         const linkDrawingsRfaArr = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawingsRfa', company) || [];
 
-         const arrayDrawingsAttached = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company);
-
+         const arrayDrawingsAttached = [...linkDrawingsArr, ...linkDrawingsRfaArr];
+         
          if (arrayDrawingsAttached && arrayDrawingsAttached.length > 0) {
-
+            // TEST_EMAIL_API
             const arrayDrawingsLinkPublic = await getDrawingUrlMultiForm(arrayDrawingsAttached);
+
             const keyDrawingsAttached = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company);
             rowData[keyDrawingsAttached] = arrayDrawingsLinkPublic;
          };
@@ -530,7 +545,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
          listUserOutput.cc = [...new Set([...listUserOutput.cc || [], emailSender, emailSignaturedBy])];
 
       } else if (type === 'reply-signed-off') {
-
+         // TEST_EMAIL_API
          const resFormSignedOff = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company), 3600 * 24 * 7);
          const keyFormSignedOff = getInfoKeyFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company);
          rowData[keyFormSignedOff] = resFormSignedOff;
@@ -588,7 +603,10 @@ const getDrawingUrlMultiForm = async (arrayLinks) => {
    try {
       return await Promise.all(arrayLinks.map(async link => {
          const res = await createPublicUrl(link, 3600 * 24 * 7);
-         return res;
+         return {
+            fileName: getFileNameFromLinkResponse(link),
+            fileLink: res
+         };
       }));
    } catch (err) {
       console.log(err);

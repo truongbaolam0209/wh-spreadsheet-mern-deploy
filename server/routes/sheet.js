@@ -3,7 +3,7 @@ const Router = express.Router;
 const router = new Router();
 
 const Sheet = require('../modules/sheet');
-const { validateToken } = require('../../custom/validate');
+const { validateToken } = require('../../service/validate');
 
 router.post('/mail-test/', validateToken, Sheet.functionRfaTestEmailHtml);
 
@@ -15,6 +15,9 @@ router.get('/', validateToken, Sheet.findOneWithUserEmail);
 
 router.get('/get-all-collections', Sheet.getAllCollections);
 
+
+// EMAIL CHECK
+// router.get('/get-rows-email', Sheet.findManyRowsToSendEmail);
 
 router.post('/update-rows/', validateToken, Sheet.updateOrCreateRows);
 

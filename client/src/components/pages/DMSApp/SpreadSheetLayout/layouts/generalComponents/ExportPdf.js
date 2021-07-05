@@ -1,17 +1,24 @@
-import { BlobProvider, Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import moment from 'moment';
 import React from 'react';
 import { imgLink } from '../../constants';
 import { getInfoValueFromRfaData } from '../pageSpreadsheet/CellRFA';
 import { getFileNameFromLinkResponse } from '../pageSpreadsheet/PanelSetting';
 
-
+Font.register({
+   fonts: [
+      {
+         src: `/Roboto-Bold.ttf`,
+         fontWeight: 'bold'
+      },
+   ]
+});
 
 
 const ExportPdf = ({ pdfContent }) => {
    const {
       refNumberText, listRecipientTo, listRecipientCc, isCostImplication, isTimeExtension,
-      requestedBy, signatureBy, conversationAmong, textEmailTitle, dateConversation, timeConversation, description,
+      requestedBy, signatureBy, conversationAmong, emailTextTitle, dateConversation, timeConversation, description,
       filesPdfDrawing, dwgsImportFromRFA, dateReplyForSubmitForm, projectName, listConsultantMustReply,
       contractSpecification,
       proposedSpecification,
@@ -41,7 +48,7 @@ const ExportPdf = ({ pdfContent }) => {
    });
 
 
-   
+
 
    const formTitle = pageSheetTypeName === 'page-rfam' ? 'Request For Approval Of Material'
       : pageSheetTypeName === 'page-rfi' ? 'Request For Information'
@@ -72,32 +79,32 @@ const ExportPdf = ({ pdfContent }) => {
                }}>
                   <View style={{ width: '9%' }}>
                      <Text style={{ marginBottom: 4 }}>To</Text>
-                     <Text style={{ marginBottom: 4 }}>Attention</Text>
                      <Text>Project</Text>
                   </View>
 
                   <View style={{ width: '53%' }}>
                      <Text style={{ marginBottom: 4 }}>{`: ${(listConsultantMustReply || []).join(', ')}`}</Text>
-                     <Text style={{ marginBottom: 4 }}>{`: `}</Text>
                      <Text>{`: ${projectName}`}</Text>
                   </View>
 
                   <View style={{ width: '18%' }}>
                      <Text style={{ marginBottom: 4 }}>Ref. No</Text>
                      <Text style={{ marginBottom: 4 }}>Date Submission</Text>
-                     <Text>Date Reply</Text>
+                     {/* <Text>Date Reply</Text> */}
+                     <Text>Page</Text>
                   </View>
                   <View style={{ width: '20%' }}>
                      <Text style={{ marginBottom: 4 }}>{`: ${refNumberText}`}</Text>
                      <Text style={{ marginBottom: 4 }}>{`: ${moment(new Date()).format('DD/MM/YY')}`}</Text>
-                     <Text>{`: ${moment(dateReplyForSubmitForm).format('DD/MM/YY')}`}</Text>
+                     {/* <Text>{`: ${moment(dateReplyForSubmitForm).format('DD/MM/YY')}`}</Text> */}
+                     <Text>: 01/01</Text>
                   </View>
                </View>
 
 
                <View style={{ flexDirection: 'row', marginBottom: 15, paddingBottom: 5, borderBottom: '1px solid grey' }}>
                   <Text>Subject</Text>
-                  <Text>{`: ${textEmailTitle}`}</Text>
+                  <Text style={{ fontWeight: 'bold' }}>{`: ${emailTextTitle}`}</Text>
                </View>
 
                {pageSheetTypeName === 'page-dt' && (

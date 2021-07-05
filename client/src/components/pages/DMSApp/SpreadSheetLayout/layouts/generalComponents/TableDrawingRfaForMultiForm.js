@@ -48,7 +48,7 @@ const TableDrawingRfaForMultiForm = ({ onClickCancelModalPickDrawing, onClickApp
 
             const { rowsDataRFA } = getDataForRFASheet(rows, dataRowsHistoryConverted, role, company);
 
-            setRowsTableInput(rowsDataRFA);
+            setRowsTableInput(rowsDataRFA.filter(dwg => dwg['Drawing Number']));
             setHeaders(publicSettings.headers);
 
          } catch (err) {
@@ -122,7 +122,7 @@ const TableDrawingRfaForMultiForm = ({ onClickCancelModalPickDrawing, onClickApp
                onClickCancel={onClickCancelModalPickDrawing}
                onClickApply={() => {
                   if (selectedRows.length === 0) {
-                     return message.info('Please select drawings', 3);
+                     return message.info('Please select drawings', 2);
                   } else {
                      onClickApplyModalPickRfaDrawings(selectedRows);
                   };

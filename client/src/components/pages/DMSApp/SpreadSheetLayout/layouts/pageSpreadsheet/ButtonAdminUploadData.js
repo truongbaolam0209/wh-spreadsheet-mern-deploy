@@ -28,6 +28,16 @@ const ButtonAdminUploadData = () => {
          await Axios.post(`${SERVER_URL}/cell/history/save-all-data-cell-history`, { token, dataToSave: file.cellHistories });
          await Axios.post(`${SERVER_URL}/sheet/save-all-data-settings`, { token, dataToSave: file.settings });
          await Axios.post(`${SERVER_URL}/sheet/save-all-data-rows`, { token, dataToSave: file.rows });
+
+
+         await Axios.post(`${SERVER_URL}/row-data-entry/save-all-data-to-server`, { token, dataToSave: file.rowsDataEntry });
+         await Axios.post(`${SERVER_URL}/settings-data-entry/save-all-data-to-server`, { token, dataToSave: file.settingsDataEntry });
+         await Axios.post(`${SERVER_URL}/row-rfam/save-all-data-to-server`, { token, dataToSave: file.rowsRfam });
+         await Axios.post(`${SERVER_URL}/row-rfi/save-all-data-to-server`, { token, dataToSave: file.rowsRfi });
+         await Axios.post(`${SERVER_URL}/row-cvi/save-all-data-to-server`, { token, dataToSave: file.rowsCvi });
+         await Axios.post(`${SERVER_URL}/row-dt/save-all-data-to-server`, { token, dataToSave: file.rowsDt });
+         await Axios.post(`${SERVER_URL}/row-mm/save-all-data-to-server`, { token, dataToSave: file.rowsMm });
+
          message.info('DONE...');
       } catch (err) {
          console.log(err);

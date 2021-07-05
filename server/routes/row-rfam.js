@@ -3,7 +3,14 @@ const Router = express.Router;
 const router = new Router();
 
 const RowRfam = require('../modules/row-rfam');
-const { validateToken } = require('../../custom/validate');
+const { validateToken } = require('../../service/validate');
+
+
+
+router.post('/save-all-data-to-server', validateToken, RowRfam.saveAllDataToServer);
+router.post('/delete-all/', validateToken, RowRfam.deleteAllDataInThisCollection);
+
+
 
 
 router.post('/save-rows-rfam/', validateToken, RowRfam.updateOrCreateRowsRfam);

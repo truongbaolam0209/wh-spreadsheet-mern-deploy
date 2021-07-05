@@ -37,6 +37,14 @@ const ButtonStyle = ({
    const arrayButtonToLockAfterClick = [
       'Send Email',
       'Apply',
+      'Acknowledge',
+      'Yes'
+   ];
+
+
+   const arrayButtonLoadingAfterClick = [
+      'Yes',
+      'Acknowledge'
    ];
 
 
@@ -53,8 +61,8 @@ const ButtonStyle = ({
             border: `1px solid ${borderOverwritten ? borderColor : (borderColor || background)}`,
          }}
 
-         disabled={disabled || (loading && name !== 'Yes') || (!loading && isClicked && arrayButtonToLockAfterClick.indexOf(name) !== -1)}
-         loading={loading && name === 'Yes'}
+         disabled={disabled || (loading && arrayButtonLoadingAfterClick.indexOf(name) !== -1) || (!loading && isClicked && arrayButtonToLockAfterClick.indexOf(name) !== -1)}
+         loading={loading && arrayButtonLoadingAfterClick.indexOf(name) !== -1}
 
          onClick={() => {
             if (arrayButtonToLockAfterClick.indexOf(name) !== -1) {

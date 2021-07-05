@@ -103,6 +103,8 @@ export const tradeArrayMeetingMinutesForm = ['PROJECT PROGRESS MEETING', 'TECHNI
 
 export const EDIT_DURATION_MIN = 15;
 
+export const versionTextArray = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+
 
 // export const SERVER_URL = 'http://localhost:9000/api';
 export const SERVER_URL = window.location.origin.includes('https://idd.wohhup.com') ? 'https://idd.wohhup.com/api' : 'http://localhost:8081/api'

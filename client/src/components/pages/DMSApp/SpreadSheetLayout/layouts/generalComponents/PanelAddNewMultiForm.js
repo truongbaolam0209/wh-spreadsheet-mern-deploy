@@ -3,11 +3,11 @@ import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import styled from 'styled-components';
-import { colorType } from '../../constants';
+import { colorType, EDIT_DURATION_MIN, versionTextArray } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { debounceFnc, mongoObjectId, validateEmailInput } from '../../utils';
-import { getInfoValueFromRefDataForm } from '../pageSpreadsheet/CellForm';
+import { checkIfEditTimeIsOverMultiForm, getInfoValueFromRefDataForm } from '../pageSpreadsheet/CellForm';
 import { getKeyTextForSheet } from '../pageSpreadsheet/PanelSetting';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
@@ -35,7 +35,6 @@ const checkIfMatchWithInputCompanyFormat = (item, listConsultants) => {
    return result;
 };
 
-const versionArray = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 
 
@@ -82,7 +81,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    const refKey = refType + 'Ref';
 
    const {
-      currentRefNumber, currentRefData, formRefType, isFormEditting,
+      currentRefData, formRefType, isFormEditting,
       isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
    } = currentRefToAddNewOrReplyOrEdit || {};
 
@@ -102,13 +101,16 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    const listConsultants = companies.filter(x => x.companyType === 'Consultant');
 
 
+   const [tradeForFirstTimeSubmit, setTradeForFirstTimeSubmit] = useState('');
    const [refNumberSuffixFirstTimeSubmit, setRefNumberSuffixFirstTimeSubmit] = useState('');
-
    const [refNewVersionResubmitSuffix, setRefNewVersionResubmitSuffix] = useState('');
 
-   const [tradeForFirstTimeSubmit, setTradeForFirstTimeSubmit] = useState('');
 
    const [consultantReplyStatus, setConsultantReplyStatus] = useState('');
+   const [fileReplyFormName, setFileReplyFormName] = useState('');
+   const [fileFormCoverReply, setFileFormCoverReply] = useState({});
+
+
    const [submissionType, setSubmissionType] = useState('');
 
    const [dateReplyForSubmitForm, setDateReplyForSubmitForm] = useState(null);
@@ -116,24 +118,14 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    const [dateConversation, setDateConversation] = useState(null);
    const [timeConversation, setTimeConversation] = useState(null);
 
-   const [tablePickDrawingRefSubmitted, setTablePickDrawingRefSubmitted] = useState(false);
+   const [tablePickDrawingRfaSubmitted, setTablePickDrawingRfaSubmitted] = useState(false);
 
    const [nosColumnFixed, setNosColumnFixed] = useState(1);
 
 
    const [filesPdfDrawing, setFilesPdfDrawing] = useState({});
-   const [fileFormCoverReply, setFileFormCoverReply] = useState({});
-
    const [dwgsImportFromRFA, setDwgsImportFromRFA] = useState([]);
-
    const [dataInputForTable, setDataInputForTable] = useState([]);
-
-
-
-
-   useEffect(() => {
-      setDataInputForTable(getInputForTable(fileFormCoverReply, filesPdfDrawing, dwgsImportFromRFA));
-   }, [fileFormCoverReply, filesPdfDrawing, dwgsImportFromRFA]);
 
 
    const [listRecipientTo, setListRecipientTo] = useState([]);
@@ -159,6 +151,43 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    const [transmittedForDt, setTransmittedForDt] = useState('');
 
 
+   useEffect(() => {
+      if (isFormEditting &&
+         dwgsImportFromRFA.length === 0 &&
+         Object.values(filesPdfDrawing).length === 0
+      ) {
+         const linkDrawingsData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'linkDrawings', company) || [];
+         const linkDrawingsRfaData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'linkDrawingsRfa', company) || [];
+
+         setDataInputForTable([
+            ...linkDrawingsData.map(dwgLink => {
+               return {
+                  id: mongoObjectId(),
+                  'File Name': /[^/]*$/.exec(dwgLink)[0],
+                  'Type': 'Drawing',
+               };
+            }),
+            ...linkDrawingsRfaData.map(dwgLink => {
+               return {
+                  id: mongoObjectId(),
+                  'Drawing Number': /[^/]*$/.exec(dwgLink)[0],
+               };
+            })
+         ]);
+      } else {
+         setDataInputForTable(getInputForTable(filesPdfDrawing, dwgsImportFromRFA));
+      };
+   }, [filesPdfDrawing, dwgsImportFromRFA]);
+
+
+   useEffect(() => {
+      if (Object.values(fileFormCoverReply).length > 0) {
+         const file = Object.values(fileFormCoverReply)[0];
+         setFileReplyFormName(file.name);
+      };
+   }, [fileFormCoverReply]);
+
+
 
    useEffect(() => {
       if (formRefType === 'form-submit-multi-type') {
@@ -166,105 +195,116 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
 
          } else {
-            //          const rowsToEdit = rowsRefAllInit.filter(x => currentRefText === x['RFA Ref']);
-            //          const oneRowInRef = rowsToEdit[0];
-            //          const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
-            //          rowsToEditClone.forEach(r => {
-            //             const dwgLink = r[`submission-$$$-drawing-${company}`];
-            //             r[`submission-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
-            //          });
-            //          setDwgsImportFromRFA(rowsToEditClone);
+            const listRecipientToData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTo', company) || [];
+            setListRecipientTo([...new Set(listRecipientToData)]);
 
-            //          const listEmailTo = getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailTo', company) || [];
-            //          setListRecipientTo([...new Set(listEmailTo)]);
+            const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailCc', company) || [];
+            setListRecipientCc([...new Set(listRecipientCcData)]);
 
-            //          const listEmailCc = getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailCc', company) || [];
-            //          setListRecipientCc([...new Set(listEmailCc)]);
+            const listConsultantMustReplyData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply', company) || [];
+            setListConsultantMustReply(listConsultantMustReplyData);
+
+            const requestedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'requestedBy', company) || '';
+            setRequestedBy(requestedByData);
+
+            const signaturedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'signaturedBy', company) || '';
+            setSignaturedBy(signaturedByData);
+
+            const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle', company) || '';
+            setTextEmailTitle(textEmailTitleData);
+
+            const descriptionData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'description', company) || '';
+            setDescription(descriptionData);
 
 
-            //          setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRef, 'submission', 'consultantMustReply', company) || []);
-            //          setRequestedBy(getInfoValueFromRfaData(oneRowInRef, 'submission', 'requestedBy', company) || '');
-            //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailTitle', company) || '');
-            //          setDescription(getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailAdditionalNotes', company) || '');
+            setConversationAmong(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'conversationAmong', company));
+            setContractSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'contractSpecification', company));
+            setProposedSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'proposedSpecification', company));
+            setIsCostImplication(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isCostImplication', company));
+            setIsTimeExtension(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isTimeExtension', company));
+            setHerewithForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'herewithForDt', company));
+            setTransmittedForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'transmittedForDt', company));
+            setSubmissionType(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'submissionType', company));
 
-            //          setDateReplyForSubmitForm(moment(oneRowInRef['Consultant Reply (T)'], 'DD/MM/YY'));
-            //          setTradeForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRef, 'submission', 'trade', company)));
+            setTimeConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'timeConversation', company)));
+            setDateConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'dateConversation', company)));
 
-            //          const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRefText)[0];
-            //          setRefNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
+            setDateReplyForSubmitForm(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'due', company)));
+    
+            setTradeForFirstTimeSubmit(convertTradeCode(currentRefData.trade));
+
+            const refNumberSuffixFirstTimeSubmitData = /[^/]*$/.exec(currentRefData[refKey])[0];
+            setRefNumberSuffixFirstTimeSubmit(refNumberSuffixFirstTimeSubmitData);
+
          };
-         //    } else if (formRefType === 'form-resubmit-RFA') {
-         //       if (!isFormEditting) {
-         //          const dwgsToResubmit = rowsRefAllInit.filter(dwg => {
-         //             return dwg.rfaNumber === currentRefNumber &&
-         //                !dwg['RFA Ref'];
-         //          });
+
+      } else if (formRefType === 'form-resubmit-multi-type') {
+
+         if (!isFormEditting) {
+
+            setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
+
+            const listRecipientToData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTo', company) || [];
+            setListRecipientTo([...new Set(listRecipientToData)]);
+
+            const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailCc', company) || [];
+            setListRecipientCc([...new Set(listRecipientCcData)]);
+
+            const listConsultantMustReplyData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply', company) || [];
+            setListConsultantMustReply(listConsultantMustReplyData);
+
+            const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle', company) || '';
+            setTextEmailTitle(textEmailTitleData);
 
 
-         //          setDwgsImportFromRFA(dwgsToResubmit.map(x => ({ ...x })));
+            const versionTextIndex = versionTextArray.indexOf(currentRefData.revision);
+            const versionTextNext = versionTextArray[versionTextIndex + 1];
+            setRefNewVersionResubmitSuffix(versionTextNext);
 
-         //          const listEmailTo = currentRefData[`submission-$$$-emailTo-${company}`] || [];
-         //          setListRecipientTo([...new Set(listEmailTo)]);
+         } else {
 
-         //          const listEmailCc = currentRefData[`submission-$$$-emailCc-${company}`] || [];
-         //          setListRecipientCc([...new Set(listEmailCc)]);
+            const listRecipientToData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTo', company) || [];
+            setListRecipientTo([...new Set(listRecipientToData)]);
+
+            const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailCc', company) || [];
+            setListRecipientCc([...new Set(listRecipientCcData)]);
+
+            const listConsultantMustReplyData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply', company) || [];
+            setListConsultantMustReply(listConsultantMustReplyData);
+
+            const requestedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'requestedBy', company) || '';
+            setRequestedBy(requestedByData);
+
+            const signaturedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'signaturedBy', company) || '';
+            setSignaturedBy(signaturedByData);
+
+            const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle', company) || '';
+            setTextEmailTitle(textEmailTitleData);
+
+            const descriptionData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'description', company) || '';
+            setDescription(descriptionData);
 
 
-         //          setListConsultantMustReply(currentRefData[`submission-$$$-consultantMustReply-${company}`]);
-         //          setRequestedBy(currentRefData[`submission-$$$-requestedBy-${company}`]);
+            setConversationAmong(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'conversationAmong', company));
+            setContractSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'contractSpecification', company));
+            setProposedSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'proposedSpecification', company));
+            setIsCostImplication(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isCostImplication', company));
+            setIsTimeExtension(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isTimeExtension', company));
+            setHerewithForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'herewithForDt', company));
+            setTransmittedForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'transmittedForDt', company));
+            setSubmissionType(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'submissionType', company));
 
+            setTimeConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'timeConversation', company)));
+            setDateConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'dateConversation', company)));
 
-         //          const versionAlreadySubmit = rowsRefAllInit
-         //             .filter(dwg => dwg.rfaNumber === currentRefNumber && dwg['RFA Ref'])
-         //             .map(x => x['RFA Ref']);
+            setDateReplyForSubmitForm(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'due', company)));
 
-         //          const versionTextAlreadySubmitArr = versionAlreadySubmit.map(rfaNum => {
-         //             return rfaNum.slice(currentRefNumber.length, rfaNum.length);
-         //          });
-         //          const versionLeft = versionArray.filter(x => versionTextAlreadySubmitArr.indexOf(x) === -1);
-         //          setRefNewVersionResubmitSuffix(versionLeft[0]);
-
-         //          const oneDwg = dwgsToResubmit[0];
-         //          setTextEmailTitle('Resubmit - ' + oneDwg[`submission-$$$-emailTitle-${company}`]);
-         //          setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
-         //       } else {
-
-         //          const rowsToEdit = rowsRefAllInit.filter(x => currentRefText === x['RFA Ref']);
-         //          const oneRowInRef = rowsToEdit[0];
-         //          const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
-         //          rowsToEditClone.forEach(r => {
-         //             const dwgLink = r[`submission-$$$-drawing-${company}`];
-         //             r[`submission-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
-         //          });
-
-         //          const versionTextSuffix = currentRefText.slice(currentRefNumber.length, currentRefText.length);
-         //          setRefNewVersionResubmitSuffix(versionTextSuffix);
-
-         //          setDwgsImportFromRFA(rowsToEditClone);
-
-         //          const listEmailTo = getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailTo', company) || [];
-         //          setListRecipientTo([...new Set(listEmailTo)]);
-
-         //          const listEmailCc = getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailCc', company) || [];
-         //          setListRecipientCc([...new Set(listEmailCc)]);
-
-         //          setListConsultantMustReply(getInfoValueFromRfaData(oneRowInRef, 'submission', 'consultantMustReply', company) || []);
-         //          setRequestedBy(getInfoValueFromRfaData(oneRowInRef, 'submission', 'requestedBy', company) || '');
-         //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailTitle', company) || '');
-         //          setDescription(getInfoValueFromRfaData(oneRowInRef, 'submission', 'emailAdditionalNotes', company) || '');
-
-         //          setDateReplyForSubmitForm(moment(oneRowInRef['Consultant Reply (T)'], 'DD/MM/YY'));
-         //          setTradeForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(oneRowInRef, 'submission', 'trade', company)));
-
-         //          const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRefText)[0];
-         //          setRefNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
-
-         //       };
+            setRefNewVersionResubmitSuffix(currentRefData.revision);
+         };
 
 
       } else if (formRefType === 'form-reply-multi-type') {
          if (!isFormEditting) {
-
             let arrEmailCc = [];
             for (const key in currentRefData) {
                if (key.includes(`submission-${refType}-user-`)) {
@@ -279,54 +319,61 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             const title = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle');
             setTextEmailTitle('Reply - ' + title);
 
-            //       } else {
-            //          const dwgsToEditReply = rowsRefAllInit.filter(x => currentRefText === x['RFA Ref']);
-            //          const oneRowInRef = dwgsToEditReply[0];
-            //          const dwgsToEditReplyClone = dwgsToEditReply.map(x => ({ ...x }));
-            //          dwgsToEditReplyClone.forEach(r => {
-            //             const dwgLink = r[`reply-$$$-drawing-${company}`];
-            //             r[`reply-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
-            //          });
-            //          setDwgsImportFromRFA(dwgsToEditReplyClone);
+         } else {
 
-            //          const listEmailTo = getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailTo', company) || [];
-            //          setListRecipientTo([...new Set(listEmailTo)]);
+            const listRecipientToData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'emailTo', company) || [];
+            setListRecipientTo([...new Set(listRecipientToData)]);
 
-            //          const listEmailCc = getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailCc', company) || [];
-            //          setListRecipientCc([...new Set(listEmailCc)]);
+            const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'emailCc', company) || [];
+            setListRecipientCc([...new Set(listRecipientCcData)]);
 
-            //          setTextEmailTitle(getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailTitle', company) || '');
-            //          setDescription(getInfoValueFromRfaData(oneRowInRef, 'reply', 'emailAdditionalNotes', company) || '');
+            const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'emailTitle', company) || '';
+            setTextEmailTitle(textEmailTitleData);
+
+            const descriptionData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'description', company) || '';
+            setDescription(descriptionData);
+
+            const statusData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'status', company) || '';
+            setConsultantReplyStatus(statusData);
+
+            const linkFormReplyData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'linkFormReply', company) || '';
+            setFileReplyFormName(/[^/]*$/.exec(linkFormReplyData)[0]);
+
          };
       };
    }, []);
 
 
    useEffect(() => {
-      if (tradeForFirstTimeSubmit && formRefType === 'form-submit-multi-type' && !isFormEditting) {
+      if (tradeForFirstTimeSubmit && formRefType === 'form-submit-multi-type') {
 
-         const allRefNumberUnderThisTrade = rowsRefAllInit.filter(r => r.trade === convertTradeCodeInverted(tradeForFirstTimeSubmit));
+         if (!isFormEditting) {
+            const allRefNumberUnderThisTrade = rowsRefAllInit.filter(r => r.trade === convertTradeCodeInverted(tradeForFirstTimeSubmit));
 
-         let refNumberExtracted = [... new Set(allRefNumberUnderThisTrade.map(x => /[^/]*$/.exec(x[refKey])[0]))];
+            let refNumberExtracted = [... new Set(allRefNumberUnderThisTrade.map(x => /[^/]*$/.exec(x[refKey])[0]))];
 
-         refNumberExtracted = refNumberExtracted
-            .filter(x => x.length === 3 && parseInt(x) > 0)
-            .map(x => parseInt(x));
+            refNumberExtracted = refNumberExtracted
+               .filter(x => x.length === 3 && parseInt(x) > 0)
+               .map(x => parseInt(x));
 
-         if (refNumberExtracted.length > 0) {
-            const lastNumber = Math.max(...refNumberExtracted);
-            const suggestedNewRefNumber = lastNumber + 1;
-            const suggestedNewRefNumberConverted = suggestedNewRefNumber.toString();
-            const suggestedNewRefNumberString = suggestedNewRefNumberConverted.length === 3 ? suggestedNewRefNumberConverted
-               : suggestedNewRefNumberConverted.length === 2 ? '0' + suggestedNewRefNumberConverted
-                  : '00' + suggestedNewRefNumberConverted;
+            if (refNumberExtracted.length > 0) {
+               const lastNumber = Math.max(...refNumberExtracted);
+               const suggestedNewRefNumber = lastNumber + 1;
+               const suggestedNewRefNumberConverted = suggestedNewRefNumber.toString();
+               const suggestedNewRefNumberString = suggestedNewRefNumberConverted.length === 3 ? suggestedNewRefNumberConverted
+                  : suggestedNewRefNumberConverted.length === 2 ? '0' + suggestedNewRefNumberConverted
+                     : '00' + suggestedNewRefNumberConverted;
 
-            setRefNumberSuffixFirstTimeSubmit(suggestedNewRefNumberString);
-
+               setRefNumberSuffixFirstTimeSubmit(suggestedNewRefNumberString);
+            } else {
+               setRefNumberSuffixFirstTimeSubmit('001');
+            };
          } else {
-            setRefNumberSuffixFirstTimeSubmit('001');
+            if (checkIfRefIsDuplicated()) {
+               message.info(`This ${refType.toUpperCase()} number has already existed, please choose a new number!`);
+               setRefNumberSuffixFirstTimeSubmit('');
+            };
          };
-
       };
    }, [tradeForFirstTimeSubmit]);
 
@@ -341,125 +388,35 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
 
-   // useEffect(() => {
-   //    if (filesDWFX && Object.keys(filesDWFX).length > 0) {
-   //       const dwgsToAddNewRfaClone = dwgsImportFromRFA.map(x => ({ ...x }));
-   //       let isFileDWFXsameNameFound = false;
-   //       Object.keys(filesDWFX).forEach(key => {
-   //          const fileDwfxName = key.slice(0, key.length - 5);
-   //          dwgsToAddNewRfaClone.forEach(row => {
-   //             if (row['Drawing Number'] && (row['Drawing Number'].includes(fileDwfxName) || fileDwfxName.includes(row['Drawing Number']))) {
-   //                row[`submission-$$$-dwfxName-${company}`] = key;
-   //                isFileDWFXsameNameFound = true;
-   //             };
-   //          });
-   //       });
+   const checkIfRefIsDuplicated = () => {
+      const arr = [...new Set(rowsRefAllInit.map(r => (r[refKey] || '')))];
+      if (formRefType === 'form-submit-multi-type') {
+         const newRefToSubmit = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
+         return (
+            (!isFormEditting && arr.indexOf(newRefToSubmit) !== -1) ||
+            (isFormEditting && arr.indexOf(newRefToSubmit) !== -1 && newRefToSubmit !== currentRefData[refKey])
+         );
+      } else if (formRefType === 'form-resubmit-multi-type') {
+         const newRefToSubmit = currentRefData[refKey] + refNewVersionResubmitSuffix;
 
-   //       if (!isFileDWFXsameNameFound) {
-   //          const first3Dfile = Object.keys(filesDWFX)[0];
-   //          dwgsToAddNewRfaClone.forEach(dwg => {
-   //             dwg[`submission-$$$-dwfxName-${company}`] = first3Dfile;
-   //          });
-   //       };
-   //       setDwgsImportFromRFA(dwgsToAddNewRfaClone);
-   //    };
-   // }, [filesDWFX]);
-
-
-   // useEffect(() => {
-   //    if (filesPdfDrawing && Object.keys(filesPdfDrawing).length > 0) {
-   //       const type = formRefType === 'form-reply-RFA' ? 'reply' : 'submission';
-   //       const dwgsToAddNewRfaClone = dwgsImportFromRFA.map(x => ({ ...x }));
-   //       Object.keys(filesPdfDrawing).forEach(key => {
-   //          const filePdfName = key.slice(0, key.length - 4);
-   //          dwgsToAddNewRfaClone.forEach(row => {
-   //             if (row['Drawing Number'] && (row['Drawing Number'].includes(filePdfName) || filePdfName.includes(row['Drawing Number']))) {
-   //                row[`${type}-$$$-drawing-${company}`] = key;
-   //             };
-   //          });
-   //       });
-   //       setDwgsImportFromRFA(dwgsToAddNewRfaClone);
-   //    };
-   // }, [filesPdfDrawing]);
-
-
-
-
-
-   // const setRevisionDwg = (id, rev) => {
-   //    const row = dwgsImportFromRFA.find(x => x.id === id);
-   //    row['Rev'] = rev;
-   //    setDwgsImportFromRFA([...dwgsImportFromRFA]);
-   // };
-
-   const onClickRemoveDwgBtn = debounceFnc((rowData) => {
-
-      if (rowData['Type'] === 'Drawing') {
-         delete filesPdfDrawing[rowData['File Name']];
-         let obj = {};
-         for (const key in filesPdfDrawing) {
-            obj[key] = filesPdfDrawing[key];
-         };
-         setFilesPdfDrawing(obj);
-
-      } else if (rowData['Type'] === 'Cover') {
-
-         delete fileFormCoverReply[rowData['File Name']];
-         let obj = {};
-         for (const key in fileFormCoverReply) {
-            obj[key] = fileFormCoverReply[key];
-         };
-         setFileFormCoverReply(obj);
-
-      } else if (!rowData['Type']) {
-         setDwgsImportFromRFA(dwgsImportFromRFA.filter(x => x.id !== rowData.id));
+         return (
+            (!isFormEditting && arr.indexOf(newRefToSubmit) !== -1) ||
+            (isFormEditting && arr.indexOf(newRefToSubmit) !== -1 && newRefToSubmit !== (currentRefData[refKey] + currentRefData.revision))
+         );
       };
-
-      setNosColumnFixed(2);
-      setNosColumnFixed(1);
-   }, 1);
-
-
+   };
 
 
    const onBlurInputRefNameCreateNew = () => {
-      const arr = [...new Set(rowsRefAllInit.map(x => (x[refKey] || '')))];
-
-      if (formRefType === 'form-submit-multi-type') {
-         if (!isFormEditting) {
-            const newRefToRaiseFirstSubmit = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
-            if (arr.indexOf(newRefToRaiseFirstSubmit) !== -1) {
-               message.info(`This ${refType.toUpperCase()} number has already existed, please choose a new number!`);
-               setRefNumberSuffixFirstTimeSubmit('');
-            };
-         } else {
-            // const arrFilter = arr.filter(x => x !== currentRefText);
-            // const newRefToRaiseFirstSubmit = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit || '____'}/${refNumberSuffixFirstTimeSubmit}`;
-            // if (arrFilter.indexOf(newRefToRaiseFirstSubmit) !== -1) {
-            //    message.info(`This ${refType.toUpperCase()} number has already existed, please choose a new number!`);
-            //    setRefNumberSuffixFirstTimeSubmit('');
-            // };
-         };
-      } else if (formRefType === 'form-resubmit-multi-type') {
-         // if (!isFormEditting) {
-         //    const newRefToRaiseResubmit = `${currentRefNumber}${refNewVersionResubmitSuffix}`;
-         //    if (arr.indexOf(newRefToRaiseResubmit) !== -1) {
-         //       message.info(`This ${refType.toUpperCase()} number has already existed, please choose a new number!`);
-         //       setRefNewVersionResubmitSuffix('');
-         //    };
-         // };
+      if (checkIfRefIsDuplicated()) {
+         message.info(`This ${refType.toUpperCase()} number has already existed, please choose a new number!`);
+         setRefNumberSuffixFirstTimeSubmit('');
+         setRefNewVersionResubmitSuffix('');
       };
    };
 
 
 
-   // const applyAddCommentToDrawing = () => {
-   //    const row = dwgsImportFromRFA.find(x => x.id === dwgIdToAddComment);
-   //    row[`reply-$$$-comment-${company}`] = commentText;
-   //    setDwgsImportFromRFA([...dwgsImportFromRFA.map(dwg => ({ ...dwg }))]);
-   //    setIdToDwgAddComment(null);
-   //    setCommentText('');
-   // };
 
    const onChangeUploadPdfDrawing = (info) => {
       if (info.fileList) {
@@ -471,7 +428,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
       };
    };
 
-
    const onChangeUploadFormCoverForReply = (info) => {
       if (info.fileList) {
          let output = {};
@@ -481,7 +437,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          setFileFormCoverReply(output);
       };
    };
-
 
    const onClickTagRecipientTo = (email, isRemoveTag) => {
       if (formRefType !== 'page-mm') {
@@ -501,65 +456,81 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
    const onClickApplyDoneFormRef = (typeButton) => {
 
+      const isSubmitOrResubmitForm = formRefType.includes('form-submit-multi-') || formRefType.includes('form-resubmit-multi-');
+
+      if (isFormEditting) {
+         if (
+            (isSubmitOrResubmitForm && checkIfEditTimeIsOverMultiForm(currentRefData, null, EDIT_DURATION_MIN, refType, 'wohhup-check-if-submission-edit-is-over')) ||
+            (!isSubmitOrResubmitForm && checkIfEditTimeIsOverMultiForm(currentRefData, company, EDIT_DURATION_MIN, refType, 'consultant-check-if-reply-edit-is-over'))
+         ) {
+            return message.info('Time is up, you are unable to edit the submission!', 2);
+         };
+      };
+
       let trade, refToSaveVersionOrToReply, refToSave;
+
       if (formRefType.includes('form-submit-multi-')) {
          if (pageSheetTypeName === 'page-mm') {
             trade = convertTradeCodeMeetingMinutesInverted(tradeForFirstTimeSubmit);
          } else {
             trade = convertTradeCodeInverted(tradeForFirstTimeSubmit);
          };
-
          refToSaveVersionOrToReply = '0';
          refToSave = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
       } else if (formRefType.includes('form-resubmit-multi-')) {
-         // trade = currentRefData.trade;
-         // refToSaveVersionOrToReply = refNewVersionResubmitSuffix;
-         // refToSave = currentRefNumber;
+         trade = currentRefData.trade;
+         refToSaveVersionOrToReply = refNewVersionResubmitSuffix;
+         refToSave = currentRefData[refKey];
       } else if (formRefType.includes('form-reply-multi-')) { // reply
-
          trade = currentRefData.trade;
          refToSaveVersionOrToReply = currentRefData.revision;
-         refToSave = currentRefNumber;
+         refToSave = currentRefData[refKey];
       };
 
 
-      const isSubmitOrResubmitForm = formRefType.includes('form-submit-multi-') || formRefType.includes('form-resubmit-multi-');
+      
 
 
       if (projectNameShort === 'NO-PROJECT-NAME') {
-         return message.info(`Please update project abbreviation name for ${refType.toUpperCase()} number!`, 3);
+         return message.info(`Please update project abbreviation name for ${refType.toUpperCase()} number!`, 2);
       } else if (!textEmailTitle && !isAdminActionWithNoEmailSent) {
-         return message.info('Please fill in email title!', 3);
+         return message.info('Please fill in email title!', 2);
       } else if (!description) {
-         return message.info('Please fill in description!', 3);
+         return message.info('Please fill in description!', 2);
       } else if (!listRecipientTo || listRecipientTo.length === 0) {
-         return message.info('Please fill in recipient!', 3);
+         return message.info('Please fill in recipient!', 2);
       } else if (isSubmitOrResubmitForm && !dateReplyForSubmitForm) {
-         return message.info('Please fill in expected reply date!', 3);
+         return message.info('Please fill in expected reply date!', 2);
       } else if (isSubmitOrResubmitForm && listConsultantMustReply.length === 0 && pageSheetTypeName !== 'page-mm') {
-         return message.info('Please fill in consultant lead', 3);
+         return message.info('Please fill in consultant lead', 2);
       } else if (isSubmitOrResubmitForm && !requestedBy) {
-         return message.info('Please fill in person requested', 3);
+         return message.info('Please fill in person requested', 2);
       } else if (!trade || !refToSave || !refToSaveVersionOrToReply) {
-         return message.info('Please fill in necessary info!', 3);
+         return message.info('Please fill in necessary info!', 2);
       } else if (isSubmitOrResubmitForm && !signaturedBy && pageSheetTypeName !== 'page-mm') {
-         return message.info('Please fill in signatured by!', 3);
+         return message.info('Please fill in signatured by!', 2);
       } else if (isSubmitOrResubmitForm && !submissionType && pageSheetTypeName === 'page-rfam') {
-         return message.info('Please fill in submission type!', 3);
+         return message.info('Please fill in submission type!', 2);
       } else if (isSubmitOrResubmitForm && !conversationAmong && (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm')) {
-         return message.info('Please fill in conversation among!', 3);
+         return message.info('Please fill in conversation among!', 2);
       } else if (isSubmitOrResubmitForm && (!dateConversation || !timeConversation) && (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm')) {
-         return message.info('Please fill in date and time conversation!', 3);
+         return message.info('Please fill in date and time conversation!', 2);
       } else if (isSubmitOrResubmitForm && !herewithForDt && pageSheetTypeName === 'page-dt') {
-         return message.info('Please fill in herewith!', 3);
+         return message.info('Please fill in herewith!', 2);
       } else if (isSubmitOrResubmitForm && !transmittedForDt && pageSheetTypeName === 'page-dt') {
-         return message.info('Please fill in transmitted for!', 3);
+         return message.info('Please fill in transmitted for!', 2);
+
+      } else if (formRefType === 'form-resubmit-multi-type' && !refNewVersionResubmitSuffix) {
+         return message.info('Please fill in version!', 2);
       } else if (!isSubmitOrResubmitForm && !consultantReplyStatus && pageSheetTypeName === 'page-rfam') {
-         return message.info('Please fill in reply status!', 3);
+         return message.info('Please fill in reply status!', 2);
+      } else if (!isSubmitOrResubmitForm && Object.keys(fileFormCoverReply).length === 0 && !isFormEditting) {
+         return message.info('Please upload form!', 2);
       };
 
+
       let outputConsultantsToReply = [];
-      if (!formRefType.includes('form-reply-multi-')) {
+      if (isSubmitOrResubmitForm) {
          if (
             pageSheetTypeName === 'page-rfam' ||
             pageSheetTypeName === 'page-rfi'
@@ -574,25 +545,24 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
       };
 
 
-
       getSheetRows({ ...stateRow, loading: true });
 
 
       onClickApplySendFormToSignature(typeButton, {
          type: formRefType,
-         isFormEditting,
-         trade,
+         isFormEditting, trade,
+
          filesPdfDrawing: Object.values(filesPdfDrawing),
          dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
          fileFormCoverReply: Object.values(fileFormCoverReply)[0],
+
          refToSave, refToSaveVersionOrToReply,
          recipient: {
             to: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientTo)],
             cc: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientCc)]
          },
          listConsultantMustReply: outputConsultantsToReply,
-         requestedBy: formRefType.includes('form-reply-multi-') ? '' : requestedBy,
-         signaturedBy: formRefType.includes('form-reply-multi-') ? '' : signaturedBy,
+         requestedBy, signaturedBy,
          dateConversation, timeConversation,
          conversationAmong,
          isCostImplication, isTimeExtension,
@@ -600,24 +570,21 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          description: isAdminActionWithNoEmailSent ? '' : description,
          dateReplyForSubmitForm,
          consultantReplyStatus,
-
-         isAdminActionWithNoEmailSent,
-         adminActionConsultantToReply,
-         isAdminAction,
-
-
          contractSpecification,
          proposedSpecification,
          submissionType,
          herewithForDt,
-         transmittedForDt
+         transmittedForDt,
+
+         isAdminActionWithNoEmailSent,
+         adminActionConsultantToReply,
+         isAdminAction,
       });
    };
 
 
    const generateColumnsListDwgRef = (headers, nosColumnFixed) => {
-
-      const buttonRemoveDrawing = !isFormEditting ? [
+      const buttonRemoveDrawing = [
          {
             key: 'action', dataKey: 'action', title: '',
             width: 40,
@@ -628,7 +595,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                />
             )
          }
-      ] : [];
+      ];
 
 
       return [
@@ -644,7 +611,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             width: getHeaderWidthDwgRef(column),
             cellRenderer: ({ rowData, cellData }) => {
                let cellTypeName;
-               if (!rowData['Type']) {
+               if (!rowData['Type'] && !rowData['File Name']) {
                   if (column === 'Type') {
                      cellTypeName = 'Submitted RFA';
                   } else if (column === 'File Name') {
@@ -659,7 +626,36 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    };
 
 
+   const onClickRemoveDwgBtn = debounceFnc((rowData) => {
+      return;
+      // const onClickRemoveDwgBtn = (rowData) => {
 
+      if (rowData['Type'] === 'Drawing') {
+         // let obj = {};
+         // for (const key in filesPdfDrawing) {
+         //    const file = filesPdfDrawing[key];
+         //    if (file.name !== rowData['File Name']) {
+         //       obj[key] = file;
+         //    };
+         // };
+         // setFilesPdfDrawing(obj);
+
+      } else if (rowData['Type'] === 'Cover') {
+         // delete fileFormCoverReply[rowData['File Name']];
+         // let obj = {};
+         // for (const key in fileFormCoverReply) {
+         //    obj[key] = fileFormCoverReply[key];
+         // };
+         // setFileFormCoverReply(obj);
+
+      } else if (!rowData['Type']) {
+         // setDwgsImportFromRFA(dwgsImportFromRFA.filter(x => x.id !== rowData.id));
+      };
+
+      setNosColumnFixed(2);
+      setNosColumnFixed(1);
+   }, 1);
+   // };
 
 
 
@@ -676,11 +672,12 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                         <SelectTradeStyled
                            showSearch
                            optionFilterProp='children'
-                           onChange={(value) => setTradeForFirstTimeSubmit(value)}
-                           filterOption={(input, option) =>
-                              option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                           }
+                           onChange={(value) => {
+                              setTradeForFirstTimeSubmit(value);
+                           }}
+                           filterOption={(input, option) => option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0}
                            suffixIcon={<div></div>}
+                           value={tradeForFirstTimeSubmit}
                         >
                            {(
                               pageSheetTypeName === 'page-mm'
@@ -704,22 +701,21 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                            </div>
                         )}
                      </>
-                     // ) : formRefType === 'form-resubmit-multi-form' ? (
-                     //    <>
-                     //       <div style={{ marginRight: 2 }}>{currentRefNumber}</div>
-                     //       <InputStyled
-                     //          style={{ width: 50, marginBottom: 10, borderRadius: 0, marginRight: 120, transform: 'translateY(-5px)' }}
-                     //          onChange={(e) => setRefNewVersionResubmitSuffix(e.target.value)}
-                     //          onBlur={onBlurInputRefNameCreateNew}
-                     //          value={refNewVersionResubmitSuffix}
-                     //       />
-                     //    </>
+                  ) : formRefType === 'form-resubmit-multi-type' ? (
+                     <>
+                        <div style={{ marginRight: 2 }}>{currentRefData[refKey]}</div>
+                        <InputStyled
+                           style={{ width: 50, marginRight: 120 }}
+                           onChange={(e) => setRefNewVersionResubmitSuffix(e.target.value)}
+                           onBlur={onBlurInputRefNameCreateNew}
+                           value={refNewVersionResubmitSuffix}
+                        />
+                     </>
 
                   ) : formRefType === 'form-reply-multi-type' ? (
-                     <div>{currentRefNumber + (currentRefData.revision === '0' ? '' : currentRefData.revision)}</div>
+                     <div>{currentRefData[refKey] + (currentRefData.revision === '0' ? '' : currentRefData.revision)}</div>
 
                   ) : null}
-
 
 
                   {formRefType !== 'form-reply-multi-type' && pageSheetTypeName !== 'page-mm' && (
@@ -734,12 +730,12 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                   )}
 
 
-                  {/* 
-                  {formRefType === 'form-reply-multi-type' && adminActionConsultantToReply && (
+                   
+                  {/* {formRefType === 'form-reply-multi-type' && adminActionConsultantToReply && (
                      <div style={{ marginLeft: 20 }}>Company reply: <span style={{ fontWeight: 'bold' }}>{adminActionConsultantToReply}</span></div>
-                  )}
+                  )} */}
 
- */}
+                  
                </div>
 
 
@@ -790,16 +786,16 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
                               } else if (formRefType === 'form-resubmit-multi-type') {
-                                 // const consultantLeadFromPreviousSubmission = listConsultantMustReply[0];
-                                 // const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
-                                 // if (
-                                 //    itemJustRemoved &&
-                                 //    listConsultantMustReply.find(x => x === extractConsultantName(itemJustRemoved)) &&
-                                 //    consultantLeadFromPreviousSubmission !== extractConsultantName(itemJustRemoved) &&
-                                 //    !list.find(tg => extractConsultantName(tg) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved))
-                                 // ) {
-                                 //    setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
-                                 // };
+                                 const consultantLeadFromPreviousSubmission = listConsultantMustReply[0];
+                                 const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
+                                 if (
+                                    itemJustRemoved &&
+                                    listConsultantMustReply.find(x => x === extractConsultantName(itemJustRemoved)) &&
+                                    consultantLeadFromPreviousSubmission !== extractConsultantName(itemJustRemoved) &&
+                                    !list.find(tg => extractConsultantName(tg) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved))
+                                 ) {
+                                    setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
+                                 };
                               };
                               setListRecipientTo([...new Set(list)]);
 
@@ -937,6 +933,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                               option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                            }
                            suffixIcon={<div></div>}
+                           value={signaturedBy}
                         >
                            {listUser.map((email, i) => (
                               <Select.Option key={i} value={email}>{email}</Select.Option>
@@ -1021,6 +1018,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                               option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                            }
                            suffixIcon={<div></div>}
+                           value={submissionType}
                         >
                            {[
                               'New Submittal',
@@ -1152,7 +1150,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                               </div>
                            </div>
                         </div>
-                        {/* <div>This form is issued pursuant to the Conditions of Contract and also constitutes our notification of an event which may form the basis of a possible claim for additional costs or an extension of time or both.</div> */}
                      </>
                   )}
 
@@ -1172,6 +1169,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                               option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                            }
                            suffixIcon={<div></div>}
+                           value={consultantReplyStatus}
                         >
                            {[
                               'Reject and resubmit',
@@ -1184,7 +1182,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                         </SelectTradeStyled>
                      </div>
                   )}
-
 
 
 
@@ -1205,10 +1202,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                      </Upload>
                   )}
 
+                  <div style={{ marginLeft: 10 }}>{fileReplyFormName}</div>
 
 
-
-                  {formRefType === 'form-submit-multi-type' && (
+                  {(formRefType === 'form-submit-multi-type' || formRefType === 'form-resubmit-multi-type') && (
                      <>
                         <Upload
                            name='file' accept='application/pdf' multiple={true} showUploadList={false}
@@ -1226,46 +1223,28 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                            <ButtonStyle
                               marginRight={10}
                               name='Add Drawings From RFA'
-                              onClick={() => setTablePickDrawingRefSubmitted(true)}
+                              onClick={() => setTablePickDrawingRfaSubmitted(true)}
                            />
                         )}
                      </>
-
                   )}
 
-
-                  <div style={{ marginLeft: 5 }}>
-                     {formRefType !== 'form-reply-multi-type' ? (
-                        <>
-                           {filesPdfDrawing ? `${Object.keys(filesPdfDrawing).length} PDF files has been chosen ` : 'No PDF files has been chosen '}
-                           / {filesPdfDrawing ? `${Object.keys(filesPdfDrawing).length} 3D models has been chosen.` : 'No 3D model has been chosen.'}
-                        </>
-                     ) : (
-                        <>
-                           {filesPdfDrawing ? `${Object.keys(filesPdfDrawing).length} PDF files has been chosen ` : 'No PDF files has been chosen '}
-                        </>
-                     )}
-                  </div>
                </div>
 
 
-               {(
-                  Object.keys(filesPdfDrawing).length > 0 ||
-                  Object.keys(fileFormCoverReply).length > 0 ||
-                  dwgsImportFromRFA.length > 0
-               ) && (
-                     <div style={{
-                        width: window.innerWidth * 0.9 - 80,
-                        height: (Object.keys(filesPdfDrawing).length + dwgsImportFromRFA.length) * 28 + 80
-                     }}>
-                        <TableStyled
-                           fixed
-                           columns={generateColumnsListDwgRef(headersDwgRef(pageSheetTypeName), nosColumnFixed)}
-                           data={dataInputForTable}
-                           rowHeight={28}
-                        />
-                     </div>
-                  )}
+               {(dataInputForTable.length > 0) && (
+                  <div style={{
+                     width: window.innerWidth * 0.9 - 80,
+                     height: dataInputForTable.length * 28 + 80
+                  }}>
+                     <TableStyled
+                        fixed
+                        columns={generateColumnsListDwgRef(headersDwgRef(pageSheetTypeName), nosColumnFixed)}
+                        data={dataInputForTable}
+                        rowHeight={28}
+                     />
+                  </div>
+               )}
 
 
             </div>
@@ -1290,22 +1269,22 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          </div>
 
 
-         {tablePickDrawingRefSubmitted && (
+         {tablePickDrawingRfaSubmitted && (
             <ModalStyled
                title={'Select Drawings For New RFA'}
-               visible={tablePickDrawingRefSubmitted}
+               visible={tablePickDrawingRfaSubmitted}
                footer={null}
                destroyOnClose={true}
                centered={true}
                width={window.innerWidth * 0.85}
-               onOk={() => setTablePickDrawingRefSubmitted(false)}
-               onCancel={() => setTablePickDrawingRefSubmitted(false)}
+               onOk={() => setTablePickDrawingRfaSubmitted(false)}
+               onCancel={() => setTablePickDrawingRfaSubmitted(false)}
             >
                <TableDrawingRfaForMultiForm
-                  // onClickCancelModalPickDrawing={() => setTablePickDrawingRefSubmitted(false)}
+                  onClickCancelModalPickDrawing={() => setTablePickDrawingRfaSubmitted(false)}
                   onClickApplyModalPickRfaDrawings={(dwgsRfaToAdd) => {
                      setDwgsImportFromRFA(dwgsRfaToAdd);
-                     setTablePickDrawingRefSubmitted(false);
+                     setTablePickDrawingRfaSubmitted(false);
                   }}
                   dwgsImportFromRFA={dwgsImportFromRFA}
                />
@@ -1330,9 +1309,9 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                   refData={formRefType.includes('form-submit-multi-')
                      ? `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`
                      : formRefType.includes('form-resubmit-multi-')
-                        ? `${currentRefNumber}${refNewVersionResubmitSuffix}`
+                        ? `${currentRefData[refKey]}${refNewVersionResubmitSuffix}`
                         : formRefType.includes('form-reply-multi-')
-                           ? `${currentRefNumber}` : null}
+                           ? `${currentRefData[refKey]}` : null}
                   onClickCancelConfirmModal={() => setModalConfirmsubmitOrCancel(null)}
                   onClickApplyConfirmModal={(confirmFinal) => {
                      if (confirmFinal === 'Cancel Action Form') {
@@ -1353,17 +1332,18 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 export default PanelAddNewMultiForm;
 
 
-const getInputForTable = (fileFormCoverReply, filesPdfDrawing, dwgsImportFromRFA) => {
+const getInputForTable = (filesPdfDrawing, dwgsImportFromRFA) => {
+
    let output = [];
-   if (fileFormCoverReply) {
-      for (const pdfDrawing in fileFormCoverReply) {
-         output.push({
-            id: mongoObjectId(),
-            'Type': 'Form Cover',
-            'File Name': pdfDrawing
-         });
-      };
-   };
+   // if (fileFormCoverReply) {
+   //    for (const pdfDrawing in fileFormCoverReply) {
+   //       output.push({
+   //          id: mongoObjectId(),
+   //          'Type': 'Form Cover',
+   //          'File Name': pdfDrawing
+   //       });
+   //    };
+   // };
 
    if (filesPdfDrawing) {
       for (const pdfDrawing in filesPdfDrawing) {
@@ -1385,7 +1365,6 @@ const getInputForTable = (fileFormCoverReply, filesPdfDrawing, dwgsImportFromRFA
 };
 
 const CellRemoveDrawing = (props) => {
-
    const { onClickRemoveDwgBtn, rowData } = props;
 
    return (
@@ -1638,14 +1617,6 @@ const headersDwgRef = (pageSheetTypeName) => {
    ];
 };
 
-// export const findTradeOfDrawing = (row, dwgTypeTree) => {
-//    let output;
-//    const parentNode = dwgTypeTree.find(x => x.id === row._parentRow);
-//    if (parentNode) {
-//       output = getTradeNameFnc(parentNode, dwgTypeTree);
-//    };
-//    return output;
-// };
 
 const convertTradeCode = (trade) => {
    if (trade === 'ARCHI') return 'ARC';

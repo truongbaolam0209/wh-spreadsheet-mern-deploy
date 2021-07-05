@@ -1340,11 +1340,8 @@ const PanelSetting = (props) => {
    };
 
 
-
-
-
-
    const saveDataToServerAndReloadData = async () => {
+
       const { projectId, sheetId, token, email, publicSettings } = stateProject.allDataOneSheet;
       const { headers } = publicSettings;
 
@@ -1374,10 +1371,10 @@ const PanelSetting = (props) => {
          console.log(err);
       };
    };
+   
 
 
-
-   const swithFromDmsToOtherSheet = async (route) => {
+   const switchFromDmsToOtherSheet = async (route) => {
       try {
          setLoading(true);
          commandAction({ type: '' });
@@ -1398,7 +1395,6 @@ const PanelSetting = (props) => {
 
       setLoading(true);
 
-
       const {
          filesPDF, filesDWFX, type, dwgsToAddNewRFA, trade, rfaToSave, rfaToSaveVersionOrToReply,
          recipient, emailTextTitle, emailTextAdditionalNotes, listConsultantMustReply, requestedBy, dateReplyForsubmitForm, isFormEditting,
@@ -1417,7 +1413,7 @@ const PanelSetting = (props) => {
 
       try {
 
-         // check in the server first
+         // CHECK THE DATABASE FIRST
          const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
          const resRowHistory = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
 
@@ -1426,25 +1422,25 @@ const PanelSetting = (props) => {
          const { rowsRfaAllInit: rowsRfaAllInitFromDB } = latestDataFromServer;
 
 
-         let isActionAllowed = true;
+         let isSubmitActionAllowed = true;
          if (type === 'form-submit-RFA' || type === 'form-resubmit-RFA') {
             if (!isFormEditting || (isFormEditting && rfaRefData !== currentRfaToAddNewOrReplyOrEdit.currentRfaRef)) {
                const allRFARefAlreadySubmitted = [...new Set(rowsRfaAllInitFromDB.filter(x => x['RFA Ref']).map(x => x['RFA Ref']))];
                if (allRFARefAlreadySubmitted.indexOf(rfaRefData) !== -1) {
-                  isActionAllowed = false;
+                  isSubmitActionAllowed = false;
                };
             };
             if (type === 'form-submit-RFA' && !isFormEditting) {
                const rowWithRfaFound = dwgsToAddNewRFA.find(row => rowsRfaAllInitFromDB.find(x => x.id === row.id));
                if (rowWithRfaFound) {
-                  isActionAllowed = false;
+                  isSubmitActionAllowed = false;
                };
             } else if (type === 'form-resubmit-RFA' && !isFormEditting) {
                dwgsToAddNewRFA.forEach(r => { // submitted by others.
                   const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
                   if (rowWithRfaFound) {
                      if (getInfoValueFromRfaData(rowWithRfaFound, 'submission', 'drawing', company)) {
-                        isActionAllowed = false;
+                        isSubmitActionAllowed = false;
                      };
                   };
                });
@@ -1455,20 +1451,20 @@ const PanelSetting = (props) => {
                   const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
                   if (rowWithRfaFound) {
                      if (getInfoValueFromRfaData(rowWithRfaFound, 'reply', 'status', company)) {
-                        isActionAllowed = false;
+                        isSubmitActionAllowed = false;
                      };
                   };
                });
             };
          };
-         if (!isActionAllowed) {
+         if (!isSubmitActionAllowed) {
             getSheetRows({ ...stateRow, loading: false });
             message.error('This RFA / drawings are already submitted / replied by others, please reload the RFA View');
             return;
          };
 
-         const typeText = type === 'form-reply-RFA' ? 'reply' : 'submission';
 
+         const typeText = type === 'form-reply-RFA' ? 'reply' : 'submission';
 
          let data;
          if (filesPDF.length > 0) {
@@ -1516,7 +1512,6 @@ const PanelSetting = (props) => {
                         dataDWFX.append('projectName', projectName);
                         dataDWFX.append('email', email);
                         dataDWFX.append('rfaName', rfaRefData + `_${i}`);
-
 
                         let linkDWFX = '';
                         if (dataDWFX && dataDWFX !== null) {
@@ -1725,10 +1720,9 @@ const PanelSetting = (props) => {
                },
                momentToTriggerEmail: moment().add(moment.duration(EDIT_DURATION_MIN, 'minutes'))
             });
-
          };
 
-         message.success('Submitted Successfully', 3);
+         message.success('Submitted Successfully', 2);
 
          const resServer = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
          const resRowHistoryServer = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
@@ -1780,7 +1774,7 @@ const PanelSetting = (props) => {
 
       const {
          rowsRfamAllInit, rowsRfiAllInit, rowsCviAllInit, rowsDtAllInit, rowsMmAllInit,
-         currentRefToAddNewOrReplyOrEdit: { currentRefNumber, currentRefData }
+         currentRefToAddNewOrReplyOrEdit: { currentRefData }
       } = stateRow;
 
       const rowsRefAllInit = pageSheetTypeName === 'page-rfam' ? rowsRfamAllInit
@@ -1808,25 +1802,25 @@ const PanelSetting = (props) => {
          // const { rowsRfaAllInit: rowsRfaAllInitFromDB } = latestDataFromServer;
 
 
-         // let isActionAllowed = true;
+         // let isSubmitActionAllowed = true;
          // if (type === 'form-submit-RFA' || type === 'form-resubmit-RFA') {
          //    if (!isFormEditting || (isFormEditting && rfaRefData !== currentRfaToAddNewOrReplyOrEdit.currentRfaRef)) {
          //       const allRFARefAlreadySubmitted = [...new Set(rowsRfaAllInitFromDB.filter(x => x['RFA Ref']).map(x => x['RFA Ref']))];
          //       if (allRFARefAlreadySubmitted.indexOf(rfaRefData) !== -1) {
-         //          isActionAllowed = false;
+         //          isSubmitActionAllowed = false;
          //       };
          //    };
          //    if (type === 'form-submit-RFA' && !isFormEditting) {
          //       const rowWithRfaFound = dwgsToAddNewRFA.find(row => rowsRfaAllInitFromDB.find(x => x.id === row.id));
          //       if (rowWithRfaFound) {
-         //          isActionAllowed = false;
+         //          isSubmitActionAllowed = false;
          //       };
          //    } else if (type === 'form-resubmit-RFA' && !isFormEditting) {
          //       dwgsToAddNewRFA.forEach(r => { // submitted by others.
          //          const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
          //          if (rowWithRfaFound) {
          //             if (getInfoValueFromRfaData(rowWithRfaFound, 'submission', 'drawing', company)) {
-         //                isActionAllowed = false;
+         //                isSubmitActionAllowed = false;
          //             };
          //          };
          //       });
@@ -1837,13 +1831,13 @@ const PanelSetting = (props) => {
          //          const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
          //          if (rowWithRfaFound) {
          //             if (getInfoValueFromRfaData(rowWithRfaFound, 'reply', 'status', company)) {
-         //                isActionAllowed = false;
+         //                isSubmitActionAllowed = false;
          //             };
          //          };
          //       });
          //    };
          // };
-         // if (!isActionAllowed) {
+         // if (!isSubmitActionAllowed) {
          //    getSheetRows({ ...stateRow, loading: false });
          //    message.error('This RFA / drawings are already submitted / replied by others, please reload the RFA View');
          //    return;
@@ -1852,15 +1846,17 @@ const PanelSetting = (props) => {
 
 
 
-         let linkFormPdfNoSignature, filePdfBlobOutput, pdfFilesToUpload;
 
+         let linkFormPdfNoSignature, filePdfBlobOutput, pdfFilesToUpload;
          const refNumberTextInfo = refToSaveVersionOrToReply === '0' ? refToSave : refToSave + refToSaveVersionOrToReply;
-         if (type === 'form-submit-multi-type') {
+         
+         if (type === 'form-submit-multi-type' || type === 'form-resubmit-multi-type') {
 
             const outputPdf = (
                <ExportPdf
                   pdfContent={{
-                     refNumberText: refNumberTextInfo, isCostImplication, isTimeExtension, projectName, listConsultantMustReply,
+                     refNumberText: refNumberTextInfo, 
+                     isCostImplication, isTimeExtension, projectName, listConsultantMustReply,
                      listRecipientTo: recipient.to, listRecipientCc: recipient.cc,
                      requestedBy, signaturedBy, conversationAmong, emailTextTitle,
                      dateConversation, timeConversation, description, dateReplyForSubmitForm,
@@ -1870,11 +1866,9 @@ const PanelSetting = (props) => {
                   }}
                />
             );
+
             filePdfBlobOutput = await pdf(outputPdf).toBlob();
-            // upload BLOB file PDF Submit no signature
             if (filePdfBlobOutput) {
-
-
 
                let blobData = filePdfBlobOutput;
                const pathData = `${refToSave}/${refToSaveVersionOrToReply}/submit`;
@@ -1887,11 +1881,11 @@ const PanelSetting = (props) => {
 
                const resLink = await Axios.post('/api/drawing/set-dms-file', fd);
                linkFormPdfNoSignature = resLink.data;
-
             };
+
             pdfFilesToUpload = filesPdfDrawing;
          } else if (type === 'form-reply-multi-type') {
-            pdfFilesToUpload = [fileFormCoverReply];
+            pdfFilesToUpload = fileFormCoverReply ? [fileFormCoverReply] : [];
          };
 
 
@@ -1905,6 +1899,7 @@ const PanelSetting = (props) => {
             data.append('projectId', projectId);
             data.append('path', `${refToSave}/${refToSaveVersionOrToReply}/${typeFolder}`);
 
+
             if (pdfFilesToUpload.length > 0 && data && data !== null) {
 
                const res = await Axios.post('/api/drawing/set-dms-files', data);
@@ -1912,7 +1907,7 @@ const PanelSetting = (props) => {
                arrayFilesPdfUploadLink = listFileName.map(link => ({
                   fileName: getFileNameFromLinkResponse(link),
                   fileLink: link
-               }));
+               })).map(x => x.fileLink);
             };
          };
 
@@ -1924,17 +1919,17 @@ const PanelSetting = (props) => {
             });
          };
 
-         const linkDrawings = [
-            ...linkRfaDrawingsUploaded,
-            ...arrayFilesPdfUploadLink.map(x => x.fileLink)
-         ];
+         let rowOutput, rowFound;
+         if (isFormEditting || type === 'form-reply-multi-type') {
+            rowFound = rowsRefAllInit.find(x => x[refKey] === currentRefData[refKey] && x.revision === currentRefData.revision);
+         };
 
+         if (type === 'form-submit-multi-type' || type === 'form-resubmit-multi-type') {
 
-         let rowOutput;
-         if (type === 'form-submit-multi-type') {
             rowOutput = {
-               _id: mongoObjectId()
+               _id: isFormEditting ? rowFound.id :  mongoObjectId()
             };
+
             rowOutput.data = {};
             rowOutput.trade = trade;
             rowOutput[refKey] = refToSave;
@@ -1952,11 +1947,9 @@ const PanelSetting = (props) => {
 
             rowOutput.data[`submission-${refType}-signaturedBy-${company}`] = signaturedBy;
 
-            // rowOutput.data[`submission-${refType}-due-${company}`] = dateReplyForSubmitForm;
+            rowOutput.data[`submission-${refType}-due-${company}`] = dateReplyForSubmitForm;
 
             rowOutput.data[`submission-${refType}-consultantMustReply-${company}`] = listConsultantMustReply;
-
-
 
 
             if (dateConversation) rowOutput.data[`submission-${refType}-dateConversation-${company}`] = dateConversation;
@@ -1969,14 +1962,17 @@ const PanelSetting = (props) => {
             };
 
             rowOutput.data[`submission-${refType}-user-${company}`] = email;
-
-            if (dateSendThisForm) {
-               rowOutput.data[`submission-${refType}-date-${company}`] = dateSendThisForm;
-            } else {
-               rowOutput.data[`submission-${refType}-date-${company}`] = new Date();
+            
+            if (!isFormEditting) {
+               if (dateSendThisForm) {
+                  rowOutput.data[`submission-${refType}-date-${company}`] = dateSendThisForm;
+               } else {
+                  rowOutput.data[`submission-${refType}-date-${company}`] = new Date();
+               };
             };
-
-            if (linkDrawings.length > 0) rowOutput.data[`submission-${refType}-linkDrawings-${company}`] = linkDrawings;
+    
+            if (arrayFilesPdfUploadLink.length > 0) rowOutput.data[`submission-${refType}-linkDrawings-${company}`] = arrayFilesPdfUploadLink;
+            if (linkRfaDrawingsUploaded.length > 0) rowOutput.data[`submission-${refType}-linkDrawingsRfa-${company}`] = linkRfaDrawingsUploaded;
 
             if (linkFormPdfNoSignature) rowOutput.data[`submission-${refType}-linkFormNoSignature-${company}`] = linkFormPdfNoSignature;
 
@@ -1989,7 +1985,6 @@ const PanelSetting = (props) => {
 
          } else if (type === 'form-reply-multi-type') {
 
-            const rowFound = rowsRefAllInit.find(x => x[refKey] === currentRefNumber && x.revision === currentRefData.revision);
             rowOutput = {
                _id: rowFound.id
             };
@@ -2006,15 +2001,17 @@ const PanelSetting = (props) => {
                rowOutput.data[`reply-${refType}-status-${company}`] = 'replied';
             };
 
-
-            if (dateSendThisForm) {
-               rowOutput.data[`reply-${refType}-date-${company}`] = dateSendThisForm;
-            } else {
-               rowOutput.data[`reply-${refType}-date-${company}`] = new Date();
+            if (!isFormEditting) {
+               if (dateSendThisForm) {
+                  rowOutput.data[`reply-${refType}-date-${company}`] = dateSendThisForm;
+               } else {
+                  rowOutput.data[`reply-${refType}-date-${company}`] = new Date();
+               };
             };
+            
 
-            if (linkDrawings.length > 0) {
-               rowOutput.data[`reply-${refType}-linkFormReply-${company}`] = linkDrawings[0];
+            if (arrayFilesPdfUploadLink.length > 0) {
+               rowOutput.data[`reply-${refType}-linkFormReply-${company}`] = arrayFilesPdfUploadLink[0];
             };
          };
 
@@ -2041,19 +2038,17 @@ const PanelSetting = (props) => {
                   data: {
                      projectId, company, projectName,
                      formSubmitType: refType,
-                     type: type.includes('form-reply-multi-') ? 'reply-signed-off' : 'submit-request-signature',
+                     type: type.includes('form-reply-multi-') ? 'reply-signed-off' : (pageSheetTypeName === 'page-mm' ? 'submit-meeting-minutes' : 'submit-request-signature'),
                      rowIds: [rowOutput._id],
                      emailSender: email,
                   },
-                  momentToTriggerEmail: moment().add(moment.duration(0.5, 'minutes'))
+                  momentToTriggerEmail: moment().add(moment.duration(EDIT_DURATION_MIN, 'minutes'))
                });
             };
          };
 
 
-
-
-         message.success('Submitted Successfully', 3);
+         message.success('Submitted Successfully', 2);
 
          const route = pageSheetTypeName === 'page-rfam' ? 'row-rfam'
             : pageSheetTypeName === 'page-cvi' ? 'row-cvi'
@@ -2093,14 +2088,13 @@ const PanelSetting = (props) => {
    const onClickAcknowledgeForm = async () => {
 
       setLoading(true);
-
       try {
 
-         const { email, company, projectId, projectName, token, roleTradeCompany: { role, company: companyUser } } = stateProject.allDataOneSheet;
+         const { email, company, projectId, token } = stateProject.allDataOneSheet;
          const { currentRefToAddNewOrReplyOrEdit, rowsDtAllInit, rowsCviAllInit } = stateRow;
 
          const {
-            currentRefNumber, currentRefText, currentRefData, formRefType, isFormEditting,
+            currentRefData, formRefType, isFormEditting,
             isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
          } = currentRefToAddNewOrReplyOrEdit;
 
@@ -2112,11 +2106,8 @@ const PanelSetting = (props) => {
             : pageSheetTypeName === 'page-dt' ? rowsDtAllInit
                : [];
 
-         const rowsToAcknowledge = rowsAllInitThisTypeForm.find(x => x[refKey] === currentRefNumber && x.revision === currentRefData.revision);
-
-
          let rowOutput = {
-            _id: rowsToAcknowledge.id
+            _id: currentRefData.id
          };
 
          rowOutput.data = {
@@ -2128,7 +2119,7 @@ const PanelSetting = (props) => {
 
          await Axios.post(`${SERVER_URL}/row-${refType}/save-rows-${refType}/`, { token, projectId, rows: [rowOutput] });
 
-         message.success('Submitted Successfully', 3);
+         message.success('Submitted Successfully', 2);
 
          const route = pageSheetTypeName === 'page-rfam' ? 'row-rfam'
             : pageSheetTypeName === 'page-cvi' ? 'row-cvi'
@@ -2186,7 +2177,7 @@ const PanelSetting = (props) => {
 
    return (
       <>
-         {panelSettingType === 'save-ICON' && (
+         {(panelSettingType === 'save-ICON' || panelSettingType === 'save-ICON-data-entry-export') && (
             <PanelConfirm
                onClickCancel={onClickCancelModal}
                onClickApply={saveDataToServerAndReloadData}
@@ -2387,7 +2378,7 @@ const PanelSetting = (props) => {
                   const routeSuffix = panelSettingType.slice(5, panelSettingType.length);
 
                   if (pageSheetTypeName === 'page-spreadsheet') {
-                     swithFromDmsToOtherSheet(`/${'dms-' + routeSuffix}`);
+                     switchFromDmsToOtherSheet(`/${'dms-' + routeSuffix}`);
                   } else {
                      if (routeSuffix === 'dms') {
                         history.push({
@@ -2473,7 +2464,7 @@ const _processRowsLossHeadFnc1 = (rows, rowsProcessed) => {
       firstRowIndex = rows.findIndex((r) => _filterRowLossPreRowFnc(r, rows));
    };
 };
-const _processChainRowsSplitGroupFnc2 = (rows) => {
+export const _processChainRowsSplitGroupFnc2 = (rows) => {
    let rowsProcessed = [];
 
    if (!(rows instanceof Array) || !rows.length) return rowsProcessed;
@@ -2698,7 +2689,7 @@ export const getDataForMultiFormSheet = (rows, pageSheetTypeName) => {
    const nodeTitleArr = pageSheetTypeName === 'page-mm' ? tradeArrayMeetingMinutesForm : tradeArrayForm;
 
    let tree = [];
-
+   let rowsOutput = [];
    nodeTitleArr.forEach(title => {
 
       tree.push({
@@ -2708,46 +2699,28 @@ export const getDataForMultiFormSheet = (rows, pageSheetTypeName) => {
          title
       });
 
-      const rowsUnderThisTrade = rows.filter(row => row.trade === title);
-
       const refKey = getKeyTextForSheet(pageSheetTypeName) + 'Ref';
 
+     // rowsUnderThisTrade.sort((a, b) => (a[refKey] > b[refKey] ? 1 : -1));
+
+      const rowsUnderThisTrade = rows.filter(row => row.trade === title);
       const allRefCode = [...new Set(rowsUnderThisTrade.map(x => x[refKey]))].sort();
 
-      const refParentNodeArray = [];
 
       allRefCode.forEach(refText => {
 
-
-
          let allDwgs = rows.filter(row => row[refKey] === refText);
          const btnTextArray = [...new Set(allDwgs.map(x => x['revision']))].sort();
-
-
-         // add version button to row...
          allDwgs.forEach(row => {
             row.btn = btnTextArray;
             row.parentId = title;
          });
-
-
-         // refParentNodeArray.push({ // REF_ROW_WITH_HEADER_OPTION
-         //    id: refText,
-         //    [refKey]: refText,
-         //    btn: btnTextArray,
-         //    treeLevel: 3,
-         //    expanded: true,
-         //    parentId: title
-         // });
+         rowsOutput = [...rowsOutput, ...allDwgs];
       });
-
-
-
-      // tree = [...tree, ...refParentNodeArray]; // REF_ROW_WITH_HEADER_OPTION
    });
 
    return {
-      rowsData: rows,
+      rowsData: rowsOutput,
       treeView: tree,
    };
 };

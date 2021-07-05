@@ -2,7 +2,7 @@ const express = require('express');
 const Router = express.Router;
 const router = new Router();
 const RowHistory = require('../modules/row-history');
-const { validateToken } = require('../../custom/validate');
+const { validateToken } = require('../../service/validate');
 
 router.post('/save-all-data-row-history', validateToken, RowHistory.saveAllDataRowHistoryToServer);
 

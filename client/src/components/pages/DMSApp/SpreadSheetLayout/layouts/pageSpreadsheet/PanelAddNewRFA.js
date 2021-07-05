@@ -22,7 +22,6 @@ const extractConsultantName = (name) => {
    const indexOfSplitString = name.indexOf('_%$%_');
    return name.slice(0, indexOfSplitString === -1 ? -99999 : indexOfSplitString);
 };
-
 const checkIfMatchWithInputCompanyFormat = (item, listConsultants) => {
    let result = false;
    listConsultants.forEach(cm => {
@@ -430,24 +429,53 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
    const onClickApplyModalPickDrawing = (formRfaType, drawingTrade, drawingSubTrade, dwgIds) => {
+
+
+
       if (!dwgIds || dwgIds.length === 0) return;
       let dwgsToAdd = [];
-      if (formRfaType === 'form-resubmit-RFA') {
-         dwgsToAdd = rowsAll.filter(r => dwgIds.indexOf(r.id) !== -1);
-         setDwgsToAddNewRFA([...dwgsToAddNewRFA, ...dwgsToAdd]);
 
-      } else {
+      if (formRfaType === 'form-submit-RFA') {
          dwgsToAdd = rowsAll.filter(r => dwgIds.indexOf(r.id) !== -1);
          setDwgsToAddNewRFA(dwgsToAdd);
          setTradeOfRfaForFirstTimeSubmit(convertTradeCode(drawingTrade));
          setMepSubTradeFirstTime(drawingSubTrade);
+
+         if (listRecipientTo.length === 0) {
+            const dwgsThisTrade = rowsRfaAllInit
+               .filter(dwg => dwg[`submission-$$$-trade-${company}`] === drawingTrade)
+               .filter(dwg => {
+                  if (drawingSubTrade !== 'Select Sub Trade...') {
+                     return dwg[`submission-$$$-subTradeForMep-${company}`] === drawingSubTrade;
+                  } else {
+                     return true;
+                  };
+               })
+               .sort((a, b) => (a.rfaNumber > b.rfaNumber ? 1 : -1));
+            
+
+            const lastRfaFound = dwgsThisTrade[dwgsThisTrade.length - 1];
+            if (lastRfaFound) {
+               setListRecipientTo(lastRfaFound[`submission-$$$-emailTo-${company}`] || []);
+               setListRecipientCc(lastRfaFound[`submission-$$$-emailCc-${company}`] || []);
+               setListConsultantMustReply(lastRfaFound[`submission-$$$-consultantMustReply-${company}`] || []);
+            };
+         };
+      } else if (formRfaType === 'form-resubmit-RFA') {
+         dwgsToAdd = rowsAll.filter(r => dwgIds.indexOf(r.id) !== -1);
+         setDwgsToAddNewRFA([...dwgsToAddNewRFA, ...dwgsToAdd]);
       };
+
+
+      
       const dwgFound = dwgsToAdd.find(x => x['Coordinator In Charge']);
       if (dwgFound) {
          setRequestedBy(dwgFound['Coordinator In Charge']);
       };
       setTablePickDrawingRFA(false);
    };
+
+
 
    const setRevisionDwg = (id, rev) => {
       const row = dwgsToAddNewRFA.find(x => x.id === id);
@@ -567,7 +595,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
    const onClickApplyDoneFormRFA = () => {
       if (!dwgsToAddNewRFA || dwgsToAddNewRFA.length === 0) {
-         return message.info('Please insert drawings to submit!', 3);
+         return message.info('Please insert drawings to submit!', 2);
       };
 
       let isAllDataInRowFilledIn = true;
@@ -622,29 +650,29 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
       if (projectNameShort === 'NO-PROJECT-NAME') {
-         return message.info('Please update project abbreviation name for RFA number!', 3);
+         return message.info('Please update project abbreviation name for RFA number!', 2);
       } else if (!isAllDataInRowFilledIn) {
-         return message.info('Please fill in all necessary info for all drawings!', 3);
+         return message.info('Please fill in all necessary info for all drawings!', 2);
       } else if (dwgsToAddNewRFA.length !== dwgPdfFile.length) {
-         return message.info('Different drawings can not attach same Pdf file!', 3);
+         return message.info('Different drawings can not attach same Pdf file!', 2);
       } else if (!filesPDF && !isFormEditting) {
-         return message.info('Please choose file pdf!', 3);
+         return message.info('Please choose file pdf!', 2);
       } else if (!textEmailTitle && !isAdminActionWithNoEmailSent) {
-         return message.info('Please fill in email title!', 3);
+         return message.info('Please fill in email title!', 2);
 
       } else if ((!listRecipientTo || listRecipientTo.length === 0) && !isAdminActionWithNoEmailSent) {
-         return message.info('Please fill in recipient!', 3);
+         return message.info('Please fill in recipient!', 2);
 
       } else if (formRfaType === 'form-submit-RFA' && !dateReplyForSubmitForm) {
-         return message.info('Please fill in expected reply date!', 3);
+         return message.info('Please fill in expected reply date!', 2);
 
       } else if (formRfaType === 'form-submit-RFA' && listConsultantMustReply.length === 0) {
 
-         return message.info('Please fill in consultant lead', 3);
+         return message.info('Please fill in consultant lead', 2);
       } else if (formRfaType === 'form-submit-RFA' && !requestedBy) {
-         return message.info('Please fill in person requested', 3);
+         return message.info('Please fill in person requested', 2);
       } else if (!trade || !rfaToSave || !rfaToSaveVersionOrToReply) {
-         return message.info('Please fill in necessary info!', 3);
+         return message.info('Please fill in necessary info!', 2);
       };
 
 
@@ -868,7 +896,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                      <div style={{ width: '95%' }}>
                         <SelectRecipientStyled
                            mode='tags'
-                           placeholder='Please select...'
+                           placeholder={formRfaType === 'form-submit-RFA' ? 'Please pick drawings first to get email list of previous submission...' : 'Please select...'}
                            value={listRecipientTo}
 
                            onChange={(list) => {
@@ -976,7 +1004,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                      <div style={{ width: '95%' }}>
                         <SelectRecipientStyled
                            mode='tags'
-                           placeholder='Please select...'
+                           placeholder={formRfaType === 'form-submit-RFA' ? 'Please pick drawings first to get email list of previous submission...' : 'Please select...'}
                            value={listRecipientCc}
                            onChange={(list) => {
                               if (list.find(tag => !listGroup.find(x => x === tag) && !validateEmailInput(tag))) {
@@ -1149,7 +1177,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   </div>
                )}
             </div>
-
 
             <div style={{
                padding: 20,

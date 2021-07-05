@@ -128,7 +128,7 @@ const CellRFA = (props) => {
             setRequestedByCellData(getInfoValueFromRfaData(rfaDataObj, 'submission', 'requestedBy'));
 
          } else if (isColumnWithReplyData(column.key)) {
-            const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyData(rowData, column.key, companies);
+            const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyData(rowData, column.key);
 
             setReplyStatus(replyStatusData);
             setReplyCompany(replyCompanyData);
@@ -397,13 +397,6 @@ const CellRFA = (props) => {
    };
 
 
-   const onMouseDown = (e) => {
-      if (e.button === 2) { // check mouse RIGHT CLICK ...
-         if (!column.key.includes('Version ') && column.key !== 'Info') {
-            // onRightClickCell(e, props);
-         };
-      };
-   };
 
    const checkIfEditBtnShown = (header) => {
 
@@ -508,6 +501,10 @@ const CellRFA = (props) => {
             position: 'relative',
             padding: 5,
 
+            textOverflow: 'ellipsis',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+
             color: replyStatus ? 'white' : 'black',
             background: (column.key === 'Due Date' && overdueCount < 0)
                ? '#FFEBCD'
@@ -526,7 +523,6 @@ const CellRFA = (props) => {
          onMouseLeave={() => {
             if (btnShown) setBtnShown(false);
          }}
-         onMouseDown={onMouseDown}
       >
          {(pageSheetTypeName === 'page-rfa' && rowData.treeLevel === 3 && column.key === 'RFA Ref') ? (
             <div style={{ display: 'flex', position: 'relative' }}>
@@ -617,7 +613,7 @@ const CellRFA = (props) => {
                               right: btn === 'See Note' ? 27 : btn === 'Open Drawing File' ? 5 : 51,
                               top: 5, height: 17, width: 17,
                            }}
-                           onMouseDown={() => onMouseDownCellButtonConsultant(btn, replyCompany, rfaData)}
+                           onClick={() => onMouseDownCellButtonConsultant(btn, replyCompany, rfaData)}
                         >
                            <Icon
                               type={btn === 'See Note' ? 'message' : btn === 'Open Drawing File' ? 'file' : 'edit'}
@@ -642,7 +638,7 @@ const CellRFA = (props) => {
                               right: btn === 'Open Drawing File' ? 5 : btn === 'Open 3D File' ? 27 : (additionalBtn3DModel.length === 1 ? 51 : 27),
                               top: 5, height: 17, width: 17,
                            }}
-                           onMouseDown={() => onMouseDownCellButtonRfaRef(btn)}
+                           onClick={() => onMouseDownCellButtonRfaRef(btn)}
                         >
                            <Icon
                               type={btn === 'Open Drawing File' ? 'file' : btn === 'Open 3D File' ? 'shake' : 'edit'}
@@ -785,52 +781,26 @@ export const getConsultantReplyData = (rowData, header, companies) => {
 
    let replyStatus, replyCompany, replyDate;
 
-   const consultantHeaderNumber = parseInt(header.slice(12, header.length - 1));
    const listConsultantMustReply = getInfoValueFromRfaData(rowData, 'submission', 'consultantMustReply');
-
    if (!listConsultantMustReply || listConsultantMustReply.length === 0) return { replyStatus, replyCompany, replyDate };
 
-   const consultantLeadName = listConsultantMustReply[0];
-   if (isColumnWithReplyData(header)) {
+   const consultantHeaderNumber = parseInt(header.slice(12, header.length - 1));
 
-      let listConsultantsAlreadyReply = [];
-      for (const key in rowData) {
-         if (key.includes('reply-$$$-status')) {
-            const companyConsultant = key.slice(17, key.length);
-            listConsultantsAlreadyReply.push(companyConsultant);
-         };
-      };
-      listConsultantsAlreadyReply = [...new Set(listConsultantsAlreadyReply)];
+   const consultantNameOfThisCell = listConsultantMustReply[consultantHeaderNumber - 1];
 
-      const listConsultantMustReplyRemaining = listConsultantMustReply.filter(x => x !== consultantLeadName);
-
-      if (consultantHeaderNumber === 1) {
-         replyStatus = rowData[`reply-$$$-status-${consultantLeadName}`];
-         replyCompany = consultantLeadName;
-         replyDate = convertReplyOrSubmissionDate(rowData[`reply-$$$-date-${consultantLeadName}`]);
-      } else if (consultantHeaderNumber > 1) {
-         let ConsultantIndex = 1;
-         companies.forEach(cmp => {
-            if (listConsultantMustReplyRemaining.indexOf(cmp.company) !== -1) {
-               ConsultantIndex += 1;
-               if (consultantHeaderNumber === ConsultantIndex) {
-                  replyStatus = rowData[`reply-$$$-status-${cmp.company}`];
-                  replyCompany = cmp.company;
-                  replyDate = convertReplyOrSubmissionDate(rowData[`reply-$$$-date-${cmp.company}`]);
-               };
-            };
-         });
-      };
+   return {
+      replyStatus: rowData[`reply-$$$-status-${consultantNameOfThisCell}`],
+      replyCompany: consultantNameOfThisCell,
+      replyDate: convertReplyOrSubmissionDate(rowData[`reply-$$$-date-${consultantNameOfThisCell}`])
    };
-   return { replyStatus, replyCompany, replyDate };
 };
 
 const cloneRfaData = (row) => {
    let obj = {};
    for (const key in row) {
       if (
-         key.includes('reply') ||
-         key.includes('submission') ||
+         key.includes('reply-') ||
+         key.includes('submission-') ||
          key === 'rfaNumber' ||
          key === 'Consultant Reply (T)' ||
          key === 'Drg To Consultant (A)'
