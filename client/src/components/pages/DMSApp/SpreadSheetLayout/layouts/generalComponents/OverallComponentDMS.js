@@ -11,7 +11,6 @@ import { Context as RowContext } from '../../contexts/rowContext';
 import { compareDates, debounceFnc, extractCellInfo, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
 import ButtonAdminCreateAndUpdateRows from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
 import ButtonAdminDeleteRowsHistory from '../pageSpreadsheet/ButtonAdminDeleteRowsHistory';
-import ButtonAdminUploadData from '../pageSpreadsheet/ButtonAdminUploadData';
 import Cell, { columnLocked, rowLocked } from '../pageSpreadsheet/Cell';
 import CellForm from '../pageSpreadsheet/CellForm';
 import CellIndex from '../pageSpreadsheet/CellIndex';
@@ -1006,7 +1005,7 @@ const OverallComponentDMS = (props) => {
 
 
 
-   const triggerFromOutsideComponent = async () => {
+   const getCurrentDataTable = async () => {
       const { email, token, role, projectName, projectIsAppliedRfaView, publicSettings, company } = stateProject.allDataOneSheet;
       const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
       const { headers } = publicSettings;
@@ -1355,7 +1354,7 @@ const OverallComponentDMS = (props) => {
          console.log(err);
       };
    };
-   window.triggerFromOutsideComponent = triggerFromOutsideComponent;
+   window.getCurrentDataTable = getCurrentDataTable;
 
 
    return (

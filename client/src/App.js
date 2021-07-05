@@ -157,7 +157,7 @@ const App = () => {
 
    const getDataFromOutsideComponent = async () => {
       try {
-         const result = await window.triggerFromOutsideComponent();
+         const result = await window.getCurrentDataTable();
          console.log('result', result);
       } catch (err) {
          console.log(err);
