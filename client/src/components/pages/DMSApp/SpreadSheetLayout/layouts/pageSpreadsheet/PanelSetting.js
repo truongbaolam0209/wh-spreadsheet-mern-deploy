@@ -19,6 +19,7 @@ import PanelConfirm from '../generalComponents/PanelConfirm';
 import PanelConfirmResetMode from '../generalComponents/PanelConfirmResetMode';
 import PanelPickNumber from '../generalComponents/PanelPickNumber';
 import ReorderColumnForm from '../generalComponents/ReorderColumnForm';
+import { getInfoValueFromRefDataForm } from './CellForm';
 import { getConsultantLeadName, getInfoValueFromRfaData } from './CellRFA';
 import ColorizedForm from './ColorizedForm';
 import FormCellColorizedCheck from './FormCellColorizedCheck';
