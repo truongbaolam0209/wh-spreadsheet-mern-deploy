@@ -1371,7 +1371,7 @@ const PanelSetting = (props) => {
          console.log(err);
       };
    };
-   
+
 
 
    const switchFromDmsToOtherSheet = async (route) => {
@@ -1792,70 +1792,49 @@ const PanelSetting = (props) => {
       const refType = getKeyTextForSheet(pageSheetTypeName);
       const refKey = refType + 'Ref';
 
+      const refNumberTextInfo = refToSaveVersionOrToReply === '0' ? refToSave : refToSave + refToSaveVersionOrToReply;
+
       try {
+         // CHECK SERVER MAKE SURE NO DUPLICATE
+         const resDB = await Axios.get(`${SERVER_URL}/row-${refType}/`, { params: { token, projectId, email } });
+         const rowsRefFromDB = resDB.data;
 
-         // check in the server first
-         // const res = await Axios.get(`${SERVER_URL}/row-rfam/`, { params: { token, projectId, email } });
+         const latestRowsDataFromServer = getInputDataInitially(rowsRefFromDB, { role, company }, pageSheetTypeName);
+         const rowsAllFromDB = latestRowsDataFromServer[`rows${refType.charAt(0).toUpperCase() + refType.slice(1)}AllInit`];
 
 
-         // const latestDataFromServer = getInputDataInitially({ sheetData: res.data, rowsHistoryData: resRowHistory.data }, { role, company }, 'page-rfa');
-         // const { rowsRfaAllInit: rowsRfaAllInitFromDB } = latestDataFromServer;
+         let isSubmitActionAllowed = true;
+         const rowFoundToCheck = rowsAllFromDB.find(r => {
+            const rowRef = r[refKey] + (r.revision === '0' ? '' : r.revision);
+            return rowRef === refNumberTextInfo;
+         });
+         if (type === 'form-reply-multi-type') {
+            if (!isFormEditting && rowFoundToCheck && getInfoValueFromRefDataForm(rowFoundToCheck, 'reply', refType, 'status', company)) {
+               isSubmitActionAllowed = false;
+            };
+         } else {
+            if (!isFormEditting && rowFoundToCheck) {
+               isSubmitActionAllowed = false;
+            };
+         };
 
-
-         // let isSubmitActionAllowed = true;
-         // if (type === 'form-submit-RFA' || type === 'form-resubmit-RFA') {
-         //    if (!isFormEditting || (isFormEditting && rfaRefData !== currentRfaToAddNewOrReplyOrEdit.currentRfaRef)) {
-         //       const allRFARefAlreadySubmitted = [...new Set(rowsRfaAllInitFromDB.filter(x => x['RFA Ref']).map(x => x['RFA Ref']))];
-         //       if (allRFARefAlreadySubmitted.indexOf(rfaRefData) !== -1) {
-         //          isSubmitActionAllowed = false;
-         //       };
-         //    };
-         //    if (type === 'form-submit-RFA' && !isFormEditting) {
-         //       const rowWithRfaFound = dwgsToAddNewRFA.find(row => rowsRfaAllInitFromDB.find(x => x.id === row.id));
-         //       if (rowWithRfaFound) {
-         //          isSubmitActionAllowed = false;
-         //       };
-         //    } else if (type === 'form-resubmit-RFA' && !isFormEditting) {
-         //       dwgsToAddNewRFA.forEach(r => { // submitted by others.
-         //          const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
-         //          if (rowWithRfaFound) {
-         //             if (getInfoValueFromRfaData(rowWithRfaFound, 'submission', 'drawing', company)) {
-         //                isSubmitActionAllowed = false;
-         //             };
-         //          };
-         //       });
-         //    };
-         // } else if (type === 'form-reply-RFA') {
-         //    if (!isFormEditting) {
-         //       dwgsToAddNewRFA.forEach(r => {
-         //          const rowWithRfaFound = rowsRfaAllInitFromDB.find(row => row.id === r.id);
-         //          if (rowWithRfaFound) {
-         //             if (getInfoValueFromRfaData(rowWithRfaFound, 'reply', 'status', company)) {
-         //                isSubmitActionAllowed = false;
-         //             };
-         //          };
-         //       });
-         //    };
-         // };
-         // if (!isSubmitActionAllowed) {
-         //    getSheetRows({ ...stateRow, loading: false });
-         //    message.error('This RFA / drawings are already submitted / replied by others, please reload the RFA View');
-         //    return;
-         // };
-
+         if (!isSubmitActionAllowed) {
+            getSheetRows({ ...stateRow, loading: false });
+            message.error(`This ${refType.toUpperCase()} are already submitted / replied by others, please reload the ${refType.toUpperCase()} View`);
+            return;
+         };
 
 
 
 
          let linkFormPdfNoSignature, filePdfBlobOutput, pdfFilesToUpload;
-         const refNumberTextInfo = refToSaveVersionOrToReply === '0' ? refToSave : refToSave + refToSaveVersionOrToReply;
-         
+
          if (type === 'form-submit-multi-type' || type === 'form-resubmit-multi-type') {
 
             const outputPdf = (
                <ExportPdf
                   pdfContent={{
-                     refNumberText: refNumberTextInfo, 
+                     refNumberText: refNumberTextInfo,
                      isCostImplication, isTimeExtension, projectName, listConsultantMustReply,
                      listRecipientTo: recipient.to, listRecipientCc: recipient.cc,
                      requestedBy, signaturedBy, conversationAmong, emailTextTitle,
@@ -1927,7 +1906,7 @@ const PanelSetting = (props) => {
          if (type === 'form-submit-multi-type' || type === 'form-resubmit-multi-type') {
 
             rowOutput = {
-               _id: isFormEditting ? rowFound.id :  mongoObjectId()
+               _id: isFormEditting ? rowFound.id : mongoObjectId()
             };
 
             rowOutput.data = {};
@@ -1962,7 +1941,7 @@ const PanelSetting = (props) => {
             };
 
             rowOutput.data[`submission-${refType}-user-${company}`] = email;
-            
+
             if (!isFormEditting) {
                if (dateSendThisForm) {
                   rowOutput.data[`submission-${refType}-date-${company}`] = dateSendThisForm;
@@ -1970,7 +1949,7 @@ const PanelSetting = (props) => {
                   rowOutput.data[`submission-${refType}-date-${company}`] = new Date();
                };
             };
-    
+
             rowOutput.data[`submission-${refType}-linkDrawings-${company}`] = arrayFilesPdfUploadLink;
             rowOutput.data[`submission-${refType}-linkDrawingsRfa-${company}`] = linkRfaDrawingsUploaded;
 
@@ -2008,7 +1987,7 @@ const PanelSetting = (props) => {
                   rowOutput.data[`reply-${refType}-date-${company}`] = new Date();
                };
             };
-            
+
 
             if (arrayFilesPdfUploadLink.length > 0) {
                rowOutput.data[`reply-${refType}-linkFormReply-${company}`] = arrayFilesPdfUploadLink[0];
@@ -2701,7 +2680,7 @@ export const getDataForMultiFormSheet = (rows, pageSheetTypeName) => {
 
       const refKey = getKeyTextForSheet(pageSheetTypeName) + 'Ref';
 
-     // rowsUnderThisTrade.sort((a, b) => (a[refKey] > b[refKey] ? 1 : -1));
+      // rowsUnderThisTrade.sort((a, b) => (a[refKey] > b[refKey] ? 1 : -1));
 
       const rowsUnderThisTrade = rows.filter(row => row.trade === title);
       const allRefCode = [...new Set(rowsUnderThisTrade.map(x => x[refKey]))].sort();
