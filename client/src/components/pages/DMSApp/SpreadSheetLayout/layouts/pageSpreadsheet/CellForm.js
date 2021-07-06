@@ -408,7 +408,7 @@ const CellForm = (props) => {
                rowIds: [rowChild.id],
                emailSender: email,
             },
-            momentToTriggerEmail: moment().add(moment.duration(EDIT_DURATION_MIN, 'minutes'))
+            momentToTriggerEmail: moment().add(moment.duration(0.1, 'minutes'))
          });
 
 
