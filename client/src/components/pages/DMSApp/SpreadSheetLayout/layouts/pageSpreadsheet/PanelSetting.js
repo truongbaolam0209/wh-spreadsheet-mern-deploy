@@ -1971,8 +1971,8 @@ const PanelSetting = (props) => {
                };
             };
     
-            if (arrayFilesPdfUploadLink.length > 0) rowOutput.data[`submission-${refType}-linkDrawings-${company}`] = arrayFilesPdfUploadLink;
-            if (linkRfaDrawingsUploaded.length > 0) rowOutput.data[`submission-${refType}-linkDrawingsRfa-${company}`] = linkRfaDrawingsUploaded;
+            rowOutput.data[`submission-${refType}-linkDrawings-${company}`] = arrayFilesPdfUploadLink;
+            rowOutput.data[`submission-${refType}-linkDrawingsRfa-${company}`] = linkRfaDrawingsUploaded;
 
             if (linkFormPdfNoSignature) rowOutput.data[`submission-${refType}-linkFormNoSignature-${company}`] = linkFormPdfNoSignature;
 

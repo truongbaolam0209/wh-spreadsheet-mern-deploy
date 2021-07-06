@@ -405,7 +405,7 @@ const CellForm = (props) => {
                projectId, company, projectName,
                formSubmitType: refType,
                type: 'submit-signed-off-final',
-               rowIds: [rowChild.id],
+               rowIds: [rowData.id],
                emailSender: email,
             },
             momentToTriggerEmail: moment().add(moment.duration(0.1, 'minutes'))
@@ -714,7 +714,7 @@ const ModalStyled = styled(Modal)`
 const getTooltipText = (btnName, pageSheetTypeName) => {
    let result = 'No Tooltip';
    if (btnName === 'btn-linkDrawings') {
-      result = 'Open Documents Attached List';
+      result = 'Open Documents';
    } else if (btnName === 'btn-linkFormSubmitNoSignatureOrSignedOff') {
       result = 'Open Submission Form';
    } else if (btnName === 'btn-submitSignedOffToConsultant') {
