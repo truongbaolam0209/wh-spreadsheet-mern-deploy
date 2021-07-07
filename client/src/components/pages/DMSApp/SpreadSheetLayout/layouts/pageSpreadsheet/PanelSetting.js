@@ -1019,12 +1019,16 @@ const PanelSetting = (props) => {
          viewTemplates,
          modeFilter,
          modeSort,
+         additionalFieldToSave
       } = stateRow;
 
 
       // check new version reply go blank
       const rowsGetNewRev = rowsAll.filter(r => rowsUpdateSubmissionOrReplyForNewDrawingRev.indexOf(r.id) !== -1);
 
+      if (additionalFieldToSave) {
+         additionalFieldToSave = additionalFieldToSave.filter(r => !rowsDeleted.find(x => x.id === r.id));
+      };
 
       try {
          setLoading(true);
@@ -1324,10 +1328,30 @@ const PanelSetting = (props) => {
                      rowToSave.data = { ...rowToSave.data || {}, [hd.key]: rowOutput[hd.text] };
                   };
                });
-
                rowsToUpdateFinal.push(rowToSave);
             };
          });
+
+         if (additionalFieldToSave && additionalFieldToSave.length > 0) {
+            additionalFieldToSave.forEach(row => {
+               const rowFoundToUpdateAdditionalField = rowsToUpdateFinal.find(r => r._id === row._id);
+               if (rowFoundToUpdateAdditionalField) {
+                  for (const key in row) {
+                     if (key !== '_id' && key !== 'preRow' && key !== 'parentRow' && key !== 'data' && key !== 'level') {
+                        rowFoundToUpdateAdditionalField[key] = row[key];
+                     };
+                  };
+               } else {
+                  let obj = { _id: row._id };
+                  for (const key in row) {
+                     if (key !== '_id' && key !== 'preRow' && key !== 'parentRow' && key !== 'data' && key !== 'level') {
+                        obj[key] = row[key];
+                     };
+                  };
+                  rowsToUpdateFinal.push(obj);
+               };
+            });
+         };
 
          if (rowsToUpdateFinal.length > 0) {
             await Axios.post(`${SERVER_URL}/row-data-entry/save-rows-data-entry/`, { token, projectId: sheetId, rows: rowsToUpdateFinal });
