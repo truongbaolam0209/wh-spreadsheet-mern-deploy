@@ -30,17 +30,29 @@ const FormDrawingTypeOrderDataEntry = ({ onClickCancelModal, applyFolderOrganize
    const [mergeList, setMergeList] = useState([]);
 
    const addFolderBelow = (node) => {
-      node.children.push({
-         title: 'New Folder',
-         id: mongoObjectId(),
-         parentId: node.id,
-         treeLevel: node.treeLevel + 1,
-         expanded: true,
-         children: []
-      });
+      if (node.treeLevel === 0) {
+         node.children.splice(node.children.length - 1, 0, {
+            title: 'New Folder',
+            id: mongoObjectId(),
+            parentId: node.id,
+            treeLevel: node.treeLevel + 1,
+            expanded: true,
+            children: []
+         });
+      } else {
+         node.children.push({
+            title: 'New Folder',
+            id: mongoObjectId(),
+            parentId: node.id,
+            treeLevel: node.treeLevel + 1,
+            expanded: true,
+            children: []
+         });
+      };
       setInput(addProjectHeaderToTree(flattenAllTreeChildNode1(input[0].children), sheetName, sheetId));
-
    };
+
+
    const deleteFolder = (node) => {
       setItemNode(node);
       setModalTitle('Delete Folder');
@@ -136,10 +148,9 @@ const FormDrawingTypeOrderDataEntry = ({ onClickCancelModal, applyFolderOrganize
 
                   return ({
                      className: 'parent-tags',
-                     buttons:
+                     buttons: node.folderType === 'MODEL_DATA_IMPORTED' ? [] : (
                         node.treeLevel === 0 ? [
                            <IconBtn type='plus' onClick={() => addFolderBelow(node)} />,
-                           node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />,
                            <IconBtn type={isEyeShownType} onClick={() => isolateView(node)} color={isEyeShownColor} />
 
                         ] : [
@@ -148,7 +159,7 @@ const FormDrawingTypeOrderDataEntry = ({ onClickCancelModal, applyFolderOrganize
                            <IconBtn type='delete' onClick={() => deleteFolder(node)} />,
                            node.children.length > 0 && <IconBtn type='shrink' onClick={() => mergeChildDrawings(node)} />,
                            <IconBtn type={isEyeShownType} onClick={() => isolateView(node)} color={isEyeShownColor} />
-                        ]
+                        ])
                   });
                }}
             />

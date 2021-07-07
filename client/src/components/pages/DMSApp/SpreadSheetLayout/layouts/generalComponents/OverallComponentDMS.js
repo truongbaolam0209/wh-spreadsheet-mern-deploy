@@ -64,7 +64,7 @@ const OverallComponentDMS = (props) => {
 
       // sheet-data-entry
       sheetDataInput: sheetDataInputRaw, sheetId, sheetName, canEditParent,
-      saveDataToServerCallback, callbackSelectRow,
+      saveDataToServerCallback, callbackSelectRow, rowsImportedFromModel
    } = props;
 
 
@@ -996,365 +996,132 @@ const OverallComponentDMS = (props) => {
    const buttonSpreadsheetMode = (stateRow && (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry'));
 
 
+
+
+   useEffect(() => {
+      if (!stateRow || !rowsImportedFromModel || rowsImportedFromModel.length === 0) return;
+
+      let { rowsAll, rowsUpdatePreRowOrParentRow, idRowsNew } = stateRow;
+      const { publicSettings } = stateProject.allDataOneSheet;
+      const { headers, drawingTypeTree } = publicSettings;
+
+      let cellsModifiedTempObj = {};
+
+      const rowsInput = rowsImportedFromModel.map(r => {
+         const obj = {
+            id: r._id
+         };
+         for (const key in r) {
+            if (key !== '_id' && key !== 'parentRow' && key !== 'preRow' && key !== 'level' && key !== 'data') {
+               obj[key] = r[key];
+            };
+         };
+
+         const data = r.data || {};
+         for (const key in data) {
+            const headerFound = headers.find(hd => hd.key === key);
+            if (headerFound) {
+               obj[headerFound.text] = data[key];
+            };
+         };
+         return obj;
+      });
+
+      const rowsExistingToUpdate = rowsInput.filter(r => rowsAll.find(x => x.id === r.id));
+
+      rowsExistingToUpdate.forEach(row => {
+         for (const key in row) {
+            if (key !== 'id' && key !== '_parentRow' && key !== '_preRow' && key !== '_rowLevel') {
+               const rowFoundInCurrentDB = rowsAll.find(r => r.id === row.id);
+               if (rowFoundInCurrentDB[key] !== row[key]) {
+                  rowFoundInCurrentDB[key] = row[key];
+                  if (headers.find(hd => hd.text === key)) {
+                     cellsModifiedTempObj[`${row.id}~#&&#~${key}`] = row[key];
+                  };
+               };
+            };
+         };
+      });
+
+      const allRowsOfFolderModelImported = rowsAll.filter(r => r._parentRow === getIdOfFolderModelImported());
+      const lastRowCurrent = allRowsOfFolderModelImported[allRowsOfFolderModelImported.length - 1];
+
+      const rowsNewToAdd = rowsInput.filter(r => !rowsAll.find(x => x.id === r.id));
+
+      rowsNewToAdd.forEach((row, i) => {
+         row._parentRow = getIdOfFolderModelImported();
+         row._preRow = i === 0 ? (lastRowCurrent ? lastRowCurrent.id : null) : rowsNewToAdd[i - 1].id;
+         row._rowLevel = 1;
+
+         for (const key in row) {
+            if (key !== 'id' && key !== '_parentRow' && key !== '_preRow' && key !== '_rowLevel') {
+               if (headers.find(hd => hd.text === key)) {
+                  cellsModifiedTempObj[`${row.id}~#&&#~${key}`] = row[key];
+               };
+            };
+         };
+         updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
+         idRowsNew = [...idRowsNew, row.id];
+      });
+
+
+      OverwriteCellsModified({ ...stateCell.cellsModifiedTemp, ...cellsModifiedTempObj });
+
+      getSheetRows({
+         ...stateRow,
+         rowsAll: [...rowsAll, ...rowsNewToAdd],
+         rowsUpdatePreRowOrParentRow,
+         idRowsNew,
+         additionalFieldToSave: rowsImportedFromModel,
+
+         rowsSelectedToMove: [],
+         rowsSelected: [],
+         modeFilter: [],
+         modeSort: {}
+      });
+
+   }, [rowsImportedFromModel]);
+
+   const getCurrentDataTable = () => {
+      const { rowsAll } = stateRow;
+      const { publicSettings } = stateProject.allDataOneSheet;
+      const { headers } = publicSettings;
+
+      const rowToSaveArr = rowsAll.map(row => {
+         let rowToSave = { _id: row.id, parentRow: row._parentRow, preRow: row._preRow, level: row._rowLevel };
+         for (const key in row) {
+            if (key !== 'id' && key !== '_parentRow' && key !== '_preRow' && key !== '_rowLevel') {
+               const headerFound = headers.find(hd => hd.text === key);
+               if (headerFound) {
+                  rowToSave.data = { ...rowToSave.data || {}, [headerFound.key]: row[key] || '' };
+               } else {
+                  rowToSave[key] = row[key];
+               };
+            };
+         };
+         return rowToSave;
+      });
+      return rowToSaveArr;
+   };
+
+   const getIdOfFolderModelImported = () => {
+      const { publicSettings: { drawingTypeTree } } = stateProject.allDataOneSheet;
+      const folderModel = drawingTypeTree.find(node => node.folderType === 'MODEL_DATA_IMPORTED') || {};
+      return folderModel.id;
+   };
+
+   window.getCurrentDataTable = getCurrentDataTable;
+   window.getIdOfFolderModelImported = getIdOfFolderModelImported;
+
+
+
+
    if ((role === 'Consultant' || role === 'Client') && pageSheetTypeName === 'page-spreadsheet') {
       return (
          <div>There is no data display for client</div>
       );
    };
 
-
-
-
-   const getCurrentDataTable = async () => {
-      const { email, token, role, projectName, projectIsAppliedRfaView, publicSettings, company } = stateProject.allDataOneSheet;
-      const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
-      const { headers } = publicSettings;
-
-      let { cellsModifiedTemp } = stateCell;
-      let {
-         rowsVersionsToSave,
-         rowsUpdatePreRowOrParentRow,
-         drawingTypeTreeInit,
-         drawingTypeTree,
-         drawingsTypeDeleted,
-         rowsDeleted,
-
-         rowsAll,
-         rowsUpdateSubmissionOrReplyForNewDrawingRev,
-
-         viewTemplateNodeId,
-         viewTemplates,
-         modeFilter,
-         modeSort,
-      } = stateRow;
-
-
-      // check new version reply go blank
-      const rowsGetNewRev = rowsAll.filter(r => rowsUpdateSubmissionOrReplyForNewDrawingRev.indexOf(r.id) !== -1);
-
-
-      try {
-         setLoading(true);
-         commandAction({ type: '' });
-
-
-         const resDBRaw = await Axios.post(`${SERVER_URL}/row-data-entry/get-row`, { token, projectId: sheetId, email, headers: converHeaderForDataEntryOutput(headers) });
-         const resDB = convertDataEntryInput(resDBRaw.data);
-
-         // const resCellsHistory = await Axios.get(`${SERVER_URL}/cell/history/`, { params: { token, projectId } });
-
-         let { publicSettings: publicSettingsFromDB, rows: rowsFromDBInit } = resDB;
-         let { drawingTypeTree: drawingTypeTreeFromDB, activityRecorded: activityRecordedFromDB } = publicSettingsFromDB;
-
-         // const headerKeyDrawingNumber = headers.find(hd => hd.text === 'Drawing Number').key;
-         // const headerKeyDrawingName = headers.find(hd => hd.text === 'Drawing Name').key;
-
-         const headerKeyDrawingNumber = 'Drawing Number';
-         const headerKeyDrawingName = 'Drawing Name';
-
-         let rowsFromDB = rowsFromDBInit.map(row => ({ ...row }));
-
-         let {
-            needToSaveTree,
-            treeDBModifiedToSave,
-            nodesToAddToDB,
-            nodesToRemoveFromDB
-         } = compareCurrentTreeAndTreeFromDB(
-            drawingTypeTreeInit,
-            drawingTypeTree,
-            drawingsTypeDeleted,
-            drawingTypeTreeFromDB,
-            activityRecordedFromDB.filter(x => x.action === 'Delete Folder'),
-         );
-         let activityRecordedArr = [];
-
-
-         // check if row or its parents deleted by other users
-         const rowsUpdatePreRowOrParentRowArray = Object.values(rowsUpdatePreRowOrParentRow)
-            .filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing') &&
-               !activityRecordedFromDB.find(r => r.id === row._parentRow && r.action === 'Delete Folder'));
-
-
-         if (rowsUpdatePreRowOrParentRowArray.length > 0) {
-
-            let arrID = [];
-            rowsFromDB.forEach(r => { // take out temporarily all rowsUpdatePreRowOrParentRowArray from DB
-               if (rowsUpdatePreRowOrParentRowArray.find(row => row.id === r.id)) {
-                  arrID.push(r.id);
-                  const rowBelow = rowsFromDB.find(rrr => rrr._preRow === r.id);
-                  if (rowBelow) rowBelow._preRow = r._preRow;
-               };
-            });
-            rowsFromDB = rowsFromDB.filter(r => arrID.indexOf(r.id) === -1);
-
-
-
-            const rowsInOldParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
-               return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && !treeDBModifiedToSave.find(x => x.parentId === tr.id));
-            });
-
-            const rowsInOldParentDivertBranches = rowsUpdatePreRowOrParentRowArray.filter(r => {
-               return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && treeDBModifiedToSave.find(x => x.parentId === tr.id));
-            });
-
-            const rowsInNewParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
-               return !treeDBModifiedToSave.find(tr => tr.id === r._parentRow);
-            });
-
-
-            const rowsInOldParentOutput = _processChainRowsSplitGroupFnc2([...rowsInOldParent]);
-            rowsInOldParentOutput.forEach(arrChain => {
-               const rowFirst = arrChain[0];
-               const parentRowInDB = treeDBModifiedToSave.find(tr => tr.id === rowFirst._parentRow);
-               const rowAbove = rowsFromDB.find(r => r.id === rowFirst._preRow);
-               if (rowAbove) {
-                  if (rowAbove._parentRow !== rowFirst._parentRow) { // rowAbove move to other parent by other user
-                     const lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
-                     rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
-                  } else { // rowAbove is still in the same parent
-                     const rowBelowRowAbove = rowsFromDB.find(r => r._preRow === rowAbove.id);
-                     if (rowBelowRowAbove) rowBelowRowAbove._preRow = arrChain[arrChain.length - 1].id;
-                     rowFirst._preRow = rowAbove.id;
-                  };
-               } else {
-                  if (rowFirst._preRow === null) {
-                     const firstRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && r._preRow === null);
-                     if (firstRowInParent) { // if firstRowInParent undefined means Drawing type has 0 drawing currently...
-                        firstRowInParent._preRow = arrChain[arrChain.length - 1].id;
-                     };
-                  } else {
-                     const lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
-                     rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
-                  };
-               };
-               rowsFromDB = [...rowsFromDB, ...arrChain];
-            });
-
-
-            let idsOldParentDivertBranches = [...new Set(rowsInOldParentDivertBranches.map(r => r._parentRow))];
-            idsOldParentDivertBranches.forEach(idP => {
-               let arrInput = rowsInOldParentDivertBranches.filter(r => r._parentRow === idP);
-               let rowsChildren = _processRowsChainNoGroupFnc1([...arrInput]);
-
-               const treeNode = treeDBModifiedToSave.find(x => x.id === idP);
-               const newIdParent = mongoObjectId();
-               treeDBModifiedToSave.push({
-                  title: 'New Folder',
-                  id: newIdParent,
-                  parentId: treeNode.id,
-                  treeLevel: treeNode.treeLevel + 1,
-                  expanded: true,
-               });
-               needToSaveTree = true;
-
-               activityRecordedArr.push({
-                  id: newIdParent,
-                  email,
-                  createdAt: new Date(),
-                  action: 'Create Folder',
-                  [headerKeyDrawingNumber]: 'New Folder',
-               });
-
-               rowsChildren.forEach((r, i) => {
-                  r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
-                  r._parentRow = newIdParent;
-               });
-               rowsFromDB = [...rowsFromDB, ...rowsChildren];
-            });
-
-
-
-            let idsNewParentArray = [...new Set(rowsInNewParent.map(r => r._parentRow))];
-            idsNewParentArray.forEach(idP => {
-               let arrInput = rowsInNewParent.filter(r => r._parentRow === idP);
-               let rowsChildren = _processRowsChainNoGroupFnc1([...arrInput]);
-               rowsChildren.forEach((r, i) => {
-                  r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
-               });
-               rowsFromDB = [...rowsFromDB, ...rowsChildren];
-            });
-         };
-
-
-         // SAVE CELL HISTORY
-         // let objCellHistory = {};
-         // resCellsHistory.data.map(cell => {
-         //    const headerFound = headers.find(hd => hd.key === cell.headerKey);
-         //    if (headerFound) {
-         //       const headerText = headerFound.text;
-         //       if (cell.histories.length > 0) {
-         //          const latestHistoryText = cell.histories[cell.histories.length - 1].text;
-         //          objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
-         //       };
-         //    };
-         // });
-         // Object.keys(cellsModifiedTemp).forEach(key => {
-         //    if (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) {
-         //       delete cellsModifiedTemp[key];
-         //    } else {
-         //       let rowId = extractCellInfo(key).rowId;
-         //       if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
-         //          delete cellsModifiedTemp[key];
-         //       };
-         //    };
-         // });
-
-         // if (Object.keys(cellsModifiedTemp).length > 0) {
-         //    await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject) });
-         // };
-
-         // SAVE DRAWINGS NEW VERSION
-         // rowsVersionsToSave = rowsVersionsToSave.filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing'));
-         // if (rowsVersionsToSave.length > 0) {
-         //    await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: convertDrawingVersionToHistory(rowsVersionsToSave, stateProject) });
-         // };
-
-
-
-
-         // DELETE ROWS
-         let rowDeletedFinal = [];
-         rowsDeleted.forEach(row => { // some rows already deleted by previous user => no need to delete anymore
-            const rowInDB = rowsFromDB.find(r => r.id === row.id);
-            if (rowInDB) {
-               const rowBelow = rowsFromDB.find(r => r._preRow === rowInDB.id);
-               if (rowBelow) {
-                  rowBelow._preRow = rowInDB._preRow;
-               };
-               rowsFromDB = rowsFromDB.filter(r => r.id !== rowInDB.id); // FIXEDDDDDDDDDDDDDDDDDDD
-               rowDeletedFinal.push(row);
-            };
-         });
-
-
-
-
-         if (nodesToRemoveFromDB.length > 0) {
-            nodesToRemoveFromDB.forEach(fd => {
-               activityRecordedArr.push({
-                  id: fd.id, email, createdAt: new Date(), action: 'Delete Drawing Type',
-                  [headerKeyDrawingNumber]: fd.title,
-               });
-            });
-         };
-         if (nodesToAddToDB.length > 0) {
-            nodesToAddToDB.forEach(fd => {
-               activityRecordedArr.push({
-                  id: fd.id, email, createdAt: new Date(), action: 'Create Drawing Type',
-                  [headerKeyDrawingNumber]: fd.title,
-               });
-            });
-         };
-
-         // SAVE PUBLIC SETTINGS RECORDED
-         activityRecordedArr.forEach(rc => {
-            const newRowsAddedByPreviousUserButParentDeletedByCurrentUser = rowsFromDB.filter(e => {
-               return e._parentRow === rc.id &&
-                  rc.action === 'Delete Folder' &&
-                  !rowDeletedFinal.find(x => x.id === e.id);
-            });
-            rowDeletedFinal = [...rowDeletedFinal, ...newRowsAddedByPreviousUserButParentDeletedByCurrentUser];
-         });
-
-         rowDeletedFinal.forEach(r => {
-            activityRecordedArr.push({
-               id: r.id, email, createdAt: new Date(), action: 'Delete Drawing',
-               [headerKeyDrawingNumber]: r['Drawing Number'],
-               [headerKeyDrawingName]: r['Drawing Name'],
-            });
-         });
-
-
-         rowsFromDB = rowsFromDB.filter(r => !rowDeletedFinal.find(x => x.id === r.id));
-
-         // DELETE ...
-         if (rowDeletedFinal.length > 0) {
-            await Axios.post(`${SERVER_URL}/row-data-entry/delete-rows/`, { token, projectId: sheetId, email, rowIdsArray: rowDeletedFinal.map(r => r.id) });
-         };
-
-
-         treeDBModifiedToSave.forEach(tr => {
-            headers.forEach(hd => {
-               if (hd.text in tr) {
-                  tr[hd.key] = tr[hd.text];
-                  delete tr[hd.text];
-               };
-            });
-         });
-
-
-
-         let publicSettingsUpdated = { projectName };
-         if (needToSaveTree) {
-            publicSettingsUpdated = { ...publicSettingsUpdated, drawingTypeTree: treeDBModifiedToSave };
-         };
-         if (activityRecordedArr.length > 0) {
-            publicSettingsUpdated = { ...publicSettingsUpdated, activityRecorded: [...activityRecordedFromDB, ...activityRecordedArr] };
-         };
-         await Axios.post(`${SERVER_URL}/settings-data-entry/update-setting-public/`, { token, projectId: sheetId, email, publicSettings: publicSettingsUpdated });
-
-
-         // const userSettingsUpdated = {
-         //    headersShown: headersShown.map(hd => headers.find(h => h.text === hd).key),
-         //    headersHidden: headersHidden.map(hd => headers.find(h => h.text === hd).key),
-         //    nosColumnFixed, colorization, role, viewTemplateNodeId, viewTemplates, modeFilter, modeSort
-         // };
-         // await Axios.post(`${SERVER_URL}/sheet/update-setting-user/`, { token, projectId, email, userSettings: userSettingsUpdated });
-
-
-         // FILTER FINAL ROW TO UPDATE......
-         let rowsToUpdateFinal = [];
-         rowsFromDB.map(row => {
-
-            Object.keys(cellsModifiedTemp).forEach(key => {
-               const { rowId, headerName } = extractCellInfo(key);
-               if (rowId === row.id) row[headerName] = cellsModifiedTemp[key];
-            });
-
-            let rowOutput;
-            const found = rowsFromDBInit.find(r => r.id === row.id);
-            if (found) {
-               let toUpdate = false;
-               Object.keys(row).forEach(key => {
-                  if (found[key] !== row[key]) toUpdate = true;
-               });
-               if (toUpdate) rowOutput = { ...row };
-            } else {
-               rowOutput = { ...row };
-            };
-
-            if (rowOutput) {
-               let rowToSave = { _id: rowOutput.id, parentRow: rowOutput._parentRow, preRow: rowOutput._preRow };
-               headers.forEach(hd => {
-                  if (rowOutput[hd.text] || rowOutput[hd.text] === '') {
-                     rowToSave.data = { ...rowToSave.data || {}, [hd.key]: rowOutput[hd.text] };
-                  };
-               });
-
-               rowsToUpdateFinal.push(rowToSave);
-            };
-         });
-
-         if (rowsToUpdateFinal.length > 0) {
-            await Axios.post(`${SERVER_URL}/row-data-entry/save-rows-data-entry/`, { token, projectId: sheetId, rows: rowsToUpdateFinal });
-         };
-         commandAction({ type: 'save-data-successfully' });
-         const res = await Axios.post(`${SERVER_URL}/row-data-entry/get-row`, { token, projectId: sheetId, email, headers: converHeaderForDataEntryOutput(headers) });
-
-         OverwriteCellsModified({});
-         setCellActive(null);
-         setLoading(false);
-
-         setCellSearchFound(null);
-         setCellHistoryFound(null);
-
-         return res.data;
-      } catch (err) {
-         commandAction({ type: 'save-data-failure' });
-         console.log(err);
-      };
-   };
-   window.getCurrentDataTable = getCurrentDataTable;
 
 
    return (
@@ -1883,7 +1650,6 @@ const ButtonBox = styled.div`
 export const getInputDataInitially = (data, { role, company }, pageSheetTypeName) => {
 
 
-
    if (pageSheetTypeName === 'page-rfa') {
       const { sheetData, rowsHistoryData } = data;
       const { rows, publicSettings } = sheetData;
@@ -1914,41 +1680,10 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
    } else if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
       const { rows, publicSettings, userSettings } = data;
 
-      const { drawingTypeTree, sheetId } = publicSettings;
-
-
+      const { drawingTypeTree } = publicSettings;
 
       let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);
-
       const { treeNodesToAdd, rowsToAdd, rowsUpdatePreOrParent } = rearrangeRowsNotMatchTreeNode(rows, rowsAllOutput, drawingTypeTree);
-
-      let rowsAllOutputCombined = [...rowsAllOutput, ...rowsToAdd];
-
-
-      let idRowsNew = [];
-      let rowsUpdatePreRowOrParentRow = { ...rowsUpdatePreOrParent }; // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
-
-
-
-      if (pageSheetTypeName === 'page-data-entry' && rowsAllOutputCombined.length === 0 && drawingTypeTree.length === 0) {
-         const newRowId = mongoObjectId();
-         idRowsNew = [newRowId];
-         rowsUpdatePreRowOrParentRow = {
-            [newRowId]: {
-               id: newRowId,
-               _parentRow: sheetId,
-               _preRow: null
-            }
-         };
-         rowsAllOutputCombined = [
-            {
-               id: newRowId,
-               _parentRow: sheetId,
-               _preRow: null,
-               _rowLevel: 1
-            }
-         ];
-      };
 
 
       let viewTemplates = [];
@@ -1968,7 +1703,7 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          modeSearch: {},
          modeGroup: [],
 
-         rowsAll: rowsAllOutputCombined, // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
+         rowsAll: [...rowsAllOutput, ...rowsToAdd], // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
          rowsVersionsToSave: [],
 
 
@@ -1980,14 +1715,15 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          drawingsTypeNewIds: [...treeNodesToAdd.map(x => x.id)], // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
 
          rowsDeleted: [],
-         idRowsNew,
-         rowsUpdatePreRowOrParentRow,
+         idRowsNew: [],
+         rowsUpdatePreRowOrParentRow: { ...rowsUpdatePreOrParent }, // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
          rowsUpdateSubmissionOrReplyForNewDrawingRev: [],
 
          rowsSelected: [],
          rowsSelectedToMove: [],
 
       };
+
    } else if (
       pageSheetTypeName === 'page-rfam' ||
       pageSheetTypeName === 'page-rfi' ||
@@ -2550,6 +2286,13 @@ export const convertDataEntryInput = (inputData) => {
          _preRow: r.preRow,
          _parentRow: r.parentRow
       };
+
+      for (const key in r) {
+         if (key !== '_id' && key !== 'data' && key !== 'level' && key !== 'preRow' && key !== 'parentRow') {
+            obj[key] = r[key];
+         };
+      };
+
       const data = r.data || {};
       for (const key in data) {
          const headerFound = headersOutput.find(hd => hd.key === key);

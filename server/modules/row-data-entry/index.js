@@ -31,7 +31,6 @@ const findOneWithUserEmail = async (req, res, next) => {
       ]);
 
       if (item) item.userSettings = userSettings;
-
       return res.json(item);
 
    } catch (error) {
@@ -48,28 +47,37 @@ const findSheetIncludingRowsSortedFnc = async (sheetId, headers) => {
       }).lean().exec()
    ]);
 
-
    let rows = [];
    for (let row of dataRows) {
       if (row.level == 1) rows.push(row);
    };
 
-
    const rowsProcessed = _process_Rows(headers, rows);
+
    const rowsOutput = rowsProcessed.map(row => {
-      
+
       const output = {
          _id: row.id,
          level: row._rowLevel,
          parentRow: row._parentRow,
          preRow: row._preRow,
       };
+
       let data = {};
-      headers.forEach(hd => {
-         if (row[hd.name]) {
-            data[hd.id] = row[hd.name];
+      for (const key in row) {
+         if (
+            key !== 'id' && key !== '_rowLevel' && key !== '_preRow' && key !== '_parentRow' &&
+            key !== 'sheet' && key !== 'createdAt' && key !== 'updatedAt' && key !== '__v'
+         ) {
+            const headerFound = headers.find(hd => hd.name === key);
+            if (headerFound) {
+               data[headerFound.id] = row[key];
+            } else {
+               output[key] = row[key];
+            };
          };
-      });
+      };
+
       output.data = data;
       return output;
    });
@@ -99,9 +107,8 @@ const updateOrCreateRowsDataEntry = async (req, res, next) => {
       const { projectId: sheetId, rows } = req.body;
       if (!sheetId) throw new HTTP(400, 'Invalid sheet id!');
 
-
       let result = await _update_Or_Create_Rows(rows, sheetId, model);
-      
+
       return res.json(result);
 
    } catch (err) {
@@ -115,6 +122,7 @@ const _process_Rows = (sheetHeaders, rows) => {
    let rowsProcessed = [];
 
    const _formalRowData = (row, sheetHeaders) => {
+
       let { _id, data, level, parentRow, preRow } = row;
       let rowFormal = {
          id: _id,
@@ -123,6 +131,11 @@ const _process_Rows = (sheetHeaders, rows) => {
          _preRow: preRow
       };
 
+      for (const key in row) {
+         if (key !== '_id' && key !== 'data' && key !== 'level' && key !== 'preRow' && key !== 'parentRow') {
+            rowFormal[key] = row[key];
+         };
+      };
 
       if (data instanceof Object) {
          Object.keys(data).forEach(key => {
@@ -177,10 +190,10 @@ const deleteRows = async (req, res, next) => {
 
 const deleteAllDataInThisCollection = async (req, res, next) => {
    try {
-     let result = await model.deleteMany({});
-     return res.json(result);
-   } catch(err) {
-     next(err);
+      let result = await model.deleteMany({});
+      return res.json(result);
+   } catch (err) {
+      next(err);
    };
 };
 const saveAllDataToServer = async (req, res, next) => {

@@ -49,7 +49,11 @@ const PanelFunction = (props) => {
 
 
 
-   const listButton = (pageSheetTypeName === 'page-spreadsheet' && rowData._rowLevel && rowData._rowLevel === 1 && !isLockedColumn && !isLockedRow) ? [
+   const listButton = (
+      pageSheetTypeName === 'page-spreadsheet' &&
+      rowData._rowLevel && rowData._rowLevel === 1 && // prevent Group Function
+      !isLockedColumn && !isLockedRow
+   ) ? [
       'View Drawing Revision',
       'Create New Drawing Revision',
       'Date Automation',
@@ -61,7 +65,11 @@ const PanelFunction = (props) => {
       'Paste Drawings',
       'Delete Drawing'
 
-   ] : (rowData._rowLevel && rowData._rowLevel === 1 && (isLockedColumn || isLockedRow)) ? [
+   ] : (
+      pageSheetTypeName === 'page-spreadsheet' &&
+      rowData._rowLevel && rowData._rowLevel === 1 &&
+      (isLockedColumn || isLockedRow)
+   ) ? [
       'View Drawing Revision',
       'View Cell History',
 
@@ -172,12 +180,10 @@ const disabledBtn = (
       )) ||
 
       (pageSheetTypeName === 'page-data-entry' && (
-         (treeLevel >= 1 && drawingTypeTree.find(x => x.parentId === id) && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type'))
+         (treeLevel >= 1 && drawingTypeTree.find(x => x.parentId === id) && (btn === 'Paste Drawings' || btn === 'Insert Drawings By Type')) ||
+         (treeLevel >= 1 && rowData.folderType === 'MODEL_DATA_IMPORTED' && btn === 'Insert Drawings By Type') ||
+         (_rowLevel === 1 && (drawingTypeTree.find(x => x.id === rowData._parentRow) || {}).folderType === 'MODEL_DATA_IMPORTED' && btn !== 'Move Drawings' && btn !== 'Delete Drawing')
       )) ||
-
-
-
-
 
 
       (treeLevel > 1 && !drawingTypeTree.find(x => x.parentId === id) && rowsSelectedToMove.length === 0 && btn === 'Paste Drawings') ||

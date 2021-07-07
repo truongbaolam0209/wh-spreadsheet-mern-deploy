@@ -41,7 +41,8 @@ const schema = new Schema({
       ref: 'Row-data-entry'
    }
 }, {
-   timestamps: true
+   timestamps: true,
+   strict: false
 });
 
 module.exports = schema;

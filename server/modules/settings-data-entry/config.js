@@ -19,7 +19,16 @@ const SHEET_PUBLIC_FIELDS = Object.keys(SHEET_PUBLIC_FIELDS_MAP);
 const createTemplatePublicSettings = (sheetId) => {
    return {
       sheet: sheetId,
-      drawingTypeTree: [],
+      drawingTypeTree: [
+         {
+            expanded: true,
+            id: mongoObjectId(),
+            parentId: sheetId,
+            title: 'MODEL_DATA_IMPORTED',
+            treeLevel: 1,
+            folderType: 'MODEL_DATA_IMPORTED'
+         }
+      ],
       activityRecorded: []
    };
 };
