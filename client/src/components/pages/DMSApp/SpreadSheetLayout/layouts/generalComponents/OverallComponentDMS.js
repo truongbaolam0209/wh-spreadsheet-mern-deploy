@@ -1007,8 +1007,12 @@ const OverallComponentDMS = (props) => {
       let cellsModifiedTempObj = {};
 
       const rowsInput = rowsImportedFromModel.map(r => {
+         const newId = mongoObjectId();
+         if (!r._id) {
+            r._id = newId;
+         };
          const obj = {
-            id: r._id || mongoObjectId()
+            id: r._id || newId
          };
          for (const key in r) {
             if (key !== '_id' && key !== 'parentRow' && key !== 'preRow' && key !== 'level' && key !== 'data') {
