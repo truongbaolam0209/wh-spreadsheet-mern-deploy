@@ -8,7 +8,7 @@ import { colorTextRow, colorType, SERVER_URL, tradeArrayForm, tradeArrayMeetingM
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { compareDates, debounceFnc, extractCellInfo, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
+import { compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
 import ButtonAdminCreateAndUpdateRows from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
 import ButtonAdminDeleteRowsHistory from '../pageSpreadsheet/ButtonAdminDeleteRowsHistory';
 import Cell, { columnLocked, rowLocked } from '../pageSpreadsheet/Cell';
@@ -17,9 +17,8 @@ import CellIndex from '../pageSpreadsheet/CellIndex';
 import CellRFA, { getConsultantLeadName, getConsultantReplyData, getInfoValueFromRfaData, isColumnConsultant, isColumnWithReplyData } from '../pageSpreadsheet/CellRFA';
 import ExcelExport from '../pageSpreadsheet/ExcelExport';
 import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from '../pageSpreadsheet/FormDrawingTypeOrder';
-import { compareCurrentTreeAndTreeFromDB } from '../pageSpreadsheet/FormDrawingTypeOrderDataEntry';
 import PanelFunction, { getPanelPosition } from '../pageSpreadsheet/PanelFunction';
-import PanelSetting, { convertRowHistoryData, getDataForMultiFormSheet, getDataForRFASheet, getKeyTextForSheet, updatePreRowParentRowToState, _processChainRowsSplitGroupFnc2, _processRowsChainNoGroupFnc1 } from '../pageSpreadsheet/PanelSetting';
+import PanelSetting, { convertRowHistoryData, getDataForMultiFormSheet, getDataForRFASheet, getKeyTextForSheet, updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from '../pageSpreadsheet/PanelSetting';
 import CellHeader from './CellHeader';
 import { sortFnc } from './FormSort';
 import IconSidePanel from './IconSidePanel';
@@ -1009,7 +1008,7 @@ const OverallComponentDMS = (props) => {
 
       const rowsInput = rowsImportedFromModel.map(r => {
          const obj = {
-            id: r._id
+            id: r._id || mongoObjectId()
          };
          for (const key in r) {
             if (key !== '_id' && key !== 'parentRow' && key !== 'preRow' && key !== 'level' && key !== 'data') {

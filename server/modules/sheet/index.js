@@ -30,7 +30,7 @@ const rowModelMm = require('../row-mm/model');
 
 const getFileNameFromLinkResponse = (link) => /[^/]*$/.exec(link)[0];
 
-const { createPublicUrl } = require('../../../custom/s3');
+const { createPublicUrl } = require('../../../service/s3');
 
 const handlers = genCRUDHandlers(model, {
    genQueryToFindMany
