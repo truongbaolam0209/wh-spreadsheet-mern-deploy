@@ -33,15 +33,18 @@ const offsetHeight = 99.78;
 const sideBarWidth = 55;
 
 const Table = forwardRef((props, ref) => {
-   const { projectIsAppliedRfaView } = props;
-
+   const { projectIsAppliedRfaView, pageSheetTypeName } = props;
 
    return (
       <AutoResizer>
-         {() => <BaseTable
+         {({ width }) => <BaseTable
             {...props}
             ref={ref}
-            width={window.innerWidth - (projectIsAppliedRfaView ? sideBarWidth : 0)}
+            width={
+               pageSheetTypeName === 'page-data-entry'
+                  ? width
+                  : window.innerWidth - (projectIsAppliedRfaView ? sideBarWidth : 0)
+            }
             height={window.innerHeight - offsetHeight}
          />}
       </AutoResizer>
@@ -1394,7 +1397,7 @@ const OverallComponentDMS = (props) => {
 
          <div style={{ display: 'flex', overflowX: 'hidden', height: currentWindow.height - offsetHeight }}>
 
-            {projectIsAppliedRfaView && (
+            {pageSheetTypeName !== 'page-data-entry' && projectIsAppliedRfaView && (
                <div style={{ width: sideBarWidth, background: colorType.primary }}>
                   {(
                      (role !== 'Consultant' && role !== 'Client')
@@ -1428,6 +1431,7 @@ const OverallComponentDMS = (props) => {
                   ref={tableRef}
                   fixed
                   projectIsAppliedRfaView={projectIsAppliedRfaView}
+                  pageSheetTypeName={pageSheetTypeName}
 
                   columns={renderColumns(
                      (projectIsAppliedRfaView && (pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry')) ? headersAllFormViewArray : stateProject.userData.headersShown,

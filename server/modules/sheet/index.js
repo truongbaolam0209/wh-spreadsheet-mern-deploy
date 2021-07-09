@@ -483,8 +483,11 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
 
       const rowData = outputRowsAll[0];
 
-      const refNumber = rowData.revision === '0' ? rowData[`${formSubmitType}Ref`] : rowData[`${formSubmitType}Ref`] + rowData.revision;;
-      const emailTitleText = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailTitle', company);
+      const refNumber = rowData.revision === '0' ? rowData[`${formSubmitType}Ref`] : rowData[`${formSubmitType}Ref`] + rowData.revision;
+
+      const emailTitleText = type === 'reply-signed-off'
+         ? getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'emailTitle', company)
+         : getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'emailTitle', company);
 
 
       const emailSignaturedBy = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'signaturedBy', company);
