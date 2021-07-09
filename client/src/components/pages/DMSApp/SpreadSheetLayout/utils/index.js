@@ -156,7 +156,15 @@ const getHeaderKey = (headers, headerText) => {
    return headers.find(hd => hd.text === headerText).key;
 };
 
-
+export const replaceBreakLine = (str) => {
+   if (!str) return '';
+   let splitted = str.match(/[^\r\n]+/g);
+   let output = '';
+   splitted.forEach(txt => {
+      output += txt + '\n';
+   });
+   return output;
+};
 
 
 const _newParent = (level, iddd) => {

@@ -137,7 +137,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const [existingSubTradeOfResubmision, setExistingSubTradeOfResubmision] = useState(null);
 
 
-
    useEffect(() => {
       if (formRfaType === 'form-submit-RFA') {
          if (!isFormEditting) {

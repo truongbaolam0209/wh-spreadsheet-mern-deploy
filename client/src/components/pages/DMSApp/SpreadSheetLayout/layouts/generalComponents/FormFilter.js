@@ -3,46 +3,35 @@ import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { mongoObjectId } from '../../utils/index';
+import { getInfoValueFromRefDataForm } from '../pageSpreadsheet/CellForm';
 import { getConsultantReplyData, getInfoValueFromRfaData, isColumnWithReplyData } from '../pageSpreadsheet/CellRFA';
+import { getKeyTextForSheet } from '../pageSpreadsheet/PanelSetting';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
-
+import moment from 'moment';
 
 const { Option } = Select;
 
 
-const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFilter, pageSheetTypeName, rowsRfaAll, companies }) => {
+const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsInputData, modeFilter, pageSheetTypeName, companies }) => {
 
-
-   const isSpreadsheetOrDataEntry = pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry';
-
+   const refType = getKeyTextForSheet(pageSheetTypeName);
 
    const [filterColumn, setFilterColumn] = useState(
-      isSpreadsheetOrDataEntry
-         ? (modeFilter.length > 1
-            ? modeFilter.map(item => ({...item}))
-            : [
-               {
-                  id: mongoObjectId(),
-                  header: 'Status',
-                  value: 'Select Value...'
-               },
-               {
-                  isIncludedParent: 'included'
-               }
+      (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry')
+         ? (modeFilter.length > 1 ? modeFilter.map(item => ({ ...item })) : [
+            { id: mongoObjectId(), header: 'Status', value: 'Select Value...' },
+            { isIncludedParent: 'included' }
+         ])
+         : (pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi')
+            ? (modeFilter.length > 1 ? modeFilter.map(item => ({ ...item })) : [
+               { id: mongoObjectId(), header: `Overdue ${refType.toUpperCase()}`, value: 'Select Value...' },
+               { isIncludedParent: 'included' }
             ])
-         : (modeFilter.length > 1
-            ? modeFilter.map(item => ({...item}))
             : [
-               {
-                  id: mongoObjectId(),
-                  header: 'Overdue RFA',
-                  value: 'Select Value...'
-               },
-               {
-                  isIncludedParent: 'included'
-               }
-            ])
+               { id: mongoObjectId(), header: 'Select Field', value: 'Select Value...' },
+               { isIncludedParent: 'included' }
+            ]
    );
 
    const setFilterSelect = (dataFilter) => {
@@ -128,13 +117,13 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsAll, modeFil
                   setFilterSelect={setFilterSelect}
                   removeFilterTag={removeFilterTag}
                   headers={headers}
-                  rows={isSpreadsheetOrDataEntry ? rowsAll : rowsRfaAll}
-                  isSpreadsheetOrDataEntry={isSpreadsheetOrDataEntry}
+                  rows={rowsInputData}
+                  pageSheetTypeName={pageSheetTypeName}
                   companies={companies}
                />
             ))}
 
-            {isSpreadsheetOrDataEntry && (
+            {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') && (
                <div>
                   <CheckboxStyled
                      onChange={onChangeBox}
@@ -181,10 +170,19 @@ const IconStyled = styled.div`
 `;
 
 
+const fieldNoFilter = [
+   'Description',
+   'Contract Specification',
+   'Proposed Specification',
+   'Conversation Among',
+   'Received By'
+];
 
-const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rows, isSpreadsheetOrDataEntry, companies }) => {
 
-   const columnsValueArr = getColumnsValue(rows, headers, isSpreadsheetOrDataEntry, companies);
+
+const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rows, pageSheetTypeName, companies }) => {
+
+   const columnsValueArr = getColumnsValue(rows, headers, pageSheetTypeName, companies);
 
    const [column, setColumn] = useState(data.header);
 
@@ -197,6 +195,11 @@ const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rows,
       };
    }, [column]);
 
+   const refType = getKeyTextForSheet(pageSheetTypeName);
+   const headersFilter = (pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi')
+      ? [...headers, `Overdue ${refType.toUpperCase()}`]
+      : headers;
+
    return (
       <div style={{ display: 'flex', paddingBottom: 10, width: '100%' }}>
 
@@ -206,7 +209,7 @@ const SelectComp = ({ setFilterSelect, data, id, removeFilterTag, headers, rows,
             style={{ marginRight: 13, width: '47%' }}
             onChange={(column) => setColumn(column)}
          >
-            {headers.map(hd => (
+            {headersFilter.filter(hd => fieldNoFilter.indexOf(hd) === -1).map(hd => (
                <Option key={hd} value={hd}>{hd}</Option>
             ))}
          </SelectStyled>
@@ -262,45 +265,91 @@ const SelectStyled = styled(Select)`
 `;
 
 
-const getColumnsValue = (rows, headers, isSpreadsheetOrDataEntry, companies) => {
+const getColumnsValue = (rows, headers, pageSheetTypeName, companies) => {
 
    let valueObj = {};
 
-   const arrayHeaderRFA = [
-      'Requested By',
-      'Submission Date',
-      'Overdue RFA'
-   ];
+   const refType = getKeyTextForSheet(pageSheetTypeName);
 
-   [...headers, ...arrayHeaderRFA].forEach(hd => {
-      let valueArr = [];
-      rows.forEach(row => {
-         if (!isSpreadsheetOrDataEntry && isColumnWithReplyData(hd)) {
-            const { replyCompany } = getConsultantReplyData(row, hd, companies);
-            valueArr.push(replyCompany || '');
 
-         } else if (!isSpreadsheetOrDataEntry && hd === 'Overdue RFA') {
-            valueArr = [...valueArr, 'Overdue', 'Due in 3 days', 'RFA outstanding'];
+   const arrayHeaderAdditional = (
+      pageSheetTypeName === 'page-rfa' ||
+      pageSheetTypeName === 'page-rfam' ||
+      pageSheetTypeName === 'page-rfi'
+   ) ? [`Overdue ${refType.toUpperCase()}`] : [];
 
-         } else if (!isSpreadsheetOrDataEntry && hd === 'Due Date') {
-            const dueDate = row['Consultant Reply (T)'];
-            valueArr.push(dueDate || '');
 
-         } else if (!isSpreadsheetOrDataEntry && hd === 'Requested By') {
-            const requestedBy = getInfoValueFromRfaData(row, 'submission', 'requestedBy');
-            valueArr.push(requestedBy || '');
+   [...headers, ...arrayHeaderAdditional]
+      .filter(hd => fieldNoFilter.indexOf(hd) === -1)
+      .forEach(hd => {
+         let valueArr = [];
+         rows.forEach(row => {
+            if (pageSheetTypeName === 'page-rfa') {
+               if (isColumnWithReplyData(hd)) {
+                  const { replyCompany } = getConsultantReplyData(row, hd, companies);
+                  valueArr.push(replyCompany || '');
+               } else if (hd === 'Overdue RFA') {
+                  valueArr = [...valueArr, 'Overdue', 'Due in 3 days', 'RFA outstanding'];
+               } else if (hd === 'Due Date') {
+                  const dueDate = row['Consultant Reply (T)'];
+                  valueArr.push(dueDate || '');
+               } else if (hd === 'Requested By') {
+                  const requestedBy = getInfoValueFromRfaData(row, 'submission', 'requestedBy');
+                  valueArr.push(requestedBy || '');
+               } else if (hd === 'Submission Date') {
+                  const submissionDate = row['Drg To Consultant (A)'];
+                  valueArr.push(submissionDate || '');
+               };
 
-         } else if (!isSpreadsheetOrDataEntry && hd === 'Submission Date') {
-            const submissionDate = row['Drg To Consultant (A)'];
-            valueArr.push(submissionDate || '');
-            
-         } else {
-            valueArr.push(row[hd] || '');
-         };
+            } else if (
+               pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi' ||
+               pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt' || pageSheetTypeName === 'page-mm'
+            ) {
+               if (hd === 'Requested By') {
+                  const requestedBy = getInfoValueFromRefDataForm(row, 'submission', refType, 'requestedBy');
+                  valueArr.push(requestedBy || '');
+               } else if (hd === 'Signatured By') {
+                  const signaturedBy = getInfoValueFromRefDataForm(row, 'submission', refType, 'signaturedBy');
+                  valueArr.push(signaturedBy || '');
+               } else if (hd === 'Submission Date') {
+                  const date = getInfoValueFromRefDataForm(row, 'submission', refType, 'date');
+                  valueArr.push(date ? moment(date).format('DD/MM/YY') : '');
+               } else if (hd === 'Submission Type') {
+                  const submissionType = getInfoValueFromRefDataForm(row, 'submission', refType, 'submissionType');
+                  valueArr.push(submissionType || '');
+               } else if (hd === 'Due Date') {
+                  const dateDue = getInfoValueFromRefDataForm(row, 'submission', refType, 'due');
+                  valueArr.push(dateDue ? moment(dateDue).format('DD/MM/YY') : '');
+
+               } else if (hd === `Overdue ${refType.toUpperCase()}`) {
+                  valueArr = [...valueArr, 'Overdue', 'Due in 3 days', `${refType.toUpperCase()} outstanding`];
+               } else if (hd === 'Cost Implication') {
+                  valueArr = ['True', 'False'];
+               } else if (hd === 'Time Extension') {
+                  valueArr = ['True', 'False'];
+
+               } else if (hd === 'Attachment Type') {
+                  const herewithForDt = getInfoValueFromRefDataForm(row, 'submission', refType, 'herewithForDt');
+                  valueArr.push(herewithForDt || '');
+
+               } else if (hd === 'Transmitted For') {
+                  const transmittedForDt = getInfoValueFromRefDataForm(row, 'submission', refType, 'transmittedForDt');
+                  valueArr.push(transmittedForDt || '');
+               } else if (hd === 'Conversation Date') {
+                  const dateConversation = getInfoValueFromRefDataForm(row, 'submission', refType, 'dateConversation');
+                  valueArr.push(dateConversation ? moment(dateConversation).format('DD/MM/YY') : '');
+               }
+
+
+
+
+            } else if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
+               valueArr.push(row[hd] || '');
+            };
+         });
+         valueArr = [...new Set(valueArr)].filter(e => e);
+         valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
+         if (valueArr.length > 0) valueObj[hd] = valueArr;
       });
-      valueArr = [...new Set(valueArr)].filter(e => e);
-      valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
-      if (valueArr.length > 0) valueObj[hd] = valueArr;
-   });
    return valueObj;
 };

@@ -5,7 +5,6 @@ const router = new Router();
 const RowMm = require('../modules/row-mm');
 const { validateToken } = require('../../service/validate');
 
-
 router.post('/save-all-data-to-server', validateToken, RowMm.saveAllDataToServer);
 router.post('/delete-all/', validateToken, RowMm.deleteAllDataInThisCollection);
 

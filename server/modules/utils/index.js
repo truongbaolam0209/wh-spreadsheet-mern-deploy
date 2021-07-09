@@ -134,7 +134,7 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
             } else if (headerText === 'Drawing Number') {
                str += `
                   <td ${th_td_style}>
-                     <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]}' download>
+                     <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]}' download target='_blank'>
                         ${rowData[headerText] || ''}
                      </a>
                   </td>
@@ -252,18 +252,20 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
    const linkFormNoSignature = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature');
    const linkFormSignedOff = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit');
 
-   const linkReplyForm = getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company);
+
    const replyStatus = getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'status', company);
 
-   const linkAttachedArray = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings');
+   const linkAttachedArray = action === 'reply-signed-off'
+      ? getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company)
+      : getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings');
 
 
-   let tableBody = `
+   let tableBody = action === 'reply-signed-off' ? '' : `
       <tr>
          <td ${th_td_style}>1</td>
          <td ${th_td_style}>Form Cover</td>
          <td ${th_td_style}>
-            <a style='text-decoration: none;' href='${linkFormSignedOff}' download>
+            <a style='text-decoration: none;' href='${linkFormSignedOff}' download target='_blank'>
                ${refNumber}
             </a>
          </td>
@@ -274,10 +276,10 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
       linkAttachedArray.forEach((link, i) => {
          tableBody += `
             <tr>
-               <td ${th_td_style}>${i + 2}</td>
-               <td ${th_td_style}>Drawing</td>
+               <td ${th_td_style}>${i + (action === 'reply-signed-off' ? 1 : 2)}</td>
+               <td ${th_td_style}>${action === 'reply-signed-off' ? 'File' : 'Drawing'}</td>
                <td ${th_td_style}>
-                  <a style='text-decoration: none;' href='${link.fileLink}' download>
+                  <a style='text-decoration: none;' href='${link.fileLink}' download target='_blank'>
                      ${link.fileName}
                   </a>
                </td>
@@ -285,7 +287,6 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
          `;
       });
    };
-
 
 
    const emailOutput = `
@@ -300,12 +301,12 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
             <div>Dear Mr/Mrs,</div>
             <div>
                Please help to sign in cover form 
-               <a href='${linkFormNoSignature}'>
+               <a href='${linkFormNoSignature}' download target='_blank'>
                   <span style='font-weight: bold;'>${refNumber}</span> 
                </a>
                for submission. Please pass this back to DC by attached signed form to DC or give him by hand.
 	            The form can find in this 
-               <a href='${linkFormNoSignature}'>
+               <a href='${linkFormNoSignature}' download target='_blank'>
                   <span style='font-weight: bold;'>link</span> 
                </a>.
             </div>
@@ -331,12 +332,16 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
                <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('MMM Do YYYY')}.</div>
             ` : ''}
          ` : action === 'submit-meeting-minutes' ?
-            `
+               `
             <div>Submission Date: <span style='font-weight: bold;'>${moment(dateSubmission).format('MMM Do YYYY')}</span></div>
             <br />
             <div>Dear All,</div>
             <div>
-               <span style='font-weight: bold;'>${company}</span> has submitted <span style='font-weight: bold;'>${refNumber}</span> for you to review.
+               <span style='font-weight: bold;'>${company}</span> has submitted 
+               <a href='${linkFormNoSignature}' download target='_blank'>
+                  <span style='font-weight: bold;'>${refNumber}</span> 
+               </a>
+               for you to review.
             </div>
          ` : action === 'reply-signed-off' ? `
             <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
@@ -345,12 +350,22 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
             <div>Dear all,</div>
             <div>
                <span style='font-weight: bold;'>${company}</span> has replied 
-               <a href='${linkReplyForm}'>
+      
                   <span style='font-weight: bold;'>${refNumber}</span>
-               </a>, please check replied form in the link.
                   <br />
                   <br />
                <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
+
+               ${(linkAttachedArray && linkAttachedArray.length > 0) ?
+                     `
+                  <div>Uploaded Documents</div>
+                  <table align='center' cellpadding='0' cellspacing='0' width='100%' style='border-collapse: collapse; font-size: 14px;'>
+                     ${tableHeader}
+                     ${tableBody}
+                  </table>
+                  <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('MMM Do YYYY')}.</div>
+               ` : ''}
+
             </div>
          ` : ''}
          
@@ -364,8 +379,6 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
 
    return emailOutput;
 };
-
-
 
 
 

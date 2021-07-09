@@ -1019,16 +1019,20 @@ const PanelSetting = (props) => {
          viewTemplates,
          modeFilter,
          modeSort,
-         additionalFieldToSave
+
+         additionalFieldToSave,
       } = stateRow;
 
 
       // check new version reply go blank
       const rowsGetNewRev = rowsAll.filter(r => rowsUpdateSubmissionOrReplyForNewDrawingRev.indexOf(r.id) !== -1);
 
+
       if (additionalFieldToSave) {
          additionalFieldToSave = additionalFieldToSave.filter(r => !rowsDeleted.find(x => x.id === r.id));
       };
+
+
 
       try {
          setLoading(true);
@@ -1353,6 +1357,8 @@ const PanelSetting = (props) => {
             });
          };
 
+
+
          if (rowsToUpdateFinal.length > 0) {
             await Axios.post(`${SERVER_URL}/row-data-entry/save-rows-data-entry/`, { token, projectId: sheetId, rows: rowsToUpdateFinal });
          };
@@ -1537,6 +1543,7 @@ const PanelSetting = (props) => {
                         dataDWFX.append('projectName', projectName);
                         dataDWFX.append('email', email);
                         dataDWFX.append('rfaName', rfaRefData + `_${i}`);
+
 
                         let linkDWFX = '';
                         if (dataDWFX && dataDWFX !== null) {
@@ -1779,7 +1786,7 @@ const PanelSetting = (props) => {
       setLoading(true);
 
       const {
-         filesPdfDrawing, fileFormCoverReply, type, dwgsImportFromRFA, trade, refToSave, refToSaveVersionOrToReply,
+         filesPdfDrawing, filesReplyUpload, type, dwgsImportFromRFA, trade, refToSave, refToSaveVersionOrToReply,
          recipient, emailTextTitle, description, listConsultantMustReply, requestedBy, signaturedBy, dateReplyForSubmitForm, isFormEditting,
          isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
          dateSendThisForm,
@@ -1820,6 +1827,7 @@ const PanelSetting = (props) => {
       const refNumberTextInfo = refToSaveVersionOrToReply === '0' ? refToSave : refToSave + refToSaveVersionOrToReply;
 
       try {
+
          // CHECK SERVER MAKE SURE NO DUPLICATE
          const resDB = await Axios.get(`${SERVER_URL}/row-${refType}/`, { params: { token, projectId, email } });
          const rowsRefFromDB = resDB.data;
@@ -1848,6 +1856,7 @@ const PanelSetting = (props) => {
             message.error(`This ${refType.toUpperCase()} are already submitted / replied by others, please reload the ${refType.toUpperCase()} View`);
             return;
          };
+
 
 
 
@@ -1889,9 +1898,8 @@ const PanelSetting = (props) => {
 
             pdfFilesToUpload = filesPdfDrawing;
          } else if (type === 'form-reply-multi-type') {
-            pdfFilesToUpload = fileFormCoverReply ? [fileFormCoverReply] : [];
+            pdfFilesToUpload = filesReplyUpload;
          };
-
 
          let arrayFilesPdfUploadLink = [];
          if (pdfFilesToUpload.length > 0) {
@@ -1903,7 +1911,7 @@ const PanelSetting = (props) => {
             data.append('projectId', projectId);
             data.append('path', `${refToSave}/${refToSaveVersionOrToReply}/${typeFolder}`);
 
-
+ 
             if (pdfFilesToUpload.length > 0 && data && data !== null) {
 
                const res = await Axios.post('/api/drawing/set-dms-files', data);
@@ -2015,14 +2023,11 @@ const PanelSetting = (props) => {
 
 
             if (arrayFilesPdfUploadLink.length > 0) {
-               rowOutput.data[`reply-${refType}-linkFormReply-${company}`] = arrayFilesPdfUploadLink[0];
+               rowOutput.data[`reply-${refType}-linkFormReply-${company}`] = arrayFilesPdfUploadLink;
             };
          };
 
-
          await Axios.post(`${SERVER_URL}/row-${refType}/save-rows-${refType}/`, { token, projectId, rows: [rowOutput] });
-
-
 
 
          if (typeButton === 'action-multiform-download') {
@@ -2076,7 +2081,6 @@ const PanelSetting = (props) => {
                expandedRowsIdArr,
             }
          });
-
 
       } catch (err) {
          getSheetRows({ ...stateRow, loading: false });
@@ -2193,13 +2197,25 @@ const PanelSetting = (props) => {
             <FormFilter
                applyFilter={applyFilter}
                onClickCancelModal={onClickCancelModal}
-               headers={(pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry')
-                  ? (isShowAllConsultant ? [...getHeadersForm(pageSheetTypeName), ...headersConsultantWithNumber] : getHeadersForm(pageSheetTypeName))
-                  : stateProject.userData.headersShown
+               headers={(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry')
+                  ? stateProject.userData.headersShown
+                  : (pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi')
+                     ? (isShowAllConsultant ? [...getHeadersForm(pageSheetTypeName), ...headersConsultantWithNumber] : getHeadersForm(pageSheetTypeName))
+                     : (pageSheetTypeName === 'page-dt' || pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm')
+                        ? getHeadersForm(pageSheetTypeName)
+                        : []
                }
                modeFilter={stateRow.modeFilter}
-               rowsAll={stateRow.rowsAll}
-               rowsRfaAll={stateRow.rowsRfaAll}
+               rowsInputData={
+                  (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') ? stateRow.rowsAll
+                     : (pageSheetTypeName === 'page-rfa') ? stateRow.rowsRfaAll
+                        : (pageSheetTypeName === 'page-rfam') ? stateRow.rowsRfamAll
+                           : (pageSheetTypeName === 'page-rfi') ? stateRow.rowsRfiAll
+                              : (pageSheetTypeName === 'page-cvi') ? stateRow.rowsCviAll
+                                 : (pageSheetTypeName === 'page-dt') ? stateRow.rowsDtAll
+                                    : (pageSheetTypeName === 'page-mm') ? stateRow.rowsMmAll
+                                       : []
+               }
                pageSheetTypeName={pageSheetTypeName}
                companies={companies}
             />
@@ -2732,10 +2748,11 @@ export const getDataForMultiFormSheet = (rows, pageSheetTypeName) => {
 
 
 export const getKeyTextForSheet = (pageSheetTypeName) => {
-   return pageSheetTypeName === 'page-rfam' ? 'rfam'
-      : pageSheetTypeName === 'page-cvi' ? 'cvi'
-         : pageSheetTypeName === 'page-rfi' ? 'rfi'
-            : pageSheetTypeName === 'page-dt' ? 'dt'
-               : pageSheetTypeName === 'page-mm' ? 'mm'
-                  : 'n/a';
+   return pageSheetTypeName === 'page-rfa' ? 'rfa'
+      : pageSheetTypeName === 'page-rfam' ? 'rfam'
+         : pageSheetTypeName === 'page-cvi' ? 'cvi'
+            : pageSheetTypeName === 'page-rfi' ? 'rfi'
+               : pageSheetTypeName === 'page-dt' ? 'dt'
+                  : pageSheetTypeName === 'page-mm' ? 'mm'
+                     : 'n/a';
 };

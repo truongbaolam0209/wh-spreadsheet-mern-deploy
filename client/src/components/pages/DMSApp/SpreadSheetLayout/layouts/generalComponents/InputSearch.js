@@ -4,6 +4,8 @@ import styled from 'styled-components';
 import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 
+
+
 const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTableAction, modeFilter }) => {
 
    const { state: stateProject } = useContext(ProjectContext);
@@ -12,6 +14,7 @@ const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTab
    const [mode, setMode] = useState(false);
    const [value, setValue] = useState('');
 
+   
    useEffect(() => {
       if (modeFilter.length === 0) {
          setValue('');
@@ -20,9 +23,11 @@ const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTab
 
    const onChange = (e) => {
       if (
-         pageSheetTypeName !== 'page-spreadsheet' &&
-         pageSheetTypeName !== 'page-rfa' &&
-         pageSheetTypeName !== 'page-data-entry' 
+         pageSheetTypeName === 'page-rfam' ||
+         pageSheetTypeName === 'page-rfi' ||
+         pageSheetTypeName === 'page-dt' ||
+         pageSheetTypeName === 'page-cvi' ||
+         pageSheetTypeName === 'page-mm'
       ) return;
 
       if (!e.target) return;
@@ -101,25 +106,23 @@ export default InputSearch;
 
 
 const IconStyled = styled(Icon)`
-    font-size: 15px;
-    margin-right: 2px;
-    margin-top: 3px;
-    padding: 3px;
-    border-radius: 50%;
-    &:hover {
-        background-color: ${colorType.grey1}
-    }
-    transform: translate(0, -3px);
+   font-size: 15px;
+   margin-right: 2px;
+   margin-top: 3px;
+   padding: 3px;
+   border-radius: 50%;
+   &:hover {
+      background-color: ${colorType.grey1}
+   }
+   transform: translate(0, -3px);
 `;
 
 const InputStyled = styled.div`
-
-    margin: 3px;
-    padding-top: 1px;
-    padding-left: 3px;
-    height: 25px;
-    width: 250px;
-    border: 1px solid black;
-    border-radius: 5px;
-    /* background-color: ${colorType.grey1} */
+   margin: 3px;
+   padding-top: 1px;
+   padding-left: 3px;
+   height: 25px;
+   width: 250px;
+   border: 1px solid black;
+   border-radius: 5px;
 `;

@@ -47,6 +47,8 @@ const ExportPdf = ({ pdfContent }) => {
       ]);
    });
 
+   dataTableInput = dataTableInput.filter((item, i) => i < 5);
+
 
 
 
@@ -66,7 +68,7 @@ const ExportPdf = ({ pdfContent }) => {
       <Document>
          <Page size='A4' style={{ fontSize: 9, padding: 12 }}>
             <View style={{
-               border: '1px solid grey', padding: 12, height: '100%', width: '100%',
+               border: '1px solid grey', padding: 12, height: '100%', width: '100%', position: 'relative'
             }}>
                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
                   <Image src={imgLink.logoWohhup} style={{ width: 90, height: 25, marginRight: 6 }} />
@@ -84,7 +86,12 @@ const ExportPdf = ({ pdfContent }) => {
 
                   <View style={{ width: '53%' }}>
                      <Text style={{ marginBottom: 4 }}>{`: ${(listConsultantMustReply || []).join(', ')}`}</Text>
-                     <Text>{`: ${projectName}`}</Text>
+                     <Text style={{
+                        marginRight: 20, height: 20,
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                     }}>{`: ${projectName}`}</Text>
                   </View>
 
                   <View style={{ width: '18%' }}>
@@ -103,8 +110,16 @@ const ExportPdf = ({ pdfContent }) => {
 
 
                <View style={{ flexDirection: 'row', marginBottom: 15, paddingBottom: 5, borderBottom: '1px solid grey' }}>
-                  <Text>Subject</Text>
-                  <Text style={{ fontWeight: 'bold' }}>{`: ${emailTextTitle}`}</Text>
+                  <Text>Subject: </Text>
+                  <Text style={{
+                     fontWeight: 'bold',
+                     marginRight: 20,
+                     height: 20,
+                     textOverflow: 'ellipsis',
+                     overflow: 'hidden',
+                     whiteSpace: 'nowrap',
+
+                  }}>{` ${emailTextTitle}`}</Text>
                </View>
 
                {pageSheetTypeName === 'page-dt' && (
@@ -151,11 +166,18 @@ const ExportPdf = ({ pdfContent }) => {
                      </View>
                   </>
                )}
-               {pageSheetTypeName === 'page-cvi' && (
+               {(pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm') && (
                   <>
-                     <View style={{ flexDirection: 'row' }}>
-                        <Text>Conversation Among</Text>
-                        <Text>{`: ${conversationAmong}`}</Text>
+                     <View>
+                        <Text>Conversation Among: </Text>
+                        <Text style={{
+                           marginRight: 10,
+                           marginBottom: 10,
+                           height: 30,
+                           textOverflow: 'ellipsis',
+                           overflow: 'hidden',
+                           whiteSpace: 'nowrap',
+                        }}>{` ${conversationAmong}`}</Text>
                      </View>
 
                      <View style={{ flexDirection: 'row', marginBottom: 10 }}>
@@ -164,35 +186,17 @@ const ExportPdf = ({ pdfContent }) => {
                         <Text>Time</Text>
                         <Text>{`: ${moment(timeConversation).format('HH: mm')}`}</Text>
                      </View>
-                     <View style={{ flexDirection: 'row', marginBottom: 15, paddingBottom: 5, borderBottom: '1px solid grey', height: 220 }}>
+                     <View style={{ flexDirection: 'row', marginBottom: 15, paddingBottom: 5, borderBottom: '1px solid grey' }}>
                         <Text>Details :</Text>
-                        <Text style={{ width: '100%' }}>{`: ${description}`}</Text>
+                        <Text style={{
+                           marginRight: 10,
+                           marginBottom: 10,
+                           height: 60,
+                           textOverflow: 'ellipsis',
+                           overflow: 'hidden',
+                           whiteSpace: 'nowrap',
+                        }}>{` ${description}`}</Text>
                      </View>
-
-
-                     <View style={{ flexDirection: 'row' }}>
-                        <View style={{ width: '50%', padding: 10, marginRight: 10 }}>
-                           <View style={{ flexDirection: 'row', marginBottom: 10 }}>
-                              <Image src={isCostImplication ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
-                              <Text>Variation with cost implication</Text>
-                           </View>
-                           <View style={{ flexDirection: 'row' }}>
-                              <Image src={isTimeExtension ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
-                              <Text>With time extension</Text>
-                           </View>
-                        </View>
-                        <View style={{ width: '50%', padding: 10 }}>
-                           <View style={{ flexDirection: 'row', marginBottom: 10 }}>
-                              <Image src={!isCostImplication ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
-                              <Text>With no cost implication</Text>
-                           </View>
-                           <View style={{ flexDirection: 'row' }}>
-                              <Image src={!isTimeExtension ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
-                              <Text>With no time extension</Text>
-                           </View>
-                        </View>
-                     </View>
-                     <Text>This form is issued pursuant to the Conditions of Contract and also constitutes our notification of an event which may form the basis of a possible claim for additional costs or an extension of time or both.</Text>
                   </>
                )}
 
@@ -201,7 +205,7 @@ const ExportPdf = ({ pdfContent }) => {
                      flexDirection: 'row', marginBottom: 15, paddingBottom: 5, borderBottom: '1px solid grey'
                   }}>
                      <View style={{ width: '70%' }}>
-                        <Text>Reply Required By:</Text>
+                        <Text style={{ marginBottom: 5 }}>Reply Required By:</Text>
                         <Text>{(listConsultantMustReply || []).join(', ')}</Text>
                      </View>
 
@@ -235,10 +239,15 @@ const ExportPdf = ({ pdfContent }) => {
                )}
 
 
-               {pageSheetTypeName === 'page-rfi' && (
-                  <View style={{ marginBottom: 35, paddingBottom: 10, borderBottom: '1px solid black' }}>
+               {(pageSheetTypeName === 'page-rfi' || pageSheetTypeName === 'page-dt') && (
+                  <View style={{ marginBottom: pageSheetTypeName === 'page-rfi' ? 10 : 5, paddingBottom: 10, borderBottom: '1px solid black' }}>
                      <Text>Description:</Text>
-                     <Text>{description}</Text>
+                     <Text style={{
+                        marginRight: 20, height: pageSheetTypeName === 'page-rfi' ? 150 : 70,
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                     }}>{description}</Text>
                   </View>
                )}
 
@@ -247,7 +256,7 @@ const ExportPdf = ({ pdfContent }) => {
                {dataTableInput.length > 0 && (
                   <>
                      <View style={{ marginTop: 10 }}>
-                        <Text>Documents:</Text>
+                        <Text>Document / Drawing Reference</Text>
                      </View>
                      <TableDrawings
                         th
@@ -261,30 +270,60 @@ const ExportPdf = ({ pdfContent }) => {
                )}
 
 
-               {pageSheetTypeName === 'page-rfi' && (
+               {pageSheetTypeName === 'page-cvi' && (
                   <>
                      <View style={{ flexDirection: 'row' }}>
-                        <Text>Date Required:</Text>
+                        <View style={{ width: '50%', padding: 10, marginRight: 10 }}>
+                           <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+                              <Image src={isCostImplication ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
+                              <Text>Variation with cost implication</Text>
+                           </View>
+                           <View style={{ flexDirection: 'row' }}>
+                              <Image src={isTimeExtension ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
+                              <Text>With time extension</Text>
+                           </View>
+                        </View>
+                        <View style={{ width: '50%', padding: 10 }}>
+                           <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+                              <Image src={!isCostImplication ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
+                              <Text>With no cost implication</Text>
+                           </View>
+                           <View style={{ flexDirection: 'row' }}>
+                              <Image src={!isTimeExtension ? imgLink.imgCheckTrue : imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
+                              <Text>With no time extension</Text>
+                           </View>
+                        </View>
+                     </View>
+                     <Text>This form is issued pursuant to the Conditions of Contract and also constitutes our notification of an event which may form the basis of a possible claim for additional costs or an extension of time or both.</Text>
+                  </>
+               )}
+
+
+               {pageSheetTypeName === 'page-rfi' && (
+                  <>
+                     <View style={{ flexDirection: 'row', marginBottom: 5, marginTop: 10 }}>
+                        <Text>Date Required: </Text>
                         <Text>{moment(dateReplyForSubmitForm).format('DD/MM/YY')}</Text>
                      </View>
                      <View style={{ flexDirection: 'row' }}>
-                        <Text>Requested By:</Text>
+                        <Text>Requested By: </Text>
                         <Text>{requestedBy}</Text>
                      </View>
                   </>
                )}
 
-               <View style={{ marginBottom: 35, marginTop: 35, paddingTop: 3, borderTop: '1px solid black', width: 100 }}>
-                  <Text>Site Manager</Text>
-               </View>
-
-               {pageSheetTypeName === 'page-dt' && (
-                  <Text>Please Sign and Return the Duplicate copy of this transmittal to Woh Hup (Private) Limited at Technical Department</Text>
-               )}
 
 
 
-               {pageSheetTypeName !== 'page-cvi' && (
+               <View style={{ position: 'absolute', bottom: 0, left: 8 }}>
+
+                  <View style={{ marginBottom: 2, marginTop: 35, paddingTop: 3, borderTop: '1px solid black', width: 100 }}>
+                     <Text>Site Manager</Text>
+                  </View>
+                  {pageSheetTypeName === 'page-dt' && (
+                     <Text>Please Sign and Return the Duplicate copy of this transmittal to Woh Hup (Private) Limited at Technical Department</Text>
+                  )}
+
                   <View style={{ marginBottom: 15, marginTop: 15, borderTop: '1px solid grey', paddingTop: 10 }}>
                      <Text style={{ fontSize: 10, marginBottom: 5, textDecoration: 'underline' }}>REPLY</Text>
                      <Text style={{ marginBottom: 5 }}>To: Woh Hup (Private) Limited</Text>
@@ -294,58 +333,76 @@ const ExportPdf = ({ pdfContent }) => {
                         <Text>Attention: </Text>
                      )}
                   </View>
-               )}
 
-
-
-               {pageSheetTypeName === 'page-rfam' ? (
-                  <View style={{ border: '1px solid black', width: '100%', flexDirection: 'row' }}>
-                     <View style={{ width: '67%', borderRight: '1px solid black', padding: 10 }}>
-                        <Text>The material / equipment submitted is hereby transmitted with actions as indicated.</Text>
-                        <View style={{ flexDirection: 'row' }}>
-                           <View style={{ width: '47%', padding: 10, marginRight: 10 }}>
-                              <View style={{ flexDirection: 'row', marginBottom: 10 }}>
-                                 <Image src={imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
-                                 <Text>Approved For Construction (AP)</Text>
+                  {pageSheetTypeName === 'page-rfam' ? (
+                     <View style={{ border: '1px solid black', width: '100%', flexDirection: 'row' }}>
+                        <View style={{ width: '67%', borderRight: '1px solid black', padding: 10 }}>
+                           <Text>The material / equipment submitted is hereby transmitted with actions as indicated.</Text>
+                           <View style={{ flexDirection: 'row' }}>
+                              <View style={{ width: '47%', padding: 10, marginRight: 10 }}>
+                                 <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+                                    <Image src={imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
+                                    <Text>Approved For Construction (AP)</Text>
+                                 </View>
+                                 <View style={{ flexDirection: 'row' }}>
+                                    <Image src={imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
+                                    <Text>Approved with comments, no submission required (AC)</Text>
+                                 </View>
                               </View>
-                              <View style={{ flexDirection: 'row' }}>
-                                 <Image src={imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
-                                 <Text>Approved with comments, no submission required (AC)</Text>
+                              <View style={{ width: '47%', padding: 10 }}>
+                                 <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+                                    <Image src={imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
+                                    <Text>Rejected, resubmission required (RR)</Text>
+                                 </View>
+                                 <View style={{ flexDirection: 'row' }}>
+                                    <Image src={imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
+                                    <Text>Approved with comments, resubmission required (AR)</Text>
+                                 </View>
                               </View>
                            </View>
-                           <View style={{ width: '47%', padding: 10 }}>
-                              <View style={{ flexDirection: 'row', marginBottom: 10 }}>
-                                 <Image src={imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
-                                 <Text>Rejected, resubmission required (RR)</Text>
-                              </View>
-                              <View style={{ flexDirection: 'row' }}>
-                                 <Image src={imgLink.imgCheckFalse} style={{ width: 15, height: 15, marginRight: 6 }} />
-                                 <Text>Approved with comments, resubmission required (AR)</Text>
-                              </View>
+                           <Text style={{ marginBottom: 10 }}>Company Stamp & Signature : _________________</Text>
+                           <View style={{ flexDirection: 'row' }}>
+                              <Text style={{ marginRight: 20 }}>Name :_________________________</Text>
+                              <Text>Date :_____________</Text>
                            </View>
+
                         </View>
+
+                        <View style={{ width: '33%', padding: 10 }}>
+                           <Text>Comments:</Text>
+                        </View>
+                     </View>
+                  ) : (
+                     <>
                         <Text style={{ marginBottom: 10 }}>Company Stamp & Signature : _________________</Text>
                         <View style={{ flexDirection: 'row' }}>
                            <Text style={{ marginRight: 20 }}>Name :_________________________</Text>
                            <Text>Date :_____________</Text>
                         </View>
+                     </>
+                  )}
 
-                     </View>
 
-                     <View style={{ width: '33%', padding: 10 }}>
-                        <Text>Comments:</Text>
-                     </View>
+                  <View style={{
+                     flexDirection: 'row',
+                     marginBottom: 15,
+                     marginTop: 7,
+                     borderTop: '1px solid grey',
+                     paddingTop: 12,
+                  }}>
+                     <Text>CC</Text>
+                     <Text style={{
+                        fontWeight: 'bold',
+                        marginRight: 5,
+                        height: 30,
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+
+                     }}>{`: ${(listRecipientCc || []).join(', ')}`}</Text>
                   </View>
-               ) : (
-                  <>
-                     <Text style={{ marginBottom: 10 }}>Company Stamp & Signature : _________________</Text>
-                     <View style={{ flexDirection: 'row' }}>
-                        <Text style={{ marginRight: 20 }}>Name :_________________________</Text>
-                        <Text>Date :_____________</Text>
-                     </View>
-                  </>
-               )}
 
+               </View>
             </View>
          </Page>
       </Document>
@@ -402,13 +459,14 @@ const TableDrawings = ({ children, col, th, isRfamDescriptionTable }) => {
                      return (
                         <View key={j} style={[stylesTable.cell, {
                            width: col[j],
-                           height: textArea ? 150 : drawingInfo ? 18 : 20,
+                           height: textArea ? 150 : drawingInfo ? 12 : 20,
                            padding: drawingInfo ? 1 : 5,
                            paddingLeft: 5,
                            justifyContent: textArea ? 'none' : 'center'
                         }]}>
                            {(typeof (cell) === 'string' || typeof (cell) === 'number')
                               ? <Text>{cell}</Text>
+                              // ? cell
                               : cell
                            }
                         </View>

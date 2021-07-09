@@ -58,7 +58,7 @@ const App = () => {
             });
 
             setDataEntryData(res.data);
-            console.log('AAA', res.data);
+
 
          } catch (err) {
             console.log(err);
@@ -71,7 +71,6 @@ const App = () => {
    const getDataFromOutsideComponent = async () => {
       try {
          const result = await window.getCurrentDataTable();
-         console.log('result', result);
       } catch (err) {
          console.log(err);
       };
@@ -82,24 +81,21 @@ const App = () => {
       setRowsImportedFromModel([
          {
             data: {
-               ggg: 'ddd',
-               ttt: '1234-5678',
-               'db4e97d1-f64b-496b-88e8-05312699d31e': '12-66',
-               '5c5bc3bf-7cef-4326-8ec9-84d8228265c4': 'T-B-L',
+               'Pile marking': 'RRR - 33mm',
+               'Sizes': 500
             },
-            outS1: 'ssssssssssssssss',
-            iiii: '123',
-            _id: mongoObjectId(),
+            outS1: 'XXXXXXXXXXXXXXXXXXXXXXXXXXX',
+            iiii: '000-000',
+            lll: 'LAM-LAM',
+            _id: '60e71554850bced48f406239'
          },
          {
             data: {
-               rrr: '9999999999999',
-               'db4e97d1-f64b-496b-88e8-05312699d31e': 'AA-YYYYY=======TTTT',
-               '5c5bc3bf-7cef-4326-8ec9-84d8228265c4': 'TTTT',
-               zzzzz: 'hAY QUA'
+               'Pile marking': '16 x 32',
+               'Sizes': 7.16
             },
             outS2: '9999999999999999999999999999999999999999999999999999999999999999999',
-            _id: '60e5619874f494a423054d2a',
+
          },
          {
             data: {
@@ -119,8 +115,8 @@ const App = () => {
       <BrowserRouter>
          <Switch>
             <SheetContext>
-               <button onClick={importNewRowsDataFromModel}>KKK</button>
-               <button onClick={getDataFromOutsideComponent}>MMM</button>
+               {/* <button onClick={importNewRowsDataFromModel}>KKK</button> */}
+               {/* <button onClick={getDataFromOutsideComponent}>MMM</button> */}
                <Route exact path='/dms-spreadsheet'><PageSpreadsheet {...propsSheet} /></Route>
 
                <Route exact path='/sheet-data-entry'>
@@ -183,15 +179,15 @@ export default App;
 
 
 function detectBrowser() {
-   if ((navigator.userAgent.indexOf("Opera") || navigator.userAgent.indexOf('OPR')) != -1) {
+   if ((navigator.userAgent.indexOf('Opera') || navigator.userAgent.indexOf('OPR')) != -1) {
       return 'Opera';
-   } else if (navigator.userAgent.indexOf("Chrome") != -1) {
+   } else if (navigator.userAgent.indexOf('Chrome') != -1) {
       return 'Chrome';
-   } else if (navigator.userAgent.indexOf("Safari") != -1) {
+   } else if (navigator.userAgent.indexOf('Safari') != -1) {
       return 'Safari';
-   } else if (navigator.userAgent.indexOf("Firefox") != -1) {
+   } else if (navigator.userAgent.indexOf('Firefox') != -1) {
       return 'Firefox';
-   } else if ((navigator.userAgent.indexOf("MSIE") != -1) || (!!document.documentMode == true)) {
+   } else if ((navigator.userAgent.indexOf('MSIE') != -1) || (!!document.documentMode == true)) {
       return 'IE';
    } else {
       return 'Unknown';
@@ -205,7 +201,7 @@ function detectBrowser() {
 const consultantCompany = 'ONG & ONG';
 
 const propsSheet = {
-   email: browserName === 'Chrome' ? 'tbl@wohhup.com' : 'test@dca.com',
+   email: browserName === 'Chrome' ? 'tbly@wohhup.com' : 'test@dca.com',
    company: browserName === 'Chrome' ? 'Woh Hup Private Ltd' : consultantCompany,
    // company: browserName === 'Chrome' ? consultantCompany : consultantCompany,
    role: browserName === 'Chrome' ? 'Document Controller' : 'Consultant',
@@ -241,6 +237,16 @@ const propsSheet = {
 };
 
 const sheetHeaders = [
+   {
+      'id': 'Pile marking',
+      'name': 'Pile marking',
+      'type': 'text',
+   },
+   {
+      'id': 'Sizes',
+      'name': 'Sizes',
+      'type': 'text',
+   },
    {
       'id': '5c5bc3bf-7cef-4326-8ec9-84d8228265c4',
       'name': 'Code',

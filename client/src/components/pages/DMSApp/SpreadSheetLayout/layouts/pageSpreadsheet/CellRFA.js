@@ -4,7 +4,7 @@ import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorTextRow, colorType, EDIT_DURATION_MIN } from '../../constants';
-import { compareDates, mongoObjectId } from '../../utils';
+import { compareDates, mongoObjectId, replaceBreakLine } from '../../utils';
 import ButtonColumnTag from '../generalComponents/ButtonColumnTag';
 import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
 
@@ -283,7 +283,7 @@ const CellRFA = (props) => {
                   <div>
                      <div style={{ fontWeight: 'bold' }}>{rfaData[`reply-$$$-user-${replyCompany}`] || ''}</div>
                      <div style={{ fontWeight: 'bold' }}>{rfaData[`reply-$$$-status-${replyCompany}`] || ''}</div>
-                     <div>{rfaData[`reply-$$$-comment-${replyCompany}`] || ''}</div>
+                     <div style={{ whiteSpace: 'pre-wrap' }}>{replaceBreakLine(rfaData[`reply-$$$-comment-${replyCompany}`] || '')}</div>
                   </div>
                );
 
@@ -291,7 +291,7 @@ const CellRFA = (props) => {
                const dwgLink = rfaData[`reply-$$$-drawing-${replyCompany}`];
                if (dwgLink) {
                   const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
-                  window.open(res.data);
+                  window.open(res.data, '_blank');
                } else {
                   message.info('There is no drawing attached!');
                };
@@ -349,7 +349,7 @@ const CellRFA = (props) => {
                const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'drawing');
                if (dwgLink) {
                   const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
-                  window.open(res.data);
+                  window.open(res.data, '_blank');
                } else {
                   message.info('There is no drawing attached!');
                };
@@ -490,7 +490,6 @@ const CellRFA = (props) => {
          arrayButtonReplyAndResubmit = ['plus-square'];
       };
    };
-
 
 
    return (
@@ -655,7 +654,7 @@ const CellRFA = (props) => {
          {modalContent && (
             <ModalStyledSetting
                title={'Drawing comment'}
-               visible={modalContent ? true : false}
+               visible={modalContent !== null ? true : false}
                footer={null}
                onCancel={() => {
                   setModalContent(null);
@@ -663,9 +662,11 @@ const CellRFA = (props) => {
                }}
                destroyOnClose={true}
                centered={true}
-               width={window.innerWidth * 0.7}
+               width='40%'
             >
-               {modalContent}
+               <div style={{ overflowY: 'auto', maxHeight: 600 }}>
+                  {modalContent}
+               </div>
             </ModalStyledSetting>
          )}
 

@@ -1,5 +1,6 @@
 import { Divider, Icon, message, Modal } from 'antd';
 import Axios from 'axios';
+import moment from 'moment';
 import React, { forwardRef, useContext, useEffect, useRef, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import 'react-base-table/styles.css';
@@ -10,9 +11,9 @@ import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
 import ButtonAdminCreateAndUpdateRows from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
-import ButtonAdminDeleteRowsHistory from '../pageSpreadsheet/ButtonAdminDeleteRowsHistory';
+import ButtonAdminCreateAndUpdateRowsHistory from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRowsHistory';
 import Cell, { columnLocked, rowLocked } from '../pageSpreadsheet/Cell';
-import CellForm from '../pageSpreadsheet/CellForm';
+import CellForm, { getInfoValueFromRefDataForm } from '../pageSpreadsheet/CellForm';
 import CellIndex from '../pageSpreadsheet/CellIndex';
 import CellRFA, { getConsultantLeadName, getConsultantReplyData, getInfoValueFromRfaData, isColumnConsultant, isColumnWithReplyData } from '../pageSpreadsheet/CellRFA';
 import ExcelExport from '../pageSpreadsheet/ExcelExport';
@@ -28,12 +29,13 @@ import LoadingIcon from './LoadingIcon';
 import ViewTemplateSelect from './ViewTemplateSelect';
 
 
-
 const offsetHeight = 99.78;
 const sideBarWidth = 55;
 
 const Table = forwardRef((props, ref) => {
    const { projectIsAppliedRfaView } = props;
+
+
    return (
       <AutoResizer>
          {() => <BaseTable
@@ -74,7 +76,6 @@ const OverallComponentDMS = (props) => {
       role = roleInit.name;
       sheetDataInput = convertDataEntryInput(sheetDataInputRaw);
    };
-
 
 
 
@@ -811,14 +812,49 @@ const OverallComponentDMS = (props) => {
             ...stateRow,
             modeSearch: { searchDataObj, isFoundShownOnly: 'show all' }
          });
-      } else {
+      } else if (pageSheetTypeName === 'page-rfa') {
          let searchDataObj = {};
          if (textSearch !== '') {
-            stateRow.rowsRfaAllInit.forEach(row => {
+            (stateRow.rowsRfaAllInit || []).forEach(row => {
                let obj = {};
                Object.keys(row).forEach(key => {
                   if (
                      key !== 'id' && key !== '_preRow' && key !== '_parentRow' &&
+                     row[key] &&
+                     row[key].toString().toLowerCase().includes(textSearch.toLowerCase())
+                  ) {
+                     obj[row.id] = [...obj[row.id] || [], key];
+                  };
+               });
+               if (Object.keys(obj).length > 0) searchDataObj = { ...searchDataObj, [row.id]: obj[row.id] };
+            });
+         };
+         setCellSearchFound(searchDataObj);
+         setNosColumnFixedRfaView(1);
+         setNosColumnFixedRfaView(0);
+         getSheetRows({
+            ...stateRow,
+            modeSearch: { searchDataObj, isFoundShownOnly: 'show all' }
+         });
+
+      } else if (
+         pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi' || pageSheetTypeName === 'page-cvi' ||
+         pageSheetTypeName === 'page-dt' || pageSheetTypeName === 'page-mm'
+      ) {
+         const rowsAllFormInit = pageSheetTypeName === 'page-rfam' ? stateRow.rowsRfamAllInit
+            : pageSheetTypeName === 'page-rfi' ? stateRow.rowsRfiAllInit
+               : pageSheetTypeName === 'page-cvi' ? stateRow.rowsCviAllInit
+                  : pageSheetTypeName === 'page-dt' ? stateRow.rowsDtAllInit
+                     : pageSheetTypeName === 'page-mm' ? stateRow.rowsMmAllInit
+                        : [];
+
+         let searchDataObj = {};
+         if (textSearch !== '') {
+            rowsAllFormInit.forEach(row => {
+               let obj = {};
+               Object.keys(row).forEach(key => {
+                  if (
+                     key !== 'id' && key !== 'btn' && key !== 'parentId' && key !== 'trade' &&
                      row[key] &&
                      row[key].toString().toLowerCase().includes(textSearch.toLowerCase())
                   ) {
@@ -1085,6 +1121,7 @@ const OverallComponentDMS = (props) => {
 
    }, [rowsImportedFromModel]);
 
+
    const getCurrentDataTable = () => {
       const { rowsAll } = stateRow;
       const { publicSettings } = stateProject.allDataOneSheet;
@@ -1119,12 +1156,21 @@ const OverallComponentDMS = (props) => {
 
 
 
+   const [currentWindow, setCurrentWindow] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+   useEffect(() => {
+      const handleResize = () => {
+         setCurrentWindow({ width: window.innerWidth, height: window.innerHeight });
+      };
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+   });
+
    if ((role === 'Consultant' || role === 'Client') && pageSheetTypeName === 'page-spreadsheet') {
       return (
          <div>There is no data display for client</div>
       );
    };
-
 
 
    return (
@@ -1144,15 +1190,8 @@ const OverallComponentDMS = (props) => {
                </>
             )}
 
-            <IconTable type='filter' onClick={() => {
-               if (
-                  pageSheetTypeName === 'page-spreadsheet' ||
-                  pageSheetTypeName === 'page-rfa' ||
-                  pageSheetTypeName === 'page-data-entry'
-               ) {
-                  buttonPanelFunction('filter-ICON');
-               };
-            }} />
+            <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
+
             {searchInputShown
                ? <InputSearch
                   searchGlobal={searchGlobal}
@@ -1207,9 +1246,12 @@ const OverallComponentDMS = (props) => {
 
 
 
-            {stateRow && projectIsAppliedRfaView && (pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry') && (
-               <IconTable type='block' onClick={switchConsultantsHeader} />
-            )}
+            {stateRow && projectIsAppliedRfaView && (
+               pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry' &&
+               pageSheetTypeName !== 'page-cvi' && pageSheetTypeName !== 'page-dt' && pageSheetTypeName !== 'page-mm'
+            ) && (
+                  <IconTable type='block' onClick={switchConsultantsHeader} />
+               )}
 
 
             {stateRow && projectIsAppliedRfaView && pageSheetTypeName === 'page-rfa' && role === 'Document Controller' && !isUserCanSubmitBothSide && (
@@ -1291,7 +1333,8 @@ const OverallComponentDMS = (props) => {
                   {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} /> */}
                   {/* <ButtonAdminUploadData /> */}
                   <ButtonAdminCreateAndUpdateRows />
-                  <ButtonAdminDeleteRowsHistory />
+                  <ButtonAdminCreateAndUpdateRowsHistory />
+                  {/* <ButtonAdminDeleteRowsHistory /> */}
                   {/* 
                         <ButtonAdminUploadDataPDD />
                         
@@ -1349,7 +1392,7 @@ const OverallComponentDMS = (props) => {
          </ButtonBox>
 
 
-         <div style={{ display: 'flex', overflowX: 'hidden', height: window.innerHeight - offsetHeight }}>
+         <div style={{ display: 'flex', overflowX: 'hidden', height: currentWindow.height - offsetHeight }}>
 
             {projectIsAppliedRfaView && (
                <div style={{ width: sideBarWidth, background: colorType.primary }}>
@@ -1461,16 +1504,16 @@ const OverallComponentDMS = (props) => {
             destroyOnClose={true}
             centered={true}
             width={
-               panelSettingType === 'addDrawingType-ICON' ? window.innerWidth * 0.85 :
+               panelSettingType === 'addDrawingType-ICON' ? currentWindow.width * 0.85 :
                   (
                      panelSettingType &&
                      (panelSettingType.includes('form-submit-') ||
                         panelSettingType.includes('form-resubmit-') ||
                         panelSettingType.includes('form-reply-'))
-                  ) ? window.innerWidth * 0.9 :
-                     panelSettingType === 'pickTypeTemplate-ICON' ? window.innerWidth * 0.6 :
-                        panelSettingType === 'View Drawing Revision' ? window.innerWidth * 0.8 :
-                           panelSettingType === 'filter-ICON' ? window.innerWidth * 0.5 :
+                  ) ? currentWindow.width * 0.9 :
+                     panelSettingType === 'pickTypeTemplate-ICON' ? currentWindow.width * 0.6 :
+                        panelSettingType === 'View Drawing Revision' ? currentWindow.width * 0.8 :
+                           panelSettingType === 'filter-ICON' ? currentWindow.width * 0.5 :
                               520
             }
          >
@@ -1525,8 +1568,6 @@ const DividerRibbon = () => {
 
 const TableStyled = styled(Table)`
 
-  
-
    .cell-locked {
       background-color: ${colorType.lockedCell};
    };
@@ -1539,7 +1580,6 @@ const TableStyled = styled(Table)`
    .row-selected {
       background-color: ${colorType.cellHighlighted};
    };
-   
    
    
    ${({ dataForStyled }) => {
@@ -1648,8 +1688,6 @@ const ButtonBox = styled.div`
 `;
 
 
-
-
 export const getInputDataInitially = (data, { role, company }, pageSheetTypeName) => {
 
 
@@ -1726,13 +1764,9 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          rowsSelectedToMove: [],
 
       };
-
    } else if (
-      pageSheetTypeName === 'page-rfam' ||
-      pageSheetTypeName === 'page-rfi' ||
-      pageSheetTypeName === 'page-cvi' ||
-      pageSheetTypeName === 'page-dt' ||
-      pageSheetTypeName === 'page-mm'
+      pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi' || pageSheetTypeName === 'page-cvi' ||
+      pageSheetTypeName === 'page-dt' || pageSheetTypeName === 'page-mm'
    ) {
 
       const keySuffix = pageSheetTypeName === 'page-rfam' ? 'Rfam'
@@ -1776,125 +1810,21 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
    }
 };
 
+
+
+
 const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTypeName) => {
 
    const {
       rowsAll, drawingTypeTree, viewTemplateNodeId,
       modeFilter, modeGroup, modeSort, modeSearch,
 
-      rowsRfaAll,
-
-      rowsRfamAll, rowsRfiAll, rowsCviAll, rowsDtAll, rowsMmAll
+      rowsRfaAll, rowsRfamAll, rowsRfiAll, rowsCviAll, rowsDtAll, rowsMmAll
    } = stateRow;
 
+   const refType = getKeyTextForSheet(pageSheetTypeName);
 
-   if (pageSheetTypeName === 'page-rfa') {
-
-
-      let rowsAllFinalRFA = [...rowsRfaAll];
-
-      if (Object.keys(modeSearch).length === 2) {
-         const { isFoundShownOnly, searchDataObj } = modeSearch;
-         if (isFoundShownOnly === 'show found only') {
-            rowsAllFinalRFA = rowsAllFinalRFA.filter(row => row.id in searchDataObj);
-         };
-      };
-
-      if (modeFilter.length > 0) {
-         let filterObj = {};
-         modeFilter.forEach(filter => {
-            if (filter.header) {
-               filterObj[filter.header] = [...filterObj[filter.header] || [], filter.value];
-            };
-         });
-
-         Object.keys(filterObj).forEach(header => {
-            if (isColumnWithReplyData(header) || isColumnConsultant(header)) {
-
-               rowsAllFinalRFA = rowsAllFinalRFA.filter(r => {
-                  const arrayCompanyFilter = filterObj[header];
-                  const { replyCompany } = getConsultantReplyData(r, header, companies);
-                  return arrayCompanyFilter.indexOf(replyCompany) !== -1;
-               });
-
-            } else if (header === 'Overdue RFA') {
-
-               let outputDrawingsAfterFilter = [];
-               filterObj[header].forEach(filterData => {
-                  if (filterData === 'Overdue' || filterData === 'Due in 3 days') {
-                     outputDrawingsAfterFilter = [
-                        ...outputDrawingsAfterFilter,
-                        ...rowsAllFinalRFA.filter(r => {
-
-                           const consultantLeadName = getConsultantLeadName(r);
-                           let consultantLeadReply;
-                           if (consultantLeadName) {
-                              consultantLeadReply = getInfoValueFromRfaData(r, 'reply', 'status', consultantLeadName);
-                           };
-
-                           let nosOfDate;
-                           if (!consultantLeadReply) {
-                              nosOfDate = compareDates(r['Consultant Reply (T)']);
-                           };
-                           return filterData === 'Overdue' ? nosOfDate < 0 : nosOfDate < 3;
-                        })];
-
-                  } else if (filterData === 'RFA outstanding') {
-
-                     outputDrawingsAfterFilter = [
-                        ...outputDrawingsAfterFilter,
-                        ...rowsAllFinalRFA.filter(r => {
-                           let replyStatusValue;
-                           if (role === 'Consultant') {
-                              replyStatusValue = getInfoValueFromRfaData(r, 'reply', 'status', company);
-                              const consultantMustReply = getInfoValueFromRfaData(r, 'submission', 'consultantMustReply');
-                              return !replyStatusValue && consultantMustReply.indexOf(company) !== -1;
-                           } else {
-                              const leadConsultant = getInfoValueFromRfaData(r, 'submission', 'consultantMustReply')[0];
-                              replyStatusValue = getInfoValueFromRfaData(r, 'reply', 'status', leadConsultant);
-                              return !replyStatusValue;
-                           };
-                        })];
-                  };
-               });
-               rowsAllFinalRFA = outputDrawingsAfterFilter;
-            } else if (header === 'Requested By') {
-               rowsAllFinalRFA = rowsAllFinalRFA.filter(r => {
-                  const requestedBy = getInfoValueFromRfaData(r, 'submission', 'requestedBy');
-                  return filterObj[header].indexOf(requestedBy) !== -1;
-               });
-            } else if (header === 'Submission Date') {
-               rowsAllFinalRFA = rowsAllFinalRFA.filter(r => {
-                  const submissionDate = r['Drg To Consultant (A)'];
-                  return filterObj[header].indexOf(submissionDate) !== -1;
-               });
-            } else if (header === 'Due Date') {
-               rowsAllFinalRFA = rowsAllFinalRFA.filter(r => {
-                  const dueDate = r['Consultant Reply (T)'];
-                  return filterObj[header].indexOf(dueDate) !== -1;
-               });
-            } else {
-               rowsAllFinalRFA = rowsAllFinalRFA.filter(r => filterObj[header].indexOf(r[header]) !== -1);
-            };
-         });
-      };
-
-
-      let dataOutputRFA = [];
-      drawingTypeTree.forEach(item => {
-         let newItem = { ...item };
-         let rowsChildren = rowsAllFinalRFA.filter(r => r['rfaNumber'] === item.id);
-         if (rowsChildren.length > 0) {
-            newItem.children = rowsChildren;
-         };
-         dataOutputRFA.push(newItem);
-      });
-
-      const outputRFA = convertFlattenArraytoTree1(dataOutputRFA);
-
-      return outputRFA;
-
-   } else if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
+   if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
 
       let drawingTypeTreeTemplate;
       let rowsAllInTemplate;
@@ -1998,37 +1928,169 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTy
 
 
    } else if (
-      pageSheetTypeName === 'page-rfam' ||
-      pageSheetTypeName === 'page-rfi' ||
-      pageSheetTypeName === 'page-cvi' ||
-      pageSheetTypeName === 'page-dt' ||
-      pageSheetTypeName === 'page-mm'
+      pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi' ||
+      pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt' || pageSheetTypeName === 'page-mm'
    ) {
+      let rowsAllFinalMultiForm = pageSheetTypeName === 'page-rfa' ? rowsRfaAll
+         : pageSheetTypeName === 'page-rfam' ? rowsRfamAll
+            : pageSheetTypeName === 'page-rfi' ? rowsRfiAll
+               : pageSheetTypeName === 'page-cvi' ? rowsCviAll
+                  : pageSheetTypeName === 'page-dt' ? rowsDtAll
+                     : rowsMmAll;
+
+      if (Object.keys(modeSearch).length === 2) {
+         const { isFoundShownOnly, searchDataObj } = modeSearch;
+         if (isFoundShownOnly === 'show found only') {
+            rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(row => row.id in searchDataObj);
+         };
+      };
 
 
-      const keyRef = getKeyTextForSheet(pageSheetTypeName) + 'Ref';
+      if (modeFilter.length > 0) {
+         let filterObj = {};
+         modeFilter.forEach(filter => {
+            if (filter.header) {
+               filterObj[filter.header] = [...filterObj[filter.header] || [], filter.value];
+            };
+         });
 
-      let dataOutputMultiForm = [];
+         Object.keys(filterObj).forEach(header => {
+            if (isColumnWithReplyData(header) || isColumnConsultant(header)) {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const arrayCompanyFilter = filterObj[header];
+                  const { replyCompany } = getConsultantReplyData(r, header, companies);
+                  return arrayCompanyFilter.indexOf(replyCompany) !== -1;
+               });
+
+            } else if (header === 'Overdue RFA') {
+
+               let outputDrawingsAfterFilter = [];
+               filterObj[header].forEach(filterData => {
+                  if (filterData === 'Overdue' || filterData === 'Due in 3 days') {
+                     outputDrawingsAfterFilter = [
+                        ...outputDrawingsAfterFilter,
+                        ...rowsAllFinalMultiForm.filter(r => {
+
+                           const consultantLeadName = getConsultantLeadName(r);
+                           let consultantLeadReply;
+                           if (consultantLeadName) {
+                              consultantLeadReply = getInfoValueFromRfaData(r, 'reply', 'status', consultantLeadName);
+                           };
+
+                           let nosOfDate;
+                           if (!consultantLeadReply) {
+                              nosOfDate = compareDates(r['Consultant Reply (T)']);
+                           };
+                           return filterData === 'Overdue' ? nosOfDate < 0 : nosOfDate < 3;
+                        })];
+
+                  } else if (filterData === 'RFA outstanding') {
+
+                     outputDrawingsAfterFilter = [
+                        ...outputDrawingsAfterFilter,
+                        ...rowsAllFinalMultiForm.filter(r => {
+                           let replyStatusValue;
+                           if (role === 'Consultant') {
+                              replyStatusValue = getInfoValueFromRfaData(r, 'reply', 'status', company);
+                              const consultantMustReply = getInfoValueFromRfaData(r, 'submission', 'consultantMustReply');
+                              return !replyStatusValue && consultantMustReply.indexOf(company) !== -1;
+                           } else {
+                              const leadConsultant = getInfoValueFromRfaData(r, 'submission', 'consultantMustReply')[0];
+                              replyStatusValue = getInfoValueFromRfaData(r, 'reply', 'status', leadConsultant);
+                              return !replyStatusValue;
+                           };
+                        })];
+                  };
+               });
+               rowsAllFinalMultiForm = outputDrawingsAfterFilter;
+            } else if (header === 'Requested By') {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const requestedBy = pageSheetTypeName === 'page-rfa'
+                     ? getInfoValueFromRfaData(r, 'submission', 'requestedBy')
+                     : getInfoValueFromRefDataForm(r, 'submission', refType, 'requestedBy')
+                  return filterObj[header].indexOf(requestedBy) !== -1;
+               });
+            } else if (header === 'Signatured By') {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const signaturedBy = getInfoValueFromRefDataForm(r, 'submission', refType, 'signaturedBy')
+                  return filterObj[header].indexOf(signaturedBy) !== -1;
+               });
+            } else if (header === 'Submission Type') {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const submissionType = getInfoValueFromRefDataForm(r, 'submission', refType, 'submissionType')
+                  return filterObj[header].indexOf(submissionType) !== -1;
+               });
+            } else if (header === 'Submission Date') {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const submissionDate = pageSheetTypeName === 'page-rfa'
+                     ? r['Drg To Consultant (A)']
+                     : moment(getInfoValueFromRefDataForm(r, 'submission', refType, 'date')).format('DD/MM/YY');
+                  return filterObj[header].indexOf(submissionDate) !== -1;
+               });
+            } else if (header === 'Conversation Date') {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const dateConversation = getInfoValueFromRefDataForm(r, 'submission', refType, 'dateConversation')
+                     ? moment(getInfoValueFromRefDataForm(r, 'submission', refType, 'dateConversation')).format('DD/MM/YY')
+                     : '';
+                  return filterObj[header].indexOf(dateConversation) !== -1;
+               });
+            } else if (header === 'Due Date') {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const dueDate = pageSheetTypeName === 'page-rfa'
+                     ? r['Consultant Reply (T)']
+                     : (
+                        getInfoValueFromRefDataForm(r, 'submission', refType, 'due')
+                           ?
+                           moment(getInfoValueFromRefDataForm(r, 'submission', refType, 'due')).format('DD/MM/YY')
+                           : ''
+                     );
+                  return filterObj[header].indexOf(dueDate) !== -1;
+               });
+            } else if (header === 'Cost Implication') {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const isCostImplication = getInfoValueFromRefDataForm(r, 'submission', refType, 'isCostImplication') ? 'True' : 'False';
+                  return filterObj[header].indexOf(isCostImplication) !== -1;
+               });
+            } else if (header === 'Time Extension') {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const isTimeExtension = getInfoValueFromRefDataForm(r, 'submission', refType, 'isTimeExtension') ? 'True' : 'False';
+                  return filterObj[header].indexOf(isTimeExtension) !== -1;
+               });
+            } else if (header === 'Attachment Type') {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const herewithForDt = getInfoValueFromRefDataForm(r, 'submission', refType, 'herewithForDt');
+                  return filterObj[header].indexOf(herewithForDt) !== -1;
+               });
+            } else if (header === 'Transmitted For') {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const transmittedForDt = getInfoValueFromRefDataForm(r, 'submission', refType, 'transmittedForDt');
+                  return filterObj[header].indexOf(transmittedForDt) !== -1;
+               });
+            } else {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => filterObj[header].indexOf(r[header]) !== -1);
+            };
+         });
+      };
+
+
+      let dataOutputFinal = [];
       drawingTypeTree.forEach(item => {
          let newItem = { ...item };
+         let rowsChildren = [];
 
-         let rowsChildren = (
-            pageSheetTypeName === 'page-rfam' ? rowsRfamAll
-               : pageSheetTypeName === 'page-rfi' ? rowsRfiAll
-                  : pageSheetTypeName === 'page-cvi' ? rowsCviAll
-                     : pageSheetTypeName === 'page-dt' ? rowsDtAll
-                        : rowsMmAll
-            // ).filter(r => r[keyRef] === item.id);  // REF_ROW_WITH_HEADER_OPTION
-         ).filter(r => r.parentId === item.id);
+         if (pageSheetTypeName === 'page-rfa') {
+            rowsChildren = rowsAllFinalMultiForm.filter(r => r['rfaNumber'] === item.id);
+         } else {
+            rowsChildren = rowsAllFinalMultiForm.filter(r => r.parentId === item.id);
+         };
 
          if (rowsChildren.length > 0) {
             newItem.children = rowsChildren;
          };
-         dataOutputMultiForm.push(newItem);
+         dataOutputFinal.push(newItem);
       });
-
-      const outputRowsData = convertFlattenArraytoTree1(dataOutputMultiForm);
-      return outputRowsData;
+      const outputMultiForm = convertFlattenArraytoTree1(dataOutputFinal);
+      return outputMultiForm;
    };
 };
 
@@ -2135,7 +2197,7 @@ const rearrangeRowsNotMatchTreeNode = (rows, rowsArranged, drawingTypeTree) => {
 
 
 const getHeaderConsultantColumn = (pageSheetTypeName) => {
-   if (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') return [];
+   if (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt' || pageSheetTypeName === 'page-mm') return [];
    return ['Consultant'];
 };
 
@@ -2181,6 +2243,7 @@ export const getHeadersForm = (pageSheetTypeName) => {
          'Submission Type',
          'Contract Specification',
          'Proposed Specification',
+         'Due Date'
       ];
    } else if (pageSheetTypeName === 'page-rfi') {
       return [
@@ -2305,7 +2368,6 @@ export const convertDataEntryInput = (inputData) => {
       };
       return obj;
    });
-
 
 
    return {

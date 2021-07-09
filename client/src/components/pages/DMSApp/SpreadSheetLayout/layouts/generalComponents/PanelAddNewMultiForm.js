@@ -15,7 +15,6 @@ import TableDrawingRfaForMultiForm from './TableDrawingRfaForMultiForm';
 
 
 
-
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -107,8 +106,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
    const [consultantReplyStatus, setConsultantReplyStatus] = useState('');
-   const [fileReplyFormName, setFileReplyFormName] = useState('');
-   const [fileFormCoverReply, setFileFormCoverReply] = useState({});
+   const [filesReplyUpload, setFilesReplyUpload] = useState({});
 
 
    const [submissionType, setSubmissionType] = useState('');
@@ -152,13 +150,26 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
    useEffect(() => {
-      setDataInputForTable(getInputForTable(filesPdfDrawing, dwgsImportFromRFA));
-   }, [filesPdfDrawing, dwgsImportFromRFA]);
+      setDataInputForTable(getInputForTable(filesPdfDrawing, dwgsImportFromRFA, filesReplyUpload));
+   }, [filesPdfDrawing, dwgsImportFromRFA, filesReplyUpload]);
 
 
    useEffect(() => {
-      const linkDrawingsData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'linkDrawings', company) || [];
-      const linkDrawingsRfaData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'linkDrawingsRfa', company) || [];
+      
+      let linkDrawingsData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'linkDrawings', company) || [];
+      let linkDrawingsRfaData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'linkDrawingsRfa', company) || [];
+
+      if (formRefType === 'form-resubmit-multi-type' && !isFormEditting) {
+         linkDrawingsData = [];
+         linkDrawingsRfaData = [];
+      };
+
+      let linkFormReplyData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'linkFormReply', company);
+      if (linkFormReplyData && !(linkFormReplyData instanceof Array)) {
+         linkFormReplyData = [linkFormReplyData];
+      } else if (!linkFormReplyData) {
+         linkFormReplyData = [];
+      };
 
       setDataInputForTable([
          ...linkDrawingsData.map(dwgLink => {
@@ -173,19 +184,18 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                id: mongoObjectId(),
                'Drawing Number': /[^/]*$/.exec(dwgLink)[0],
             };
+         }),
+         ...linkFormReplyData.map(dwgLink => {
+            return {
+               id: mongoObjectId(),
+               'File Name': /[^/]*$/.exec(dwgLink)[0],
+               'Type': 'File Reply',
+            };
          })
       ]);
    }, []);
 
 
-
-
-   useEffect(() => {
-      if (Object.values(fileFormCoverReply).length > 0) {
-         const file = Object.values(fileFormCoverReply)[0];
-         setFileReplyFormName(file.name);
-      };
-   }, [fileFormCoverReply]);
 
 
 
@@ -254,8 +264,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             setListConsultantMustReply(listConsultantMustReplyData);
 
             const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle', company) || '';
-            setTextEmailTitle(textEmailTitleData);
-
+            setTextEmailTitle('Resubmit - ' + textEmailTitleData);
 
             const versionTextIndex = versionTextArray.indexOf(currentRefData.revision);
             const versionTextNext = versionTextArray[versionTextIndex + 1];
@@ -336,9 +345,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             const statusData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'status', company) || '';
             setConsultantReplyStatus(statusData);
 
-            const linkFormReplyData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'linkFormReply', company) || '';
-            setFileReplyFormName(/[^/]*$/.exec(linkFormReplyData)[0]);
-
          };
       };
    }, []);
@@ -348,7 +354,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
       if (tradeForFirstTimeSubmit && formRefType === 'form-submit-multi-type') {
 
          if (!isFormEditting) {
-            const allRefNumberUnderThisTrade = rowsRefAllInit.filter(r => r.trade === convertTradeCodeInverted(tradeForFirstTimeSubmit));
+            const allRefNumberUnderThisTrade = rowsRefAllInit.filter(r => {
+               const tradeToCheck = pageSheetTypeName === 'page-mm' ? convertTradeCodeMeetingMinutesInverted(tradeForFirstTimeSubmit) : convertTradeCodeInverted(tradeForFirstTimeSubmit)
+               return r.trade === tradeToCheck;
+            });
 
             let refNumberExtracted = [... new Set(allRefNumberUnderThisTrade.map(x => /[^/]*$/.exec(x[refKey])[0]))];
 
@@ -389,7 +398,9 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
    const checkIfRefIsDuplicated = () => {
-      const arr = [...new Set(rowsRefAllInit.map(r => (r[refKey] || '')))];
+      const arr = [...new Set(rowsRefAllInit.map(r => {
+         return (r[refKey] || '') + ((r.revision === '0' ? '' : r.revision)) || '';
+      }))];
       if (formRefType === 'form-submit-multi-type') {
          const newRefToSubmit = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
          return (
@@ -398,7 +409,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          );
       } else if (formRefType === 'form-resubmit-multi-type') {
          const newRefToSubmit = currentRefData[refKey] + refNewVersionResubmitSuffix;
-
          return (
             (!isFormEditting && arr.indexOf(newRefToSubmit) !== -1) ||
             (isFormEditting && arr.indexOf(newRefToSubmit) !== -1 && newRefToSubmit !== (currentRefData[refKey] + currentRefData.revision))
@@ -437,14 +447,21 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    };
 
 
-
+   const refReplyUpload = useRef();
    const onChangeUploadFormCoverForReply = (info) => {
       if (info.fileList) {
-         let output = {};
+         let fileListStateRef = refReplyUpload.current.state.fileList;
+
          info.fileList.forEach(file => {
-            output = { [file.name]: file };
+            if (!fileListStateRef.find(x => x.name === file.name)) {
+               fileListStateRef.push(file);
+            };
          });
-         setFileFormCoverReply(output);
+         let output = {};
+         fileListStateRef.forEach(file => {
+            output = { ...output, [file.name]: file };
+         });
+         setFilesReplyUpload(output);
       };
    };
 
@@ -507,6 +524,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          return message.info('Please fill in email title!', 2);
       } else if (!description) {
          return message.info('Please fill in description!', 2);
+
+      } else if (isSubmitOrResubmitForm && (!contractSpecification || !proposedSpecification) && pageSheetTypeName === 'page-rfam') {
+         return message.info('Please fill in description!', 2);
+         
       } else if (!listRecipientTo || listRecipientTo.length === 0) {
          return message.info('Please fill in recipient!', 2);
       } else if (isSubmitOrResubmitForm && !dateReplyForSubmitForm) {
@@ -534,7 +555,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          return message.info('Please fill in version!', 2);
       } else if (!isSubmitOrResubmitForm && !consultantReplyStatus && pageSheetTypeName === 'page-rfam') {
          return message.info('Please fill in reply status!', 2);
-      } else if (!isSubmitOrResubmitForm && Object.keys(fileFormCoverReply).length === 0 && !isFormEditting) {
+      } else if (!isSubmitOrResubmitForm && Object.keys(filesReplyUpload).length === 0 && !isFormEditting) {
          return message.info('Please upload form!', 2);
       };
 
@@ -564,7 +585,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
          filesPdfDrawing: Object.values(filesPdfDrawing),
          dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
-         fileFormCoverReply: Object.values(fileFormCoverReply)[0],
+         filesReplyUpload: Object.values(filesReplyUpload),
 
          refToSave, refToSaveVersionOrToReply,
          recipient: {
@@ -591,7 +612,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          isAdminAction,
       });
    };
-
 
 
 
@@ -625,6 +645,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
             width: getHeaderWidthDwgRef(column),
             cellRenderer: ({ rowData, cellData }) => {
+
                let cellTypeName;
                if (!rowData['Type'] && !rowData['File Name']) {
                   if (column === 'Type') {
@@ -643,7 +664,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
    const onClickRemoveDwgBtn = debounceFnc((rowData) => {
 
-
       if (rowData['Type'] === 'Drawing') {
          let fileListStateRef = refUpload.current.state.fileList;
          let obj = {};
@@ -657,13 +677,18 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          });
          setFilesPdfDrawing(obj);
 
-      } else if (rowData['Type'] === 'Cover') {
-         // delete fileFormCoverReply[rowData['File Name']];
-         // let obj = {};
-         // for (const key in fileFormCoverReply) {
-         //    obj[key] = fileFormCoverReply[key];
-         // };
-         // setFileFormCoverReply(obj);
+      } else if (rowData['Type'] === 'File Reply') {
+         let fileListStateRef = refReplyUpload.current.state.fileList;
+         let obj = {};
+         fileListStateRef.forEach(file => {
+            if (file.name !== rowData['File Name']) {
+               obj[file.name] = file;
+            } else {
+               fileListStateRef = fileListStateRef.filter(x => x.uid !== file.uid);
+               refReplyUpload.current.state.fileList = fileListStateRef;
+            };
+         });
+         setFilesReplyUpload(obj);
 
       } else if (!rowData['Type']) {
          setDwgsImportFromRFA(dwgsImportFromRFA.filter(x => x.id !== rowData.id));
@@ -671,7 +696,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
       setNosColumnFixed(2);
       setNosColumnFixed(1);
-      // };
    }, 1);
 
 
@@ -679,6 +703,27 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
    return (
       <>
+         {/* {formRefType === 'form-submit-multi-type' && (
+            <PrintPdf
+               pdfContent={{
+                  refNumberText: `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`,
+                  listRecipientTo: [...new Set(listRecipientTo)], listRecipientCc: [...new Set(listRecipientCc)], isCostImplication, isTimeExtension,
+                  requestedBy, signaturedBy, conversationAmong, emailTextTitle: textEmailTitle, dateConversation, timeConversation, description, dateReplyForSubmitForm,
+                  filesPdfDrawing: Object.values(filesPdfDrawing),
+                  dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
+                  projectName, listConsultantMustReply,
+                  contractSpecification,
+                  proposedSpecification,
+                  submissionType,
+                  herewithForDt,
+                  transmittedForDt,
+                  pageSheetTypeName
+               }}
+            />
+         )} */}
+
+
+
          <div style={{ background: 'white', width: '100%', padding: 10, color: 'black' }}>
             <div style={{ padding: 20, paddingRight: 10, borderBottom: `1px solid ${colorType.grey4}` }}>
                <div style={{ display: 'flex', marginBottom: 10 }}>
@@ -745,14 +790,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                         />
                      </>
                   )}
-
-
-
-                  {/* {formRefType === 'form-reply-multi-type' && adminActionConsultantToReply && (
-                     <div style={{ marginLeft: 20 }}>Company reply: <span style={{ fontWeight: 'bold' }}>{adminActionConsultantToReply}</span></div>
-                  )} */}
-
-
                </div>
 
 
@@ -1206,20 +1243,23 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
                <div style={{ display: 'flex', marginBottom: 5 }}>
                   {formRefType === 'form-reply-multi-type' && (
-                     <Upload
-                        name='file' accept='application/pdf' multiple={false} showUploadList={false}
-                        headers={{ authorization: 'authorization-text' }}
-                        beforeUpload={() => { return false }}
-                        onChange={onChangeUploadFormCoverForReply}
-                     >
-                        <ButtonStyle
-                           marginRight={5}
-                           name='Upload Reply Form'
-                        />
-                     </Upload>
+                     <div>
+                        <Upload
+                           name='file' accept='application/pdf' multiple={true} showUploadList={false}
+                           headers={{ authorization: 'authorization-text' }}
+                           beforeUpload={() => { return false }}
+                           onChange={onChangeUploadFormCoverForReply}
+                           ref={refReplyUpload}
+                        >
+                           <ButtonStyle
+                              marginRight={5}
+                              name='Upload Reply Form'
+                           />
+                        </Upload>
+                     </div>
                   )}
 
-                  <div style={{ marginLeft: 10 }}>{fileReplyFormName}</div>
+
 
 
                   {(formRefType === 'form-submit-multi-type' || formRefType === 'form-resubmit-multi-type') && (
@@ -1252,7 +1292,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
                {(dataInputForTable.length > 0) && (
                   <div style={{
-                     width: window.innerWidth * 0.9 - 80,
+                     width: '90%',
                      height: dataInputForTable.length * 28 + 80
                   }}>
                      <TableStyled
@@ -1350,18 +1390,18 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 export default PanelAddNewMultiForm;
 
 
-const getInputForTable = (filesPdfDrawing, dwgsImportFromRFA) => {
+const getInputForTable = (filesPdfDrawing, dwgsImportFromRFA, filesReplyUpload) => {
 
    let output = [];
-   // if (fileFormCoverReply) {
-   //    for (const pdfDrawing in fileFormCoverReply) {
-   //       output.push({
-   //          id: mongoObjectId(),
-   //          'Type': 'Form Cover',
-   //          'File Name': pdfDrawing
-   //       });
-   //    };
-   // };
+   if (filesReplyUpload) {
+      for (const pdfDrawing in filesReplyUpload) {
+         output.push({
+            id: mongoObjectId(),
+            'Type': 'File Reply',
+            'File Name': pdfDrawing
+         });
+      };
+   };
 
    if (filesPdfDrawing) {
       for (const pdfDrawing in filesPdfDrawing) {
@@ -1507,22 +1547,10 @@ const TextAreaStyled = styled(TextArea)`
    &:focus {
       outline: none;
       box-shadow: none;
-   }
+   };
+   white-space: pre-wrap;
 `;
-const SelectStyled = styled(Select)`
-   width: 100%;
-   outline: none;
-   .ant-select-selection {
-      outline: none;
-      border-radius: 0;
-      border: none;
-      width: 100%;
-      background: transparent;
-   }
-   .ant-select-selection__rendered {
-      outline: none;
-   }
-`;
+
 
 const SelectRecipientStyled = styled(Select)`
    width: 100%;

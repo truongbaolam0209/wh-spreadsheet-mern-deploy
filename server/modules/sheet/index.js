@@ -175,14 +175,14 @@ const findSheetIncludingRowsSortedFnc = async (sheetId) => {
    let sheet = { _id: sheetId };
    let rows = [];
    let headers = publicSettings && publicSettings.headers instanceof Array ? publicSettings.headers : [];
-   
+
    let { drawingTypeTree } = publicSettings;
 
 
    for (let row of dataRows) {
       if (row.level == 1) rows.push(row);
    };
-   
+
 
    sheet.rows = _process_Rows(headers, rows);
 
@@ -202,7 +202,6 @@ const findSheetIncludingRowsSortedFnc = async (sheetId) => {
 const _update_Or_Create_Rows = async (rowsData, sheetId, rowModel) => {
 
    let { rowsToUpdate, rowsToCreate } = await _process_Rows_Data(rowsData, sheetId, rowModel);
-
    const _genUpdateRowQuery = (rowData) => {
       let { _id, data, ...rest } = rowData;
       let setDataQuery = { ...rest };
@@ -215,13 +214,12 @@ const _update_Or_Create_Rows = async (rowsData, sheetId, rowModel) => {
    };
 
 
-
    await Promise.all([
       ...rowsToUpdate.map((r) => rowModel.updateOne({ _id: r._id }, _genUpdateRowQuery(r))),
       rowModel.create(rowsToCreate),
    ]);
 
-   
+
    return {
       created: rowsToCreate.length,
       updated: rowsToUpdate.length,
@@ -311,7 +309,7 @@ const _process_Rows = (sheetHeaders, rows) => {
 };
 
 const getAllCollections = async (req, res, next) => {
- 
+
    try {
       const { user } = req.query;
       if (user === 'truongbaolam0209') {
@@ -374,7 +372,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
    if (!projectName) return 'ERROR - Missing projectName';
    if (!formSubmitType) return 'ERROR - Missing formSubmitType';
 
-   
+
    if (formSubmitType === 'rfa') {
 
       let [rows, rowHistories, publicSettings] = await Promise.all([
@@ -496,7 +494,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
       let listGroupOutput = { to: [], cc: [] };
 
       if (type === 'submit-request-signature') {
-         // TEST_EMAIL_API
+
          const resFormNoSignature = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company), 3600 * 24 * 7);
          const keyFormNoSignature = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature', company);
          rowData[keyFormNoSignature] = resFormNoSignature;
@@ -505,7 +503,7 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
          listUserOutput.cc = emailSender;
 
       } else if (type === 'submit-signed-off-final') {
-         // TEST_EMAIL_API
+
          const resFormSignedOff = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit', company), 3600 * 24 * 7);
          const keyFormSignedOff = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit', company);
          rowData[keyFormSignedOff] = resFormSignedOff;
@@ -514,9 +512,9 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
          const linkDrawingsRfaArr = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawingsRfa', company) || [];
 
          const arrayDrawingsAttached = [...linkDrawingsArr, ...linkDrawingsRfaArr];
-         
+
          if (arrayDrawingsAttached && arrayDrawingsAttached.length > 0) {
-            // TEST_EMAIL_API
+
             const arrayDrawingsLinkPublic = await getDrawingUrlMultiForm(arrayDrawingsAttached);
 
             const keyDrawingsAttached = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings', company);
@@ -545,10 +543,12 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
          listUserOutput.cc = [...new Set([...listUserOutput.cc || [], emailSender, emailSignaturedBy])];
 
       } else if (type === 'reply-signed-off') {
-         // TEST_EMAIL_API
-         const resFormSignedOff = await createPublicUrl(getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company), 3600 * 24 * 7);
+
+         const linkFormReplyArray = getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company) || [];
+         const arrayDrawingsLinkPublic = await getDrawingUrlMultiForm(linkFormReplyArray);
+
          const keyFormSignedOff = getInfoKeyFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company);
-         rowData[keyFormSignedOff] = resFormSignedOff;
+         rowData[keyFormSignedOff] = arrayDrawingsLinkPublic;
 
          const emailListTo = getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'emailTo', company);
          const emailListCc = getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'emailCc', company);

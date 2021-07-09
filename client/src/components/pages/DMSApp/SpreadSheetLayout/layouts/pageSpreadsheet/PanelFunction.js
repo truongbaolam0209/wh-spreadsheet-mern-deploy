@@ -66,8 +66,8 @@ const PanelFunction = (props) => {
       'Delete Drawing'
 
    ] : (
-      pageSheetTypeName === 'page-spreadsheet' &&
-      rowData._rowLevel && rowData._rowLevel === 1 &&
+      pageSheetTypeName === 'page-spreadsheet' && 
+      rowData._rowLevel && rowData._rowLevel === 1 && 
       (isLockedColumn || isLockedRow)
    ) ? [
       'View Drawing Revision',
@@ -184,6 +184,10 @@ const disabledBtn = (
          (treeLevel >= 1 && rowData.folderType === 'MODEL_DATA_IMPORTED' && btn === 'Insert Drawings By Type') ||
          (_rowLevel === 1 && (drawingTypeTree.find(x => x.id === rowData._parentRow) || {}).folderType === 'MODEL_DATA_IMPORTED' && btn !== 'Move Drawings' && btn !== 'Delete Drawing')
       )) ||
+
+
+
+
 
 
       (treeLevel > 1 && !drawingTypeTree.find(x => x.parentId === id) && rowsSelectedToMove.length === 0 && btn === 'Paste Drawings') ||

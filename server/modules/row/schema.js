@@ -40,9 +40,9 @@ const schema = new Schema({
       },
       default: () => null, // preRow null means first row of sheet
       ref: 'Row'
-   }
+   },
 }, {
-   timestamps: true
+   timestamps: true,
 });
 
 module.exports = schema;
