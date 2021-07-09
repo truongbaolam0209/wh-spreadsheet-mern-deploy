@@ -6,12 +6,12 @@ import OverallComponentDMS from './generalComponents/OverallComponentDMS';
 const PageCVI = (props) => {
 
    return (
-      <div>
+    
          <OverallComponentDMS
             {...props}
             pageSheetTypeName='page-cvi'
          />
-      </div>
+      
    );
 };
 

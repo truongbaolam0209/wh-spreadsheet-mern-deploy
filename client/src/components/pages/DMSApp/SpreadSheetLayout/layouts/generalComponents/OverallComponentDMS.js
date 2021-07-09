@@ -63,7 +63,7 @@ const OverallComponentDMS = (props) => {
 
    let {
       email, role: roleInit, isAdmin, projectId, projectName, token, company,
-      companies, projectIsAppliedRfaView, listUser, listGroup, projectNameShort, pageSheetTypeName,
+      companies, projectIsAppliedRfaView, listUser: listUserInput, listGroup, projectNameShort, pageSheetTypeName,
       history, localState,
 
       // sheet-data-entry
@@ -71,7 +71,7 @@ const OverallComponentDMS = (props) => {
       saveDataToServerCallback, callbackSelectRow, rowsImportedFromModel
    } = props;
 
-
+   const listUser = [...listUserInput, 'truongbaolam0209@gmail.com'];
 
    let role = roleInit;
    let sheetDataInput;
@@ -1178,7 +1178,7 @@ const OverallComponentDMS = (props) => {
 
    return (
       <div
-         style={{ color: 'black' }}
+         style={{ color: 'black', width: '100%' }}
          onContextMenu={(e) => e.preventDefault()}
       >
 
@@ -1421,7 +1421,6 @@ const OverallComponentDMS = (props) => {
                   })}
                </div>
             )}
-
 
 
 
