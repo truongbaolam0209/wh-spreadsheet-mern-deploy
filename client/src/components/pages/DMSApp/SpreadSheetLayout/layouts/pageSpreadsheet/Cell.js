@@ -46,7 +46,7 @@ const Cell = (props) => {
 
 
    let info = '';
-   if (rowData.treeLevel && column.key === columnKeyToPutFolderName) {
+   if (rowData.treeLevel && column.key === columnKeyToPutFolderName && pageSheetTypeName !== 'page-data-entry') {
       const node = drawingTypeTree.find(x => x.id === rowData.id);
       const branches = getTreeFlattenOfNodeInArray(drawingTypeTree, node);
 

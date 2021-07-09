@@ -9,7 +9,7 @@ import { colorTextRow, colorType, SERVER_URL, tradeArrayForm, tradeArrayMeetingM
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
+import { genId, compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
 import ButtonAdminCreateAndUpdateRows from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
 import ButtonAdminCreateAndUpdateRowsHistory from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRowsHistory';
 import Cell, { columnLocked, rowLocked } from '../pageSpreadsheet/Cell';
@@ -1040,8 +1040,13 @@ const OverallComponentDMS = (props) => {
       if (!stateRow || !rowsImportedFromModel || rowsImportedFromModel.length === 0) return;
 
       let { rowsAll, rowsUpdatePreRowOrParentRow, idRowsNew } = stateRow;
+
       const { publicSettings } = stateProject.allDataOneSheet;
-      const { headers, drawingTypeTree } = publicSettings;
+      const { headers, drawingTypeTree, sheetId } = publicSettings;
+
+      const folderFoundImportModel = drawingTypeTree.find(fd => fd.folderType === 'MODEL_DATA_IMPORTED');
+      const folderFoundContainRows = drawingTypeTree.find(fd => !fd.folderType);
+
 
       let cellsModifiedTempObj = {};
 
@@ -1050,15 +1055,12 @@ const OverallComponentDMS = (props) => {
          if (!r._id) {
             r._id = newId;
          };
-         const obj = {
-            id: r._id || newId
-         };
+         const obj = { id: r._id || newId };
          for (const key in r) {
             if (key !== '_id' && key !== 'parentRow' && key !== 'preRow' && key !== 'level' && key !== 'data') {
                obj[key] = r[key];
             };
          };
-
          const data = r.data || {};
          for (const key in data) {
             const headerFound = headers.find(hd => hd.key === key);
@@ -1085,13 +1087,63 @@ const OverallComponentDMS = (props) => {
          };
       });
 
-      const allRowsOfFolderModelImported = rowsAll.filter(r => r._parentRow === getIdOfFolderModelImported());
-      const lastRowCurrent = allRowsOfFolderModelImported[allRowsOfFolderModelImported.length - 1];
+
+      let idFolderImportModel;
+      let idFolderContainRows;
+      let newDrawingTypeTree;
+
+      if (!folderFoundImportModel && !folderFoundContainRows) {
+
+         idFolderContainRows = mongoObjectId();
+         idFolderImportModel = mongoObjectId();
+
+         newDrawingTypeTree = [
+            {
+               expanded: true, treeLevel: 1,
+               id: idFolderContainRows,
+               parentId: sheetId,
+               title: 'New Folder',
+
+            },
+            {
+               expanded: true, treeLevel: 1,
+               id: idFolderImportModel,
+               parentId: sheetId,
+               title: 'MODEL_DATA_IMPORTED',
+               folderType: 'MODEL_DATA_IMPORTED'
+            }
+         ];
+
+         rowsAll.forEach(row => {
+            row._parentRow = idFolderContainRows;
+            updatePreRowParentRowToState(rowsUpdatePreRowOrParentRow, row);
+         });
+
+      } else if (!folderFoundImportModel && folderFoundContainRows) {
+
+         idFolderImportModel = mongoObjectId();
+
+         newDrawingTypeTree = [
+            ...drawingTypeTree,
+            {
+               expanded: true, treeLevel: 1,
+               id: idFolderImportModel,
+               parentId: sheetId,
+               title: 'MODEL_DATA_IMPORTED',
+               folderType: 'MODEL_DATA_IMPORTED'
+            }
+         ];
+      } else {
+         idFolderImportModel = folderFoundImportModel.id;
+      };
 
       const rowsNewToAdd = rowsInput.filter(r => !rowsAll.find(x => x.id === r.id));
 
+      const allRowsOfFolderModelImported = rowsAll.filter(r => r._parentRow === idFolderImportModel);
+      const lastRowCurrent = allRowsOfFolderModelImported[allRowsOfFolderModelImported.length - 1];
+
       rowsNewToAdd.forEach((row, i) => {
-         row._parentRow = getIdOfFolderModelImported();
+         row._parentRow = idFolderImportModel;
          row._preRow = i === 0 ? (lastRowCurrent ? lastRowCurrent.id : null) : rowsNewToAdd[i - 1].id;
          row._rowLevel = 1;
 
@@ -1109,13 +1161,24 @@ const OverallComponentDMS = (props) => {
 
       OverwriteCellsModified({ ...stateCell.cellsModifiedTemp, ...cellsModifiedTempObj });
 
+
+      let updateStateDrawingTypeTree = {};
+      if (!folderFoundImportModel) {
+         updateStateDrawingTypeTree = {
+            drawingsTypeNewIds: idFolderContainRows ? [idFolderImportModel, idFolderContainRows] : [idFolderImportModel],
+            drawingTypeTree: newDrawingTypeTree,
+         };
+         setExpandedRows([...expandedRows, ...newDrawingTypeTree.map(node => node.id)]);
+      };
+
+
       getSheetRows({
          ...stateRow,
          rowsAll: [...rowsAll, ...rowsNewToAdd],
          rowsUpdatePreRowOrParentRow,
+         ...updateStateDrawingTypeTree,
          idRowsNew,
          additionalFieldToSave: rowsImportedFromModel,
-
          rowsSelectedToMove: [],
          rowsSelected: [],
          modeFilter: [],
@@ -1724,7 +1787,12 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
    } else if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
       const { rows, publicSettings, userSettings } = data;
 
-      const { drawingTypeTree } = publicSettings;
+      const { drawingTypeTree, sheetId } = publicSettings;
+
+
+      // DATA-ENTRY
+      const newRowInitDataEntry = createRowsInit(sheetId, 1)[0];
+      const dataEntrySheetInitState = (drawingTypeTree.length === 0 && rows.length === 0 && pageSheetTypeName === 'page-data-entry');
 
       let rowsAllOutput = getOutputRowsAllSorted(drawingTypeTree, rows);
       const { treeNodesToAdd, rowsToAdd, rowsUpdatePreOrParent } = rearrangeRowsNotMatchTreeNode(rows, rowsAllOutput, drawingTypeTree);
@@ -1741,13 +1809,14 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          modeSort = userSettings.modeSort || {};
       };
 
+
       return {
          modeFilter,
          modeSort,
          modeSearch: {},
          modeGroup: [],
 
-         rowsAll: [...rowsAllOutput, ...rowsToAdd], // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
+         rowsAll: dataEntrySheetInitState ? [newRowInitDataEntry] : [...rowsAllOutput, ...rowsToAdd], // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
          rowsVersionsToSave: [],
 
 
@@ -1759,8 +1828,8 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          drawingsTypeNewIds: [...treeNodesToAdd.map(x => x.id)], // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
 
          rowsDeleted: [],
-         idRowsNew: [],
-         rowsUpdatePreRowOrParentRow: { ...rowsUpdatePreOrParent }, // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
+         idRowsNew: dataEntrySheetInitState ? [newRowInitDataEntry.id] : [],
+         rowsUpdatePreRowOrParentRow: dataEntrySheetInitState ? { [newRowInitDataEntry.id]: newRowInitDataEntry } : { ...rowsUpdatePreOrParent }, // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
          rowsUpdateSubmissionOrReplyForNewDrawingRev: [],
 
          rowsSelected: [],
@@ -2317,7 +2386,16 @@ const DataStatisticRibbon = ({ onClickQuickFilter, item }) => {
 };
 
 
-
+const createRowsInit = (sheetId, nos) => {
+   const idsArr = genId(nos);
+   return idsArr.map((id, i) => {
+      return ({
+         id, _rowLevel: 1,
+         _parentRow: sheetId,
+         _preRow: i === 0 ? null : idsArr[i - 1]
+      });
+   });
+};
 
 
 
