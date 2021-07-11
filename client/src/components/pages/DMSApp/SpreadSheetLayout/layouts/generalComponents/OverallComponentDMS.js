@@ -71,7 +71,7 @@ const OverallComponentDMS = (props) => {
       saveDataToServerCallback, callbackSelectRow, rowsImportedFromModel
    } = props;
 
-   const listUser = [...listUserInput, 'truongbaolam0209@gmail.com'];
+   const listUser = [...listUserInput || [], 'truongbaolam0209@gmail.com'];
 
    let role = roleInit;
    let sheetDataInput;
