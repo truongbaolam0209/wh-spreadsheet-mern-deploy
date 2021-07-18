@@ -300,7 +300,9 @@ export const convertDrawingVersionToHistory = (rowsHistory, stateProject) => {
 
    return rowsHistoryOutput;
 };
-export const getHeaderWidthForRFAView = (header) => {
+export const getHeaderWidthForRFAView = (header, pageSheetTypeName) => {
+   if (pageSheetTypeName === 'page-mm' && header === 'Description') return 700;
+   if ((pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') && header === 'Received By') return 800;
    if (header === 'RFA Ref') return 380;
    else if (header === 'Drawing Number') return 250;
    else if (header === 'Drawing Name') return 400;
@@ -384,12 +386,13 @@ export const getActionName = (type) => {
    if (type === 'Delete Drawing') return 'Delete Drawing';
    if (type === 'colorized-ICON') return 'Drawing Colorization';
    if (type === 'viewTemplate-ICON') return 'View Template';
+   if (type === 'history-ICON') return 'Drawing History';
    if (type === 'View Drawing Revision') return 'Drawing Revision';
 
    if (type === 'form-submit-RFA') return 'Add New RFA';
    if (type === 'form-resubmit-RFA') return 'Resubmit RFA';
    if (type === 'form-reply-RFA') return 'Reply RFA';
-   if (type === 'form-RFA-submit-for-admin') return 'Choose Admin Action';
+   if (type === 'option-email-or-not-for-admin') return 'Choose Admin Action';
 
    if (type === 'form-submit-multi-type') return 'Add New Form';
    if (type === 'form-resubmit-multi-type') return 'Resubmit Form';
@@ -449,6 +452,17 @@ export const compareDates = (dateInput1, dateInput2) => {
    let date2 = dateInput2;
    if (dateInput1 && dateInput1.length === 8 && dateInput1.includes('/')) date1 = moment(dateInput1, 'DD/MM/YY').format('YYYY-MM-DD');
    if (dateInput2 && dateInput2.length === 8 && dateInput2.includes('/')) date2 = moment(dateInput2, 'DD/MM/YY').format('YYYY-MM-DD');
+
+   if (date1 && date2) {
+      return moment(date1).diff(moment(date2), 'days');
+   } else if (date1 && !date2) {
+      return moment(date1).diff(moment(), 'days');
+   };
+};
+export const compareDatesMultiForm = (dateInput1, dateInput2) => {
+   if (!dateInput1) return 1;
+   let date1 = dateInput1;
+   let date2 = dateInput2;
 
    if (date1 && date2) {
       return moment(date1).diff(moment(date2), 'days');

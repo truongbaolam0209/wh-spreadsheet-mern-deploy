@@ -41,32 +41,47 @@ function mongoObjectId() {
 };
 
 
-const getInfoKeyFromRfaData = (obj, type, info) => {
+
+const getInfoValueFromRfaData = (obj, type, info, company) => {
    for (const key in obj) {
-      if (key.includes(`${type}-$$$-${info}-`)) {
+      if (key.includes(
+         type === 'reply'
+            ? `${type}-$$$-${info}-${company}`
+            : `${type}-$$$-${info}-` // must have '-' ending 
+      )) {
+         return obj[key];
+      };
+   };
+};
+const getInfoKeyFromRfaData = (obj, type, info, company) => {
+   for (const key in obj) {
+      if (key.includes(
+         type === 'reply'
+            ? `${type}-$$$-${info}-${company}`
+            : `${type}-$$$-${info}-` // must have '-' ending 
+      )) {
          return key;
       };
    };
 };
-
-const getInfoValueFromRfaData = (obj, type, info, company = '') => {
+const getInfoValueFromRefDataForm = (obj, typeSubmit, typeForm, info, company) => {
    for (const key in obj) {
-      if (key.includes(`${type}-$$$-${info}-${company}`)) {
+      if (key.includes(
+         typeSubmit === 'reply'
+            ? `${typeSubmit}-${typeForm}-${info}-${company}`
+            : `${typeSubmit}-${typeForm}-${info}-` // must have '-' ending 
+      )) {
          return obj[key];
       };
    };
 };
-
-const getInfoValueFromRefDataForm = (obj, typeSubmit, typeForm, info, company = '') => {
+const getInfoKeyFromRefDataForm = (obj, typeSubmit, typeForm, info, company) => {
    for (const key in obj) {
-      if (key.includes(`${typeSubmit}-${typeForm}-${info}-${company}`)) {
-         return obj[key];
-      };
-   };
-};
-const getInfoKeyFromRefDataForm = (obj, typeSubmit, typeForm, info, company = '') => {
-   for (const key in obj) {
-      if (key.includes(`${typeSubmit}-${typeForm}-${info}-${company}`)) {
+      if (key.includes(
+         typeSubmit === 'reply'
+            ? `${typeSubmit}-${typeForm}-${info}-${company}`
+            : `${typeSubmit}-${typeForm}-${info}-` // must have '-' ending 
+      )) {
          return key;
       };
    };
@@ -88,13 +103,9 @@ const addBackgroundForCell = (stringStyle, status) => {
 };
 
 const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
-   const headersArray = [
-      '',
-      'Drawing Number',
-      'Drawing Name',
-      'Rev',
-      'Status',
-   ];
+
+   const headersArray = ['', 'Drawing Number', 'Drawing Name', 'Rev', 'Status'];
+
    const typeInput = emailType === 'submit' ? 'submission' : emailType === 'reply' ? 'reply' : '';
    let emailTitle = '';
    let emailAdditionalNotes = '';
@@ -120,32 +131,33 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
 
    let tableBody = '';
 
+   rowsData
+      .sort((a, b) => (a['Drawing Number'] > b['Drawing Number'] ? 1 : -1))
+      .forEach((rowData, i) => {
+         let str = `<td ${th_td_style}>${i + 1}</td>`;
 
-   rowsData.forEach((rowData, i) => {
-      let str = `<td ${th_td_style}>${i + 1}</td>`;
-
-      headersArray.forEach((headerText, i) => {
-         if (i !== 0) {
-            if (headerText === 'Status' && emailType === 'reply') {
-               const status = rowData[`reply-$$$-status-${company}`] || '';
-               str += `<td ${addBackgroundForCell(th_td_style, status)}>${status}</td>`;
-            } else if (headerText === 'Status' && emailType === 'submit') {
-               str += `<td ${th_td_style}>Consultant reviewing</td>`;
-            } else if (headerText === 'Drawing Number') {
-               str += `
+         headersArray.forEach((headerText, i) => {
+            if (i !== 0) {
+               if (headerText === 'Status' && emailType === 'reply') {
+                  const status = rowData[`reply-$$$-status-${company}`] || '';
+                  str += `<td ${addBackgroundForCell(th_td_style, status)}>${status}</td>`;
+               } else if (headerText === 'Status' && emailType === 'submit') {
+                  str += `<td ${th_td_style}>Consultant reviewing</td>`;
+               } else if (headerText === 'Drawing Number') {
+                  str += `
                   <td ${th_td_style}>
                      <a style='text-decoration: none;' href='${rowData[`${typeInput}-$$$-drawing-${company}`]}' download target='_blank'>
                         ${rowData[headerText] || ''}
                      </a>
                   </td>
                `;
-            } else {
-               str += `<td ${th_td_style}>${rowData[headerText] || ''}</td>`;
+               } else {
+                  str += `<td ${th_td_style}>${rowData[headerText] || ''}</td>`;
+               };
             };
-         };
+         });
+         tableBody += `<tr>${str}</tr>`;
       });
-      tableBody += `<tr>${str}</tr>`;
-   });
 
 
    let tableHeader = '';
@@ -179,7 +191,7 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
          <div>Dear all,</div>
          <div>
             <span style='font-weight: bold;'>${company}</span> has replied <span style='font-weight: bold;'>${rfaRefText}</span>
-            , the replied and commented drawings can be found below:
+            , the replied and commented drawings can be found below.
             <br />
             <br />
             <br />
@@ -230,8 +242,8 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
 
    const emailTitle = rowData[`${typeInput}-${formSubmitType}-emailTitle-${company}`];
    const emailAdditionalNotes = rowData[`${typeInput}-${formSubmitType}-description-${company}`];
-   const refNumber = rowData.revision === '0' ? rowData[`${formSubmitType}Ref`] : rowData[`${formSubmitType}Ref`] + rowData.revision;
 
+   const refNumber = rowData.revision === '0' ? rowData[`${formSubmitType}Ref`] : rowData[`${formSubmitType}Ref`] + rowData.revision;
 
    const requestedBy = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'requestedBy');
 
@@ -251,21 +263,24 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
 
    const linkFormNoSignature = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature');
    const linkFormSignedOff = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkSignedOffFormSubmit');
+   const recipientName = getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'recipientName');
+
+   const linkFormReply = getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company);
 
 
    const replyStatus = getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'status', company);
 
    const linkAttachedArray = action === 'reply-signed-off'
-      ? getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'linkFormReply', company)
+      ? getInfoValueFromRefDataForm(rowData, 'reply', formSubmitType, 'linkDocumentsReply', company)
       : getInfoValueFromRefDataForm(rowData, 'submission', formSubmitType, 'linkDrawings');
 
 
-   let tableBody = action === 'reply-signed-off' ? '' : `
+   let tableBody = `
       <tr>
          <td ${th_td_style}>1</td>
-         <td ${th_td_style}>Form Cover</td>
+         <td ${th_td_style}>Form</td>
          <td ${th_td_style}>
-            <a style='text-decoration: none;' href='${linkFormSignedOff}' download target='_blank'>
+            <a style='text-decoration: none;' href='${action === 'reply-signed-off' ? linkFormReply : linkFormSignedOff}' download target='_blank'>
                ${refNumber}
             </a>
          </td>
@@ -276,8 +291,8 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
       linkAttachedArray.forEach((link, i) => {
          tableBody += `
             <tr>
-               <td ${th_td_style}>${i + (action === 'reply-signed-off' ? 1 : 2)}</td>
-               <td ${th_td_style}>${action === 'reply-signed-off' ? 'File' : 'Drawing'}</td>
+               <td ${th_td_style}>${i + 2}</td>
+               <td ${th_td_style}>${'File'}</td>
                <td ${th_td_style}>
                   <a style='text-decoration: none;' href='${link.fileLink}' download target='_blank'>
                      ${link.fileName}
@@ -298,13 +313,13 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
             <div>Submission Date: <span style='font-weight: bold;'>${moment(dateSubmission).format('MMM Do YYYY')}</span></div>
             <div>Requested by: <span style='font-weight: bold;'>${requestedBy}</span></div>
             <br />
-            <div>Dear Mr/Mrs,</div>
+            <div>Dear Mr ${recipientName},</div>
             <div>
                Please help to sign in cover form 
                <a href='${linkFormNoSignature}' download target='_blank'>
                   <span style='font-weight: bold;'>${refNumber}</span> 
                </a>
-               for submission. Please pass this back to DC by attached signed form to DC or give him by hand.
+               for submission. Please pass this attached signed form back to DC or give him by hand.
 	            The form can find in this 
                <a href='${linkFormNoSignature}' download target='_blank'>
                   <span style='font-weight: bold;'>link</span> 
@@ -318,9 +333,12 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
             <br />
             <div>Dear All,</div>
             <div>
-               <span style='font-weight: bold;'>${company}</span> has submitted <span style='font-weight: bold;'>${refNumber}</span> for you to review.
+               <span style='font-weight: bold;'>${company}</span> has submitted 
+               <a href='${linkFormSignedOff}' download target='_blank'>
+                  <span style='font-weight: bold;'>${refNumber}</span>
+               </a> for you to review.
             </div>
-            <div>Please review and reply to us by <span style='font-weight: bold;'>${moment(dueDate).format('MMM Do YYYY')}</span>.</div>
+            <div>Please reply to us by <span style='font-weight: bold;'>${moment(dueDate).format('MMM Do YYYY')}</span>.</div>
             <br />
             ${(linkAttachedArray && linkAttachedArray.length > 0) ?
                `
@@ -350,10 +368,11 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
             <div>Dear all,</div>
             <div>
                <span style='font-weight: bold;'>${company}</span> has replied 
-      
+               <a href='${linkFormReply}' download target='_blank'>
                   <span style='font-weight: bold;'>${refNumber}</span>
-                  <br />
-                  <br />
+               </a>. Please review and proceed accordingly.
+               <br />
+               <br />
                <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
 
                ${(linkAttachedArray && linkAttachedArray.length > 0) ?
@@ -375,7 +394,6 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
          <br />
       </div>
    `;
-
 
    return emailOutput;
 };

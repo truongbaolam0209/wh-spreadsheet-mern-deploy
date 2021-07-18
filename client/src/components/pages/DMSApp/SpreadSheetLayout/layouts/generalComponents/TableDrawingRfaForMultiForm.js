@@ -48,7 +48,7 @@ const TableDrawingRfaForMultiForm = ({ onClickCancelModalPickDrawing, onClickApp
 
             const { rowsDataRFA } = getDataForRFASheet(rows, dataRowsHistoryConverted, role, company);
 
-            setRowsTableInput(rowsDataRFA.filter(dwg => dwg['Drawing Number']));
+            setRowsTableInput(rowsDataRFA.filter(dwg => dwg['Drawing Number'] && dwg['RFA Ref']));
             setHeaders(publicSettings.headers);
 
          } catch (err) {

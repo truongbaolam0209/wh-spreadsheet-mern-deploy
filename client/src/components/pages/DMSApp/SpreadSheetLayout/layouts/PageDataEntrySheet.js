@@ -6,12 +6,10 @@ import OverallComponentDMS from './generalComponents/OverallComponentDMS';
 const PageDataEntrySheet = (props) => {
 
    return (
-      
-         <OverallComponentDMS
-            {...props}
-            pageSheetTypeName='page-data-entry'
-         />
-     
+      <OverallComponentDMS
+         {...props}
+         pageSheetTypeName='page-data-entry'
+      />
    );
 };
 

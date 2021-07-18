@@ -1,4 +1,5 @@
 import { Checkbox, Icon, Select, Tooltip } from 'antd';
+import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
@@ -8,7 +9,6 @@ import { getConsultantReplyData, getInfoValueFromRfaData, isColumnWithReplyData 
 import { getKeyTextForSheet } from '../pageSpreadsheet/PanelSetting';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
-import moment from 'moment';
 
 const { Option } = Select;
 
@@ -28,10 +28,10 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsInputData, m
                { id: mongoObjectId(), header: `Overdue ${refType.toUpperCase()}`, value: 'Select Value...' },
                { isIncludedParent: 'included' }
             ])
-            : [
+            : (modeFilter.length > 1 ? modeFilter.map(item => ({ ...item })) : [
                { id: mongoObjectId(), header: 'Select Field', value: 'Select Value...' },
                { isIncludedParent: 'included' }
-            ]
+            ])
    );
 
    const setFilterSelect = (dataFilter) => {
@@ -116,23 +116,27 @@ const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsInputData, m
                   data={item}
                   setFilterSelect={setFilterSelect}
                   removeFilterTag={removeFilterTag}
-                  headers={headers}
+                  headers={
+                     (pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam')
+                        ? [...headers, 'Status']
+                        : headers
+                  }
                   rows={rowsInputData}
                   pageSheetTypeName={pageSheetTypeName}
                   companies={companies}
                />
             ))}
 
-            {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') && (
-               <div>
-                  <CheckboxStyled
-                     onChange={onChangeBox}
-                     checked={isChecked}
-                  >
-                     Include Parent Rows
-                  </CheckboxStyled>
-               </div>
-            )}
+            {/* {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') && ( */}
+            <div>
+               <CheckboxStyled
+                  onChange={onChangeBox}
+                  checked={isChecked}
+               >
+                  Include Parent Rows
+               </CheckboxStyled>
+            </div>
+            {/* )} */}
 
          </div>
 
@@ -351,5 +355,21 @@ const getColumnsValue = (rows, headers, pageSheetTypeName, companies) => {
          valueArr.sort((a, b) => a > b ? 1 : (b > a ? -1 : 0));
          if (valueArr.length > 0) valueObj[hd] = valueArr;
       });
+
+   if (pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam') {
+      valueObj['Status'] = 'page-rfa' ? [
+         'Approved with comments, to Resubmit',
+         'Approved with Comment, no submission Required',
+         'Approved for Construction',
+         'Reject and resubmit',
+         'Consultant reviewing'
+      ] : [
+         'Approved with comments, to Resubmit',
+         'Approved with Comment, no submission Required',
+         'Approved for Construction',
+         'Reject and resubmit',
+      ];
+   };
+
    return valueObj;
 };

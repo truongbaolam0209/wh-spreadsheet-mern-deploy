@@ -30,8 +30,10 @@ const Table = (props) => {
 };
 
 
-const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA, 
-   existingSubTradeOfResubmision, tradeOfRfaForFirstTimeSubmit, formRfaType, existingTradeOfResubmision, mepSubTradeFirstTime }) => {
+const TableDrawingRFA = ({
+   onClickCancelModalPickDrawing, onClickApplyModalPickDrawing, dwgsToAddNewRFA, formRefType,
+   tradeOfRfaForFirstTimeSubmit, existingTradeOfResubmision, mepSubTradeFirstTime, existingSubTradeOfResubmision
+}) => {
 
 
    const { state: stateProject } = useContext(ProjectContext);
@@ -39,30 +41,25 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
 
    const { headers } = stateProject.allDataOneSheet.publicSettings;
 
-
    const { rowsAll, drawingTypeTreeDmsView } = stateRow;
 
-   const [drawingTrade, setDrawingTrade] = useState(existingTradeOfResubmision || convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit) || 'ARCHI');
-   const [drawingSubTrade, setDrawingSubTrade] = useState(existingSubTradeOfResubmision || 'Select Sub Trade...');
+   const [drawingTrade, setDrawingTrade] = useState(convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit) || 'ARCHI');
+
+   const [drawingSubTrade, setDrawingSubTrade] = useState(mepSubTradeFirstTime || 'Select Sub Trade...');
 
    const [rowsTableInput, setRowsTableInput] = useState([]);
 
    const [arraySubTradeMEP, setArraySubTradeMEP] = useState([]);
 
-   
    useEffect(() => {
-
       if (drawingTrade !== convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit) || drawingSubTrade !== mepSubTradeFirstTime) {
          setSelectedIdRows([]);
       };
 
       let rowsList = rowsAll.filter(r => {
          const trade = findTradeOfDrawing(r, drawingTypeTreeDmsView);
-         return (r['Drawing Number']) &&
-            !r.rfaNumber &&
-            trade.includes(drawingTrade);
+         return (r['Drawing Number']) && !r.rfaNumber && trade.includes(drawingTrade);
       });
-
 
 
       if (drawingTrade === 'M&E') {
@@ -84,7 +81,16 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
    }, [drawingTrade, drawingSubTrade]);
 
 
-   const [selectedIdRows, setSelectedIdRows] = useState(dwgsToAddNewRFA ? dwgsToAddNewRFA.map(x => x.id) : []);
+
+
+
+   const [selectedIdRows, setSelectedIdRows] = useState(
+      dwgsToAddNewRFA
+         ? dwgsToAddNewRFA
+            .filter(x => !x['rfaNumber']) // in case ADD new drawing to RESUBMISSION
+            .map(x => x.id)
+         : []
+   );
 
 
    const generateColumnsRFA = (headers) => {
@@ -114,7 +120,7 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
 
    const rowEventHandlers = {
       onClick: (props) => {
-         const { rowKey, rowData } = props;
+         const { rowKey } = props;
          if (selectedIdRows.indexOf(rowKey) === -1) {
             setSelectedIdRows([...selectedIdRows, rowKey]);
          } else {
@@ -136,7 +142,7 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
                style={{ minWidth: 100, paddingRight: 10 }}
                value={drawingTrade}
                onChange={(e) => setDrawingTrade(e)}
-               disabled={formRfaType === 'form-resubmit-RFA'}
+               disabled={formRefType === 'form-resubmit-RFA'}
             >
                {['ARCHI', 'C&S', 'M&E', 'PRECAST'].map(item => (
                   <Option key={item} value={item}>{item}</Option>
@@ -149,7 +155,7 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
                   style={{ minWidth: 100, paddingRight: 10 }}
                   value={drawingSubTrade}
                   onChange={(e) => setDrawingSubTrade(e)}
-                  disabled={formRfaType === 'form-resubmit-RFA'}
+                  disabled={formRefType === 'form-resubmit-RFA'}
                >
                   {arraySubTradeMEP.map(item => (
                      <Option key={item} value={item}>{item}</Option>
@@ -176,7 +182,7 @@ const TableDrawingRFA = ({ onClickCancelModalPickDrawing, onClickApplyModalPickD
                   if (selectedIdRows.length === 0) {
                      return message.info('Please select drawings to submit!', 2);
                   } else {
-                     onClickApplyModalPickDrawing(formRfaType, drawingTrade, drawingSubTrade, selectedIdRows);
+                     onClickApplyModalPickDrawing(formRefType, drawingTrade, drawingSubTrade, selectedIdRows);
                   };
                }}
             />
@@ -195,22 +201,16 @@ const SelectStyled = styled(Select)`
       border-radius: 0;
    }
 `;
-
-
 const TableStyled = styled(Table)`
-
    .row-selected-rfa {
       background-color: ${colorType.cellHighlighted};
    };
    .row-with-rfa-locked {
       background-color: ${colorType.lockedCell}
    };
-
-   
    .BaseTable__row-cell-text {
       color: black
-   }
-
+   };
    .BaseTable__table .BaseTable__body {
       /* -webkit-touch-callout: none;
       -webkit-user-select: none;
@@ -218,18 +218,16 @@ const TableStyled = styled(Table)`
       -moz-user-select: none;
       -ms-user-select: none;
       user-select: none; */
-   }
-
+   };
    .BaseTable__header-cell {
       padding: 10px;
       border-right: 1px solid #DCDCDC;
       background: ${colorType.grey1};
       color: black
-   }
-
+   };
    .BaseTable__row-cell {
       padding: 10px;
       border-right: 1px solid #DCDCDC;
       overflow: visible !important;
-   }
+   };
 `;

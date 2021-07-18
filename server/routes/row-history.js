@@ -8,6 +8,7 @@ const { validateToken } = require('../../service/validate');
 
 
 
+
 router.post('/save-all-data-row-history', validateToken, RowHistory.saveAllDataRowHistoryToServer);
 
 router.post('/delete-rows-history', validateToken, RowHistory.deleteRowsHistory);

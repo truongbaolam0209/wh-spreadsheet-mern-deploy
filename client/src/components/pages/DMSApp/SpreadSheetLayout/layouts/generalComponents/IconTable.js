@@ -6,6 +6,9 @@ import { Context as RowContext } from '../../contexts/rowContext';
 
 
 
+
+
+
 const IconTable = (props) => {
 
    const { type, onClick, isActivityTable, pageSheetTypeName } = props;
@@ -84,7 +87,7 @@ const toolTipBtn = (type, pageSheetTypeName) => {
                                                                                        (type === 'plus-square' && pageSheetTypeName === 'page-rfi') ? 'Add New RFI' :
                                                                                           (type === 'plus-square' && pageSheetTypeName === 'page-cvi') ? 'Add New CVI' :
                                                                                              (type === 'plus-square' && pageSheetTypeName === 'page-dt') ? 'Add New DT' :
-                                                                                                type === 'plus-square' ? 'Add New RFA' :
+                                                                                                (type === 'plus-square' && pageSheetTypeName === 'page-rfa') ? 'Add New RFA' :
                                                                                                    type === 'block' ? 'View Consultant Mode' :
                                                                                                       'No Title';
 };

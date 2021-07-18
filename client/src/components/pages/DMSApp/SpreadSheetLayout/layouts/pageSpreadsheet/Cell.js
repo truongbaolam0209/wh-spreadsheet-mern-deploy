@@ -120,7 +120,7 @@ const Cell = (props) => {
 
          let cellDrgTypeFormatArrText = [];
          const parentNode = drawingTypeTree.find(x => x.id === rowData._parentRow);
-         if (parentNode && pageSheetTypeName === 'page-data-enrty-new') {
+         if (parentNode && pageSheetTypeName === 'page-spreadsheet') {
             const tradeName = getTradeNameFnc(parentNode, drawingTypeTree);
             if (tradeName.includes('(SUBCON)')) {
                cellDrgTypeFormatArrText = ['Other'];
@@ -128,8 +128,6 @@ const Cell = (props) => {
                cellDrgTypeFormatArrText = cellDrgTypeFormat[tradeName];
             };
          };
-
-
 
 
          if (
@@ -155,7 +153,7 @@ const Cell = (props) => {
 
          } else if (pageSheetTypeName === 'page-data-entry' && headerDataEntry.type === 'checkbox') {
             getCellModifiedTemp({ [getCellTempId()]: !value || value === 'unchecked' ? 'unchecked' : 'checked' });
-            
+
             let row = rowsAll.find(r => r.id === rowData.id);
 
             row[column.key] = value ? 'checked' : 'unchecked';

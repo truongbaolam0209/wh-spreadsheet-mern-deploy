@@ -126,13 +126,12 @@ const TableDrawingDetail = (props) => {
 
          if ((headersConsultantWithNumber.indexOf(infoCol) !== -1 || infoCol === 'RFA Ref') && column.key !== 'Info') {
             return (
-               <CellRFA 
-                  {...props} 
+               <CellRFA
+                  {...props}
                   contextInput={{
                      contextRow: { stateRow },
                      contextProject: { stateProject },
                   }}
-
                />
             );
          } else {
@@ -149,14 +148,7 @@ const TableDrawingDetail = (props) => {
    }));
 
    return (
-      // <div style={{
-      //    height: panelHeight,
-      //    background: 'white',
-      //    padding: 10,
-      //    display: 'flex',
-      //    justifyContent: 'center',
-      //    flexDirection: 'column',
-      // }}>
+
       <div style={{ width: '100%', height: '100%', padding: 10 }}>
          {rowsHistoryDatabase && rowCurrent && (
             <div style={{ display: 'flex', paddingBottom: 10, borderBottom: `1px solid ${colorType.grey4}` }}>
@@ -229,23 +221,23 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
          Info: hd.text
       };
       data.forEach((row, i) => {
-         if (isColumnWithReplyData(hd.text)) {
+         if (isColumnWithReplyData(hd.text) || hd.text === 'RFA Ref') {
             const rfaNumber = row.rfaNumber;
             const rfaRef = row['RFA Ref'];
             if (rfaNumber && rfaRef) {
-               const { replyStatus, replyCompany, replyDate } = getConsultantReplyData(row, hd.text, companies);
-               if (replyStatus) {
-                  obj[i] = { ...obj[i] || {}, [`reply-$$$-status-${replyCompany}`]: replyStatus };
-                  obj[i] = { ...obj[i] || {}, [`reply-$$$-date-${replyCompany}`]: replyDate };
-                  obj[i] = { ...obj[i] || {}, [`reply-$$$-drawing-${replyCompany}`]: row[`reply-$$$-drawing-${replyCompany}`] };
-                  obj[i] = { ...obj[i] || {}, [`reply-$$$-comment-${replyCompany}`]: row[`reply-$$$-comment-${replyCompany}`] };
-                  obj[i] = { ...obj[i] || {}, [`reply-$$$-user-${replyCompany}`]: row[`reply-$$$-user-${replyCompany}`] };
+
+               if (isColumnWithReplyData(hd.text)) {
+                  const { replyStatus, replyCompany, replyDate } = getConsultantReplyData(row, hd.text, companies);
+
+                  if (replyStatus) {
+                     obj[i] = { ...obj[i] || {}, [`reply-$$$-status-${replyCompany}`]: replyStatus };
+                     obj[i] = { ...obj[i] || {}, [`reply-$$$-date-${replyCompany}`]: replyDate };
+                     obj[i] = { ...obj[i] || {}, [`reply-$$$-drawing-${replyCompany}`]: row[`reply-$$$-drawing-${replyCompany}`] };
+                     obj[i] = { ...obj[i] || {}, [`reply-$$$-comment-${replyCompany}`]: row[`reply-$$$-comment-${replyCompany}`] || '' };
+                     obj[i] = { ...obj[i] || {}, [`reply-$$$-user-${replyCompany}`]: row[`reply-$$$-user-${replyCompany}`] };
+                  };
                };
-            };
-         } else if (hd.text === 'RFA Ref') {
-            const rfaNumber = row.rfaNumber;
-            const rfaRef = row['RFA Ref'];
-            if (rfaNumber && rfaRef) {
+
                for (const key in row) {
                   if (key.includes('submission-$$$-') && row[key]) {
                      obj[i] = { ...obj[i] || {}, [key]: row[key] };
@@ -256,6 +248,7 @@ const convertToVerticalTable = (data, headers, companies, projectIsAppliedRfaVie
                   obj[i] = { ...obj[i] || {}, rfaRef };
                };
             };
+
          } else {
             obj[`Version ${i}`] = row[hd.text] || '';
          };

@@ -1,17 +1,20 @@
-import { message, Modal } from 'antd';
-import Axios from 'axios';
+import { Modal } from 'antd';
 import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
 import BaseTable, { AutoResizer } from 'react-base-table';
 import styled from 'styled-components';
-import { colorType, SERVER_URL } from '../../constants';
+import { colorType } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { convertHistoryData, mongoObjectId } from '../../utils';
+import { mongoObjectId } from '../../utils';
 import ButtonStyle from '../generalComponents/ButtonStyle';
 import FormFilterActivityHistory from '../generalComponents/FormFilterActivityHistory';
 import IconTable from '../generalComponents/IconTable';
 import PanelCalendarDuration from '../generalComponents/PanelCalendarDuration';
+import { getInfoValueFromRefDataForm } from '../pageSpreadsheet/CellForm';
+import { getInfoValueFromRfaData } from '../pageSpreadsheet/CellRFA';
+import { getKeyTextForSheet } from '../pageSpreadsheet/PanelSetting';
+
 
 
 
@@ -32,105 +35,115 @@ const Table = (props) => {
 };
 
 
-const TableActivityHistory = (props) => {
+const TableAllFormActivityHistory = (props) => {
 
    const { state: stateProject } = useContext(ProjectContext);
    const { state: stateRow } = useContext(RowContext);
-   const { allDataOneSheet: { publicSettings: { activityRecorded } } } = stateProject;
 
-
-
-   const { projectId, token } = stateProject.allDataOneSheet;
-   const { headers } = stateProject.allDataOneSheet.publicSettings;
+   const { pageSheetTypeName } = stateProject.allDataOneSheet;
 
    const [historyAll, setHistoryAll] = useState(null);
    const [historyAllInit, setHistoryAllInit] = useState(null);
 
-   const [loading, setLoading] = useState(false);
 
+   const refType = getKeyTextForSheet(pageSheetTypeName);
+
+   const rowsAllToCheck = pageSheetTypeName === 'page-rfa' ? stateRow.rowsRfaAllInit
+      : pageSheetTypeName === 'page-rfam' ? stateRow.rowsRfamAllInit
+         : pageSheetTypeName === 'page-rfi' ? stateRow.rowsRfiAllInit
+            : pageSheetTypeName === 'page-cvi' ? stateRow.rowsCviAllInit
+               : pageSheetTypeName === 'page-dt' ? stateRow.rowsDtAllInit
+                  : pageSheetTypeName === 'page-mm' ? stateRow.rowsMmAllInit
+                     : [];
 
    const headersShown = [
-      'Drawing Number',
-      'Drawing Name',
-      'Column',
-      'Value',
+      `${refType.toUpperCase()} Ref`,
+      'Rev',
+      'Status',
+      'Action',
       'User',
+      'Company',
       'Created At',
-      'Action'
    ];
 
-   const revKey = headers.find(hd => hd.text === 'Rev').key;
-   const statusKey = headers.find(hd => hd.text === 'Status').key;
-   const dwgNumber = headers.find(hd => hd.text === 'Drawing Number').key;
-   const dwgName = headers.find(hd => hd.text === 'Drawing Name').key;
+
 
    useEffect(() => {
-      const fetchRowsAndCellHistory = async () => {
-         setLoading(true);
-         try {
-            const resRows = await Axios.get(`${SERVER_URL}/row/history/`, { params: { token, projectId } });
-            const resCells = await Axios.get(`${SERVER_URL}/cell/history/`, { params: { token, projectId } });
 
-            let rowsOutput = [];
-            resRows.data.forEach(row => {
-               const { history } = row;
-               if (history) rowsOutput.push({
-                  'Drawing Number': history[dwgNumber],
-                  'Drawing Name': history[dwgName],
-                  'Column': 'Rev & Status',
-                  'Value': `${history[revKey] || ''} - ${history[statusKey] || ''}`,
-                  'User': row.userId || 'n/a',
-                  // 'Created At': moment(row.createdAt).format('DD/MM/YY - HH:mm'),
-                  'Created At': row.createdAt,
-                  'Action': 'Save Drawing Version',
-                  id: mongoObjectId()
-               });
-            });
+      let outputArr = [];
 
-            let cellsOutput = [];
-            convertHistoryData(resCells.data).forEach(cell => {
-               const row = stateRow.rowsAll.find(r => r.id === cell.row);
-               const headerFound = headers.find(hd => hd.key === cell.headerKey);
-               if (row && headerFound) cellsOutput.push({
-                  'Drawing Number': row['Drawing Number'],
-                  'Drawing Name': row['Drawing Name'],
-                  'Column': headerFound.text,
-                  'Value': cell.text || '',
-                  'User': cell.email || 'n/a',
-                  // 'Created At': moment(cell.createdAt).format('DD/MM/YY - HH:mm'),
-                  'Created At': cell.createdAt,
-                  'Action': 'Edit Cell',
-                  id: mongoObjectId()
-               });
-            });
+      rowsAllToCheck.forEach(row => {
+         outputArr.push({
+            id: mongoObjectId(),
+            [`${refType.toUpperCase()} Ref`]: pageSheetTypeName === 'page-rfa'
+               ? row['RFA Ref']
+               : row[`${refType}Ref`] + (row.revision === '0' ? '' : row.revision),
 
-            const activityRecordedData = activityRecorded.map(r => {
-               return {
-                  'Drawing Number': r[dwgNumber],
-                  'Drawing Name': r[dwgName],
-                  'Column': undefined,
-                  'Value': undefined,
-                  'User': r.email || 'n/a',
-                  // 'Created At': moment(r.createdAt).format('DD/MM/YY - HH:mm'),
-                  'Created At': r.createdAt,
-                  'Action': r.action,
-                  id: mongoObjectId()
-               };
-            });
-            let outputArr = [...rowsOutput, ...cellsOutput, ...activityRecordedData];
+            'User': pageSheetTypeName === 'page-rfa'
+               ? getInfoValueFromRfaData(row, 'submission', 'user')
+               : getInfoValueFromRefDataForm(row, 'submission', refType, 'user'),
 
-            setHistoryAll(sortDataBeforePrint(outputArr));
-            setHistoryAllInit(sortDataBeforePrint(outputArr));
+            'Status': 'Consultant reviewing',
+            'Action': 'Submission',
 
-            setLoading(false);
-         } catch (err) {
-            setLoading(false);
-            message.warn('Network Error!');
-            console.log(err);
-         };
-      };
-      fetchRowsAndCellHistory();
+            'Created At': pageSheetTypeName === 'page-rfa'
+               ? (getInfoValueFromRfaData(row, 'submission', 'dateSendNoEmail') || getInfoValueFromRfaData(row, 'submission', 'date'))
+               : (getInfoValueFromRefDataForm(row, 'submission', refType, 'dateSendNoEmail') || getInfoValueFromRefDataForm(row, 'submission', refType, 'date')),
+
+            'Rev': pageSheetTypeName === 'page-rfa'
+               ? (row['RFA Ref'].slice(row.rfaNumber.length, row['RFA Ref'].length) || '0')
+               : row.revision,
+
+            'Company': 'Woh Hup Private Ltd'
+         });
+
+         const consultantMustReplyArray = pageSheetTypeName === 'page-rfa'
+            ? (getInfoValueFromRfaData(row, 'submission', 'consultantMustReply') || [])
+            : (getInfoValueFromRefDataForm(row, 'submission', refType, 'consultantMustReply') || []);
+
+
+         consultantMustReplyArray.forEach(cmp => {
+            const statusReply = pageSheetTypeName === 'page-rfa'
+               ? getInfoValueFromRfaData(row, 'reply', 'status', cmp)
+               : getInfoValueFromRefDataForm(row, 'reply', refType, 'status', cmp);
+
+            if (statusReply) {
+               outputArr.push({
+                  id: mongoObjectId(),
+                  [`${refType.toUpperCase()} Ref`]: pageSheetTypeName === 'page-rfa'
+                     ? row['RFA Ref']
+                     : row[`${refType}Ref`] + (row.revision === '0' ? '' : row.revision),
+
+                  'User': pageSheetTypeName === 'page-rfa'
+                     ? getInfoValueFromRfaData(row, 'reply', 'user', cmp)
+                     : getInfoValueFromRefDataForm(row, 'reply', refType, 'user', cmp),
+
+                  'Status': pageSheetTypeName === 'page-rfa'
+                     ? getInfoValueFromRfaData(row, 'reply', 'status', cmp)
+                     : getInfoValueFromRefDataForm(row, 'reply', refType, 'status', cmp),
+
+                  'Action': 'Reply',
+                  'Created At': pageSheetTypeName === 'page-rfa'
+                     ? (getInfoValueFromRfaData(row, 'reply', 'dateSendNoEmail', cmp) || getInfoValueFromRfaData(row, 'reply', 'date', cmp))
+                     : (getInfoValueFromRefDataForm(row, 'reply', refType, 'dateSendNoEmail', cmp) || getInfoValueFromRefDataForm(row, 'reply', refType, 'date', cmp)),
+
+                  'Rev': pageSheetTypeName === 'page-rfa'
+                     ? (row['RFA Ref'].slice(row.rfaNumber.length, row['RFA Ref'].length) || '0')
+                     : row.revision,
+
+                  'Company': cmp
+               })
+            };
+         });
+      });
+
+
+
+      setHistoryAll(sortDataBeforePrint(outputArr));
+      setHistoryAllInit(sortDataBeforePrint(outputArr));
+
    }, []);
+
 
    const [modalFilter, setModalFilter] = useState(false);
 
@@ -276,7 +289,7 @@ const TableActivityHistory = (props) => {
    );
 };
 
-export default TableActivityHistory;
+export default TableAllFormActivityHistory;
 
 
 const generateColumns = (headers) => {
@@ -304,14 +317,16 @@ const generateColumns = (headers) => {
       }))
    ];
 };
+
+
 const getHeaderWidth2 = (header) => {
-   if (header === 'Drawing Number') return 300;
-   if (header === 'Drawing Name') return 300;
-   if (header === 'Column') return 200;
-   if (header === 'Value') return 300;
-   if (header === 'User') return 200;
-   if (header === 'Created At') return 200;
-   if (header === 'Action') return 200;
+   if (header.includes(' Ref')) return 300;
+   if (header === 'Rev') return 50;
+   if (header === 'Action') return 100;
+   if (header === 'User') return 250;
+   if (header === 'Created At') return 170;
+   if (header === 'Status') return 350;
+   if (header === 'Company') return 200;
 };
 
 const ModalStyledSetting = styled(Modal)`

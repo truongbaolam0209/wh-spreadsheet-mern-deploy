@@ -8,9 +8,11 @@ import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { debounceFnc, mongoObjectId, validateEmailInput } from '../../utils';
 import { checkIfEditTimeIsOverMultiForm, getInfoValueFromRefDataForm } from '../pageSpreadsheet/CellForm';
+import { getGroupCompanyForBothSideActionUserSubmitWithoutEmail } from '../pageSpreadsheet/PanelAddNewRFA';
 import { getKeyTextForSheet } from '../pageSpreadsheet/PanelSetting';
 import ButtonGroupComp from './ButtonGroupComp';
 import ButtonStyle from './ButtonStyle';
+// import PrintPdf from './PrintPdf';
 import TableDrawingRfaForMultiForm from './TableDrawingRfaForMultiForm';
 
 
@@ -36,7 +38,6 @@ const checkIfMatchWithInputCompanyFormat = (item, listConsultants) => {
 
 
 
-
 const Table = (props) => {
    return (
       <AutoResizer>
@@ -54,13 +55,17 @@ const Table = (props) => {
 };
 
 
-const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignature }) => {
 
+const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignature }) => {
 
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { roleTradeCompany: { role, company: companyUser }, companies, listUser, email, listGroup, projectName, projectNameShort: projectNameShortText, pageSheetTypeName } = stateProject.allDataOneSheet;
+   const {
+      roleTradeCompany: { role, company: companyUser }, companies, listUser, email,
+      listGroup: listGroupOutput, projectName, projectNameShort: projectNameShortText, pageSheetTypeName, isBothSideActionUser
+   } = stateProject.allDataOneSheet;
+
    const projectNameShort = projectNameShortText || 'NO-PROJECT-NAME';
 
    const {
@@ -81,23 +86,22 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
    const {
       currentRefData, formRefType, isFormEditting,
-      isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
+      isBothSideActionUserWithNoEmailSent, consultantNameToReplyByBothSideActionUser,
    } = currentRefToAddNewOrReplyOrEdit || {};
 
-   const company = (formRefType === 'form-reply-multi-type' && isAdminAction && adminActionConsultantToReply) ? adminActionConsultantToReply : companyUser;
-
-
-
-   const listRecipient = (
-      isAdminAction &&
-      isAdminActionWithNoEmailSent &&
-      (formRefType === 'form-submit-multi-type' || formRefType === 'form-resubmit-multi-type')
-   )
-      ? [...listUser, ...listGroup].filter(x => !validateEmailInput(x))
-      : [...listUser, ...listGroup];
-
+   const company = (formRefType === 'form-reply-multi-type' && isBothSideActionUser && consultantNameToReplyByBothSideActionUser) ? consultantNameToReplyByBothSideActionUser : companyUser;
 
    const listConsultants = companies.filter(x => x.companyType === 'Consultant');
+
+
+   const listGroup = (isBothSideActionUser && isBothSideActionUserWithNoEmailSent)
+      ? getGroupCompanyForBothSideActionUserSubmitWithoutEmail(listGroupOutput, listConsultants)
+      : listGroupOutput;
+
+   const listRecipient = (isBothSideActionUser && isBothSideActionUserWithNoEmailSent)
+      ? getGroupCompanyForBothSideActionUserSubmitWithoutEmail(listGroupOutput, listConsultants)
+      : [...listUser, ...listGroupOutput];
+
 
 
    const [tradeForFirstTimeSubmit, setTradeForFirstTimeSubmit] = useState('');
@@ -106,7 +110,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
    const [consultantReplyStatus, setConsultantReplyStatus] = useState('');
-   const [filesReplyUpload, setFilesReplyUpload] = useState({});
+
 
 
    const [submissionType, setSubmissionType] = useState('');
@@ -121,8 +125,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    const [nosColumnFixed, setNosColumnFixed] = useState(1);
 
 
+   const [formReplyUpload, setFormReplyUpload] = useState({});
    const [filesPdfDrawing, setFilesPdfDrawing] = useState({});
    const [dwgsImportFromRFA, setDwgsImportFromRFA] = useState([]);
+
    const [dataInputForTable, setDataInputForTable] = useState([]);
 
 
@@ -130,8 +136,9 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    const [listRecipientCc, setListRecipientCc] = useState([]);
 
    const [listConsultantMustReply, setListConsultantMustReply] = useState([]);
-   const [requestedBy, setRequestedBy] = useState(email);
+   const [requestedBy, setRequestedBy] = useState('');
    const [signaturedBy, setSignaturedBy] = useState('');
+   const [recipientName, setRecipientName] = useState('');
 
    const [textEmailTitle, setTextEmailTitle] = useState('');
    const [conversationAmong, setConversationAmong] = useState('');
@@ -148,30 +155,48 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    const [herewithForDt, setHerewithForDt] = useState('');
    const [transmittedForDt, setTransmittedForDt] = useState('');
 
-
-   useEffect(() => {
-      setDataInputForTable(getInputForTable(filesPdfDrawing, dwgsImportFromRFA, filesReplyUpload));
-   }, [filesPdfDrawing, dwgsImportFromRFA, filesReplyUpload]);
+   const [dateSendThisForm, setDateSendThisForm] = useState(null);
 
 
    useEffect(() => {
-      
-      let linkDrawingsData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'linkDrawings', company) || [];
-      let linkDrawingsRfaData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'linkDrawingsRfa', company) || [];
+      setDataInputForTable(getInputForTable(filesPdfDrawing, dwgsImportFromRFA, formReplyUpload));
+   }, [filesPdfDrawing, dwgsImportFromRFA, formReplyUpload]);
 
-      if (formRefType === 'form-resubmit-multi-type' && !isFormEditting) {
-         linkDrawingsData = [];
-         linkDrawingsRfaData = [];
+
+   useEffect(() => {
+      let linkDrawingsData = [];
+      let linkDrawingsRfaData = [];
+      let linkFormReplyData = [];
+
+      if (formRefType === 'form-submit-multi-type' || formRefType === 'form-resubmit-multi-type') {
+         linkDrawingsData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'linkDrawings') || [];
+         linkDrawingsRfaData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'linkDrawingsRfa') || [];
+
+      } else if (formRefType === 'form-reply-multi-type') {
+         linkFormReplyData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'linkFormReply', company);
+         linkDrawingsData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'linkDocumentsReply', company) || [];
+
+         if (linkFormReplyData && !(linkFormReplyData instanceof Array)) {
+            linkFormReplyData = [linkFormReplyData];
+         } else if (!linkFormReplyData) {
+            linkFormReplyData = [];
+         };
       };
 
-      let linkFormReplyData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'linkFormReply', company);
-      if (linkFormReplyData && !(linkFormReplyData instanceof Array)) {
-         linkFormReplyData = [linkFormReplyData];
-      } else if (!linkFormReplyData) {
+      if ((formRefType === 'form-resubmit-multi-type' || formRefType === 'form-reply-multi-type') && !isFormEditting) {
+         linkDrawingsData = [];
+         linkDrawingsRfaData = [];
          linkFormReplyData = [];
       };
 
       setDataInputForTable([
+         ...linkFormReplyData.map(dwgLink => {
+            return {
+               id: mongoObjectId(),
+               'File Name': /[^/]*$/.exec(dwgLink)[0],
+               'Type': 'Form',
+            };
+         }),
          ...linkDrawingsData.map(dwgLink => {
             return {
                id: mongoObjectId(),
@@ -185,13 +210,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                'Drawing Number': /[^/]*$/.exec(dwgLink)[0],
             };
          }),
-         ...linkFormReplyData.map(dwgLink => {
-            return {
-               id: mongoObjectId(),
-               'File Name': /[^/]*$/.exec(dwgLink)[0],
-               'Type': 'File Reply',
-            };
-         })
+
       ]);
    }, []);
 
@@ -204,44 +223,63 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          if (!isFormEditting) {
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
 
-         } else {
-            const listRecipientToData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTo', company) || [];
-            setListRecipientTo([...new Set(listRecipientToData)]);
+            if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
+               setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
+            };
 
-            const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailCc', company) || [];
+         } else {
+
+            const dateSendNoEmail = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'dateSendNoEmail');
+
+            if (dateSendNoEmail) {
+               const listConsultantMustReply = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply') || [];
+               setListRecipientTo(listConsultantMustReply.map(cmp => `${cmp}_%$%_`));
+               setDateSendThisForm(moment(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'date')).format('DD/MM/YY'), 'DD/MM/YY'));
+            } else {
+               setListRecipientTo([...new Set(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTo') || [])]);
+            };
+
+
+            const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailCc') || [];
             setListRecipientCc([...new Set(listRecipientCcData)]);
 
-            const listConsultantMustReplyData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply', company) || [];
+            const listConsultantMustReplyData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply') || [];
             setListConsultantMustReply(listConsultantMustReplyData);
 
-            const requestedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'requestedBy', company) || '';
+            const requestedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'requestedBy') || '';
             setRequestedBy(requestedByData);
 
-            const signaturedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'signaturedBy', company) || '';
+            const signaturedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'signaturedBy') || '';
             setSignaturedBy(signaturedByData);
 
-            const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle', company) || '';
+            const recipientNameData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'recipientName') || '';
+            setRecipientName(recipientNameData);
+
+            const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle') || '';
             setTextEmailTitle(textEmailTitleData);
 
-            const descriptionData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'description', company) || '';
+            const descriptionData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'description') || '';
             setDescription(descriptionData);
 
 
-            setConversationAmong(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'conversationAmong', company));
-            setContractSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'contractSpecification', company));
-            setProposedSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'proposedSpecification', company));
-            setIsCostImplication(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isCostImplication', company));
-            setIsTimeExtension(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isTimeExtension', company));
-            setHerewithForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'herewithForDt', company));
-            setTransmittedForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'transmittedForDt', company));
-            setSubmissionType(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'submissionType', company));
+            setConversationAmong(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'conversationAmong'));
+            setContractSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'contractSpecification'));
+            setProposedSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'proposedSpecification'));
+            setIsCostImplication(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isCostImplication'));
+            setIsTimeExtension(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isTimeExtension'));
+            setHerewithForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'herewithForDt'));
+            setTransmittedForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'transmittedForDt'));
+            setSubmissionType(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'submissionType'));
 
-            setTimeConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'timeConversation', company)));
-            setDateConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'dateConversation', company)));
+            if (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm') {
+               setTimeConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'timeConversation')));
+               setDateConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'dateConversation')));
+            };
 
-            setDateReplyForSubmitForm(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'due', company)));
 
-            setTradeForFirstTimeSubmit(convertTradeCode(currentRefData.trade));
+            setDateReplyForSubmitForm(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'due')));
+
+            setTradeForFirstTimeSubmit(pageSheetTypeName === 'page-mm' ? convertTradeCodeMeetingMinutes(currentRefData.trade) : convertTradeCode(currentRefData.trade));
 
             const refNumberSuffixFirstTimeSubmitData = /[^/]*$/.exec(currentRefData[refKey])[0];
             setRefNumberSuffixFirstTimeSubmit(refNumberSuffixFirstTimeSubmitData);
@@ -252,18 +290,28 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
          if (!isFormEditting) {
 
+
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
 
-            const listRecipientToData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTo', company) || [];
-            setListRecipientTo([...new Set(listRecipientToData)]);
+            if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
+               const listConsultantMustReply = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply') || [];
+               setListRecipientTo(listConsultantMustReply.map(cmp => `${cmp}_%$%_`));
+               setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
+            } else {
+               setListRecipientTo([...new Set(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTo') || [])]);
+            };
 
-            const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailCc', company) || [];
+            const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailCc') || [];
             setListRecipientCc([...new Set(listRecipientCcData)]);
 
-            const listConsultantMustReplyData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply', company) || [];
+            const signaturedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'signaturedBy') || '';
+            setSignaturedBy(signaturedByData);
+            const recipientNameData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'recipientName') || '';
+            setRecipientName(recipientNameData);
+            const listConsultantMustReplyData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply') || [];
             setListConsultantMustReply(listConsultantMustReplyData);
 
-            const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle', company) || '';
+            const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle') || '';
             setTextEmailTitle('Resubmit - ' + textEmailTitleData);
 
             const versionTextIndex = versionTextArray.indexOf(currentRefData.revision);
@@ -272,79 +320,95 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
          } else {
 
-            const listRecipientToData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTo', company) || [];
-            setListRecipientTo([...new Set(listRecipientToData)]);
+            const dateSendNoEmail = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'dateSendNoEmail');
 
-            const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailCc', company) || [];
+            if (dateSendNoEmail) {
+               const listConsultantMustReply = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply') || [];
+               setListRecipientTo(listConsultantMustReply.map(cmp => `${cmp}_%$%_`));
+               setDateSendThisForm(moment(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'date')).format('DD/MM/YY'), 'DD/MM/YY'));
+            } else {
+               setListRecipientTo([...new Set(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTo') || [])]);
+            };
+
+
+            const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailCc') || [];
             setListRecipientCc([...new Set(listRecipientCcData)]);
 
-            const listConsultantMustReplyData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply', company) || [];
+            const listConsultantMustReplyData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply') || [];
             setListConsultantMustReply(listConsultantMustReplyData);
 
-            const requestedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'requestedBy', company) || '';
+            const requestedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'requestedBy') || '';
             setRequestedBy(requestedByData);
 
-            const signaturedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'signaturedBy', company) || '';
+            const signaturedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'signaturedBy') || '';
             setSignaturedBy(signaturedByData);
 
-            const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle', company) || '';
+            const recipientNameData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'recipientName') || '';
+            setRecipientName(recipientNameData);
+
+            const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle') || '';
             setTextEmailTitle(textEmailTitleData);
 
-            const descriptionData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'description', company) || '';
+            const descriptionData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'description') || '';
             setDescription(descriptionData);
 
 
-            setConversationAmong(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'conversationAmong', company));
-            setContractSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'contractSpecification', company));
-            setProposedSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'proposedSpecification', company));
-            setIsCostImplication(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isCostImplication', company));
-            setIsTimeExtension(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isTimeExtension', company));
-            setHerewithForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'herewithForDt', company));
-            setTransmittedForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'transmittedForDt', company));
-            setSubmissionType(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'submissionType', company));
+            setConversationAmong(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'conversationAmong'));
+            setContractSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'contractSpecification'));
+            setProposedSpecification(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'proposedSpecification'));
+            setIsCostImplication(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isCostImplication'));
+            setIsTimeExtension(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'isTimeExtension'));
+            setHerewithForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'herewithForDt'));
+            setTransmittedForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'transmittedForDt'));
+            setSubmissionType(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'submissionType'));
 
-            setTimeConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'timeConversation', company)));
-            setDateConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'dateConversation', company)));
+            if (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm') {
+               setTimeConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'timeConversation')));
+               setDateConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'dateConversation')));
+            };
 
-            setDateReplyForSubmitForm(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'due', company)));
-
+            setDateReplyForSubmitForm(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'due')));
             setRefNewVersionResubmitSuffix(currentRefData.revision);
          };
 
 
       } else if (formRefType === 'form-reply-multi-type') {
          if (!isFormEditting) {
-            let arrEmailCc = [];
-            for (const key in currentRefData) {
-               if (key.includes(`submission-${refType}-user-`)) {
-                  const listEmailTo = currentRefData[key] ? [currentRefData[key]] : [];
-                  setListRecipientTo([...new Set(listEmailTo)]);
-               } else if (key.includes(`submission-${refType}-emailTo-`) || key.includes(`submission-${refType}-emailCc-`)) {
-                  arrEmailCc = [...new Set([...arrEmailCc, ...currentRefData[key]])];
-               };
-            };
-            setListRecipientCc([...new Set(arrEmailCc)]);
 
-            const title = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle');
-            setTextEmailTitle('Reply - ' + title);
+            setListRecipientTo([getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'user')]);
+            setListRecipientCc([...new Set([
+               ...(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTo') || []),
+               ...(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailCc') || []),
+            ])]);
+
+
+            setTextEmailTitle('Reply - ' + getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle'));
+
+            if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
+               setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
+            };
 
          } else {
-
-            const listRecipientToData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'emailTo', company) || [];
-            setListRecipientTo([...new Set(listRecipientToData)]);
-
-            const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'emailCc', company) || [];
-            setListRecipientCc([...new Set(listRecipientCcData)]);
-
-            const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'emailTitle', company) || '';
-            setTextEmailTitle(textEmailTitleData);
-
-            const descriptionData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'description', company) || '';
-            setDescription(descriptionData);
 
             const statusData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'status', company) || '';
             setConsultantReplyStatus(statusData);
 
+            const dateSendNoEmail = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'dateSendNoEmail', company);
+            if (dateSendNoEmail) {
+               setDateSendThisForm(moment(moment(getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'date', company)), 'DD/MM/YY'));
+            } else {
+               const listRecipientToData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'emailTo', company) || [];
+               setListRecipientTo([...new Set(listRecipientToData)]);
+
+               const listRecipientCcData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'emailCc', company) || [];
+               setListRecipientCc([...new Set(listRecipientCcData)]);
+
+               const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'emailTitle', company) || '';
+               setTextEmailTitle(textEmailTitleData);
+            };
+            
+            const descriptionData = getInfoValueFromRefDataForm(currentRefData, 'reply', refType, 'description', company) || '';
+            setDescription(descriptionData);
          };
       };
    }, []);
@@ -398,6 +462,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
    const checkIfRefIsDuplicated = () => {
+
       const arr = [...new Set(rowsRefAllInit.map(r => {
          return (r[refKey] || '') + ((r.revision === '0' ? '' : r.revision)) || '';
       }))];
@@ -422,9 +487,21 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          message.info(`This ${refType.toUpperCase()} number has already existed, please choose a new number!`);
          setRefNumberSuffixFirstTimeSubmit('');
          setRefNewVersionResubmitSuffix('');
+      } else {
+         if (formRefType === 'form-submit-multi-type') {
+            let regExp = /[a-zA-Z]/g;
+            if (regExp.test(refNumberSuffixFirstTimeSubmit)) {
+               message.info('Please key in number only!');
+               setRefNumberSuffixFirstTimeSubmit('');
+            };
+         } else if (formRefType === 'form-resubmit-multi-type') {
+            if (versionTextArray.indexOf(refNewVersionResubmitSuffix) === -1) {
+               message.info('Please key in letter only!');
+               setRefNewVersionResubmitSuffix('');
+            };
+         };
       };
    };
-
 
 
 
@@ -445,28 +522,19 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          setFilesPdfDrawing(output);
       };
    };
-
-
-   const refReplyUpload = useRef();
-   const onChangeUploadFormCoverForReply = (info) => {
+   const onChangeUploadFormReply = (info) => {
       if (info.fileList) {
-         let fileListStateRef = refReplyUpload.current.state.fileList;
-
-         info.fileList.forEach(file => {
-            if (!fileListStateRef.find(x => x.name === file.name)) {
-               fileListStateRef.push(file);
-            };
-         });
          let output = {};
-         fileListStateRef.forEach(file => {
-            output = { ...output, [file.name]: file };
+         info.fileList.forEach(file => {
+            output = { [file.name]: file };
          });
-         setFilesReplyUpload(output);
+         setFormReplyUpload(output);
       };
    };
 
+
    const onClickTagRecipientTo = (email, isRemoveTag) => {
-      if (formRefType !== 'page-mm') {
+      if (formRefType !== 'page-mm' && formRefType !== 'form-reply-multi-type') {
          let outputListConsultantMustReply = [...listConsultantMustReply];
          const consultantName = extractConsultantName(email);
          const originConsultant = listConsultants.find(x => x.company === consultantName);
@@ -483,12 +551,18 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
    const onClickApplyDoneFormRef = (typeButton) => {
 
-      const isSubmitOrResubmitForm = formRefType.includes('form-submit-multi-') || formRefType.includes('form-resubmit-multi-');
-
+      const isSubmitOrResubmitForm = formRefType === 'form-submit-multi-type' || formRefType === 'form-resubmit-multi-type';
+      
       if (isFormEditting) {
+         console.log(
+            currentRefData,
+            company,
+            refType,
+            checkIfEditTimeIsOverMultiForm(currentRefData, company, EDIT_DURATION_MIN, refType, 'check-if-reply-edit-is-over'));
+
          if (
-            (isSubmitOrResubmitForm && checkIfEditTimeIsOverMultiForm(currentRefData, null, EDIT_DURATION_MIN, refType, 'wohhup-check-if-submission-edit-is-over')) ||
-            (!isSubmitOrResubmitForm && checkIfEditTimeIsOverMultiForm(currentRefData, company, EDIT_DURATION_MIN, refType, 'consultant-check-if-reply-edit-is-over'))
+            (isSubmitOrResubmitForm && checkIfEditTimeIsOverMultiForm(currentRefData, null, EDIT_DURATION_MIN, refType, 'check-if-submission-edit-is-over') <= 0) ||
+            (!isSubmitOrResubmitForm && checkIfEditTimeIsOverMultiForm(currentRefData, company, EDIT_DURATION_MIN, refType, 'check-if-reply-edit-is-over') <= 0)
          ) {
             return message.info('Time is up, you are unable to edit the submission!', 2);
          };
@@ -496,7 +570,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
       let trade, refToSaveVersionOrToReply, refToSave;
 
-      if (formRefType.includes('form-submit-multi-')) {
+      if (formRefType === 'form-submit-multi-type') {
          if (pageSheetTypeName === 'page-mm') {
             trade = convertTradeCodeMeetingMinutesInverted(tradeForFirstTimeSubmit);
          } else {
@@ -504,11 +578,11 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          };
          refToSaveVersionOrToReply = '0';
          refToSave = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
-      } else if (formRefType.includes('form-resubmit-multi-')) {
+      } else if (formRefType === 'form-resubmit-multi-type') {
          trade = currentRefData.trade;
          refToSaveVersionOrToReply = refNewVersionResubmitSuffix;
          refToSave = currentRefData[refKey];
-      } else if (formRefType.includes('form-reply-multi-')) { // reply
+      } else if (formRefType === 'form-reply-multi-type') {
          trade = currentRefData.trade;
          refToSaveVersionOrToReply = currentRefData.revision;
          refToSave = currentRefData[refKey];
@@ -516,33 +590,37 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
 
-
-
       if (projectNameShort === 'NO-PROJECT-NAME') {
          return message.info(`Please update project abbreviation name for ${refType.toUpperCase()} number!`, 2);
-      } else if (!textEmailTitle && !isAdminActionWithNoEmailSent) {
+      } else if (
+         ((formRefType === 'form-submit-multi-type' || formRefType === 'form-resubmit-multi-type') && !textEmailTitle) ||
+         (formRefType === 'form-reply-multi-type' && !textEmailTitle && !isBothSideActionUserWithNoEmailSent)
+      ) {
          return message.info('Please fill in email title!', 2);
+
       } else if (!description) {
          return message.info('Please fill in description!', 2);
 
       } else if (isSubmitOrResubmitForm && (!contractSpecification || !proposedSpecification) && pageSheetTypeName === 'page-rfam') {
          return message.info('Please fill in description!', 2);
-         
-      } else if (!listRecipientTo || listRecipientTo.length === 0) {
+
+      } else if ((!listRecipientTo || listRecipientTo.length === 0) && !isBothSideActionUserWithNoEmailSent) {
          return message.info('Please fill in recipient!', 2);
       } else if (isSubmitOrResubmitForm && !dateReplyForSubmitForm) {
          return message.info('Please fill in expected reply date!', 2);
       } else if (isSubmitOrResubmitForm && listConsultantMustReply.length === 0 && pageSheetTypeName !== 'page-mm') {
          return message.info('Please fill in consultant lead', 2);
-      } else if (isSubmitOrResubmitForm && !requestedBy) {
+      } else if (isSubmitOrResubmitForm && !requestedBy && pageSheetTypeName !== 'page-mm') {
          return message.info('Please fill in person requested', 2);
+      } else if (isSubmitOrResubmitForm && !recipientName && pageSheetTypeName !== 'page-mm') {
+         return message.info('Please fill in recipient name', 2);
       } else if (!trade || !refToSave || !refToSaveVersionOrToReply) {
          return message.info('Please fill in necessary info!', 2);
       } else if (isSubmitOrResubmitForm && !signaturedBy && pageSheetTypeName !== 'page-mm') {
          return message.info('Please fill in signatured by!', 2);
       } else if (isSubmitOrResubmitForm && !submissionType && pageSheetTypeName === 'page-rfam') {
          return message.info('Please fill in submission type!', 2);
-      } else if (isSubmitOrResubmitForm && !conversationAmong && (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm')) {
+      } else if (isSubmitOrResubmitForm && !conversationAmong && pageSheetTypeName === 'page-cvi') {
          return message.info('Please fill in conversation among!', 2);
       } else if (isSubmitOrResubmitForm && (!dateConversation || !timeConversation) && (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm')) {
          return message.info('Please fill in date and time conversation!', 2);
@@ -555,8 +633,12 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          return message.info('Please fill in version!', 2);
       } else if (!isSubmitOrResubmitForm && !consultantReplyStatus && pageSheetTypeName === 'page-rfam') {
          return message.info('Please fill in reply status!', 2);
-      } else if (!isSubmitOrResubmitForm && Object.keys(filesReplyUpload).length === 0 && !isFormEditting) {
-         return message.info('Please upload form!', 2);
+
+      } else if (!isSubmitOrResubmitForm && (
+         (Object.keys(formReplyUpload).length === 0 && Object.keys(filesPdfDrawing).length > 0) ||
+         (Object.keys(formReplyUpload).length === 0 && !isFormEditting)
+      )) {
+         return message.info('Please upload reply form!', 2);
       };
 
 
@@ -584,21 +666,20 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          isFormEditting, trade,
 
          filesPdfDrawing: Object.values(filesPdfDrawing),
+         formReplyUpload: Object.values(formReplyUpload),
          dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
-         filesReplyUpload: Object.values(filesReplyUpload),
-
          refToSave, refToSaveVersionOrToReply,
          recipient: {
-            to: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientTo)],
-            cc: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientCc)]
+            to: isBothSideActionUserWithNoEmailSent ? [] : [...new Set(listRecipientTo)],
+            cc: isBothSideActionUserWithNoEmailSent ? [] : [...new Set(listRecipientCc)]
          },
          listConsultantMustReply: outputConsultantsToReply,
-         requestedBy, signaturedBy,
+         requestedBy, signaturedBy, recipientName,
          dateConversation, timeConversation,
          conversationAmong,
          isCostImplication, isTimeExtension,
-         emailTextTitle: isAdminActionWithNoEmailSent ? '' : textEmailTitle,
-         description: isAdminActionWithNoEmailSent ? '' : description,
+         emailTextTitle: textEmailTitle,
+         description,
          dateReplyForSubmitForm,
          consultantReplyStatus,
          contractSpecification,
@@ -607,10 +688,12 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          herewithForDt,
          transmittedForDt,
 
-         isAdminActionWithNoEmailSent,
-         adminActionConsultantToReply,
-         isAdminAction,
+         isBothSideActionUserWithNoEmailSent,
+         consultantNameToReplyByBothSideActionUser,
+         dateSendThisForm
       });
+
+
    };
 
 
@@ -654,7 +737,11 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                      cellTypeName = rowData['Drawing Number'];
                   };
                };
-               return <div>{cellTypeName || cellData}</div>;
+               return <div style={{
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+               }}>{cellTypeName || cellData}</div>;
             }
          })),
          ...buttonRemoveDrawing,
@@ -677,18 +764,8 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          });
          setFilesPdfDrawing(obj);
 
-      } else if (rowData['Type'] === 'File Reply') {
-         let fileListStateRef = refReplyUpload.current.state.fileList;
-         let obj = {};
-         fileListStateRef.forEach(file => {
-            if (file.name !== rowData['File Name']) {
-               obj[file.name] = file;
-            } else {
-               fileListStateRef = fileListStateRef.filter(x => x.uid !== file.uid);
-               refReplyUpload.current.state.fileList = fileListStateRef;
-            };
-         });
-         setFilesReplyUpload(obj);
+      } else if (rowData['Type'] === 'Form') {
+         setFormReplyUpload({});
 
       } else if (!rowData['Type']) {
          setDwgsImportFromRFA(dwgsImportFromRFA.filter(x => x.id !== rowData.id));
@@ -697,6 +774,41 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
       setNosColumnFixed(2);
       setNosColumnFixed(1);
    }, 1);
+
+
+   const getEmailListFromPreviousSubmission = (value) => {
+
+      const rowsThisTrade = rowsRefAllInit
+         .filter(r => r.trade === convertTradeCodeInverted(value))
+         .sort((b, a) => (a[refKey] > b[refKey] ? 1 : -1));
+
+      if (listRecipientTo.length === 0) {
+         const rowFoundTo = rowsThisTrade.find(r => {
+            return getInfoValueFromRefDataForm(r, 'submission', refType, 'emailTo') &&
+               getInfoValueFromRefDataForm(r, 'submission', refType, 'emailTo').length > 0;
+         });
+         if (rowFoundTo) {
+            const consultantMustReplyArray = getInfoValueFromRefDataForm(rowFoundTo, 'submission', refType, 'consultantMustReply') || [];
+            if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
+               setListRecipientTo(consultantMustReplyArray.map(cmp => `${cmp}_%$%_`));
+               setListConsultantMustReply(consultantMustReplyArray);
+            } else {
+               setListRecipientTo(getInfoValueFromRefDataForm(rowFoundTo, 'submission', refType, 'emailTo') || []);
+               setListConsultantMustReply(consultantMustReplyArray);
+            };
+         };
+      };
+
+      if (listRecipientCc.length === 0) {
+         const rowFoundCc = rowsThisTrade.find(r => {
+            return getInfoValueFromRefDataForm(r, 'submission', refType, 'emailCc') &&
+               getInfoValueFromRefDataForm(r, 'submission', refType, 'emailCc').length > 0;
+         });
+         if (rowFoundCc) {
+            setListRecipientCc(getInfoValueFromRefDataForm(rowFoundCc, 'submission', refType, 'emailCc') || []);
+         };
+      };
+   };
 
 
 
@@ -736,6 +848,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                            optionFilterProp='children'
                            onChange={(value) => {
                               setTradeForFirstTimeSubmit(value);
+                              getEmailListFromPreviousSubmission(value);
                            }}
                            filterOption={(input, option) => option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0}
                            suffixIcon={<div></div>}
@@ -780,6 +893,23 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                   ) : null}
 
 
+
+                  {(isBothSideActionUser && isBothSideActionUserWithNoEmailSent) && (
+                     <div style={{ display: 'flex', marginRight: 40 }}>
+                        <div style={{ marginLeft: 75, marginRight: 10, fontWeight: 'bold' }}>Date Submission</div>
+                        <DatePickerStyled
+                           value={dateSendThisForm}
+                           format={'DD/MM/YY'}
+                           onChange={(e) => setDateSendThisForm(e)}
+                        />
+                     </div>
+                  )}
+
+                  {formRefType === 'form-reply-multi-type' && consultantNameToReplyByBothSideActionUser && (
+                     <div style={{ marginLeft: 20 }}>Company reply: <span style={{ fontWeight: 'bold' }}>{consultantNameToReplyByBothSideActionUser}</span></div>
+                  )}
+
+
                   {formRefType !== 'form-reply-multi-type' && pageSheetTypeName !== 'page-mm' && (
                      <>
                         <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date Reply</div>
@@ -793,144 +923,139 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                </div>
 
 
+               {!(isBothSideActionUser && isBothSideActionUserWithNoEmailSent && formRefType === 'form-reply-multi-type') &&
+                  !(isBothSideActionUser && isBothSideActionUserWithNoEmailSent && pageSheetTypeName === 'page-mm') && (
 
-               {!isAdminActionWithNoEmailSent && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                     <div style={{ transform: 'translateY(5px)', fontWeight: 'bold' }}>{'To'}</div>
-                     <div style={{ width: '95%' }}>
-                        <SelectRecipientStyled
-                           mode='tags'
-                           placeholder='Please select...'
-                           value={listRecipientTo}
+                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <div style={{ transform: 'translateY(5px)', fontWeight: 'bold' }}>{'To'}</div>
+                        <div style={{ width: '95%' }}>
+                           <SelectRecipientStyled
+                              mode='tags'
+                              placeholder={formRefType === 'form-submit-multi-type' ? 'Please pick the trade first to get email list of previous submission...' : 'Please select...'}
+                              value={listRecipientTo}
 
-                           onChange={(list) => {
-                              if (list.find(tag => !listGroup.find(x => x === tag) && !validateEmailInput(tag))) {
-                                 return message.warning('Please choose an available group email or key in an email address!');
-                              };
+                              onChange={(list) => {
+                                 if (list.find(tag => !listGroup.find(x => x === tag) && !validateEmailInput(tag))) {
+                                    return message.warning('Please choose an available group email or key in an email address!');
+                                 };
 
-                              if (formRefType === 'form-submit-multi-type') {
-                                 let isLeadConsultantIncluded = false;
-                                 list.forEach(tagCompany => {
-                                    if (checkIfMatchWithInputCompanyFormat(tagCompany, listConsultants)) {
-                                       isLeadConsultantIncluded = true;
+                                 if (formRefType === 'form-submit-multi-type') {
+                                    let isLeadConsultantIncluded = false;
+                                    list.forEach(tagCompany => {
+                                       if (checkIfMatchWithInputCompanyFormat(tagCompany, listConsultants)) {
+                                          isLeadConsultantIncluded = true;
+                                       };
+                                    });
+                                    if (!isLeadConsultantIncluded && pageSheetTypeName !== 'page-mm') {
+                                       if (pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi') {
+                                          message.warning('You must include lead consultant!');
+                                       } else if (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') {
+                                          message.warning('You must include consultants!');
+                                       };
                                     };
-                                 });
-                                 if (!isLeadConsultantIncluded && pageSheetTypeName !== 'page-mm') {
+
+                                    const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
                                     if (
-                                       pageSheetTypeName === 'page-rfam' ||
-                                       pageSheetTypeName === 'page-rfi'
+                                       itemJustRemoved &&
+                                       listConsultantMustReply.find(x => x === extractConsultantName(itemJustRemoved)) &&
+                                       !list.find(tg => extractConsultantName(tg) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved))
                                     ) {
-                                       message.warning('You must include lead consultant!');
-                                    } else if (
-                                       pageSheetTypeName === 'page-cvi' ||
-                                       pageSheetTypeName === 'page-dt'
+                                       setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
+                                    };
+
+
+                                 } else if (formRefType === 'form-resubmit-multi-type') {
+                                    const consultantLeadFromPreviousSubmission = listConsultantMustReply[0];
+                                    const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
+                                    if (
+                                       itemJustRemoved &&
+                                       listConsultantMustReply.find(x => x === extractConsultantName(itemJustRemoved)) &&
+                                       consultantLeadFromPreviousSubmission !== extractConsultantName(itemJustRemoved) &&
+                                       !list.find(tg => extractConsultantName(tg) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved))
                                     ) {
-                                       message.warning('You must include consultants!');
+                                       setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
                                     };
                                  };
+                                 setListRecipientTo([...new Set(list)]);
 
-                                 const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
-                                 if (
-                                    itemJustRemoved &&
-                                    listConsultantMustReply.find(x => x === extractConsultantName(itemJustRemoved)) &&
-                                    !list.find(tg => extractConsultantName(tg) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved))
-                                 ) {
-                                    setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
+                                 let companyNameToCheck, isRemoveTag;
+                                 if (list.length === listRecipientTo.length + 1) {
+                                    companyNameToCheck = list.find(x => !listRecipientTo.find(item => item === x));
+                                    isRemoveTag = false;
+                                 } else if (list.length === listRecipientTo.length - 1) {
+                                    companyNameToCheck = listRecipientTo.find(x => !list.find(item => item === x));
+                                    isRemoveTag = true;
                                  };
 
+                                 onClickTagRecipientTo(companyNameToCheck, isRemoveTag);
+                              }}
+                           >
+                              {listRecipient.map(cm => {
+                                 const isLeadConsultant = listConsultantMustReply[0] && extractConsultantName(cm) === listConsultantMustReply[0];
+                                 const isLeadConsultantStyled = (isLeadConsultant && (
+                                    pageSheetTypeName === 'page-rfam' ||
+                                    pageSheetTypeName === 'page-rfi'
+                                 )) ? {
+                                    background: colorType.primary,
+                                    fontWeight: 'bold',
+                                    color: 'white'
+                                 } : {};
+                                 const textShown = extractConsultantName(cm) ? cm.replace('_%$%_', ' ') : cm;
 
-                              } else if (formRefType === 'form-resubmit-multi-type') {
-                                 const consultantLeadFromPreviousSubmission = listConsultantMustReply[0];
-                                 const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
-                                 if (
-                                    itemJustRemoved &&
-                                    listConsultantMustReply.find(x => x === extractConsultantName(itemJustRemoved)) &&
-                                    consultantLeadFromPreviousSubmission !== extractConsultantName(itemJustRemoved) &&
-                                    !list.find(tg => extractConsultantName(tg) && extractConsultantName(tg) === extractConsultantName(itemJustRemoved))
-                                 ) {
-                                    setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
-                                 };
-                              };
-                              setListRecipientTo([...new Set(list)]);
+                                 return (
+                                    <Option key={cm}>
+                                       <div
+                                          style={{
+                                             background: 'transparent',
+                                             fontWeight: 'normal',
+                                             color: 'black',
+                                             ...isLeadConsultantStyled,
+                                             padding: '0 5px'
+                                          }}
+                                          onClick={() => onClickTagRecipientTo(cm, false)}
+                                       >
+                                          {textShown}
+                                       </div>
+                                    </Option>
+                                 )
+                              })}
+                           </SelectRecipientStyled>
 
-                              let companyNameToCheck, isRemoveTag;
-                              if (list.length === listRecipientTo.length + 1) {
-                                 companyNameToCheck = list.find(x => !listRecipientTo.find(item => item === x));
-                                 isRemoveTag = false;
-                              } else if (list.length === listRecipientTo.length - 1) {
-                                 companyNameToCheck = listRecipientTo.find(x => !list.find(item => item === x));
-                                 isRemoveTag = true;
-                              };
-
-                              onClickTagRecipientTo(companyNameToCheck, isRemoveTag);
-                           }}
-                        >
-                           {listRecipient.map(cm => {
-                              const isLeadConsultant = listConsultantMustReply[0] && extractConsultantName(cm) === listConsultantMustReply[0];
-                              const isLeadConsultantStyled = (isLeadConsultant && (
-                                 pageSheetTypeName === 'page-rfam' ||
-                                 pageSheetTypeName === 'page-rfi'
-                              )) ? {
-                                 background: colorType.primary,
-                                 fontWeight: 'bold',
-                                 color: 'white'
-                              } : {};
-                              const textShown = extractConsultantName(cm) ? cm.replace('_%$%_', ' ') : cm;
-
-                              return (
-                                 <Option key={cm}>
-                                    <div
-                                       style={{
-                                          background: 'transparent',
-                                          fontWeight: 'normal',
-                                          color: 'black',
-                                          ...isLeadConsultantStyled,
-                                          padding: '0 5px'
-                                       }}
-                                       onClick={() => onClickTagRecipientTo(cm, false)}
-                                    >
-                                       {textShown}
+                           {formRefType !== 'form-reply-multi-type' && (
+                              <div style={{ display: 'flex', marginTop: 5, marginBottom: 10 }}>
+                                 {pageSheetTypeName !== 'page-mm' && (
+                                    <div style={{ marginRight: 8 }}>
+                                       {(pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi') ? 'Lead consultant :'
+                                          : (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') ? 'Received By :'
+                                             : 'n/a'
+                                       }
                                     </div>
-                                 </Option>
-                              )
-                           })}
-                        </SelectRecipientStyled>
-
-                        {formRefType !== 'form-reply-multi-type' && (
-                           <div style={{ display: 'flex', marginTop: 5, marginBottom: 10 }}>
-                              {pageSheetTypeName !== 'page-mm' && (
-                                 <div style={{ marginRight: 8 }}>
-                                    {(pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi') ? 'Lead consultant :'
-                                       : (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') ? 'Received By :'
-                                          : 'n/a'
-                                    }
-                                 </div>
-                              )}
-                              {pageSheetTypeName !== 'page-mm' && (
-                                 <div style={{ fontWeight: 'bold', marginRight: 10 }}>
-                                    {(pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi') ? (listConsultantMustReply[0] || '')
-                                       : (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') ? (listConsultantMustReply.sort().join(', ') || '')
-                                          : 'n/a'
-                                    }
-                                 </div>
-                              )}
+                                 )}
+                                 {pageSheetTypeName !== 'page-mm' && (
+                                    <div style={{ fontWeight: 'bold', marginRight: 10 }}>
+                                       {(pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi') ? (listConsultantMustReply[0] || '')
+                                          : (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') ? (listConsultantMustReply.sort().join(', ') || '')
+                                             : 'n/a'
+                                       }
+                                    </div>
+                                 )}
 
 
 
-                              {formRefType === 'form-submit-multi-type' && pageSheetTypeName !== 'page-mm' && (
-                                 <div style={{ fontSize: 11, color: 'grey', fontStyle: 'italic', transform: 'translateY(3px)' }}>(Click on tag to change lead consultant)</div>
-                              )}
+                                 {formRefType === 'form-submit-multi-type' && pageSheetTypeName !== 'page-mm' && (
+                                    <div style={{ fontSize: 11, color: 'grey', fontStyle: 'italic', transform: 'translateY(3px)' }}>(Click on tag to change lead consultant)</div>
+                                 )}
 
-                           </div>
-                        )}
+                              </div>
+                           )}
+                        </div>
                      </div>
-                  </div>
-               )}
+                  )}
 
 
 
 
-               {!isAdminActionWithNoEmailSent && (
+               {!(isBothSideActionUser && isBothSideActionUserWithNoEmailSent) && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                      <div style={{ transform: 'translateY(5px)', fontWeight: 'bold' }}>CC</div>
                      <div style={{ width: '95%' }}>
@@ -940,8 +1065,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                            value={listRecipientCc}
                            onChange={(list) => {
                               if (list.find(tag => !listGroup.find(x => x === tag) && !validateEmailInput(tag))) {
-                                 message.warning('Please choose an available group email or key in an email address!');
-                                 return;
+                                 return message.warning('Please choose an available group email or key in an email address!');
                               };
                               setListRecipientCc([...new Set(list)]);
                            }}
@@ -968,15 +1092,15 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
                {formRefType !== 'form-reply-multi-type' && pageSheetTypeName !== 'page-mm' && (
                   <div style={{ display: 'flex' }}>
-                     <div style={{ display: 'flex', marginBottom: 5, marginRight: 120 }}>
+                     <div style={{ display: 'flex', marginBottom: 5, marginRight: 50 }}>
                         <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Requested by</div>
                         <InputStyled
-                           style={{ width: 250, marginBottom: 10, borderRadius: 0 }}
+                           style={{ width: 200, marginBottom: 10, borderRadius: 0 }}
                            onChange={(e) => setRequestedBy(e.target.value)}
                            value={requestedBy}
                         />
                      </div>
-                     <div style={{ display: 'flex', marginBottom: 5 }}>
+                     <div style={{ display: 'flex', marginBottom: 5, marginRight: 50 }}>
                         <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Signature</div>
                         <SelectTradeStyled
                            style={{ width: 200 }}
@@ -994,66 +1118,75 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                            ))}
                         </SelectTradeStyled>
                      </div>
+                     <div style={{ display: 'flex', marginBottom: 5 }}>
+                        <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Recipient name</div>
+                        <InputStyled
+                           style={{ width: 200, marginBottom: 10, borderRadius: 0 }}
+                           onChange={(e) => setRecipientName(e.target.value)}
+                           value={recipientName}
+                        />
+                     </div>
                   </div>
                )}
 
 
 
+               {!(isBothSideActionUser && isBothSideActionUserWithNoEmailSent && formRefType === 'form-reply-multi-type') && (
+                  <div style={{ display: 'flex', marginBottom: 20 }}>
+                     <div style={{ width: 65, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Subject</div>
+                     <InputStyled
+                        style={{ width: '90%', marginBottom: 10, borderRadius: 0 }}
+                        onChange={(e) => setTextEmailTitle(e.target.value)}
+                        value={textEmailTitle}
+                     />
+                  </div>
+               )}
 
-               <div style={{ display: 'flex', marginBottom: 20 }}>
-                  <div style={{ width: 65, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Subject</div>
-                  <InputStyled
-                     style={{ width: '90%', marginBottom: 10, borderRadius: 0 }}
-                     onChange={(e) => setTextEmailTitle(e.target.value)}
-                     value={textEmailTitle}
-                  />
-               </div>
 
-               {
-                  formRefType !== 'form-reply-multi-type' &&
-                  pageSheetTypeName === 'page-dt' &&
-                  (
-                     <div style={{ display: 'flex' }}>
-                        <div style={{ display: 'flex', marginBottom: 5, marginRight: 100 }}>
-                           <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Herewith</div>
-                           <SelectTradeStyled
-                              style={{ width: 200 }}
-                              showSearch
-                              optionFilterProp='children'
-                              onChange={(value) => setHerewithForDt(value)}
-                              filterOption={(input, option) =>
-                                 option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                              }
-                              suffixIcon={<div></div>}
-                           >
-                              {[
-                                 'Drawings', 'CD', 'Calculations', 'Method Statement', 'Document', 'Programme',
-                                 'Specifications', 'Part Prints/Sketches', 'Catalogues', 'Test Results', 'Correspondence', 'Others',
-                              ].map((typeFile, i) => (
-                                 <Select.Option key={i} value={typeFile}>{typeFile}</Select.Option>
-                              ))}
-                           </SelectTradeStyled>
-                        </div>
-
-                        <div style={{ display: 'flex', marginBottom: 5 }}>
-                           <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Transmitted For</div>
-                           <SelectTradeStyled
-                              style={{ width: 200 }}
-                              showSearch
-                              optionFilterProp='children'
-                              onChange={(value) => setTransmittedForDt(value)}
-                              filterOption={(input, option) =>
-                                 option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                              }
-                              suffixIcon={<div></div>}
-                           >
-                              {['Information / Action', 'Comments / Approval', 'Construction', 'Record'].map((typeFile, i) => (
-                                 <Select.Option key={i} value={typeFile}>{typeFile}</Select.Option>
-                              ))}
-                           </SelectTradeStyled>
-                        </div>
+               {formRefType !== 'form-reply-multi-type' && pageSheetTypeName === 'page-dt' && (
+                  <div style={{ display: 'flex' }}>
+                     <div style={{ display: 'flex', marginBottom: 5, marginRight: 100 }}>
+                        <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Herewith</div>
+                        <SelectTradeStyled
+                           style={{ width: 200 }}
+                           showSearch
+                           optionFilterProp='children'
+                           onChange={(value) => setHerewithForDt(value)}
+                           filterOption={(input, option) =>
+                              option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                           }
+                           suffixIcon={<div></div>}
+                           value={herewithForDt}
+                        >
+                           {[
+                              'Drawings', 'CD', 'Calculations', 'Method Statement', 'Document', 'Programme',
+                              'Specifications', 'Part Prints/Sketches', 'Catalogues', 'Test Results', 'Correspondence', 'Others',
+                           ].map((typeFile, i) => (
+                              <Select.Option key={i} value={typeFile}>{typeFile}</Select.Option>
+                           ))}
+                        </SelectTradeStyled>
                      </div>
-                  )}
+
+                     <div style={{ display: 'flex', marginBottom: 5 }}>
+                        <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Transmitted For</div>
+                        <SelectTradeStyled
+                           style={{ width: 200 }}
+                           showSearch
+                           optionFilterProp='children'
+                           onChange={(value) => setTransmittedForDt(value)}
+                           filterOption={(input, option) =>
+                              option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                           }
+                           suffixIcon={<div></div>}
+                           value={transmittedForDt}
+                        >
+                           {['Information / Action', 'Comments / Approval', 'Construction', 'Record'].map((typeFile, i) => (
+                              <Select.Option key={i} value={typeFile}>{typeFile}</Select.Option>
+                           ))}
+                        </SelectTradeStyled>
+                     </div>
+                  </div>
+               )}
 
 
 
@@ -1087,41 +1220,43 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
 
-               {
-                  formRefType !== 'form-reply-multi-type' &&
-                  (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm') &&
+               {formRefType !== 'form-reply-multi-type' && pageSheetTypeName === 'page-cvi' &&
                   (
-                     <>
-                        <div style={{ display: 'flex', marginBottom: 20 }}>
-                           <div style={{ width: 150, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Conversation Among</div>
-                           <InputStyled
-                              style={{ width: '90%', marginBottom: 10, borderRadius: 0 }}
-                              onChange={(e) => setConversationAmong(e.target.value)}
-                              value={conversationAmong}
+                     <div style={{ display: 'flex', marginBottom: 20 }}>
+                        <div style={{ width: 150, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Conversation Among</div>
+                        <InputStyled
+                           style={{ width: '90%', marginBottom: 10, borderRadius: 0 }}
+                           onChange={(e) => setConversationAmong(e.target.value)}
+                           value={conversationAmong}
+                        />
+                     </div>
+                  )}
+
+
+
+               {formRefType !== 'form-reply-multi-type' && (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm') && (
+                  <>
+                     <div style={{ display: 'flex' }}>
+                        <div style={{ display: 'flex', marginRight: 50 }}>
+                           <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date</div>
+                           <DatePickerStyled
+                              value={dateConversation}
+                              format={'DD/MM/YY'}
+                              onChange={(e) => setDateConversation(e)}
                            />
                         </div>
 
                         <div style={{ display: 'flex' }}>
-                           <div style={{ display: 'flex', marginRight: 50 }}>
-                              <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date</div>
-                              <DatePickerStyled
-                                 value={dateConversation}
-                                 format={'DD/MM/YY'}
-                                 onChange={(e) => setDateConversation(e)}
-                              />
-                           </div>
-
-                           <div style={{ display: 'flex' }}>
-                              <div style={{ marginRight: 10, fontWeight: 'bold' }}>Time</div>
-                              <TimePickerStyled
-                                 defaultValue={moment('12:08', 'HH:mm')} format={'HH:mm'}
-                                 value={timeConversation}
-                                 onChange={(e) => setTimeConversation(e)}
-                              />
-                           </div>
+                           <div style={{ marginRight: 10, fontWeight: 'bold' }}>Time</div>
+                           <TimePickerStyled
+                              defaultValue={moment('12:08', 'HH:mm')} format={'HH:mm'}
+                              value={timeConversation}
+                              onChange={(e) => setTimeConversation(e)}
+                           />
                         </div>
-                     </>
-                  )}
+                     </div>
+                  </>
+               )}
 
 
                <br />
@@ -1136,6 +1271,8 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                      placeholder='Write details...'
                   />
                </div>
+
+
 
 
                {
@@ -1242,50 +1379,42 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                <br /><br />
 
                <div style={{ display: 'flex', marginBottom: 5 }}>
+
                   {formRefType === 'form-reply-multi-type' && (
-                     <div>
-                        <Upload
-                           name='file' accept='application/pdf' multiple={true} showUploadList={false}
-                           headers={{ authorization: 'authorization-text' }}
-                           beforeUpload={() => { return false }}
-                           onChange={onChangeUploadFormCoverForReply}
-                           ref={refReplyUpload}
-                        >
-                           <ButtonStyle
-                              marginRight={5}
-                              name='Upload Reply Form'
-                           />
-                        </Upload>
-                     </div>
+                     <Upload
+                        name='file' accept='application/pdf' multiple={false} showUploadList={false}
+                        headers={{ authorization: 'authorization-text' }}
+                        beforeUpload={() => { return false }}
+                        onChange={onChangeUploadFormReply}
+                     >
+                        <ButtonStyle
+                           marginRight={5}
+                           name='Upload Reply Form'
+                        />
+                     </Upload>
                   )}
 
+                  <Upload
+                     name='file' accept='application/pdf' multiple={true} showUploadList={false}
+                     headers={{ authorization: 'authorization-text' }}
+                     beforeUpload={() => { return false }}
+                     onChange={onChangeUploadPdfDrawing}
+                     ref={refUpload}
+                  >
+                     <ButtonStyle
+                        marginRight={5}
+                        name='Upload Documents'
+                     />
+                  </Upload>
 
-
-
-                  {(formRefType === 'form-submit-multi-type' || formRefType === 'form-resubmit-multi-type') && (
-                     <>
-                        <Upload
-                           name='file' accept='application/pdf' multiple={true} showUploadList={false}
-                           headers={{ authorization: 'authorization-text' }}
-                           beforeUpload={() => { return false }}
-                           onChange={onChangeUploadPdfDrawing}
-                           ref={refUpload}
-                        >
-                           <ButtonStyle
-                              marginRight={5}
-                              name='Upload Documents'
-                           />
-                        </Upload>
-
-                        {pageSheetTypeName !== 'page-mm' && (
-                           <ButtonStyle
-                              marginRight={10}
-                              name='Add Drawings From RFA'
-                              onClick={() => setTablePickDrawingRfaSubmitted(true)}
-                           />
-                        )}
-                     </>
+                  {formRefType !== 'form-reply-multi-type' && pageSheetTypeName !== 'page-mm' && (
+                     <ButtonStyle
+                        marginRight={10}
+                        name='Add Drawings From RFA'
+                        onClick={() => setTablePickDrawingRfaSubmitted(true)}
+                     />
                   )}
+
 
                </div>
 
@@ -1303,8 +1432,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                      />
                   </div>
                )}
-
-
             </div>
 
 
@@ -1316,7 +1443,14 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                <ButtonGroupComp
                   onClickCancel={() => setModalConfirmsubmitOrCancel('cancel')}
                   onClickApply={() => setModalConfirmsubmitOrCancel('ok')}
-                  newTextBtnApply={formRefType === 'form-reply-multi-type' ? 'Submit' : 'Create Form & Email For Signature'}
+                  newTextBtnApply={
+                     formRefType === 'form-reply-multi-type'
+                        ? 'Submit'
+                        : (
+                           isBothSideActionUser && isBothSideActionUserWithNoEmailSent
+                              ? 'No Submit Button'
+                              : 'Create Form & Email For Signature'
+                        )}
 
                   onClickApplyAdditional01={() => setModalConfirmsubmitOrCancel('download')}
                   newTextBtnApplyAdditional01={formRefType === 'form-reply-multi-type' ? null : 'Create Form & Download Pdf'}
@@ -1329,7 +1463,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
          {tablePickDrawingRfaSubmitted && (
             <ModalStyled
-               title={'Select Drawings For New RFA'}
+               title={'Select RFA Submitted'}
                visible={tablePickDrawingRfaSubmitted}
                footer={null}
                destroyOnClose={true}
@@ -1390,14 +1524,14 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 export default PanelAddNewMultiForm;
 
 
-const getInputForTable = (filesPdfDrawing, dwgsImportFromRFA, filesReplyUpload) => {
+const getInputForTable = (filesPdfDrawing, dwgsImportFromRFA, formReplyUpload) => {
 
    let output = [];
-   if (filesReplyUpload) {
-      for (const pdfDrawing in filesReplyUpload) {
+   if (formReplyUpload) {
+      for (const pdfDrawing in formReplyUpload) {
          output.push({
             id: mongoObjectId(),
-            'Type': 'File Reply',
+            'Type': 'Form',
             'File Name': pdfDrawing
          });
       };
@@ -1475,7 +1609,6 @@ const ModalStyled = styled(Modal)`
    }
    .ant-modal-body {
       padding: 0;
-      display: flex;
       justify-content: center;
    }
 `;
@@ -1680,4 +1813,9 @@ export const convertTradeCodeMeetingMinutesInverted = (trade) => {
    if (trade === 'PRO') return 'PROJECT PROGRESS MEETING';
    if (trade === 'TEC') return 'TECHNICAL MEETING';
    if (trade === 'ICE') return 'ICE MEETING';
+};
+export const convertTradeCodeMeetingMinutes = (trade) => {
+   if (trade === 'PROJECT PROGRESS MEETING') return 'PRO';
+   if (trade === 'TECHNICAL MEETING') return 'TEC';
+   if (trade === 'ICE MEETING') return 'ICE';
 };

@@ -1,5 +1,8 @@
 import { Divider, Icon, message, Modal } from 'antd';
 import Axios from 'axios';
+import { saveAs } from 'file-saver';
+import zip from 'jszip';
+import JSZipUtils from 'jszip-utils';
 import moment from 'moment';
 import React, { forwardRef, useContext, useEffect, useRef, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
@@ -9,13 +12,13 @@ import { colorTextRow, colorType, SERVER_URL, tradeArrayForm, tradeArrayMeetingM
 import { Context as CellContext } from '../../contexts/cellContext';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
-import { genId, compareDates, debounceFnc, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
+import { compareDates, compareDatesMultiForm, debounceFnc, genId, getActionName, getHeaderWidth, getHeaderWidthForRFAView, getUserRoleTradeCompany, groupByHeaders, mongoObjectId, randomColorRange, randomColorRangeStatus } from '../../utils';
 import ButtonAdminCreateAndUpdateRows from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRows';
 import ButtonAdminCreateAndUpdateRowsHistory from '../pageSpreadsheet/ButtonAdminCreateAndUpdateRowsHistory';
 import Cell, { columnLocked, rowLocked } from '../pageSpreadsheet/Cell';
 import CellForm, { getInfoValueFromRefDataForm } from '../pageSpreadsheet/CellForm';
 import CellIndex from '../pageSpreadsheet/CellIndex';
-import CellRFA, { getConsultantLeadName, getConsultantReplyData, getInfoValueFromRfaData, isColumnConsultant, isColumnWithReplyData } from '../pageSpreadsheet/CellRFA';
+import CellRFA, { getConsultantReplyData, getInfoValueFromRfaData, isColumnConsultant, isColumnWithReplyData } from '../pageSpreadsheet/CellRFA';
 import ExcelExport from '../pageSpreadsheet/ExcelExport';
 import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from '../pageSpreadsheet/FormDrawingTypeOrder';
 import PanelFunction, { getPanelPosition } from '../pageSpreadsheet/PanelFunction';
@@ -29,27 +32,33 @@ import LoadingIcon from './LoadingIcon';
 import ViewTemplateSelect from './ViewTemplateSelect';
 
 
+
+
 const offsetHeight = 99.78;
 const sideBarWidth = 55;
+
 
 const Table = forwardRef((props, ref) => {
    const { projectIsAppliedRfaView, pageSheetTypeName } = props;
 
    return (
       <AutoResizer>
-         {({ width }) => <BaseTable
-            {...props}
-            ref={ref}
-            width={
-               pageSheetTypeName === 'page-data-entry'
-                  ? width
-                  : window.innerWidth - (projectIsAppliedRfaView ? sideBarWidth : 0)
-            }
-            height={window.innerHeight - offsetHeight}
-         />}
+         {({ width }) => {
+            return <BaseTable
+               {...props}
+               ref={ref}
+               width={
+                  pageSheetTypeName === 'page-data-entry'
+                     ? width
+                     : window.innerWidth - (projectIsAppliedRfaView ? sideBarWidth : 0)
+               }
+               height={window.innerHeight - offsetHeight}
+            />
+         }}
       </AutoResizer>
    );
 });
+
 
 let previousDOMCell = null;
 let currentDOMCell = null;
@@ -63,15 +72,13 @@ const OverallComponentDMS = (props) => {
 
    let {
       email, role: roleInit, isAdmin, projectId, projectName, token, company,
-      companies, projectIsAppliedRfaView, listUser: listUserInput, listGroup, projectNameShort, pageSheetTypeName,
+      companies, projectIsAppliedRfaView, listUser: listUserInput, listGroup: listGroupInput, projectNameShort, pageSheetTypeName,
       history, localState,
 
       // sheet-data-entry
       sheetDataInput: sheetDataInputRaw, sheetId, sheetName, canEditParent,
       saveDataToServerCallback, callbackSelectRow, rowsImportedFromModel
    } = props;
-
-   const listUser = [...listUserInput || [], 'truongbaolam0209@gmail.com'];
 
    let role = roleInit;
    let sheetDataInput;
@@ -81,14 +88,16 @@ const OverallComponentDMS = (props) => {
    };
 
 
-
    const roleTradeCompany = getUserRoleTradeCompany(role, company, pageSheetTypeName);
+   const listUser = [...listUserInput || [], 'truongbaolam0209@gmail.com'];
+   const listGroup = [...new Set(listGroupInput)];
+   const isBothSideActionUser = isAdmin && company === 'Woh Hup Private Ltd' && roleInit === 'Document Controller';
 
 
-   const isUserCanSubmitBothSide = isAdmin;
+
+
 
    const tableRef = useRef();
-
    const handlerBeforeUnload = (e) => {
       if (window.location.pathname === '/dms-spreadsheet') {
          e.preventDefault();
@@ -360,7 +369,7 @@ const OverallComponentDMS = (props) => {
          getSheetRows({
             ...stateRow,
             ...objAttr,
-            rowsSelectedToMove: []
+            rowsSelectedToMove: [],
          });
       };
 
@@ -460,7 +469,7 @@ const OverallComponentDMS = (props) => {
          fetchDataOneSheet({
             ...update.data,
             email, projectId, projectName, role, token, company, companies, roleTradeCompany,
-            projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isUserCanSubmitBothSide, pageSheetTypeName
+            projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isBothSideActionUser, pageSheetTypeName,
          });
          setUserData(getHeadersData(update.data));
          getSheetRows(getInputDataInitially(update.data, roleTradeCompany, pageSheetTypeName));
@@ -562,7 +571,7 @@ const OverallComponentDMS = (props) => {
                fetchDataOneSheet({
                   ...res.data,
                   email, projectId, projectName, role, token, company, companies, roleTradeCompany,
-                  projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isUserCanSubmitBothSide, pageSheetTypeName
+                  projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isBothSideActionUser, pageSheetTypeName
                });
 
                setUserData(getHeadersData(res.data));
@@ -600,7 +609,7 @@ const OverallComponentDMS = (props) => {
                fetchDataOneSheet({
                   ...res.data,
                   email, projectId, projectName, role, token, company, companies, roleTradeCompany,
-                  projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isUserCanSubmitBothSide, pageSheetTypeName
+                  projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isBothSideActionUser, pageSheetTypeName,
                });
                getSheetRows(getInputDataInitially({ sheetData: res.data, rowsHistoryData: resRowHistory.data }, roleTradeCompany, pageSheetTypeName));
                setExpandedRows([
@@ -638,11 +647,10 @@ const OverallComponentDMS = (props) => {
 
                fetchDataOneSheet({
                   email, projectId, projectName, role, token, company, companies, roleTradeCompany,
-                  projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isUserCanSubmitBothSide, pageSheetTypeName
+                  projectIsAppliedRfaView, listUser, listGroup, projectNameShort, isAdmin, isBothSideActionUser, pageSheetTypeName
                });
                setSearchInputShown(true);
             };
-
 
 
 
@@ -878,6 +886,7 @@ const OverallComponentDMS = (props) => {
    }, 400);
 
    const clearAllFilterSortSearchGroup = debounceFnc(() => {
+      setCellHistoryFound(null);
       getSheetRows({
          ...stateRow,
          modeFilter: [],
@@ -920,7 +929,7 @@ const OverallComponentDMS = (props) => {
          headersObj.push({
             key: hd, dataKey: hd, title: hd,
             width: pageSheetTypeName !== 'page-spreadsheet'
-               ? getHeaderWidthForRFAView(hd)
+               ? getHeaderWidthForRFAView(hd, pageSheetTypeName)
                : getHeaderWidth(hd),
             resizable: true,
             frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
@@ -1029,9 +1038,6 @@ const OverallComponentDMS = (props) => {
          ]
       });
    };
-
-
-   const buttonSpreadsheetMode = (stateRow && (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry'));
 
 
 
@@ -1232,230 +1238,169 @@ const OverallComponentDMS = (props) => {
       return () => window.removeEventListener('resize', handleResize);
    });
 
-   if ((role === 'Consultant' || role === 'Client') && pageSheetTypeName === 'page-spreadsheet') {
-      return (
-         <div>There is no data display for client</div>
-      );
-   };
 
+   if ((role === 'Consultant' || role === 'Client') && pageSheetTypeName === 'page-spreadsheet') {
+      return <div>There is no data display for "Client" and "Consultant"</div>
+   } else if (role === 'Document Controller' && company !== 'Woh Hup Private Ltd') {
+      return <div>"Document Controller" must come from "Woh Hup Private Ltd"</div>
+   };
 
    return (
       <div
-         style={{ color: 'black', width: '100%' }}
+         style={{ color: 'black' }}
          onContextMenu={(e) => e.preventDefault()}
       >
-
-         <ButtonBox>
-            {buttonSpreadsheetMode && (
-               <>
-                  <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
-                  <DividerRibbon />
-                  <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
-                  <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
-                  <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
-               </>
-            )}
-
-            <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
-
-            {searchInputShown
-               ? <InputSearch
-                  searchGlobal={searchGlobal}
-                  stateRow={stateRow}
-                  getSheetRows={getSheetRows}
-                  modeFilter={stateRow.modeFilter}
-               />
-               : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
-
-            {stateRow && stateRow.modeGroup.length > 0 ? (
-               <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-1')} />
-            ) : (
-               <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-2')} />
-            )}
-
-            <IconTable type='retweet' onClick={clearAllFilterSortSearchGroup} />
-
-            {buttonSpreadsheetMode && (
-               <>
-                  <DividerRibbon />
-                  <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
-
-                  {pageSheetTypeName === 'page-spreadsheet' && (
-                     <>
-                        <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
-                        <DividerRibbon />
-                        <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
-                        <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
-                     </>
-                  )}
-
-
-
-                  <ExcelExport fileName={projectName} />
-                  <DividerRibbon />
-                  {pageSheetTypeName === 'page-data-entry' && (
-                     <>
-                        <IconTable type='border-outer' onClick={() => buttonPanelFunction('select-single-row-ICON')} />
-                        <DividerRibbon />
-                     </>
-                  )}
-                  {pageSheetTypeName === 'page-spreadsheet' && (
-                     <>
-                        <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
-                        <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
-                        <DividerRibbon />
-                     </>
-                  )}
-
-               </>
-            )}
-
-
-
-            {stateRow && projectIsAppliedRfaView && (
-               pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry' &&
-               pageSheetTypeName !== 'page-cvi' && pageSheetTypeName !== 'page-dt' && pageSheetTypeName !== 'page-mm'
-            ) && (
-                  <IconTable type='block' onClick={switchConsultantsHeader} />
+         {stateRow && (
+            <ButtonBox>
+               {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') && (
+                  <>
+                     <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
+                     <DividerRibbon />
+                     <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
+                     <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
+                     <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
+                  </>
                )}
 
+               <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
 
-            {stateRow && projectIsAppliedRfaView && pageSheetTypeName === 'page-rfa' && role === 'Document Controller' && !isUserCanSubmitBothSide && (
-               <>
-                  <IconTable
-                     type='plus-square'
-                     onClick={() => {
-                        buttonPanelFunction('form-submit-RFA');
-                        getSheetRows({
-                           ...stateRow,
-                           currentRfaToAddNewOrReplyOrEdit: {
-                              currentRfaNumber: null,
-                              currentRfaRef: null,
-                              currentRfaData: null,
-                              formRfaType: 'form-submit-RFA',
-                              isFormEditting: false
-                           },
-                        });
-                     }}
+               {searchInputShown
+                  ? <InputSearch
+                     searchGlobal={searchGlobal}
+                     stateRow={stateRow}
+                     getSheetRows={getSheetRows}
+                     modeFilter={stateRow.modeFilter}
                   />
-                  <DividerRibbon />
-               </>
-            )}
+                  : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
-            {stateRow && projectIsAppliedRfaView && pageSheetTypeName === 'page-rfa' && isUserCanSubmitBothSide && (
-               <>
-                  <IconTable
-                     type='plus-square'
-                     onClick={() => buttonPanelFunction('form-RFA-submit-for-admin')}
-                  />
-                  <DividerRibbon />
-               </>
-            )}
+               {stateRow.modeGroup.length > 0 ? (
+                  <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-1')} />
+               ) : (
+                  <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-2')} />
+               )}
 
+               <IconTable type='retweet' onClick={clearAllFilterSortSearchGroup} />
 
-
-            {stateRow && role === 'Document Controller' && (
-               pageSheetTypeName === 'page-rfam' ||
-               pageSheetTypeName === 'page-rfi' ||
-               pageSheetTypeName === 'page-cvi' ||
-               pageSheetTypeName === 'page-dt' ||
-               pageSheetTypeName === 'page-mm'
-            ) && (
+               {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') && (
                   <>
-                     <IconTable
-                        type='plus-square'
-                        pageSheetTypeName={pageSheetTypeName}
-                        onClick={() => {
-                           buttonPanelFunction('form-submit-multi-type');
-                           getSheetRows({
-                              ...stateRow,
-                              currentRefToAddNewOrReplyOrEdit: {
-                                 currentRefData: null,
-                                 formRefType: 'form-submit-multi-type',
-                                 isFormEditting: false
-                              },
-                           });
-                        }}
-                     />
                      <DividerRibbon />
+                     <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
+
+                     {pageSheetTypeName === 'page-spreadsheet' && (
+                        <>
+                           <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
+                           <DividerRibbon />
+                           <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
+                           <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
+                        </>
+                     )}
+
+                     <ExcelExport fileName={projectName} />
+                     <DividerRibbon />
+                     {pageSheetTypeName === 'page-data-entry' && (
+                        <>
+                           <IconTable type='border-outer' onClick={() => buttonPanelFunction('select-single-row-ICON')} />
+                           <DividerRibbon />
+                        </>
+                     )}
+                     {pageSheetTypeName === 'page-spreadsheet' && (
+                        <>
+                           <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
+                           <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
+                           <DividerRibbon />
+                        </>
+                     )}
                   </>
                )}
 
 
 
-            {stateRow && projectIsAppliedRfaView && stateRow.rfaStatistics && (
-               <>
-                  {Object.keys(stateRow.rfaStatistics).map((item, i) => {
-                     return (
-                        <DataStatisticRibbon item={item} key={i} onClickQuickFilter={onClickQuickFilter} />
-                     )
-                  })}
-               </>
-            )}
+               {projectIsAppliedRfaView && (
+                  pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry' &&
+                  pageSheetTypeName !== 'page-cvi' && pageSheetTypeName !== 'page-dt' && pageSheetTypeName !== 'page-mm'
+               ) && (
+                     <IconTable type='block' onClick={switchConsultantsHeader} />
+                  )}
+
+               {(pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry') && (
+                  <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
+               )}
+               <DividerRibbon />
 
 
-            {isAdmin && (
-               <div style={{ display: 'flex' }}>
-                  {/* <IconTable type='delete' onClick={() => adminFncServerInit('delete-all-collections')} /> */}
-                  {/* <ButtonAdminUploadData /> */}
-                  <ButtonAdminCreateAndUpdateRows />
-                  <ButtonAdminCreateAndUpdateRowsHistory />
-                  {/* <ButtonAdminDeleteRowsHistory /> */}
-                  {/* 
-                        <ButtonAdminUploadDataPDD />
-                        
-                        <ButtonAdminCreateAndUpdateRowsHistory />
-                        <ButtonAdminUpdateProjectSettings /> 
-                     */}
-
-               </div>
-            )}
-
-            {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-rfa') && (
-               <div style={{ position: 'absolute', display: 'flex', top: 3, right: 30 }}>
-                  <div style={{ display: 'flex', marginRight: 25, transform: 'translate(0, 5px)' }}>
-                     {[
-                        'Approved with Comment, no submission Required',
-                        'Approved with comments, to Resubmit',
-                        'Approved for Construction',
-                        'Reject and resubmit'
-                     ].map(btn => (
-                        <div
-                           style={{
-                              display: 'flex', paddingLeft: 5, paddingRight: 5, marginRight: 7, cursor: 'pointer', height: 20, borderRadius: 3,
-                              background: stateRow && stateRow.modeFilter.find(x => x['header'] === 'Status' && x.value === btn) ? colorType.grey1 : 'transparent'
+               {projectIsAppliedRfaView && (
+                  pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam' ||
+                  pageSheetTypeName === 'page-rfi' || pageSheetTypeName === 'page-cvi' ||
+                  pageSheetTypeName === 'page-dt' || pageSheetTypeName === 'page-mm'
+               ) &&
+                  (isBothSideActionUser || role === 'Document Controller') && (
+                     <>
+                        <IconTable
+                           type='plus-square'
+                           pageSheetTypeName={pageSheetTypeName}
+                           onClick={() => {
+                              if (isBothSideActionUser) {
+                                 buttonPanelFunction('option-email-or-not-for-admin');
+                              } else {
+                                 buttonPanelFunction(pageSheetTypeName === 'page-rfa' ? 'form-submit-RFA' : 'form-submit-multi-type');
+                                 getSheetRows({
+                                    ...stateRow,
+                                    currentRefToAddNewOrReplyOrEdit: {
+                                       currentRefData: null,
+                                       formRefType: pageSheetTypeName === 'page-rfa' ? 'form-submit-RFA' : 'form-submit-multi-type',
+                                       isFormEditting: false,
+                                    },
+                                 });
+                              };
                            }}
-                           onClick={() => onClickquickFilterStatus(btn)}
-                           key={btn}
-                        >
-                           <div
-                              style={{
-                                 width: 10, height: 10, marginRight: 5,
-                                 background: colorTextRow[btn],
-                                 transform: 'translate(0, 4px)'
-                              }}
+                        />
+                        <DividerRibbon />
+                     </>
+                  )}
+
+
+
+               {projectIsAppliedRfaView && stateRow.rfaStatistics && (
+                  <>
+                     {Object.keys(stateRow.rfaStatistics).map((item, i) => {
+                        return (
+                           <DataStatisticRibbon
+                              item={item}
+                              key={i}
+                              onClickQuickFilter={onClickQuickFilter}
+                              filterState={stateRow.modeFilter}
                            />
-                           <div style={{ fontSize: 11, paddingTop: 1 }}>
-                              <span style={{ fontWeight: 'bold', marginRight: 3 }}>
-                                 {stateRow && stateRow.rowsAll ? stateRow.rowsAll.filter(r => r['Status'] === btn).length : 0}
-                              </span>
-                              {btn === 'Approved with Comment, no submission Required'
-                                 ? 'AC'
-                                 : btn === 'Approved with comments, to Resubmit'
-                                    ? 'AC, resubmit'
-                                    : btn === 'Approved for Construction'
-                                       ? 'Approved'
-                                       : 'Reject'}
-                           </div>
-                        </div>
-                     ))}
+                        )
+                     })}
+                     <DividerRibbon />
+                  </>
+               )}
+
+
+               {isAdmin && (
+                  <div style={{ display: 'flex' }}>
+                     <ButtonAdminCreateAndUpdateRows />
+                     <ButtonAdminCreateAndUpdateRowsHistory />
+
                   </div>
-                  <div style={{ fontSize: 25, color: colorType.primary }}>{projectName}</div>
+               )}
+
+
+               <div style={{ position: 'absolute', display: 'flex', right: 30 }}>
+                  {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam') && (
+                     <DrawingStatusStatisticRight
+                        onClickquickFilterStatus={onClickquickFilterStatus}
+                        stateRow={stateRow}
+                        pageSheetTypeName={pageSheetTypeName}
+                     />
+                  )}
+                  <div style={{ fontSize: 25, color: colorType.primary, marginTop: -5, paddingTop: 0 }}>{projectName}</div>
                </div>
-            )}
 
 
-         </ButtonBox>
+
+            </ButtonBox>
+         )}
 
 
          <div style={{ display: 'flex', overflowX: 'hidden', height: currentWindow.height - offsetHeight }}>
@@ -1484,6 +1429,7 @@ const OverallComponentDMS = (props) => {
                   })}
                </div>
             )}
+
 
 
 
@@ -1572,15 +1518,12 @@ const OverallComponentDMS = (props) => {
             width={
                panelSettingType === 'addDrawingType-ICON' ? currentWindow.width * 0.85 :
                   (
-                     panelSettingType &&
-                     (panelSettingType.includes('form-submit-') ||
-                        panelSettingType.includes('form-resubmit-') ||
-                        panelSettingType.includes('form-reply-'))
-                  ) ? currentWindow.width * 0.9 :
+                     (panelSettingType && (panelSettingType.includes('form-submit-') || panelSettingType.includes('form-resubmit-') || panelSettingType.includes('form-reply-')))) ? currentWindow.width * 0.9 :
                      panelSettingType === 'pickTypeTemplate-ICON' ? currentWindow.width * 0.6 :
                         panelSettingType === 'View Drawing Revision' ? currentWindow.width * 0.8 :
                            panelSettingType === 'filter-ICON' ? currentWindow.width * 0.5 :
-                              520
+                              panelSettingType === 'history-ICON' ? currentWindow.width * 0.8 :
+                                 550
             }
          >
             <PanelSetting
@@ -1589,7 +1532,10 @@ const OverallComponentDMS = (props) => {
                commandAction={commandAction}
                onClickCancelModal={() => {
                   resetAllPanelInitMode();
-                  getSheetRows({ ...stateRow, currentRfaToAddNewOrReplyOrEdit: null });
+                  getSheetRows({
+                     ...stateRow,
+                     currentRefToAddNewOrReplyOrEdit: null
+                  });
                }}
                setLoading={setLoading}
                buttonPanelFunction={buttonPanelFunction}
@@ -1739,7 +1685,6 @@ const ModalStyledSetting = styled(Modal)`
    }
    .ant-modal-body {
       padding: 0;
-      display: flex;
       justify-content: center;
    }
 `;
@@ -1778,13 +1723,14 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          rowsAll: [...rowsAllOutput, ...rowsToAdd],
          rowsRfaAll: rowsDataRFA.filter(r => !r['row']),
          rowsRfaAllInit: rowsDataRFA,
-         currentRfaToAddNewOrReplyOrEdit: null,
+         currentRefToAddNewOrReplyOrEdit: null,
          rfaStatistics,
          isShowAllConsultant: false,
          loading: false
       };
 
    } else if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
+
       const { rows, publicSettings, userSettings } = data;
 
       const { drawingTypeTree, sheetId } = publicSettings;
@@ -1810,6 +1756,7 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
       };
 
 
+
       return {
          modeFilter,
          modeSort,
@@ -1818,7 +1765,6 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
 
          rowsAll: dataEntrySheetInitState ? [newRowInitDataEntry] : [...rowsAllOutput, ...rowsToAdd], // HANDLE_ROWS_CAN_NOT_MATCH_PARENT
          rowsVersionsToSave: [],
-
 
          viewTemplates,
          viewTemplateNodeId,
@@ -1861,7 +1807,6 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
          const latestVersion = arrayVersion.sort()[arrayVersion.length - 1];
          outputRowsRef.push(rowsThisRef.find(x => x.revision === latestVersion));
       });
-
 
       return {
 
@@ -1993,7 +1938,6 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTy
             dataOutput.push(newItem);
          });
          const output = convertFlattenArraytoTree1(dataOutput);
-
          return output;
       };
 
@@ -2034,7 +1978,7 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTy
                   return arrayCompanyFilter.indexOf(replyCompany) !== -1;
                });
 
-            } else if (header === 'Overdue RFA') {
+            } else if (header === `Overdue ${refType.toUpperCase()}`) {
 
                let outputDrawingsAfterFilter = [];
                filterObj[header].forEach(filterData => {
@@ -2043,32 +1987,50 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTy
                         ...outputDrawingsAfterFilter,
                         ...rowsAllFinalMultiForm.filter(r => {
 
-                           const consultantLeadName = getConsultantLeadName(r);
-                           let consultantLeadReply;
-                           if (consultantLeadName) {
-                              consultantLeadReply = getInfoValueFromRfaData(r, 'reply', 'status', consultantLeadName);
-                           };
+                           const leadConsultant = pageSheetTypeName === 'page-rfa'
+                              ? getInfoValueFromRfaData(r, 'submission', 'consultantMustReply')[0]
+                              : getInfoValueFromRefDataForm(r, 'submission', refType, 'consultantMustReply')[0];
+
+                           const replyStatusValue = pageSheetTypeName === 'page-rfa'
+                              ? getInfoValueFromRfaData(r, 'reply', 'status', leadConsultant)
+                              : getInfoValueFromRefDataForm(r, 'reply', refType, 'status', leadConsultant);
 
                            let nosOfDate;
-                           if (!consultantLeadReply) {
-                              nosOfDate = compareDates(r['Consultant Reply (T)']);
+
+                           if (!replyStatusValue) {
+                              nosOfDate = pageSheetTypeName === 'page-rfa'
+                                 ? compareDates(r['Consultant Reply (T)'])
+                                 : compareDatesMultiForm(getInfoValueFromRefDataForm(r, 'submission', refType, 'due'))
                            };
                            return filterData === 'Overdue' ? nosOfDate < 0 : nosOfDate < 3;
                         })];
 
-                  } else if (filterData === 'RFA outstanding') {
+                  } else if (filterData === `${refType.toUpperCase()} outstanding`) {
 
                      outputDrawingsAfterFilter = [
                         ...outputDrawingsAfterFilter,
                         ...rowsAllFinalMultiForm.filter(r => {
                            let replyStatusValue;
                            if (role === 'Consultant') {
-                              replyStatusValue = getInfoValueFromRfaData(r, 'reply', 'status', company);
-                              const consultantMustReply = getInfoValueFromRfaData(r, 'submission', 'consultantMustReply');
+                              replyStatusValue = pageSheetTypeName === 'page-rfa'
+                                 ? getInfoValueFromRfaData(r, 'reply', 'status', company)
+                                 : getInfoValueFromRefDataForm(r, 'reply', refType, 'status', company);
+
+                              const consultantMustReply = pageSheetTypeName === 'page-rfa'
+                                 ? getInfoValueFromRfaData(r, 'submission', 'consultantMustReply')
+                                 : getInfoValueFromRefDataForm(r, 'submission', refType, 'consultantMustReply');
+
                               return !replyStatusValue && consultantMustReply.indexOf(company) !== -1;
+
                            } else {
-                              const leadConsultant = getInfoValueFromRfaData(r, 'submission', 'consultantMustReply')[0];
-                              replyStatusValue = getInfoValueFromRfaData(r, 'reply', 'status', leadConsultant);
+
+                              const leadConsultant = pageSheetTypeName === 'page-rfa'
+                                 ? getInfoValueFromRfaData(r, 'submission', 'consultantMustReply')[0]
+                                 : getInfoValueFromRefDataForm(r, 'submission', refType, 'consultantMustReply')[0];
+
+                              replyStatusValue = pageSheetTypeName === 'page-rfa'
+                                 ? getInfoValueFromRfaData(r, 'reply', 'status', leadConsultant)
+                                 : getInfoValueFromRefDataForm(r, 'reply', refType, 'status', leadConsultant);
                               return !replyStatusValue;
                            };
                         })];
@@ -2138,12 +2100,19 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTy
                   const transmittedForDt = getInfoValueFromRefDataForm(r, 'submission', refType, 'transmittedForDt');
                   return filterObj[header].indexOf(transmittedForDt) !== -1;
                });
+            } else if (header === 'Status' && pageSheetTypeName === 'page-rfam') {
+               rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => {
+                  const consultantLead = getInfoValueFromRefDataForm(r, 'submission', refType, 'consultantMustReply')[0];
+                  const replyStatus = getInfoValueFromRefDataForm(r, 'reply', refType, 'status', consultantLead);
+                  return filterObj[header].indexOf(replyStatus) !== -1;
+               });
             } else {
                rowsAllFinalMultiForm = rowsAllFinalMultiForm.filter(r => filterObj[header].indexOf(r[header]) !== -1);
             };
          });
       };
 
+      if (modeFilter.find(x => x.isIncludedParent === 'not included')) return rowsAllFinalMultiForm;
 
       let dataOutputFinal = [];
       drawingTypeTree.forEach(item => {
@@ -2162,10 +2131,22 @@ const arrangeDrawingTypeFinal = (stateRow, companies, company, role, pageSheetTy
          dataOutputFinal.push(newItem);
       });
       const outputMultiForm = convertFlattenArraytoTree1(dataOutputFinal);
+
       return outputMultiForm;
    };
 };
 
+
+const createRowsInit = (sheetId, nos) => {
+   const idsArr = genId(nos);
+   return idsArr.map((id, i) => {
+      return ({
+         id, _rowLevel: 1,
+         _parentRow: sheetId,
+         _preRow: i === 0 ? null : idsArr[i - 1]
+      });
+   });
+};
 
 export const getRowsKeyExpanded = (drawingTypeTree, viewTemplateNodeId) => {
    const templateNode = drawingTypeTree.find(x => x.id === viewTemplateNodeId);
@@ -2309,12 +2290,12 @@ export const getHeadersForm = (pageSheetTypeName) => {
       return [
          'RFAM Ref',
          'Description',
+         'Contract Specification',
+         'Proposed Specification',
          'Requested By',
          'Signatured By',
          'Submission Date',
          'Submission Type',
-         'Contract Specification',
-         'Proposed Specification',
          'Due Date'
       ];
    } else if (pageSheetTypeName === 'page-rfi') {
@@ -2340,10 +2321,9 @@ export const getHeadersForm = (pageSheetTypeName) => {
    } else if (pageSheetTypeName === 'page-mm') {
       return [
          'MM Ref',
-         'Description',
          'Submission Date',
          'Conversation Date',
-         'Conversation Among',
+         'Description',
       ];
    } else {
       return [];
@@ -2351,51 +2331,96 @@ export const getHeadersForm = (pageSheetTypeName) => {
 };
 
 
-const DataStatisticRibbon = ({ onClickQuickFilter, item }) => {
+const DataStatisticRibbon = ({ onClickQuickFilter, item, filterState }) => {
+
+
+   const textInfo = item === 'noOfRfaOverdue'
+      ? 'Overdue'
+      : item === 'noOfRfaOverdueNext3Days'
+         ? 'Due in 3 days'
+         : item === 'noOfRfaOutstanding'
+            ? 'RFA outstanding'
+            : ''
 
    const { state: stateRow } = useContext(RowContext);
 
    return (
-      <div style={{ marginLeft: 7, display: 'flex', cursor: 'pointer' }} onClick={() => onClickQuickFilter(item)}>
+      <div style={{
+         marginLeft: 7, marginRight: 2,
+         marginTop: 7,
+         display: 'flex',
+         cursor: 'pointer',
+         paddingLeft: 5, paddingRight: 5, height: 20, borderRadius: 3,
+         background: filterState.find(x => x['header'] === 'Overdue RFA' && x.value === textInfo) ? colorType.grey1 : 'transparent'
+      }} onClick={() => onClickQuickFilter(item)}>
          <div
             style={{
                width: 8,
                height: 8,
                borderRadius: '50%',
                background: item === 'noOfRfaOverdue' ? colorType.red : item === 'noOfRfaOverdueNext3Days' ? 'yellow' : colorType.primary,
-               transform: 'translate(0, 7px)',
+               transform: 'translate(0, 6px)',
                marginRight: 5
             }}
          />
-
-         <span style={{ fontWeight: 'bold', marginRight: 4 }}>{stateRow.rfaStatistics[item]}</span>
-
-         {item === 'noOfRfaOverdue'
-            ? 'Overdue'
-            : item === 'noOfRfaOverdueNext3Days'
-               ? 'Due in 3 days'
-
-               // meeting presentation
-               : item === 'noOfRfaOutstanding'
-                  ? 'RFA outstanding'
-                  : ''
-         }
-         <DividerRibbon />
+         <span style={{ fontWeight: 'bold', marginRight: 4, fontSize: 12 }}>{stateRow.rfaStatistics[item]}</span>
+         <span style={{ fontSize: 12 }}>{textInfo}</span>
       </div>
    );
 };
 
 
-const createRowsInit = (sheetId, nos) => {
-   const idsArr = genId(nos);
-   return idsArr.map((id, i) => {
-      return ({
-         id, _rowLevel: 1,
-         _parentRow: sheetId,
-         _preRow: i === 0 ? null : idsArr[i - 1]
-      });
-   });
+
+const DrawingStatusStatisticRight = ({ onClickquickFilterStatus, stateRow, pageSheetTypeName }) => {
+
+   const { modeFilter } = stateRow;
+
+   const rowsToFilter = pageSheetTypeName === 'page-spreadsheet' ? stateRow.rowsAll
+      : pageSheetTypeName === 'page-rfa' ? stateRow.rowsRfaAll
+         : pageSheetTypeName === 'page-rfam' ? stateRow.rowsRfamAll
+            : [];
+
+   return (
+      <div style={{ display: 'flex', marginRight: 25, transform: 'translate(0, 5px)' }}>
+         {[
+            'Approved with Comment, no submission Required',
+            'Approved with comments, to Resubmit',
+            'Approved for Construction',
+            'Reject and resubmit',
+            'Consultant reviewing'
+         ].map(btn => (
+            <div
+               style={{
+                  display: 'flex', paddingLeft: 5, paddingRight: 5, marginRight: 7, cursor: 'pointer', height: 20, borderRadius: 3,
+                  background: modeFilter.find(x => x['header'] === 'Status' && x.value === btn) ? colorType.grey1 : 'transparent'
+               }}
+               onClick={() => onClickquickFilterStatus(btn)}
+               key={btn}
+            >
+               <div style={{ width: 10, height: 10, marginRight: 5, background: colorTextRow[btn], transform: 'translate(0, 6px)' }} />
+               <div style={{ fontSize: 12, paddingTop: 1 }}>
+                  <span style={{ fontWeight: 'bold', marginRight: 3 }}>
+                     {pageSheetTypeName === 'page-rfam'
+                        ? rowsToFilter.filter(r => {
+                           const consultantLead = getInfoValueFromRefDataForm(r, 'submission', 'rfam', 'consultantMustReply')[0];
+                           return getInfoValueFromRefDataForm(r, 'reply', 'rfam', 'status', consultantLead) === btn;
+                        }).length
+                        : rowsToFilter.filter(r => r['Status'] === btn).length
+                     }
+                  </span>
+                  {btn === 'Approved with Comment, no submission Required' ? 'AC'
+                     : btn === 'Approved with comments, to Resubmit' ? 'AC, resubmit'
+                        : btn === 'Approved for Construction' ? 'Approved'
+                           : btn === 'Consultant reviewing' ? 'UR'
+                              : 'Reject'}
+               </div>
+            </div>
+         ))}
+      </div>
+   )
 };
+
+
 
 
 
@@ -2462,6 +2487,10 @@ export const convertDataEntryInput = (inputData) => {
       rows: rowsOutput
    };
 };
+
+
+
+
 
 
 

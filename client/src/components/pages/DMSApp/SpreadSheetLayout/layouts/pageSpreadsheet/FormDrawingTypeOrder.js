@@ -335,7 +335,7 @@ const FormDrawingTypeOrder = ({ onClickCancelModal, applyFolderOrganize }) => {
 
          {tradeAndCompanyAndType && (
             <ModalStyledSetting
-               title={modalTitle}
+               title={'Add Company'}
                visible={tradeAndCompanyAndType !== null ? true : false}
                footer={null}
                onCancel={() => setTradeAndCompanyAndType(null)}
@@ -394,7 +394,6 @@ const ModalStyledSetting = styled(Modal)`
    }
    .ant-modal-body {
       padding: 0;
-      display: flex;
       justify-content: center;
    }
 `;

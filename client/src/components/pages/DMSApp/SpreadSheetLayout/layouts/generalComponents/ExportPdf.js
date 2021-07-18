@@ -5,6 +5,14 @@ import { imgLink } from '../../constants';
 import { getInfoValueFromRfaData } from '../pageSpreadsheet/CellRFA';
 import { getFileNameFromLinkResponse } from '../pageSpreadsheet/PanelSetting';
 
+
+const fontStyles = StyleSheet.create({
+   bold: {
+     fontWeight: 800,
+   }
+});
+
+
 Font.register({
    fonts: [
       {
@@ -18,9 +26,9 @@ Font.register({
 const ExportPdf = ({ pdfContent }) => {
    const {
       refNumberText, listRecipientTo, listRecipientCc, isCostImplication, isTimeExtension,
-      requestedBy, signatureBy, conversationAmong, emailTextTitle, dateConversation, timeConversation, description,
+      requestedBy, signaturedBy, conversationAmong, emailTextTitle, dateConversation, timeConversation, description,
       filesPdfDrawing, dwgsImportFromRFA, dateReplyForSubmitForm, projectName, listConsultantMustReply,
-      contractSpecification,
+      contractSpecification, recipientName,
       proposedSpecification,
       submissionType,
       herewithForDt,
@@ -56,6 +64,7 @@ const ExportPdf = ({ pdfContent }) => {
       : pageSheetTypeName === 'page-rfi' ? 'Request For Information'
          : pageSheetTypeName === 'page-cvi' ? 'Confirmation of Verbal Instruction'
             : pageSheetTypeName === 'page-dt' ? 'Document Transmittal'
+               : pageSheetTypeName === 'page-mm' ? 'Meeting Minutes'
                : null;
 
 
@@ -97,13 +106,11 @@ const ExportPdf = ({ pdfContent }) => {
                   <View style={{ width: '18%' }}>
                      <Text style={{ marginBottom: 4 }}>Ref. No</Text>
                      <Text style={{ marginBottom: 4 }}>Date Submission</Text>
-                     {/* <Text>Date Reply</Text> */}
                      <Text>Page</Text>
                   </View>
-                  <View style={{ width: '20%' }}>
-                     <Text style={{ marginBottom: 4 }}>{`: ${refNumberText}`}</Text>
+                  <View style={{ width: '20%', ...fontStyles.bold }}>
+                     <Text style={{ marginBottom: 4, ...fontStyles.bold }}>{`: ${refNumberText}`}</Text>
                      <Text style={{ marginBottom: 4 }}>{`: ${moment(new Date()).format('DD/MM/YY')}`}</Text>
-                     {/* <Text>{`: ${moment(dateReplyForSubmitForm).format('DD/MM/YY')}`}</Text> */}
                      <Text>: 01/01</Text>
                   </View>
                </View>
@@ -166,7 +173,7 @@ const ExportPdf = ({ pdfContent }) => {
                      </View>
                   </>
                )}
-               {(pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm') && (
+               {pageSheetTypeName === 'page-cvi' && (
                   <>
                      <View>
                         <Text>Conversation Among: </Text>

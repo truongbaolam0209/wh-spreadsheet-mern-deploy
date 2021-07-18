@@ -7,6 +7,7 @@ const { validateToken } = require('../../service/validate');
 
 
 
+
 router.post('/save-all-data-to-server', validateToken, RowRfam.saveAllDataToServer);
 router.post('/delete-all/', validateToken, RowRfam.deleteAllDataInThisCollection);
 

@@ -26,7 +26,7 @@ const App = () => {
 
 
 
-   const sheetId = 'XXXYYY-ZZZZ-999-RR-D';
+   const sheetId = 'XXXYYY-ZZZZ-999-RR-DT';
    const token = 'xxx-xxxxx-xx';
    const email = 'michaelsss_llave@wohhup.com';
 
@@ -71,6 +71,7 @@ const App = () => {
    const getDataFromOutsideComponent = async () => {
       try {
          const result = await window.getCurrentDataTable();
+
       } catch (err) {
          console.log(err);
       };
@@ -81,13 +82,14 @@ const App = () => {
       setRowsImportedFromModel([
          {
             data: {
-               'Pile marking': 'RRR - 33mm',
-               'Sizes': 500
+               'Pile marking': 'DEATHHHHHHHHHHHHHH',
+               'Sizes': 205
             },
-            outS1: 'XXXXXXXXXXXXXXXXXXXXXXXXXXX',
-            iiii: '000-000',
-            lll: 'LAM-LAM',
-            _id: '60e71554850bced48f406239'
+            outS1: '909-WWWWWWW',
+            iiii: 'COCCOCCOC',
+            lll: 'LAM-LAM777777777777777777777777777777777777777777777777777777777777777777777777777777',
+            oxo: 'fff',
+            _id: '60e8694840b005b34dc2d3b3'
          },
          {
             data: {
@@ -105,37 +107,75 @@ const App = () => {
             outS3: 'ssssssssssssssss',
             _id: mongoObjectId(),
          },
+         {
+            data: {
+               '5c5bc3bf-7cef-4326-8ec9-84d8228265c4': 'RRRRRRRRRRRRRRR',
+               iii: '000000000000000',
+               'Sizes': 777
+            },
+            GGG: 'ssssssssssssssss',
+            lam_lam_k: 'r',
+            _id: '60e8691fea719169a634cfd6',
+         },
+         {
+            data: {
+               '5c5bc3bf-7cef-4326-8ec9-84d8228265c4': '4444ERROR===',
+               iii: 'XXCXX',
+               'Sizes': 888,
+               'Pile marking': '111',
+            },
+            GGG: 'ssssssssssssssss',
+            _id: mongoObjectId(),
+         },
       ]);
    };
 
 
+   const [openPanel, setOpenPanel] = useState(false);
+   const onClickOpenPanel = () => {
+      setOpenPanel(!openPanel);
+   };
 
    return (
 
       <BrowserRouter>
          <Switch>
+
             <SheetContext>
                {/* <button onClick={importNewRowsDataFromModel}>KKK</button> */}
                {/* <button onClick={getDataFromOutsideComponent}>MMM</button> */}
+               {/* <button onClick={onClickOpenPanel}>MMM</button> */}
+
                <Route exact path='/dms-spreadsheet'><PageSpreadsheet {...propsSheet} /></Route>
 
                <Route exact path='/sheet-data-entry'>
                   {dataEntryData && (
-                     <PageDataEntrySheet
-                        {...propsSheet}
-                        isAdmin={true}
-                        email={email}
-                        role={{
-                           name: 'Document Controller',
-                           canEditParent: true
-                        }}
-                        sheetDataInput={dataEntryData}
-                        sheetId={sheetId}
-                        sheetName='Sheet 1'
-                        saveDataToServerCallback={saveDataToServerCallback}
-                        callbackSelectRow={callbackSelectRow}
-                        rowsImportedFromModel={rowsImportedFromModel}
-                     />
+                     <div style={{ display: 'flex' }}>
+                        <PageDataEntrySheet
+                           {...propsSheet}
+                           isAdmin={true}
+                           email={email}
+                           role={{
+                              name: 'Document Controller',
+                              canEditParent: true
+                           }}
+                           sheetDataInput={dataEntryData}
+                           sheetId={sheetId}
+                           sheetName='Sheet 1'
+                           saveDataToServerCallback={saveDataToServerCallback}
+                           callbackSelectRow={callbackSelectRow}
+                           rowsImportedFromModel={rowsImportedFromModel}
+                        />
+                        {openPanel && (
+                           <div style={{
+                              width: 500,
+                              height: 700,
+                              background: 'red',
+                              zIndex: 100
+                           }}>RRR</div>
+                        )}
+
+                     </div>
                   )}
                </Route>
 
@@ -168,8 +208,6 @@ const App = () => {
 
             </SheetContext>
 
-
-
          </Switch>
       </BrowserRouter>
    );
@@ -197,11 +235,13 @@ function detectBrowser() {
 
 // const consultantCompany = 'DCA';
 // const consultantCompany = 'RSP';
+const consultantCompany = 'Index';
+// const consultantCompany = 'Alpha';
 // const consultantCompany = 'Archi Consultant';
-const consultantCompany = 'ONG & ONG';
+// const consultantCompany = 'ONG & ONG';
 
 const propsSheet = {
-   email: browserName === 'Chrome' ? 'tbly@wohhup.com' : 'test@dca.com',
+   email: browserName === 'Chrome' ? 'mmmoooJ@wohhup.com' : 'test@dca.com',
    company: browserName === 'Chrome' ? 'Woh Hup Private Ltd' : consultantCompany,
    // company: browserName === 'Chrome' ? consultantCompany : consultantCompany,
    role: browserName === 'Chrome' ? 'Document Controller' : 'Consultant',
@@ -209,22 +249,28 @@ const propsSheet = {
 
 
    projectId: 'MTYxMjkzMTUwNjM3Ny1UaGUgUmVlZg',
+   // projectId: 'MTU3NDgyNTcyMzUwNC1UZXN0',
 
    projectIsAppliedRfaView: true,
    // projectIsAppliedRfaView: false,
-   projectName: 'MMM',
+   projectName: 'The Reef',
    projectNameShort: 'RKD',
    token: 'xxx-xxxxx-xxx-x-xxxxx',
-   isAdmin: true,
+   // isAdmin: true,
    companies: [
       { company: 'Woh Hup Private Ltd', companyType: 'Main con' },
-      { company: 'DCA', companyType: 'Consultant' },
+      { company: 'DCA', companyType: 'Consultant', fullName: 'DCA Architects' },
       { company: 'RSP', companyType: 'Consultant' },
       { company: 'HYLA', companyType: 'Consultant' },
       { company: 'K2LD', companyType: 'Consultant' },
       { company: 'ONG & ONG', companyType: 'Consultant' },
       { company: 'Archi Consultant', companyType: 'Consultant' },
-
+      { company: 'Index', companyType: 'Consultant' },
+      { company: 'Alpha', companyType: 'Consultant' },
+      { company: 'XXXX', companyType: 'Sub-con', trade: 'ARCHI' },
+      { company: 'Archi Consultant', companyType: 'Consultant' },
+      { company: 'ID Consultants', companyType: 'Consultant' },
+      { company: 'Test', companyType: 'Consultant' },
    ],
    listUser: [
       'bql@gmail.com', 'pmq@wohhup.com', 'tbl_1@gmail.com', 'manager@wohhup.com', 'manager1@wohhup.com', 'tran_dinhbac@wohhup.com',
@@ -233,8 +279,20 @@ const propsSheet = {
    ],
    listGroup: [
       'dCA', 'DCA_%$%_Team1', 'RSP', 'RSP_%$%_Team1', 'rsP_%$%_Team2', 'onG & ONG',
-      'ONG & ONG_%$%_MEP_Team', 'Group Email A', 'Team RCP', 'K2LD',]
+      'ONG & ONG_%$%_MEP_Team', 'Group Email A', 'Team RCP', 'K2LD',
+      'Index_%$%_Team', 'Alpha_%$%_',
+      'Archi Consultant_%$%_Archi', 'ID Consultants_%$%_ID',
+      'Alpha_%$%_M&E Engineer', 'DCA_%$%_Architect', 'Index_%$%_ID Consultant', 'Aurecon_%$%_Structural Engineer',
+      'DCA_%$%_Architect', 'Test_%$%_',
+
+
+      'Alpha_%$%_',
+      'WH_Archi Tech',
+      'WH_QS',
+      'WH_M&E Tech',
+   ]
 };
+
 
 const sheetHeaders = [
    {

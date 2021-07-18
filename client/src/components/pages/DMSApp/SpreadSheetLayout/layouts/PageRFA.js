@@ -6,12 +6,12 @@ import OverallComponentDMS from './generalComponents/OverallComponentDMS';
 const PageRFA = (props) => {
 
    return (
-    
-         <OverallComponentDMS
-            {...props}
-            pageSheetTypeName='page-rfa'
-         />
-     
+
+      <OverallComponentDMS
+         {...props}
+         pageSheetTypeName='page-rfa'
+      />
+
    );
 };
 

@@ -6,12 +6,12 @@ import OverallComponentDMS from './generalComponents/OverallComponentDMS';
 const PageSpreadsheet = (props) => {
 
    return (
-      
-         <OverallComponentDMS
-            {...props}
-            pageSheetTypeName='page-spreadsheet'
-         />
-     
+
+      <OverallComponentDMS
+         {...props}
+         pageSheetTypeName='page-spreadsheet'
+      />
+
    );
 };
 

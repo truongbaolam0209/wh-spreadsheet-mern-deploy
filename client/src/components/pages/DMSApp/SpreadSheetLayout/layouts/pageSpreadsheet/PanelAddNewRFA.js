@@ -3,13 +3,13 @@ import moment from 'moment';
 import React, { useContext, useEffect, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import styled from 'styled-components';
-import { colorType } from '../../constants';
+import { colorType, EDIT_DURATION_MIN } from '../../constants';
 import { Context as ProjectContext } from '../../contexts/projectContext';
 import { Context as RowContext } from '../../contexts/rowContext';
 import { debounceFnc, validateEmailInput } from '../../utils';
 import ButtonGroupComp from '../generalComponents/ButtonGroupComp';
 import ButtonStyle from '../generalComponents/ButtonStyle';
-import { getInfoKeyFromRfaData, getInfoValueFromRfaData } from './CellRFA';
+import { checkIfEditTimeRfaIsOver, getInfoValueFromRfaData } from './CellRFA';
 import { getTradeNameFnc } from './FormDrawingTypeOrder';
 import TableDrawingRFA from './TableDrawingRFA';
 
@@ -18,34 +18,7 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 
-const extractConsultantName = (name) => {
-   const indexOfSplitString = name.indexOf('_%$%_');
-   return name.slice(0, indexOfSplitString === -1 ? -99999 : indexOfSplitString);
-};
-const checkIfMatchWithInputCompanyFormat = (item, listConsultants) => {
-   let result = false;
-   listConsultants.forEach(cm => {
-      if (cm.company === extractConsultantName(item)) {
-         result = true;
-      };
-   });
-   return result;
-};
-const getGroupCompanyForAdminSubmitWithoutEmail = (listGroup, listConsultants) => {
-   let output = [];
-   listConsultants.forEach(cmp => {
-      if (listGroup.find(x => x.includes(`${cmp.company}_%$%_`))) {
-         output.push(`${cmp.company}_%$%_`);
-      };
-   });
-   return [...new Set(output)];
-};
-
-
-
 const versionArray = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-
-
 
 const Table = (props) => {
    return (
@@ -70,41 +43,44 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
    const { state: stateRow, getSheetRows } = useContext(RowContext);
    const { state: stateProject } = useContext(ProjectContext);
 
-   const { roleTradeCompany: { role, company: companyUser }, companies, listUser, listGroup: listGroupOutput, projectNameShort: projectNameShortText } = stateProject.allDataOneSheet;
+   const {
+      roleTradeCompany: { company: companyUser }, companies, listUser,
+      listGroup: listGroupOutput, projectNameShort: projectNameShortText, isBothSideActionUser
+   } = stateProject.allDataOneSheet;
+
    const projectNameShort = projectNameShortText || 'NO-PROJECT-NAME';
 
-   const { rowsAll, loading, currentRfaToAddNewOrReplyOrEdit, rowsRfaAll, rowsRfaAllInit, drawingTypeTreeDmsView } = stateRow;
+   const { rowsAll, loading, currentRefToAddNewOrReplyOrEdit, rowsRfaAllInit } = stateRow;
 
    const {
-      currentRfaNumber, currentRfaRef, currentRfaData, formRfaType, isFormEditting,
-      isAdminAction, isAdminActionWithNoEmailSent, adminActionConsultantToReply,
-   } = currentRfaToAddNewOrReplyOrEdit || {};
+      currentRefData, formRefType, isFormEditting,
+      isBothSideActionUserWithNoEmailSent, consultantNameToReplyByBothSideActionUser,
+   } = currentRefToAddNewOrReplyOrEdit || {};
 
-   const company = (formRfaType === 'form-reply-RFA' && isAdminAction && adminActionConsultantToReply) ? adminActionConsultantToReply : companyUser;
 
+   const company = (formRefType === 'form-reply-RFA' && isBothSideActionUser && consultantNameToReplyByBothSideActionUser)
+      ? consultantNameToReplyByBothSideActionUser
+      : companyUser;
 
    const listConsultants = companies.filter(x => x.companyType === 'Consultant');
 
 
-   let listGroup = (isAdminAction && isAdminActionWithNoEmailSent)
-      ? getGroupCompanyForAdminSubmitWithoutEmail(listGroupOutput, listConsultants)
+   const listGroup = (isBothSideActionUser && isBothSideActionUserWithNoEmailSent)
+      ? getGroupCompanyForBothSideActionUserSubmitWithoutEmail(listGroupOutput, listConsultants)
       : listGroupOutput;
 
 
-   const listRecipient = (isAdminAction && isAdminActionWithNoEmailSent)
-      ? getGroupCompanyForAdminSubmitWithoutEmail(listGroup, listConsultants)
-      : [...listUser, ...listGroup];
-
+   const listRecipient = (isBothSideActionUser && isBothSideActionUserWithNoEmailSent)
+      ? getGroupCompanyForBothSideActionUserSubmitWithoutEmail(listGroupOutput, listConsultants)
+      : [...listUser, ...listGroupOutput];
 
 
 
    const [rfaNumberSuffixFirstTimeSubmit, setRfaNumberSuffixFirstTimeSubmit] = useState('');
-
    const [rfaNewVersionResubmitSuffix, setRfaNewVersionResubmitSuffix] = useState('');
-
    const [tradeOfRfaForFirstTimeSubmit, setTradeOfRfaForFirstTimeSubmit] = useState(null);
-
    const [mepSubTradeFirstTime, setMepSubTradeFirstTime] = useState(null);
+
 
    const [dateReplyForSubmitForm, setDateReplyForSubmitForm] = useState(null);
 
@@ -128,231 +104,182 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
    const [modalConfirmsubmitOrCancel, setModalConfirmsubmitOrCancel] = useState(null);
 
-
    const [dateSendThisForm, setDateSendThisForm] = useState(null);
 
 
-   const [existingTradeOfResubmision, setExistingTradeOfResubmision] = useState(null);
-
-   const [existingSubTradeOfResubmision, setExistingSubTradeOfResubmision] = useState(null);
-
-
    useEffect(() => {
-      if (formRfaType === 'form-submit-RFA') {
+      if (formRefType === 'form-submit-RFA') {
          if (!isFormEditting) {
-            setDwgsToAddNewRFA(null);
+
             setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
 
-            if (isAdminAction && isAdminActionWithNoEmailSent) {
+            if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
                setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
             };
 
          } else {
-            const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
-            const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
-            rowsToEditClone.forEach(r => {
-               const dwgLink = r[`submission-$$$-drawing-${company}`];
-               r[`submission-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
+            const rowsInThisRef = rowsRfaAllInit.filter(x => currentRefData['RFA Ref'] === x['RFA Ref']);
+            rowsInThisRef.forEach(r => {
+               r[`submission-$$$-drawing-${company}`] = /[^/]*$/.exec(r[`submission-$$$-drawing-${company}`] || '')[0];
             });
-            setDwgsToAddNewRFA(rowsToEditClone);
+            setDwgsToAddNewRFA(rowsInThisRef);
 
+            const dateSendNoEmail = getInfoValueFromRfaData(currentRefData, 'submission', 'dateSendNoEmail');
 
-            if (isAdminAction && isAdminActionWithNoEmailSent) {
-               const listConsultantMustReply = getInfoValueFromRfaData(currentRfaData, 'submission', 'consultantMustReply', company) || [];
+            if (dateSendNoEmail) {
+               const listConsultantMustReply = getInfoValueFromRfaData(currentRefData, 'submission', 'consultantMustReply') || [];
                setListRecipientTo(listConsultantMustReply.map(cmp => `${cmp}_%$%_`));
-               setDateSendThisForm(moment(currentRfaData['Drg To Consultant (A)'], 'DD/MM/YY'));
+               setDateSendThisForm(moment(moment(getInfoValueFromRfaData(currentRefData, 'submission', 'date')).format('DD/MM/YY'), 'DD/MM/YY'));
             } else {
-               const listEmailTo = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailTo', company) || [];
-               setListRecipientTo([...new Set(listEmailTo)]);
+               setListRecipientTo([...new Set(getInfoValueFromRfaData(currentRefData, 'submission', 'emailTo') || [])]);
             };
 
+            setListRecipientCc([...new Set(getInfoValueFromRfaData(currentRefData, 'submission', 'emailCc') || [])]);
+            setTextEmailTitle(getInfoValueFromRfaData(currentRefData, 'submission', 'emailTitle') || '');
+            setTextEmailAdditionalNotes(getInfoValueFromRfaData(currentRefData, 'submission', 'emailAdditionalNotes') || '');
 
-            const listEmailCc = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailCc', company) || [];
-            setListRecipientCc([...new Set(listEmailCc)]);
 
-            setListConsultantMustReply(getInfoValueFromRfaData(currentRfaData, 'submission', 'consultantMustReply', company) || []);
-            setRequestedBy(getInfoValueFromRfaData(currentRfaData, 'submission', 'requestedBy', company) || '');
-            setTextEmailTitle(getInfoValueFromRfaData(currentRfaData, 'submission', 'emailTitle', company) || '');
-            setTextEmailAdditionalNotes(getInfoValueFromRfaData(currentRfaData, 'submission', 'emailAdditionalNotes', company) || '');
-
-            setDateReplyForSubmitForm(moment(currentRfaData['Consultant Reply (T)'], 'DD/MM/YY'));
-
-            setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(currentRfaData, 'submission', 'trade', company)));
-            setMepSubTradeFirstTime(getInfoValueFromRfaData(currentRfaData, 'submission', 'subTradeForMep', company));
-
-            const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
-            setRfaNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
+            setListConsultantMustReply(getInfoValueFromRfaData(currentRefData, 'submission', 'consultantMustReply') || []);
+            setRequestedBy(getInfoValueFromRfaData(currentRefData, 'submission', 'requestedBy') || '');
+            setDateReplyForSubmitForm(moment(currentRefData['Consultant Reply (T)'], 'DD/MM/YY'));
+            setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(currentRefData, 'submission', 'trade')));
+            setMepSubTradeFirstTime(getInfoValueFromRfaData(currentRefData, 'submission', 'subTradeForMep'));
+            setRfaNumberSuffixFirstTimeSubmit(/[^/]*$/.exec(currentRefData['RFA Ref'])[0]);
          };
-      } else if (formRfaType === 'form-resubmit-RFA') {
+
+      } else if (formRefType === 'form-resubmit-RFA') {
          if (!isFormEditting) {
             const dwgsToResubmit = rowsRfaAllInit.filter(dwg => {
-               return dwg.rfaNumber === currentRfaNumber &&
-                  !dwg['RFA Ref'];
+               return dwg.rfaNumber === currentRefData['rfaNumber'] && !dwg['RFA Ref'];
             });
-            setDwgsToAddNewRFA(dwgsToResubmit.map(x => ({ ...x })));
+            setDwgsToAddNewRFA(dwgsToResubmit);
 
-
-            if (isAdminAction && isAdminActionWithNoEmailSent) {
-               const listConsultantMustReply = getInfoValueFromRfaData(currentRfaData, 'submission', 'consultantMustReply', company) || [];
+            if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
+               const listConsultantMustReply = getInfoValueFromRfaData(currentRefData, 'submission', 'consultantMustReply') || [];
                setListRecipientTo(listConsultantMustReply.map(cmp => `${cmp}_%$%_`));
                setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
             } else {
-               const listEmailTo = currentRfaData[`submission-$$$-emailTo-${company}`] || [];
-               setListRecipientTo([...new Set(listEmailTo)]);
+               setListRecipientTo([...new Set(getInfoValueFromRfaData(currentRefData, 'submission', 'emailTo') || [])]);
             };
 
-            const listEmailCc = currentRfaData[`submission-$$$-emailCc-${company}`] || [];
-            setListRecipientCc([...new Set(listEmailCc)]);
+            setListRecipientCc([...new Set(getInfoValueFromRfaData(currentRefData, 'submission', 'emailCc') || [])]);
+            setTextEmailTitle('Resubmit - ' + getInfoValueFromRfaData(currentRefData, 'submission', 'emailTitle') || '');
 
-            setListConsultantMustReply(currentRfaData[`submission-$$$-consultantMustReply-${company}`]);
-            setRequestedBy(currentRfaData[`submission-$$$-requestedBy-${company}`]);
+            setListConsultantMustReply(getInfoValueFromRfaData(currentRefData, 'submission', 'consultantMustReply') || []);
+            setRequestedBy(getInfoValueFromRfaData(currentRefData, 'submission', 'requestedBy') || '');
+            setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
 
 
             const versionAlreadySubmit = rowsRfaAllInit
-               .filter(dwg => dwg.rfaNumber === currentRfaNumber && dwg['RFA Ref'])
+               .filter(dwg => dwg.rfaNumber === currentRefData['rfaNumber'] && dwg['RFA Ref'])
                .map(x => x['RFA Ref']);
 
             const versionTextAlreadySubmitArr = versionAlreadySubmit.map(rfaNum => {
-               return rfaNum.slice(currentRfaNumber.length, rfaNum.length);
+               return rfaNum.slice(currentRefData['rfaNumber'].length, rfaNum.length);
             });
             const versionLeft = versionArray.filter(x => versionTextAlreadySubmitArr.indexOf(x) === -1);
             setRfaNewVersionResubmitSuffix(versionLeft[0]);
 
-            const oneDwg = dwgsToResubmit[0];
-            setTextEmailTitle('Resubmit - ' + oneDwg[`submission-$$$-emailTitle-${company}`]);
-            setDateReplyForSubmitForm(moment(moment().add(14, 'days').format('DD/MM/YY'), 'DD/MM/YY'));
 
-
-            const tradeOfDrawing = convertTradeCodeInverted(oneDwg['rfaNumber'].split('/')[2]);
-            setExistingTradeOfResubmision(tradeOfDrawing);
-            const subTrade = getInfoValueFromRfaData(oneDwg, 'submission', 'subTrade', company);
-            if (subTrade) {
-               setExistingSubTradeOfResubmision(subTrade);
-            };
+            setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(currentRefData, 'submission', 'trade')));
+            setMepSubTradeFirstTime(getInfoValueFromRfaData(currentRefData, 'submission', 'subTradeForMep'));
 
          } else {
-
-            const rowsToEdit = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
-            const rowsToEditClone = rowsToEdit.map(x => ({ ...x }));
-            rowsToEditClone.forEach(r => {
-               const dwgLink = r[`submission-$$$-drawing-${company}`];
-               r[`submission-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
+            const rowsInThisRef = rowsRfaAllInit.filter(x => currentRefData['RFA Ref'] === x['RFA Ref']);
+            rowsInThisRef.forEach(r => {
+               r[`submission-$$$-drawing-${company}`] = /[^/]*$/.exec(r[`submission-$$$-drawing-${company}`] || '')[0];
             });
+            setDwgsToAddNewRFA(rowsInThisRef);
 
-            const versionTextSuffix = currentRfaRef.slice(currentRfaNumber.length, currentRfaRef.length);
+            const versionTextSuffix = currentRefData['RFA Ref'].slice(currentRefData['rfaNumber'].length, currentRefData['RFA Ref'].length);
             setRfaNewVersionResubmitSuffix(versionTextSuffix);
-            setDwgsToAddNewRFA(rowsToEditClone);
 
-            if (isAdminAction && isAdminActionWithNoEmailSent) {
-               const listConsultantMustReply = getInfoValueFromRfaData(currentRfaData, 'submission', 'consultantMustReply', company) || [];
+
+            const dateSendNoEmail = getInfoValueFromRfaData(currentRefData, 'submission', 'dateSendNoEmail');
+
+            if (dateSendNoEmail) {
+               const listConsultantMustReply = getInfoValueFromRfaData(currentRefData, 'submission', 'consultantMustReply') || [];
                setListRecipientTo(listConsultantMustReply.map(cmp => `${cmp}_%$%_`));
-               setDateSendThisForm(moment(currentRfaData['Drg To Consultant (A)'], 'DD/MM/YY'));
+               setDateSendThisForm(moment(moment(getInfoValueFromRfaData(currentRefData, 'submission', 'date')).format('DD/MM/YY'), 'DD/MM/YY'));
             } else {
-               const listEmailTo = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailTo', company) || [];
-               setListRecipientTo([...new Set(listEmailTo)]);
+               setListRecipientTo([...new Set(getInfoValueFromRfaData(currentRefData, 'submission', 'emailTo') || [])]);
             };
 
+            setListRecipientCc([...new Set(getInfoValueFromRfaData(currentRefData, 'submission', 'emailCc') || [])]);
+            setTextEmailTitle(getInfoValueFromRfaData(currentRefData, 'submission', 'emailTitle') || '');
+            setTextEmailAdditionalNotes(getInfoValueFromRfaData(currentRefData, 'submission', 'emailAdditionalNotes') || '');
 
-            const listEmailCc = getInfoValueFromRfaData(currentRfaData, 'submission', 'emailCc', company) || [];
-            setListRecipientCc([...new Set(listEmailCc)]);
 
-            setListConsultantMustReply(getInfoValueFromRfaData(currentRfaData, 'submission', 'consultantMustReply', company) || []);
-            setRequestedBy(getInfoValueFromRfaData(currentRfaData, 'submission', 'requestedBy', company) || '');
-            setTextEmailTitle(getInfoValueFromRfaData(currentRfaData, 'submission', 'emailTitle', company) || '');
-            setTextEmailAdditionalNotes(getInfoValueFromRfaData(currentRfaData, 'submission', 'emailAdditionalNotes', company) || '');
+            setListConsultantMustReply(getInfoValueFromRfaData(currentRefData, 'submission', 'consultantMustReply') || []);
+            setRequestedBy(getInfoValueFromRfaData(currentRefData, 'submission', 'requestedBy') || '');
+            setDateReplyForSubmitForm(moment(currentRefData['Consultant Reply (T)'], 'DD/MM/YY'));
 
-            setDateReplyForSubmitForm(moment(currentRfaData['Consultant Reply (T)'], 'DD/MM/YY'));
-            setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(currentRfaData, 'submission', 'trade', company)));
-            setMepSubTradeFirstTime(getInfoValueFromRfaData(currentRfaData, 'submission', 'subTradeForMep', company));
 
-            const rfaNumberSuffixPrevious = /[^/]*$/.exec(currentRfaRef)[0];
-            setRfaNumberSuffixFirstTimeSubmit(rfaNumberSuffixPrevious);
+            setTradeOfRfaForFirstTimeSubmit(convertTradeCode(getInfoValueFromRfaData(currentRefData, 'submission', 'trade')));
+            setMepSubTradeFirstTime(getInfoValueFromRfaData(currentRefData, 'submission', 'subTradeForMep'));
 
-            const oneDwg = rowsToEditClone[0];
-            const tradeOfDrawing = convertTradeCodeInverted(oneDwg['rfaNumber'].split('/')[2]);
-            setExistingTradeOfResubmision(tradeOfDrawing);
-
-            const subTrade = getInfoValueFromRfaData(oneDwg, 'submission', 'subTrade', company);
-            if (subTrade) {
-               setExistingSubTradeOfResubmision(subTrade);
-            };
          };
 
-      } else if (formRfaType === 'form-reply-RFA') {
+      } else if (formRefType === 'form-reply-RFA') {
 
          if (!isFormEditting) {
-            const dwgsNotReplyYet = rowsRfaAllInit.filter(dwg => {
-               return dwg.rfaNumber === currentRfaNumber &&
-                  dwg['RFA Ref'] === currentRfaRef &&
-                  !currentRfaData[`reply-$$$-status-${company}`];
+
+            const dwgsInThisRfaNotReplyYet = rowsRfaAllInit.filter(dwg => {
+               return dwg['RFA Ref'] === currentRefData['RFA Ref'] && !getInfoValueFromRfaData(currentRefData, 'reply', 'status', company);
             });
+            setDwgsToAddNewRFA(dwgsInThisRfaNotReplyYet);
 
-            setDwgsToAddNewRFA(dwgsNotReplyYet.map(x => ({ ...x })));
+            setListRecipientTo([getInfoValueFromRfaData(currentRefData, 'submission', 'user')]);
 
-            let arrEmailCc = [];
-            for (const key in currentRfaData) {
-               if (key.includes('submission-$$$-user-')) {
-                  const listEmailTo = currentRfaData[key] ? [currentRfaData[key]] : [];
-                  setListRecipientTo([...new Set(listEmailTo)]);
+            setListRecipientCc([...new Set([
+               ...(getInfoValueFromRfaData(currentRefData, 'submission', 'emailTo') || []),
+               ...(getInfoValueFromRfaData(currentRefData, 'submission', 'emailCc') || []),
+            ])]);
 
-               } else if (key.includes('submission-$$$-emailTo-') || key.includes('submission-$$$-emailCc-')) {
-                  arrEmailCc = [...new Set([...arrEmailCc, ...currentRfaData[key]])];
-               };
-            };
-            setListRecipientCc([...new Set(arrEmailCc)]);
-            const oneDwg = dwgsNotReplyYet[0];
-            const keyEmailTitle = getInfoKeyFromRfaData(oneDwg, 'submission', 'emailTitle');
-            setTextEmailTitle('Reply - ' + oneDwg[keyEmailTitle]);
+            setTextEmailTitle('Reply - ' + getInfoValueFromRfaData(currentRefData, 'submission', 'emailTitle') || '');
 
-            if (isAdminAction && isAdminActionWithNoEmailSent) {
+            if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
                setDateSendThisForm(moment(moment().format('DD/MM/YY'), 'DD/MM/YY'));
             };
 
          } else {
-            const dwgsToEditReply = rowsRfaAllInit.filter(x => currentRfaRef === x['RFA Ref']);
-            const dwgsToEditReplyClone = dwgsToEditReply.map(x => ({ ...x }));
-            dwgsToEditReplyClone.forEach(r => {
-               const dwgLink = r[`reply-$$$-drawing-${company}`];
-               r[`reply-$$$-drawing-${company}`] = /[^/]*$/.exec(dwgLink)[0];
+
+            const dwgsToEditReply = rowsRfaAllInit.filter(x => currentRefData['RFA Ref'] === x['RFA Ref']);
+
+            dwgsToEditReply.forEach(r => {
+               r[`reply-$$$-drawing-${company}`] = /[^/]*$/.exec(r[`reply-$$$-drawing-${company}`])[0];
             });
-            setDwgsToAddNewRFA(dwgsToEditReplyClone);
+            setDwgsToAddNewRFA(dwgsToEditReply);
+
+            setListRecipientTo([...new Set(getInfoValueFromRfaData(currentRefData, 'reply', 'emailTo', company) || [])]);
+            setListRecipientCc([...new Set(getInfoValueFromRfaData(currentRefData, 'reply', 'emailCc', company) || [])]);
+
+            setTextEmailTitle(getInfoValueFromRfaData(currentRefData, 'reply', 'emailTitle', company) || '');
+            setTextEmailAdditionalNotes(getInfoValueFromRfaData(currentRefData, 'reply', 'emailAdditionalNotes', company) || '');
 
 
-            const listEmailTo = getInfoValueFromRfaData(currentRfaData, 'reply', 'emailTo', company) || [];
-            setListRecipientTo([...new Set(listEmailTo)]);
+            const dateSendNoEmail = getInfoValueFromRfaData(currentRefData, 'reply', 'dateSendNoEmail', company);
 
-            const listEmailCc = getInfoValueFromRfaData(currentRfaData, 'reply', 'emailCc', company) || [];
-            setListRecipientCc([...new Set(listEmailCc)]);
-
-            setTextEmailTitle(getInfoValueFromRfaData(currentRfaData, 'reply', 'emailTitle', company) || '');
-            setTextEmailAdditionalNotes(getInfoValueFromRfaData(currentRfaData, 'reply', 'emailAdditionalNotes', company) || '');
-
-
-            if (isAdminAction && isAdminActionWithNoEmailSent) {
-               const replyActualDate = getInfoValueFromRfaData(currentRfaData, 'reply', 'date', company);
-               setDateSendThisForm(moment(moment(replyActualDate), 'DD/MM/YY'));
+            if (dateSendNoEmail) {
+               setDateSendThisForm(moment(moment(getInfoValueFromRfaData(currentRefData, 'reply', 'date', company)), 'DD/MM/YY'));
+            } else {
+               setTextEmailTitle(getInfoValueFromRfaData(currentRefData, 'reply', 'emailTitle', company) || '');
             };
          };
       };
    }, []);
 
-
    useEffect(() => {
-      if (tradeOfRfaForFirstTimeSubmit && formRfaType === 'form-submit-RFA' && !isFormEditting) {
-
+      if (tradeOfRfaForFirstTimeSubmit && formRefType === 'form-submit-RFA' && !isFormEditting) {
          let filterRows = rowsRfaAllInit.filter(x => {
-            return x.rfaNumber &&
-               x.rfaNumber.split('/')[2] === tradeOfRfaForFirstTimeSubmit;
+            return x.rfaNumber && x.rfaNumber.split('/')[2] === tradeOfRfaForFirstTimeSubmit;
          });
-
          if (tradeOfRfaForFirstTimeSubmit === 'ME') {
             filterRows = filterRows.filter(x => {
                return x.rfaNumber.split('/')[3] === mepSubTradeFirstTime;
             });
          };
-
          let rfaNumberExtracted = [...new Set(filterRows.map(x => /[^/]*$/.exec(x.rfaNumber)[0]))];
-
          rfaNumberExtracted = rfaNumberExtracted
             .filter(x => x.length === 3 && parseInt(x) > 0)
             .map(x => parseInt(x));
@@ -371,15 +298,11 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       };
    }, [tradeOfRfaForFirstTimeSubmit, mepSubTradeFirstTime]);
 
-
    useEffect(() => {
       if (!loading) {
          setModalConfirmsubmitOrCancel(null);
       };
    }, [loading]);
-
-
-
 
    useEffect(() => {
       if (filesDWFX && Object.keys(filesDWFX).length > 0) {
@@ -388,7 +311,10 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          Object.keys(filesDWFX).forEach(key => {
             const fileDwfxName = key.slice(0, key.length - 5);
             dwgsToAddNewRfaClone.forEach(row => {
-               if (row['Drawing Number'] && (row['Drawing Number'].includes(fileDwfxName) || fileDwfxName.includes(row['Drawing Number']))) {
+               if (row['Drawing Number'] && (
+                  row['Drawing Number'].includes(fileDwfxName) ||
+                  fileDwfxName.includes(row['Drawing Number'])
+               )) {
                   row[`submission-$$$-dwfxName-${company}`] = key;
                   isFileDWFXsameNameFound = true;
                };
@@ -397,8 +323,8 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
          if (!isFileDWFXsameNameFound) {
             const first3Dfile = Object.keys(filesDWFX)[0];
-            dwgsToAddNewRfaClone.forEach(dwg => {
-               dwg[`submission-$$$-dwfxName-${company}`] = first3Dfile;
+            dwgsToAddNewRfaClone.forEach(row => {
+               row[`submission-$$$-dwfxName-${company}`] = first3Dfile;
             });
          };
          setDwgsToAddNewRFA(dwgsToAddNewRfaClone);
@@ -408,7 +334,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
    useEffect(() => {
       if (filesPDF && Object.keys(filesPDF).length > 0) {
-         const type = formRfaType === 'form-reply-RFA' ? 'reply' : 'submission';
+         const type = formRefType === 'form-reply-RFA' ? 'reply' : 'submission';
          const dwgsToAddNewRfaClone = dwgsToAddNewRFA.map(x => ({ ...x }));
          Object.keys(filesPDF).forEach(key => {
             const filePdfName = key.slice(0, key.length - 4);
@@ -427,46 +353,68 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
 
-   const onClickApplyModalPickDrawing = (formRfaType, drawingTrade, drawingSubTrade, dwgIds) => {
-
-
+   const onClickApplyModalPickDrawing = (formRefType, drawingTrade, drawingSubTrade, dwgIds) => {
 
       if (!dwgIds || dwgIds.length === 0) return;
+
       let dwgsToAdd = [];
 
-      if (formRfaType === 'form-submit-RFA') {
+      if (formRefType === 'form-submit-RFA') {
          dwgsToAdd = rowsAll.filter(r => dwgIds.indexOf(r.id) !== -1);
          setDwgsToAddNewRFA(dwgsToAdd);
          setTradeOfRfaForFirstTimeSubmit(convertTradeCode(drawingTrade));
-         setMepSubTradeFirstTime(drawingSubTrade);
+         if (drawingSubTrade) {
+            setMepSubTradeFirstTime(drawingSubTrade);
+         };
+
+         const dwgsThisTrade = rowsRfaAllInit
+            .filter(dwg => getInfoValueFromRfaData(dwg, 'submission', 'trade') === drawingTrade)
+            .filter(dwg => {
+               if (drawingSubTrade !== 'Select Sub Trade...') {
+                  return dwg[`submission-$$$-subTradeForMep-${company}`] === drawingSubTrade;
+               } else {
+                  return true;
+               };
+            })
+            .sort((b, a) => (a.rfaNumber > b.rfaNumber ? 1 : -1));
+
 
          if (listRecipientTo.length === 0) {
-            const dwgsThisTrade = rowsRfaAllInit
-               .filter(dwg => dwg[`submission-$$$-trade-${company}`] === drawingTrade)
-               .filter(dwg => {
-                  if (drawingSubTrade !== 'Select Sub Trade...') {
-                     return dwg[`submission-$$$-subTradeForMep-${company}`] === drawingSubTrade;
-                  } else {
-                     return true;
-                  };
-               })
-               .sort((a, b) => (a.rfaNumber > b.rfaNumber ? 1 : -1));
-            
+            const rowFoundTo = dwgsThisTrade.find(r => {
+               return getInfoValueFromRfaData(r, 'submission', 'emailTo') &&
+                  getInfoValueFromRfaData(r, 'submission', 'emailTo').length > 0;
+            });
+            if (rowFoundTo) {
+               const consultantMustReplyArray = getInfoValueFromRfaData(rowFoundTo, 'submission', 'consultantMustReply') || [];
 
-            const lastRfaFound = dwgsThisTrade[dwgsThisTrade.length - 1];
-            if (lastRfaFound) {
-               setListRecipientTo(lastRfaFound[`submission-$$$-emailTo-${company}`] || []);
-               setListRecipientCc(lastRfaFound[`submission-$$$-emailCc-${company}`] || []);
-               setListConsultantMustReply(lastRfaFound[`submission-$$$-consultantMustReply-${company}`] || []);
+               if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
+                  setListRecipientTo(consultantMustReplyArray.map(cmp => `${cmp}_%$%_`));
+                  setListConsultantMustReply(consultantMustReplyArray);
+               } else {
+                  setListRecipientTo(getInfoValueFromRfaData(rowFoundTo, 'submission', 'emailTo') || []);
+                  setListConsultantMustReply(consultantMustReplyArray);
+               };
+            };
+
+         };
+
+         if (listRecipientCc.length === 0) {
+            const rowFoundCc = dwgsThisTrade.find(r => {
+               return getInfoValueFromRfaData(r, 'submission', 'emailCc') &&
+                  getInfoValueFromRfaData(r, 'submission', 'emailCc').length > 0;
+            });
+            if (rowFoundCc) {
+               setListRecipientCc(getInfoValueFromRfaData(rowFoundCc, 'submission', 'emailCc') || []);
             };
          };
-      } else if (formRfaType === 'form-resubmit-RFA') {
+
+      } else if (formRefType === 'form-resubmit-RFA') {
          dwgsToAdd = rowsAll.filter(r => dwgIds.indexOf(r.id) !== -1);
-         setDwgsToAddNewRFA([...dwgsToAddNewRFA, ...dwgsToAdd]);
+         const dwgsToAddNewRfaClearNewRowsPrevious = dwgsToAddNewRFA.filter(r => r['rfaNumber']);
+         setDwgsToAddNewRFA([...dwgsToAddNewRfaClearNewRowsPrevious, ...dwgsToAdd]);
       };
 
 
-      
       const dwgFound = dwgsToAdd.find(x => x['Coordinator In Charge']);
       if (dwgFound) {
          setRequestedBy(dwgFound['Coordinator In Charge']);
@@ -474,26 +422,25 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       setTablePickDrawingRFA(false);
    };
 
-
-
    const setRevisionDwg = (id, rev) => {
       const row = dwgsToAddNewRFA.find(x => x.id === id);
       row['Rev'] = rev;
       setDwgsToAddNewRFA([...dwgsToAddNewRFA]);
    };
+
    const removeDrawingToAddRFA = debounceFnc((id) => {
       setDwgsToAddNewRFA(dwgsToAddNewRFA.filter(x => x.id !== id));
       setNosColumnFixed(2);
       setNosColumnFixed(1);
    }, 1);
+
    const onClickCommentBtn = (id) => {
       setIdToDwgAddComment(id);
    };
 
-
    const onBlurInputRFANameCreateNew = () => {
       const arr = [...new Set(rowsRfaAllInit.map(x => (x['RFA Ref'] || '')))];
-      if (formRfaType === 'form-submit-RFA') {
+      if (formRefType === 'form-submit-RFA') {
          let regExp = /[a-zA-Z]/g;
          if (regExp.test(rfaNumberSuffixFirstTimeSubmit)) {
             message.info('Please key in number only!');
@@ -508,7 +455,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   setRfaNumberSuffixFirstTimeSubmit('');
                };
             } else {
-               const arrFilter = arr.filter(x => x !== currentRfaRef);
+               const arrFilter = arr.filter(x => x !== currentRefData['RFA Ref']);
                const newRfaToRaiseFirstSubmit = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${subTradeForMepDwg}${rfaNumberSuffixFirstTimeSubmit}`;
                if (arrFilter.indexOf(newRfaToRaiseFirstSubmit) !== -1) {
                   message.info('This RFA number has already existed, please choose a new number!');
@@ -516,13 +463,13 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                };
             };
          };
-      } else if (formRfaType === 'form-resubmit-RFA') {
+      } else if (formRefType === 'form-resubmit-RFA') {
          if (versionArray.indexOf(rfaNewVersionResubmitSuffix) === -1) {
             message.info('Please key in letter only!');
             setRfaNewVersionResubmitSuffix('');
          } else {
             if (!isFormEditting) {
-               const newRfaToRaiseResubmit = `${currentRfaNumber}${rfaNewVersionResubmitSuffix}`;
+               const newRfaToRaiseResubmit = `${currentRefData['rfaNumber']}${rfaNewVersionResubmitSuffix}`;
                if (arr.indexOf(newRfaToRaiseResubmit) !== -1) {
                   message.info('This RFA number has already existed, please choose a new number!');
                   setRfaNewVersionResubmitSuffix('');
@@ -531,8 +478,6 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          };
       };
    };
-
-
 
    const applyAddCommentToDrawing = () => {
       const row = dwgsToAddNewRFA.find(x => x.id === dwgIdToAddComment);
@@ -552,7 +497,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       };
       const dwgsToAddNewRFAClone = dwgsToAddNewRFA.map(x => ({ ...x }));
       dwgsToAddNewRFAClone.forEach(r => {
-         r[`${formRfaType === 'form-reply-RFA' ? 'reply' : 'submission'}-$$$-drawing-${company}`] = '';
+         r[`${formRefType === 'form-reply-RFA' ? 'reply' : 'submission'}-$$$-drawing-${company}`] = '';
       });
       setDwgsToAddNewRFA(dwgsToAddNewRFAClone);
    };
@@ -576,37 +521,47 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       };
    };
 
-
-
-
    const onClickTagRecipientTo = (email, isRemoveTag) => {
-      let outputListConsultantMustReply = [...listConsultantMustReply];
+      if (formRefType !== 'form-reply-RFA') {
+         let outputListConsultantMustReply = [...listConsultantMustReply];
 
-      const consultantName = extractConsultantName(email);
-      const originConsultant = listConsultants.find(x => x.company === consultantName);
-      outputListConsultantMustReply = outputListConsultantMustReply.filter(x => x !== consultantName);
-
-      if (originConsultant && !isRemoveTag) {
-         outputListConsultantMustReply.unshift(originConsultant.company);
+         const consultantName = extractConsultantName(email);
+         const originConsultant = listConsultants.find(x => x.company === consultantName);
+         outputListConsultantMustReply = outputListConsultantMustReply.filter(x => x !== consultantName);
+         if (originConsultant && !isRemoveTag) {
+            outputListConsultantMustReply.unshift(originConsultant.company);
+         };
+         setListConsultantMustReply(outputListConsultantMustReply);
       };
-      setListConsultantMustReply(outputListConsultantMustReply);
    };
 
    const onClickApplyDoneFormRFA = () => {
+
+      if (isFormEditting) {
+         if (
+            ((formRefType === 'form-submit-RFA' || formRefType === 'form-resubmit-RFA') && checkIfEditTimeRfaIsOver(currentRefData, null, EDIT_DURATION_MIN, 'check-if-submission-edit-is-over') <= 0) ||
+            (formRefType === 'form-reply-RFA' && checkIfEditTimeRfaIsOver(currentRefData, company, EDIT_DURATION_MIN, 'check-if-reply-edit-is-over') <= 0)
+         ) {
+            return message.info('Time is up, you are unable to edit the submission!', 2);
+         };
+      };
+
+
+
       if (!dwgsToAddNewRFA || dwgsToAddNewRFA.length === 0) {
          return message.info('Please insert drawings to submit!', 2);
       };
 
       let isAllDataInRowFilledIn = true;
       let listFilePdf;
-      if (formRfaType === 'form-submit-RFA' || formRfaType === 'form-resubmit-RFA') {
+      if (formRefType === 'form-submit-RFA' || formRefType === 'form-resubmit-RFA') {
          dwgsToAddNewRFA.forEach(r => {
             if (!r['Rev'] || !r[`submission-$$$-drawing-${company}`]) {
                isAllDataInRowFilledIn = false;
             };
          });
          listFilePdf = dwgsToAddNewRFA.map(r => r[`submission-$$$-drawing-${company}`]);
-      } else if (formRfaType === 'form-reply-RFA') {
+      } else if (formRefType === 'form-reply-RFA') {
          dwgsToAddNewRFA.forEach(r => {
             if (!r[`reply-$$$-status-${company}`] || !r[`reply-$$$-drawing-${company}`]) {
                isAllDataInRowFilledIn = false;
@@ -619,32 +574,33 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
       let trade, rfaToSaveVersionOrToReply, rfaToSave, mepSubTradeInfo;
-      if (formRfaType === 'form-submit-RFA') {
+      if (formRefType === 'form-submit-RFA') {
          trade = convertTradeCodeInverted(tradeOfRfaForFirstTimeSubmit);
          mepSubTradeInfo = (mepSubTradeFirstTime && mepSubTradeFirstTime !== 'Select Sub Trade...') ? mepSubTradeFirstTime : null;
-         rfaToSaveVersionOrToReply = '-';
 
+         rfaToSaveVersionOrToReply = '-';
          if (tradeOfRfaForFirstTimeSubmit === 'ME') {
             rfaToSave = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit}/${mepSubTradeInfo}/${rfaNumberSuffixFirstTimeSubmit}`;
          } else {
             rfaToSave = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit}/${rfaNumberSuffixFirstTimeSubmit}`;
          };
+      } else if (formRefType === 'form-resubmit-RFA') { // resubmission
+         trade = getInfoValueFromRfaData(currentRefData, 'submission', 'trade');
+         mepSubTradeInfo = getInfoValueFromRfaData(currentRefData, 'submission', 'subTradeForMep');
 
-      } else if (formRfaType === 'form-resubmit-RFA') { // resubmission
-         trade = getInfoValueFromRfaData(currentRfaData, 'submission', 'trade');
-         mepSubTradeInfo = getInfoValueFromRfaData(currentRfaData, 'submission', 'subTradeForMep');
          rfaToSaveVersionOrToReply = rfaNewVersionResubmitSuffix;
-         rfaToSave = currentRfaNumber;
+         rfaToSave = currentRefData['rfaNumber'];
 
-      } else if (formRfaType === 'form-reply-RFA') { // reply
-         trade = getInfoValueFromRfaData(currentRfaData, 'submission', 'trade');
-         mepSubTradeInfo = getInfoValueFromRfaData(currentRfaData, 'submission', 'subTradeForMep');
-         if (currentRfaNumber === currentRfaRef) {
+      } else if (formRefType === 'form-reply-RFA') { // reply
+         trade = getInfoValueFromRfaData(currentRefData, 'submission', 'trade');
+         mepSubTradeInfo = getInfoValueFromRfaData(currentRefData, 'submission', 'subTradeForMep');
+
+         if (currentRefData['rfaNumber'] === currentRefData['RFA Ref']) {
             rfaToSaveVersionOrToReply = '-';
          } else {
-            rfaToSaveVersionOrToReply = currentRfaRef.slice(currentRfaNumber.length, currentRfaRef.length);
+            rfaToSaveVersionOrToReply = currentRefData['RFA Ref'].slice(currentRefData['rfaNumber'].length, currentRefData['RFA Ref'].length);
          };
-         rfaToSave = currentRfaNumber;
+         rfaToSave = currentRefData['rfaNumber'];
       };
 
 
@@ -656,19 +612,22 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          return message.info('Different drawings can not attach same Pdf file!', 2);
       } else if (!filesPDF && !isFormEditting) {
          return message.info('Please choose file pdf!', 2);
-      } else if (!textEmailTitle && !isAdminActionWithNoEmailSent) {
+      } else if (
+         ((formRefType === 'form-submit-RFA' || formRefType === 'form-resubmit-RFA') && !textEmailTitle) ||
+         (formRefType === 'form-reply-RFA' && !textEmailTitle && !isBothSideActionUserWithNoEmailSent)
+      ) {
          return message.info('Please fill in email title!', 2);
 
-      } else if ((!listRecipientTo || listRecipientTo.length === 0) && !isAdminActionWithNoEmailSent) {
+      } else if ((!listRecipientTo || listRecipientTo.length === 0) && !isBothSideActionUserWithNoEmailSent) {
          return message.info('Please fill in recipient!', 2);
 
-      } else if (formRfaType === 'form-submit-RFA' && !dateReplyForSubmitForm) {
+      } else if (formRefType === 'form-submit-RFA' && !dateReplyForSubmitForm) {
          return message.info('Please fill in expected reply date!', 2);
 
-      } else if (formRfaType === 'form-submit-RFA' && listConsultantMustReply.length === 0) {
+      } else if (formRefType === 'form-submit-RFA' && listConsultantMustReply.length === 0) {
 
          return message.info('Please fill in consultant lead', 2);
-      } else if (formRfaType === 'form-submit-RFA' && !requestedBy) {
+      } else if (formRefType === 'form-submit-RFA' && !requestedBy) {
          return message.info('Please fill in person requested', 2);
       } else if (!trade || !rfaToSave || !rfaToSaveVersionOrToReply) {
          return message.info('Please fill in necessary info!', 2);
@@ -678,7 +637,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       const filesPDFOutput = {};
       filesPDF && Object.keys(filesPDF).forEach(key => {
          let fileFound;
-         if (formRfaType === 'form-reply-RFA') {
+         if (formRefType === 'form-reply-RFA') {
             fileFound = dwgsToAddNewRFA.find(x => x[`reply-$$$-drawing-${company}`] === key);
          } else {
             fileFound = dwgsToAddNewRFA.find(x => x[`submission-$$$-drawing-${company}`] === key);
@@ -700,35 +659,34 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
       getSheetRows({ ...stateRow, loading: true });
 
       onClickApplyAddNewRFA({
-         type: formRfaType,
+         type: formRefType,
          isFormEditting,
-         trade,
+         trade, mepSubTradeInfo,
          filesPDF: (filesPDFOutput && Object.values(filesPDFOutput)) || [],
          filesDWFX: (filesDWFXOutput && Object.values(filesDWFXOutput)) || [],
          dwgsToAddNewRFA: dwgsToAddNewRFA.map(x => ({ ...x })),
          rfaToSave, rfaToSaveVersionOrToReply,
          recipient: {
-            to: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientTo)],
-            cc: isAdminActionWithNoEmailSent ? [] : [...new Set(listRecipientCc)]
+            to: isBothSideActionUserWithNoEmailSent ? [] : [...new Set(listRecipientTo)],
+            cc: isBothSideActionUserWithNoEmailSent ? [] : [...new Set(listRecipientCc)]
          },
-         listConsultantMustReply: formRfaType === 'form-reply-RFA' ? [] : [...listConsultantMustReply],
-         requestedBy: formRfaType === 'form-reply-RFA' ? '' : requestedBy,
-         emailTextTitle: isAdminActionWithNoEmailSent ? '' : textEmailTitle,
-         emailTextAdditionalNotes: isAdminActionWithNoEmailSent ? '' : textEmailAdditionalNotes,
+         listConsultantMustReply: formRefType === 'form-reply-RFA' ? [] : [...listConsultantMustReply],
+         requestedBy: formRefType === 'form-reply-RFA' ? '' : requestedBy,
+         emailTextTitle: textEmailTitle,
+         emailTextAdditionalNotes: isBothSideActionUserWithNoEmailSent ? '' : textEmailAdditionalNotes,
          dateReplyForsubmitForm: dateReplyForSubmitForm && dateReplyForSubmitForm.format('DD/MM/YY'),
          dateSendThisForm,
 
-         isAdminActionWithNoEmailSent,
-         adminActionConsultantToReply,
-         isAdminAction,
-         mepSubTradeInfo
+         isBothSideActionUserWithNoEmailSent,
+         consultantNameToReplyByBothSideActionUser,
+
+
       });
    };
 
-
    const generateColumnsListDwgRFA = (headers, nosColumnFixed) => {
 
-      const buttonRemoveDrawing = !isFormEditting && (formRfaType === 'form-submit-RFA' || formRfaType === 'form-resubmit-RFA') ? [
+      const buttonRemoveDrawing = !isFormEditting && (formRefType === 'form-submit-RFA' || formRefType === 'form-resubmit-RFA') ? [
          {
             key: 'action',
             dataKey: 'action',
@@ -759,19 +717,21 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             resizable: true,
             frozen: index < nosColumnFixed ? Column.FrozenDirection.LEFT : undefined,
             width: getHeaderWidthDwgRFA(column),
-            cellRenderer: (column === 'Rev' && formRfaType !== 'form-reply-RFA') ? (
+            cellRenderer: (column === 'Rev' && formRefType !== 'form-reply-RFA') ? (
                <CellInputRevision
                   setRevisionDwg={setRevisionDwg}
-                  rowsThisRFAWithRev={rowsRfaAllInit.filter(dwg => dwg.rfaNumber === currentRfaNumber && dwg['Rev'])}
-                  isFirstSubmission={formRfaType === 'form-submit-RFA'}
+                  rowsThisRFAWithRev={rowsRfaAllInit.filter(dwg => {
+                     return currentRefData && dwg.rfaNumber === currentRefData['rfaNumber'] && dwg['Rev'];
+                  })}
+                  isFirstSubmission={formRefType === 'form-submit-RFA'}
                />
-            ) : (column === 'Comment' && formRfaType === 'form-reply-RFA') ? (
+            ) : (column === 'Comment' && formRefType === 'form-reply-RFA') ? (
                <CellAddCommentDrawing
                   onClickCommentBtn={onClickCommentBtn}
                   company={company}
                />
 
-            ) : (column === 'Status' && formRfaType === 'form-reply-RFA') ? (
+            ) : (column === 'Status' && formRefType === 'form-reply-RFA') ? (
                <CellSelectStatus
                   dwgsToAddNewRFA={dwgsToAddNewRFA}
                   setDwgsToAddNewRFA={setDwgsToAddNewRFA}
@@ -784,7 +744,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   setDwgsToAddNewRFA={setDwgsToAddNewRFA}
                   filesPDF={filesPDF}
                   company={company}
-                  formRfaType={formRfaType}
+                  formRefType={formRefType}
                />
             ) : (column === '3D Model') ? (
                <CellSelect3DFile
@@ -817,7 +777,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             }}>
                <div style={{ display: 'flex', marginBottom: 10 }}>
                   <div style={{ marginRight: 10, fontWeight: 'bold' }}>RFA Number</div>
-                  {formRfaType === 'form-submit-RFA' ? (
+                  {formRefType === 'form-submit-RFA' ? (
                      <>
                         <div style={{ marginRight: 2 }}>
                            {`RFA/${projectNameShort}/`}
@@ -842,9 +802,9 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                            </div>
                         )}
                      </>
-                  ) : formRfaType === 'form-resubmit-RFA' ? (
+                  ) : formRefType === 'form-resubmit-RFA' ? (
                      <>
-                        <div style={{ marginRight: 2 }}>{currentRfaNumber}</div>
+                        <div style={{ marginRight: 2 }}>{currentRefData['rfaNumber']}</div>
                         <InputStyled
                            style={{ width: 50, marginBottom: 10, borderRadius: 0, marginRight: 120, transform: 'translateY(-5px)' }}
                            onChange={(e) => setRfaNewVersionResubmitSuffix(e.target.value)}
@@ -853,14 +813,14 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                         />
                      </>
 
-                  ) : formRfaType === 'form-reply-RFA' ? (
-                     <div>{currentRfaRef}</div>
+                  ) : formRefType === 'form-reply-RFA' ? (
+                     <div>{currentRefData['RFA Ref']}</div>
 
                   ) : null}
 
 
-                  {isAdminActionWithNoEmailSent && (
-                     <div style={{ display: 'flex', marginRight: 40 }}>
+                  {(isBothSideActionUser && isBothSideActionUserWithNoEmailSent) && (
+                     <div style={{ display: 'flex', marginRight: 40, marginLeft: 50 }}>
                         <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date Submission</div>
                         <DatePickerStyled
                            value={dateSendThisForm}
@@ -870,7 +830,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                      </div>
                   )}
 
-                  {formRfaType !== 'form-reply-RFA' && (
+                  {formRefType !== 'form-reply-RFA' && (
                      <div style={{ display: 'flex' }}>
                         <div style={{ marginRight: 10, fontWeight: 'bold' }}>Date Reply</div>
                         <DatePickerStyled
@@ -881,21 +841,21 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                      </div>
                   )}
 
-                  {formRfaType === 'form-reply-RFA' && adminActionConsultantToReply && (
-                     <div style={{ marginLeft: 20 }}>Company reply: <span style={{ fontWeight: 'bold' }}>{adminActionConsultantToReply}</span></div>
+                  {formRefType === 'form-reply-RFA' && consultantNameToReplyByBothSideActionUser && (
+                     <div style={{ marginLeft: 20 }}>Company reply: <span style={{ fontWeight: 'bold' }}>{consultantNameToReplyByBothSideActionUser}</span></div>
                   )}
-
 
                </div>
 
 
-               {(!isAdminActionWithNoEmailSent || formRfaType !== 'form-reply-RFA') && (
+
+               {!(isBothSideActionUser && isBothSideActionUserWithNoEmailSent && formRefType === 'form-reply-RFA') && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                     <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 5 }}>{isAdminActionWithNoEmailSent ? 'Consultants' : 'To'}</div>
+                     <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 5 }}>{isBothSideActionUserWithNoEmailSent ? 'Consultants' : 'To'}</div>
                      <div style={{ width: '95%' }}>
                         <SelectRecipientStyled
                            mode='tags'
-                           placeholder={formRfaType === 'form-submit-RFA' ? 'Please pick drawings first to get email list of previous submission...' : 'Please select...'}
+                           placeholder={formRefType === 'form-submit-RFA' ? 'Please pick drawings first to get email list of previous submission...' : 'Please select...'}
                            value={listRecipientTo}
 
                            onChange={(list) => {
@@ -904,7 +864,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                                  return message.warning('Please choose an available group email or key in an email address!');
                               };
 
-                              if (formRfaType === 'form-submit-RFA') {
+                              if (formRefType === 'form-submit-RFA') {
                                  let isLeadConsultantIncluded = false;
                                  list.forEach(tagCompany => {
                                     if (checkIfMatchWithInputCompanyFormat(tagCompany, listConsultants)) {
@@ -912,11 +872,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                                     };
                                  });
                                  if (!isLeadConsultantIncluded) {
-                                    if (isAdminAction && isAdminActionWithNoEmailSent) {
-                                       message.warning('You must include lead consultant!');
-                                    } else {
-                                       message.warning('Email loop must include lead consultant!');
-                                    };
+                                    message.warning('You must include lead consultant!');
                                  };
 
                                  const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
@@ -928,8 +884,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                                     setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
                                  };
 
-
-                              } else if (formRfaType === 'form-resubmit-RFA') {
+                              } else if (formRefType === 'form-resubmit-RFA') {
                                  const consultantLeadFromPreviousSubmission = listConsultantMustReply[0];
                                  const itemJustRemoved = listRecipientTo.find(x => !list.find(it => it === x));
                                  if (
@@ -941,6 +896,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                                     setListConsultantMustReply(listConsultantMustReply.filter(x => x !== extractConsultantName(itemJustRemoved)));
                                  };
                               };
+
                               setListRecipientTo([...new Set(list)]);
 
                               let companyNameToCheck, isRemoveTag;
@@ -982,11 +938,11 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                            })}
                         </SelectRecipientStyled>
 
-                        {formRfaType !== 'form-reply-RFA' && (
+                        {formRefType !== 'form-reply-RFA' && (
                            <div style={{ display: 'flex', marginTop: 5, marginBottom: 10 }}>
                               <div style={{ marginRight: 8 }}>Lead consultant :</div>
                               <div style={{ fontWeight: 'bold', marginRight: 10 }}>{listConsultantMustReply[0] || ''}</div>
-                              {formRfaType === 'form-submit-RFA' && (
+                              {formRefType === 'form-submit-RFA' && (
                                  <div style={{ fontSize: 11, color: 'grey', fontStyle: 'italic', transform: 'translateY(3px)' }}>(Click on tag to change lead consultant)</div>
                               )}
                            </div>
@@ -997,18 +953,17 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
 
-               {!isAdminActionWithNoEmailSent && (
+               {!(isBothSideActionUser && isBothSideActionUserWithNoEmailSent) && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                      <div style={{ transform: 'translateY(5px)', fontWeight: 'bold' }}>CC</div>
                      <div style={{ width: '95%' }}>
                         <SelectRecipientStyled
                            mode='tags'
-                           placeholder={formRfaType === 'form-submit-RFA' ? 'Please pick drawings first to get email list of previous submission...' : 'Please select...'}
+                           placeholder={formRefType === 'form-submit-RFA' ? 'Please pick drawings first to get email list of previous submission...' : 'Please select...'}
                            value={listRecipientCc}
                            onChange={(list) => {
                               if (list.find(tag => !listGroup.find(x => x === tag) && !validateEmailInput(tag))) {
-                                 message.warning('Please choose an available group email or key in an email address!');
-                                 return;
+                                 return message.warning('Please choose an available group email or key in an email address!');
                               };
                               setListRecipientCc([...new Set(list)]);
                            }}
@@ -1033,7 +988,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
 
-               {formRfaType !== 'form-reply-RFA' && (
+               {formRefType !== 'form-reply-RFA' && (
                   <>
                      <div style={{ display: 'flex', marginBottom: 5 }}>
                         <div style={{ transform: 'translateY(5px)', fontWeight: 'bold', marginRight: 15 }}>Requested by</div>
@@ -1047,25 +1002,26 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   </>
                )}
 
+               {!(isBothSideActionUser && isBothSideActionUserWithNoEmailSent && formRefType === 'form-reply-RFA') && (
+                  <div style={{ display: 'flex', marginBottom: 20 }}>
+                     <div style={{ width: 65, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Subject</div>
+                     <InputStyled
+                        style={{
+                           width: '90%',
+                           marginBottom: 10,
+                           borderRadius: 0,
+                        }}
+                        onChange={(e) => setTextEmailTitle(e.target.value)}
+                        value={textEmailTitle}
+                     />
+                  </div>
+               )}
 
-               {!isAdminActionWithNoEmailSent && (
+               {!isBothSideActionUserWithNoEmailSent && (
                   <>
-                     <div style={{ display: 'flex', marginBottom: 20 }}>
-                        <div style={{ width: 65, marginRight: 20, transform: 'translateY(5px)', fontWeight: 'bold' }}>Subject</div>
-                        <InputStyled
-                           style={{
-                              width: '90%',
-                              marginBottom: 10,
-                              borderRadius: 0,
-                           }}
-                           onChange={(e) => setTextEmailTitle(e.target.value)}
-                           value={textEmailTitle}
-                        />
-                     </div>
-
                      <div style={{ paddingLeft: 100 }}>
                         <div style={{ paddingLeft: 0 }}>Dear All,</div>
-                        {formRfaType === 'form-reply-RFA' ? (
+                        {formRefType === 'form-reply-RFA' ? (
                            <div>
                               <span style={{ fontWeight: 'bold' }}>{company}</span> has replied this RFA, the drawings included in this RFA are in the list below.
                               Please review and update as per comments.
@@ -1073,9 +1029,12 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                         ) : (
                            <div>
                               <span style={{ fontWeight: 'bold' }}>{company}</span> has submitted <span style={{ fontWeight: 'bold' }}>
-                                 {formRfaType === 'form-resubmit-RFA'
-                                    ? `${currentRfaNumber}${rfaNewVersionResubmitSuffix}`
-                                    : `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${mepSubTradeFirstTime ? `${mepSubTradeFirstTime}/` : ''}${rfaNumberSuffixFirstTimeSubmit}`}
+                                 {formRefType === 'form-resubmit-RFA'
+                                    ? `${currentRefData['rfaNumber']}${rfaNewVersionResubmitSuffix}`
+                                    : `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${(mepSubTradeFirstTime && mepSubTradeFirstTime !== 'Select Sub Trade...')
+                                       ? `${mepSubTradeFirstTime}/`
+                                       : ''
+                                    }${rfaNumberSuffixFirstTimeSubmit}`}
                               </span> for you to review, the drawings included in this RFA are in the list below.
                               Please review and reply to us by <span style={{ fontWeight: 'bold' }}>{dateReplyForSubmitForm ? dateReplyForSubmitForm.format('DD/MM/YY') : ''}.</span>
                            </div>
@@ -1104,7 +1063,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
                <div style={{ display: 'flex', marginBottom: 5 }}>
-                  {formRfaType !== 'form-reply-RFA' && !isFormEditting && (
+                  {formRefType !== 'form-reply-RFA' && !isFormEditting && (
                      <ButtonStyle
                         marginRight={10}
                         name='Add Drawing To List'
@@ -1128,7 +1087,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                      />
                   </Upload>
 
-                  {formRfaType !== 'form-reply-RFA' && (
+                  {formRefType !== 'form-reply-RFA' && (
                      <Upload
                         name='file' accept='.dwfx' multiple={true}
                         headers={{ authorization: 'authorization-text' }}
@@ -1148,7 +1107,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
 
 
                   <div style={{ marginLeft: 5 }}>
-                     {formRfaType !== 'form-reply-RFA' ? (
+                     {formRefType !== 'form-reply-RFA' ? (
                         <>
                            {filesPDF ? `${Object.keys(filesPDF).length} PDF files has been chosen ` : 'No PDF files has been chosen '}
                            / {filesDWFX ? `${Object.keys(filesDWFX).length} 3D models has been chosen.` : 'No 3D model has been chosen.'}
@@ -1169,7 +1128,7 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   }}>
                      <TableStyled
                         fixed
-                        columns={generateColumnsListDwgRFA(headersDwgRFA(formRfaType), nosColumnFixed)}
+                        columns={generateColumnsListDwgRFA(headersDwgRFA(formRefType), nosColumnFixed)}
                         data={dwgsToAddNewRFA}
                         rowHeight={28}
                      />
@@ -1206,12 +1165,9 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
                   onClickCancelModalPickDrawing={() => setTablePickDrawingRFA(false)}
                   onClickApplyModalPickDrawing={onClickApplyModalPickDrawing}
                   dwgsToAddNewRFA={dwgsToAddNewRFA}
-                  formRfaType={formRfaType}
+                  formRefType={formRefType}
                   tradeOfRfaForFirstTimeSubmit={tradeOfRfaForFirstTimeSubmit}
-                  existingTradeOfResubmision={existingTradeOfResubmision}
-
-                  mepSubTradeFirstTime={mepSubTradeFirstTime}
-                  existingSubTradeOfResubmision={existingSubTradeOfResubmision}
+                  mepSubTradeFirstTime={mepSubTradeFirstTime || 'Select Sub Trade...'}
                />
             </ModalPickDrawingRFAStyled>
          )}
@@ -1254,13 +1210,16 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
             >
                <ConfirmSubmitOrCancelModal
                   typeConfirm={modalConfirmsubmitOrCancel}
-                  formRfaType={formRfaType}
-                  rfaRef={formRfaType === 'form-submit-RFA'
-                     ? `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${mepSubTradeFirstTime ? `${mepSubTradeFirstTime}/` : ''}${rfaNumberSuffixFirstTimeSubmit}`
-                     : formRfaType === 'form-resubmit-RFA'
-                        ? `${currentRfaNumber}${rfaNewVersionResubmitSuffix}`
-                        : formRfaType === 'form-reply-RFA'
-                           ? `${currentRfaRef}` : null}
+                  formRefType={formRefType}
+                  rfaRef={formRefType === 'form-submit-RFA'
+                     ? `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit || '____'}/${(mepSubTradeFirstTime && mepSubTradeFirstTime !== 'Select Sub Trade...')
+                        ? `${mepSubTradeFirstTime}/`
+                        : ''
+                     }${rfaNumberSuffixFirstTimeSubmit}`
+                     : formRefType === 'form-resubmit-RFA'
+                        ? `${currentRefData['rfaNumber']}${rfaNewVersionResubmitSuffix}`
+                        : formRefType === 'form-reply-RFA'
+                           ? `${currentRefData['RFA Ref']}` : null}
                   onClickCancelConfirmModal={() => setModalConfirmsubmitOrCancel(null)}
                   onClickApplyConfirmModal={(confirmFinal) => {
                      if (confirmFinal === 'Cancel Action Form') {
@@ -1280,11 +1239,14 @@ export default PanelAddNewRFA;
 
 
 
-const CellSelectDrawingFile = ({ filesPDF, rowData, dwgsToAddNewRFA, setDwgsToAddNewRFA, company, formRfaType }) => {
+const CellSelectDrawingFile = ({ filesPDF, rowData, dwgsToAddNewRFA, setDwgsToAddNewRFA, company, formRefType }) => {
 
-   const type = formRfaType === 'form-reply-RFA' ? 'reply' : 'submission';
 
-   const pdfFileName = getInfoValueFromRfaData(rowData, type, 'drawing', company);
+
+   const pdfFileName = formRefType === 'form-reply-RFA'
+      ? getInfoValueFromRfaData(rowData, 'reply', 'drawing', company)
+      : getInfoValueFromRfaData(rowData, 'submission', 'drawing');
+
    const [value, setValue] = useState(pdfFileName || 'No PDF file');
    useEffect(() => {
       if (pdfFileName && pdfFileName !== 'No PDF file') {
@@ -1296,9 +1258,10 @@ const CellSelectDrawingFile = ({ filesPDF, rowData, dwgsToAddNewRFA, setDwgsToAd
 
    const onChangeFileAttached = (fileName, dwgId) => {
       const row = dwgsToAddNewRFA.find(x => x.id === dwgId);
-      row[`${type}-$$$-drawing-${company}`] = fileName;
+      row[`${formRefType === 'form-reply-RFA' ? 'reply' : 'submission'}-$$$-drawing-${company}`] = fileName;
       setDwgsToAddNewRFA([...dwgsToAddNewRFA.map(dwg => ({ ...dwg }))]);
    };
+
    return (
       <SelectStyled
          placeholder='Select File...'
@@ -1314,10 +1277,9 @@ const CellSelectDrawingFile = ({ filesPDF, rowData, dwgsToAddNewRFA, setDwgsToAd
       </SelectStyled>
    );
 };
-
 const CellSelect3DFile = ({ filesDWFX, rowData, dwgsToAddNewRFA, setDwgsToAddNewRFA, company }) => {
 
-   const dwfxFileName = getInfoValueFromRfaData(rowData, 'submission', 'dwfxName', company);
+   const dwfxFileName = getInfoValueFromRfaData(rowData, 'submission', 'dwfxName');
    const [value, setValue] = useState(dwfxFileName || 'No 3D model');
 
    useEffect(() => {
@@ -1462,17 +1424,14 @@ const CellRemoveDrawing = (props) => {
       </Tooltip>
    );
 };
-
-
-
-const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRfaType, rfaRef, onClickCancelConfirmModal, onClickApplyConfirmModal }) => {
+const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRefType, rfaRef, onClickCancelConfirmModal, onClickApplyConfirmModal }) => {
 
    return (
       <div style={{ padding: 20, width: '100%' }}>
          {typeConfirm === 'ok' ? (
-            <div>Are you sure to {formRfaType === 'form-reply-RFA' ? 'reply' : 'submit'} the <span style={{ fontWeight: 'bold' }}>{rfaRef}</span>?</div>
+            <div>Are you sure to {formRefType === 'form-reply-RFA' ? 'reply' : 'submit'} the <span style={{ fontWeight: 'bold' }}>{rfaRef}</span>?</div>
          ) : typeConfirm === 'cancel' ? (
-            <div>Are you sure to cancel the {formRfaType === 'form-reply-RFA' ? 'response' : 'submission'}?</div>
+            <div>Are you sure to cancel the {formRefType === 'form-reply-RFA' ? 'response' : 'submission'}?</div>
          ) : null}
 
          <div style={{ padding: 20, display: 'flex', flexDirection: 'row-reverse' }}>
@@ -1485,29 +1444,6 @@ const ConfirmSubmitOrCancelModal = ({ typeConfirm, formRfaType, rfaRef, onClickC
       </div>
    );
 };
-
-
-const ModalConfirmStyled = styled(Modal)`
-    .ant-modal-content {
-        border-radius: 0;
-    }
-   .ant-modal-close {
-      display: none;
-   }
-   .ant-modal-header {
-      padding: 10px;
-   }
-   .ant-modal-title {
-        padding-left: 10px;
-        font-size: 20px;
-        font-weight: bold;
-   }
-   .ant-modal-body {
-      padding: 0;
-      display: flex;
-      justify-content: center;
-   }
-`;
 const getHeaderWidthDwgRFA = (header) => {
    if (header === 'File PDF') return 350;
    else if (header === 'Rev') return 50;
@@ -1518,9 +1454,26 @@ const getHeaderWidthDwgRFA = (header) => {
    else if (header === 'Coordinator In Charge') return 200;
    else return 200;
 };
-
-
-
+const ModalConfirmStyled = styled(Modal)`
+   .ant-modal-content {
+      border-radius: 0;
+   };
+   .ant-modal-close {
+      display: none;
+   };
+   .ant-modal-header {
+      padding: 10px;
+   };
+   .ant-modal-title {
+        padding-left: 10px;
+        font-size: 20px;
+        font-weight: bold;
+   };
+   .ant-modal-body {
+      padding: 0;
+      justify-content: center;
+   };
+`;
 const ModalPickDrawingRFAStyled = styled(Modal)`
    .ant-modal-content {
       border-radius: 0;
@@ -1542,7 +1495,6 @@ const ModalPickDrawingRFAStyled = styled(Modal)`
       justify-content: center;
    };
 `;
-
 const TableStyled = styled(Table)`
    .row-selected-rfa {
       background-color: ${colorType.cellHighlighted};
@@ -1581,7 +1533,7 @@ const InputStyled = styled(Input)`
    &:focus {
       outline: none;
       box-shadow: none;
-   }
+   };
 `;
 const TextAreaStyled = styled(TextArea)`
    color: black;
@@ -1591,7 +1543,7 @@ const TextAreaStyled = styled(TextArea)`
    &:focus {
       outline: none;
       box-shadow: none;
-   }
+   };
 `;
 const SelectStyled = styled(Select)`
    width: 100%;
@@ -1602,23 +1554,17 @@ const SelectStyled = styled(Select)`
       border: none;
       width: 100%;
       background: transparent;
-   }
+   };
    .ant-select-selection__rendered {
       outline: none;
-   }
+   };
 `;
-
 const SelectRecipientStyled = styled(Select)`
    width: 100%;
    .ant-select-selection__choice {
-      /* padding: 0; */
       margin-right: 5px;
       border: 1px solid ${colorType.grey1}
-   }
-   .ant-select-selection__choice__remove {
-      
-   }
-
+   };
    .ant-select-selection {
       border-radius: 0;
       width: 100%;
@@ -1632,18 +1578,12 @@ const SelectRecipientStyled = styled(Select)`
       &:focus {
          outline: none;
          box-shadow: none;
-      }
+      };
    };
-
    .ant-select-dropdown-menu-item .ant-select-dropdown-menu-item-selected {
       padding: 0;
    };
-   
-
 `;
-
-
-
 const DatePickerStyled = styled(DatePicker)`
    transform: translateY(-5px);
    .ant-calendar-picker-input {
@@ -1663,9 +1603,8 @@ const DatePickerStyled = styled(DatePicker)`
 
 
 
-
-const headersDwgRFA = (formRfaType) => {
-   return formRfaType === 'form-reply-RFA' ? [
+const headersDwgRFA = (formRefType) => {
+   return formRefType === 'form-reply-RFA' ? [
       'Drawing Number',
       'Drawing Name',
       'Rev',
@@ -1681,7 +1620,6 @@ const headersDwgRFA = (formRfaType) => {
       '3D Model'
    ];
 };
-
 export const findTradeOfDrawing = (row, dwgTypeTree) => {
    let output;
    const parentNode = dwgTypeTree.find(x => x.id === row._parentRow);
@@ -1702,4 +1640,27 @@ export const convertTradeCodeInverted = (trade) => {
    if (trade === 'CS') return 'C&S';
    if (trade === 'ME') return 'M&E';
    if (trade === 'PC') return 'PRECAST';
+};
+const extractConsultantName = (name) => {
+   const indexOfSplitString = name.indexOf('_%$%_');
+   return name.slice(0, indexOfSplitString === -1 ? -99999 : indexOfSplitString);
+};
+const checkIfMatchWithInputCompanyFormat = (item, listConsultants) => {
+   let result = false;
+   listConsultants.forEach(cm => {
+      if (cm.company === extractConsultantName(item)) {
+         result = true;
+      };
+   });
+   return result;
+};
+
+export const getGroupCompanyForBothSideActionUserSubmitWithoutEmail = (listGroup, listConsultants) => {
+   let output = [];
+   listConsultants.forEach(cmp => {
+      if (listGroup.find(x => x.includes(`${cmp.company}_%$%_`))) {
+         output.push(`${cmp.company}_%$%_`);
+      };
+   });
+   return [...new Set(output)];
 };

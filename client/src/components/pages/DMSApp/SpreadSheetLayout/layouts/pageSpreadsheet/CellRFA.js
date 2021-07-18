@@ -22,36 +22,30 @@ const CellRFA = (props) => {
    const { rowsRfaAll, rowsRfaAllInit } = stateRow;
 
    const {
-      roleTradeCompany, companies, company, email, projectIsAppliedRfaView,
-      isUserCanSubmitBothSide, pageSheetTypeName, isAdmin
+      roleTradeCompany, company, email, isBothSideActionUser, pageSheetTypeName,
    } = stateProject.allDataOneSheet;
 
    const [btnShown, setBtnShown] = useState(false);
-   const [isEditButtonShownInCell, setIsEditButtonShownInCell] = useState(false);
 
    const [activeBtn, setActiveBtn] = useState('All');
    const [modalContent, setModalContent] = useState(null);
 
-   const [modalActionTypeForAdminSubmit, setModalActionTypeForAdminSubmit] = useState(null);
-
    const [modalPickConsultantForAdmin, setModalPickConsultantForAdmin] = useState(false);
 
-   const [thereIsDrawingWithNoReplyAndConsultantAllowedReply, setThereIsDrawingWithNoReplyAndConsultantAllowedReply] = useState(false);
-   const [thereIsDrawingWithNoRfaRef, setThereIsDrawingWithNoRfaRef] = useState(false);
-   const [requestedByCellData, setRequestedByCellData] = useState(null);
+   const [oneRowInThisRfaForParentRow, setOneRowInThisRfaForParentRow] = useState({});
 
-   const [rfaData, setRfaData] = useState({});
-   const [rfaRefText, setRfaRefText] = useState(null);
+   const [dataForDetailVersionTable, setDataForDetailVersionTable] = useState({});
+   const [isDrawingDetailTableDms, setIsDrawingDetailTableDms] = useState(null);
 
    const [replyStatus, setReplyStatus] = useState(null);
    const [replyCompany, setReplyCompany] = useState(null);
    const [replyDate, setReplyDate] = useState(null);
 
-
-   const [isAdminActionWithNoEmailSent, setIsAdminActionWithNoEmailSent] = useState(false);
    const [overdueCount, setOverdueCount] = useState(0);
-   const [consultantsNotReplyYet, setConsultantsNotReplyYet] = useState([]);
 
+   const [arrayButtonCell, setArrayButtonCell] = useState([]);
+
+   
 
    useEffect(() => {
 
@@ -71,61 +65,55 @@ const CellRFA = (props) => {
             rfaRef = rfaNumber + activeBtn;
          };
 
-         const rowsWithThisRFA = rowsRfaAllInit.filter(x => x['RFA Ref'] === rfaRef);
-         const oneRowChildren = rowsWithThisRFA[0];
-         const rfaDataObj = cloneRfaData(oneRowChildren);
-         setRfaRefText(rfaRef);
-         setRfaData(rfaDataObj);
+         const oneChildrenRow = rowsRfaAllInit.filter(x => x['RFA Ref'] === rfaRef)[0];
+         setOneRowInThisRfaForParentRow(oneChildrenRow);
 
-         const consultantMustReplyArray = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply');
+         const consultantMustReplyArray = getInfoValueFromRfaData(oneChildrenRow, 'submission', 'consultantMustReply') || [];
 
-         if (isUserCanSubmitBothSide) {
-            if (allRowsChildren.find(row => !row['RFA Ref'])) {
-               setThereIsDrawingWithNoRfaRef(true);
-            } else {
-               setThereIsDrawingWithNoRfaRef(false);
-            };
-            let arrayConsultantNotReplyYet = [];
+         let cellButtonArr = [];
 
-            consultantMustReplyArray.forEach(cst => {
-               const statusReply = getInfoValueFromRfaData(rfaDataObj, 'reply', 'status', cst);
-               if (!statusReply) {
-                  arrayConsultantNotReplyYet.push(cst);
-               };
-            });
+         if (roleTradeCompany.role === 'Document Controller' && allRowsChildren.find(row => !row['RFA Ref'])) {
+            cellButtonArr = [...cellButtonArr, 'btn-resubmit'];
 
-            if (arrayConsultantNotReplyYet.length > 0) {
-               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
-               setConsultantsNotReplyYet(arrayConsultantNotReplyYet);
-            } else {
-               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
-            };
-
-         } else if (roleTradeCompany.role === 'Consultant') {
-            if (
-               !rfaDataObj[`reply-$$$-status-${roleTradeCompany.company}`] &&
-               consultantMustReplyArray && consultantMustReplyArray.indexOf(company) !== -1
-            ) {
-               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(true);
-            } else {
-               setThereIsDrawingWithNoReplyAndConsultantAllowedReply(false);
-            };
-         } else if (roleTradeCompany.role === 'Document Controller') {
-
-            if (allRowsChildren.find(row => !row['RFA Ref'])) {
-               setThereIsDrawingWithNoRfaRef(true);
-            } else {
-               setThereIsDrawingWithNoRfaRef(false);
-            };
+         } else if (
+            (
+               roleTradeCompany.role === 'Consultant' && consultantMustReplyArray.indexOf(company) !== -1 &&
+               !getInfoValueFromRfaData(oneChildrenRow, 'reply', 'status', company) &&
+               checkIfEditTimeRfaIsOver(oneChildrenRow, null, EDIT_DURATION_MIN, 'check-if-submission-edit-is-over') <= 0
+            ) ||
+            (isBothSideActionUser &&
+               consultantMustReplyArray.find(cmp => !getInfoValueFromRfaData(oneChildrenRow, 'reply', 'status', cmp))
+            )
+         ) {
+            cellButtonArr = [...cellButtonArr, 'btn-reply'];
          };
 
-      } else if (!rowData.treeLevel && rowData['rfaNumber'] && rowData['RFA Ref']) {
+         setArrayButtonCell([...new Set(cellButtonArr)]);
 
-         const rfaDataObj = cloneRfaData(rowData);
-         setRfaData(rfaDataObj);
+      } else if (!rowData.treeLevel) {
 
-         if (column.key === 'Requested By') {
-            setRequestedByCellData(getInfoValueFromRfaData(rfaDataObj, 'submission', 'requestedBy'));
+         if (column.key === 'RFA Ref') {
+
+            let cellButtonArr = [];
+            const isEditTimeSubmissionIsOver = checkIfEditTimeRfaIsOver(rowData, null, EDIT_DURATION_MIN, 'check-if-submission-edit-is-over');
+            const isUserTheRfaCreator = getInfoValueFromRfaData(rowData, 'submission', 'user') === email;
+
+            if (roleTradeCompany.role === 'Document Controller' && isEditTimeSubmissionIsOver > 0 && isUserTheRfaCreator) {
+               cellButtonArr = [...cellButtonArr, 'btn-edit'];
+               setEditTimeLeft(isEditTimeSubmissionIsOver);
+            };
+
+            const drawingLink = getInfoValueFromRfaData(rowData, 'submission', 'drawing');
+            if (drawingLink && (isEditTimeSubmissionIsOver <= 0 || isUserTheRfaCreator)) {
+               cellButtonArr = [...cellButtonArr, 'btn-drawing'];
+            };
+
+            const dwfxLink = getInfoValueFromRfaData(rowData, 'submission', 'dwfxLink');
+            if (dwfxLink && (isEditTimeSubmissionIsOver <= 0 || isUserTheRfaCreator)) {
+               cellButtonArr = [...cellButtonArr, 'btn-3d-model'];
+            };
+
+            setArrayButtonCell(cellButtonArr);
 
          } else if (isColumnWithReplyData(column.key)) {
             const { replyStatus: replyStatusData, replyCompany: replyCompanyData, replyDate: replyDateData } = getConsultantReplyData(rowData, column.key);
@@ -134,88 +122,188 @@ const CellRFA = (props) => {
             setReplyCompany(replyCompanyData);
             setReplyDate(convertReplyOrSubmissionDate(replyDateData));
 
-         } else if (isColumnConsultant(column.key)) {
-            if (roleTradeCompany.role !== 'Consultant') {
-               const consultantLead = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply')[0];
+            let cellButtonArr = [];
 
-               setReplyStatus(getInfoValueFromRfaData(rfaDataObj, 'reply', 'status', consultantLead));
-               setReplyCompany(consultantLead);
+            const isEditTimeReplyIsOver = checkIfEditTimeRfaIsOver(rowData, replyCompanyData, EDIT_DURATION_MIN, 'check-if-reply-edit-is-over');
+            const isUserTheRfaCreator = getInfoValueFromRfaData(rowData, 'reply', 'user', replyCompanyData) === email;
 
-               const dateInfo = getInfoValueFromRfaData(rfaDataObj, 'reply', 'date', consultantLead);
-               setReplyDate(convertReplyOrSubmissionDate(dateInfo));
-            } else {
-               const consultantMustReplyValue = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply');
-               if (consultantMustReplyValue.indexOf(company) !== -1) {
-                  setReplyStatus(rfaDataObj[`reply-$$$-status-${company}`]);
-                  setReplyCompany(company);
-                  const dateInfo = rfaDataObj[`reply-$$$-date-${company}`];
-                  setReplyDate(convertReplyOrSubmissionDate(dateInfo));
-               };
+            if ((roleTradeCompany.role === 'Consultant' || isBothSideActionUser) && isEditTimeReplyIsOver > 0 && isUserTheRfaCreator) {
+               cellButtonArr = [...cellButtonArr, 'btn-edit'];
+               setEditTimeLeft(isEditTimeReplyIsOver);
             };
 
+            const drawingLink = getInfoValueFromRfaData(rowData, 'reply', 'drawing', replyCompanyData);
+
+            if (replyCompanyData && drawingLink && (isEditTimeReplyIsOver <= 0 || isUserTheRfaCreator)) {
+               cellButtonArr = [...cellButtonArr, 'btn-drawing'];
+            };
+
+            const commentText = getInfoValueFromRfaData(rowData, 'reply', 'comment', replyCompanyData);
+
+            if (replyCompanyData && commentText && (isEditTimeReplyIsOver <= 0 || isUserTheRfaCreator)) {
+               cellButtonArr = [...cellButtonArr, 'btn-comment'];
+            };
+
+            setArrayButtonCell(cellButtonArr);
+
+
+         } else if (isColumnConsultant(column.key)) {
+
+            const consultantMustReplyValue = getInfoValueFromRfaData(rowData, 'submission', 'consultantMustReply');
+
+            if (roleTradeCompany.role === 'Consultant' && consultantMustReplyValue.indexOf(company) !== -1) {
+               let cellButtonArr = [];
+               setReplyStatus(getInfoValueFromRfaData(rowData, 'reply', 'status', company));
+               setReplyCompany(company);
+               const dateInfo = getInfoValueFromRfaData(rowData, 'reply', 'date', company);
+               setReplyDate(convertReplyOrSubmissionDate(dateInfo));
+
+               const isEditTimeReplyIsOver = checkIfEditTimeRfaIsOver(rowData, company, EDIT_DURATION_MIN, 'check-if-reply-edit-is-over');
+               const isUserTheRfaCreator = getInfoValueFromRfaData(rowData, 'reply', 'user', company) === email;
+
+               if (isEditTimeReplyIsOver > 0 && isUserTheRfaCreator) {
+                  
+                  cellButtonArr = [...cellButtonArr, 'btn-edit'];
+                  setEditTimeLeft(isEditTimeReplyIsOver);
+               };
+
+
+               const drawingLink = getInfoValueFromRfaData(rowData, 'reply', 'drawing', company);
+
+               if (drawingLink && (isEditTimeReplyIsOver <= 0 || isUserTheRfaCreator)) {
+                  cellButtonArr = [...cellButtonArr, 'btn-drawing'];
+               };
+               const commentText = getInfoValueFromRfaData(rowData, 'reply', 'comment', company);
+
+               if (commentText && (isEditTimeReplyIsOver <= 0 || isUserTheRfaCreator)) {
+                  cellButtonArr = [...cellButtonArr, 'btn-comment'];
+               };
+               setArrayButtonCell(cellButtonArr);
+
+            } else {
+               let cellButtonArr = [];
+               const consultantLead = consultantMustReplyValue[0];
+               setReplyStatus(getInfoValueFromRfaData(rowData, 'reply', 'status', consultantLead));
+               setReplyCompany(consultantLead);
+               const dateInfo = getInfoValueFromRfaData(rowData, 'reply', 'date', consultantLead);
+               setReplyDate(convertReplyOrSubmissionDate(dateInfo));
+
+               const isEditTimeReplyIsOver = checkIfEditTimeRfaIsOver(rowData, consultantLead, EDIT_DURATION_MIN, 'check-if-reply-edit-is-over');
+               const isUserTheRfaCreator = getInfoValueFromRfaData(rowData, 'reply', 'user', consultantLead) === email;
+
+               if (isBothSideActionUser && isEditTimeReplyIsOver > 0 && isUserTheRfaCreator) {
+                  cellButtonArr = [...cellButtonArr, 'btn-edit'];
+                  setEditTimeLeft(isEditTimeReplyIsOver);
+               };
+
+
+               const drawingLink = getInfoValueFromRfaData(rowData, 'reply', 'drawing', consultantLead);
+               if (drawingLink && (isEditTimeReplyIsOver <= 0 || isUserTheRfaCreator)) {
+                  cellButtonArr = [...cellButtonArr, 'btn-drawing'];
+               };
+               const commentText = getInfoValueFromRfaData(rowData, 'reply', 'comment', consultantLead);
+
+               if (commentText && (isEditTimeReplyIsOver <= 0 || isUserTheRfaCreator)) {
+                  cellButtonArr = [...cellButtonArr, 'btn-comment'];
+               };
+               setArrayButtonCell(cellButtonArr);
+            };
+
+
          } else if (column.key === 'Due Date') {
-            const consultantMustReplyArray = getInfoValueFromRfaData(rfaDataObj, 'submission', 'consultantMustReply');
-            if (!rowData[`reply-$$$-status-${consultantMustReplyArray[0]}`]) {
+            const consultantMustReplyArray = getInfoValueFromRfaData(rowData, 'submission', 'consultantMustReply');
+            const leadConsultantStatus = getInfoValueFromRfaData(rowData, 'reply', 'status', consultantMustReplyArray[0]);
+            if (!leadConsultantStatus) {
                const compare = compareDates(rowData['Consultant Reply (T)']);
                setOverdueCount(compare);
+            };
+         } else if (column.key.includes('Version ')) {
+            const versionIndex = column.key.slice(8, column.key.length);
+            const infoData = rowData['Info'];
+            const dwgData = rowData[versionIndex];
+
+            if (isColumnWithReplyData(infoData)) {
+
+               let companyName = '';
+               for (const key in dwgData) {
+                  if (key.includes('reply-$$$-status-')) {
+                     companyName = key.slice(17, key.length);
+                  };
+               };
+
+               if (companyName) {
+                  const dataStatus = getInfoValueFromRfaData(dwgData, 'reply', 'status', companyName); // No need company here
+                  const dataDate = getInfoValueFromRfaData(dwgData, 'reply', 'date', companyName); // No need company here
+
+                  setReplyStatus(dataStatus);
+                  setReplyCompany(companyName);
+                  setReplyDate(convertReplyOrSubmissionDate(dataDate));
+
+                  setDataForDetailVersionTable(dwgData || {});
+
+                  setIsDrawingDetailTableDms('drawing-detail-consultant-row');
+
+                  let cellButtonArr = [];
+
+                  const isEditTimeReplyIsOver = checkIfEditTimeRfaIsOver(dwgData, companyName, EDIT_DURATION_MIN, 'check-if-reply-edit-is-over');
+                  const isUserTheRfaCreator = getInfoValueFromRfaData(dwgData, 'reply', 'user', companyName) === email;
+
+                  const drawingLink = getInfoValueFromRfaData(dwgData, 'reply', 'drawing', companyName);
+                  if (drawingLink && (isEditTimeReplyIsOver <= 0 || isUserTheRfaCreator)) {
+                     cellButtonArr = [...cellButtonArr, 'btn-drawing'];
+                  };
+
+                  const commentText = getInfoValueFromRfaData(dwgData, 'reply', 'comment', companyName);
+                  if (commentText && (isEditTimeReplyIsOver <= 0 || isUserTheRfaCreator)) {
+                     cellButtonArr = [...cellButtonArr, 'btn-comment'];
+                  };
+                  setArrayButtonCell(cellButtonArr);
+               };
+
+            } else if (infoData === 'RFA Ref') {
+
+               setDataForDetailVersionTable(dwgData || {});
+               setIsDrawingDetailTableDms('drawing-detail-rfa-row');
+
+
+               let cellButtonArr = [];
+
+               const isEditTimeSubmissionIsOver = checkIfEditTimeRfaIsOver(rowData, null, EDIT_DURATION_MIN, 'check-if-submission-edit-is-over');
+               const isUserTheRfaCreator = getInfoValueFromRfaData(rowData, 'submission', 'user') === email;
+
+               const drawingLink = getInfoValueFromRfaData(dwgData, 'submission', 'drawing');
+               if (drawingLink && (isEditTimeSubmissionIsOver <= 0 || isUserTheRfaCreator)) {
+                  cellButtonArr = [...cellButtonArr, 'btn-drawing'];
+               };
+
+               const dwfxLink = getInfoValueFromRfaData(dwgData, 'submission', 'dwfxLink');
+               if (dwfxLink && (isEditTimeSubmissionIsOver <= 0 || isUserTheRfaCreator)) {
+                  cellButtonArr = [...cellButtonArr, 'btn-3d-model'];
+               };
+               setArrayButtonCell(cellButtonArr);
             };
          };
       };
    }, [activeBtn]);
 
 
-
-   const [isDrawingDetailTableDms, setIsDrawingDetailTableDms] = useState(null);
-   const [is3dModelAttached, setIs3dModelAttached] = useState(false);
-
+   const [editTimeLeft, setEditTimeLeft] = useState(null);
    useEffect(() => {
-      if (column.key.includes('Version ')) {
-         const versionIndex = column.key.slice(8, column.key.length);
-         const infoData = rowData['Info'];
-         if (isColumnWithReplyData(infoData)) {
-            const dataStatus = getInfoValueFromRfaData(rowData[versionIndex], 'reply', 'status');
-            if (dataStatus) {
-               const dataDate = getInfoValueFromRfaData(rowData[versionIndex], 'reply', 'date');
-               const keyStatus = getInfoKeyFromRfaData(rowData[versionIndex], 'reply', 'status');
-               const companyName = keyStatus.slice(17, keyStatus.length);
-
-               setReplyStatus(dataStatus);
-               setReplyCompany(companyName);
-               setReplyDate(convertReplyOrSubmissionDate(dataDate));
-
-               setRfaData(rowData[versionIndex] || {});
-
-               setIsDrawingDetailTableDms('drawing-detail-consultant');
+      if (editTimeLeft > 0) {
+         const timer = setTimeout(() => {
+            if (column.key === 'RFA Ref' || isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) {
+               setArrayButtonCell(arrayButtonCell.filter(btn => btn !== 'btn-edit'));
             };
-         } else if (infoData === 'RFA Ref') {
-            setRfaData(rowData[versionIndex] || {});
-
-            setIsDrawingDetailTableDms('drawing-detail-rfa');
-
-            const dwfxLink = getInfoValueFromRfaData(rowData[versionIndex], 'submission', 'dwfxLink');
-            if (dwfxLink) {
-               setIs3dModelAttached(true);
-            };
-         };
+         }, editTimeLeft * 60 * 1000);
+         return () => clearTimeout(timer);
       };
-
-      if (!rowData.treeLevel && projectIsAppliedRfaView && column.key === 'RFA Ref' && rowData['RFA Ref']) {
-         const dwfxLink = getInfoValueFromRfaData(rowData, 'submission', 'dwfxLink');
-         if (dwfxLink) {
-            setIs3dModelAttached(true);
-         };
-      };
-   }, []);
+   }, [editTimeLeft]);
 
 
 
-
-
-
-
-   const onClickRfaDrawing = (rfaCode, btn) => {
+   const onClickRfaVersion = (btn) => {
+      const rfaCode = rowData['rfaNumber'];
       const rowsNotThisRFA = rowsRfaAll.filter(r => r.rfaNumber !== rfaCode);
-
       const rowsThisRFAFiltered = rowsRfaAllInit.filter(r => {
          return r.rfaNumber === rfaCode && (
             btn === '-' ? r['RFA Ref'] === rfaCode
@@ -230,166 +318,118 @@ const CellRFA = (props) => {
       setActiveBtn(btn);
    };
 
-   const onClickSubmitOrReplyRFA = (btn) => {
-      if (btn === 'form-reply-RFA') {
-         const isEditTimeOver = checkIfEditTimeIsOver(rfaData, null, EDIT_DURATION_MIN, 'consultant-check-if-rfa-ready-to-reply');
-         if (!isEditTimeOver) {
-            return message.warn('Woh Hup is submitting this RFA, please wait ...');
-         };
-      } else if (btn === 'form-resubmit-RFA') {
-         const isEditTimeOver = checkIfEditTimeIsOver(rfaData, null, EDIT_DURATION_MIN, 'wohhup-check-if-rfa-ready-to-resubmit');
-         if (!isEditTimeOver) {
-            return message.warn('Consultant is replying this RFA, please wait ...');
-         };
-      };
 
-
-      if (isUserCanSubmitBothSide) {
-         setModalActionTypeForAdminSubmit(btn);
-      } else {
-         buttonPanelFunction(btn);
-         getSheetRows({
-            ...stateRow,
-            currentRfaToAddNewOrReplyOrEdit: {
-               currentRfaNumber: rowData.rfaNumber,
-               currentRfaRef: rfaRefText,
-               currentRfaData: rfaData,
-               formRfaType: btn,
-               isFormEditting: false
-            },
-         });
-      };
-   };
-
-
-
-
-   const onMouseDownCellButtonConsultant = async (btn, replyCompany, rfaData) => {
-
+   const onClickCellButton = async (btnName) => {
       try {
-         let userReply, isEditTimeOver;
-         if (isDrawingDetailTableDms === 'drawing-detail-consultant') {
-            userReply = getInfoValueFromRfaData(rfaData, 'reply', 'user', replyCompany);
-            isEditTimeOver = checkIfEditTimeIsOver(rfaData, replyCompany, EDIT_DURATION_MIN, 'check-if-status-button-ready');
-         } else {
-            userReply = getInfoValueFromRfaData(rowData, 'reply', 'user', replyCompany);
-            isEditTimeOver = checkIfEditTimeIsOver(rowData, replyCompany, EDIT_DURATION_MIN, 'check-if-status-button-ready');
-         };
-
-
-         if (isEditTimeOver || userReply === email) {
-            if (btn === 'See Note') {
-               setModalContent(
-                  <div>
-                     <div style={{ fontWeight: 'bold' }}>{rfaData[`reply-$$$-user-${replyCompany}`] || ''}</div>
-                     <div style={{ fontWeight: 'bold' }}>{rfaData[`reply-$$$-status-${replyCompany}`] || ''}</div>
-                     <div style={{ whiteSpace: 'pre-wrap' }}>{replaceBreakLine(rfaData[`reply-$$$-comment-${replyCompany}`] || '')}</div>
-                  </div>
-               );
-
-            } else if (btn === 'Open Drawing File') {
-               const dwgLink = rfaData[`reply-$$$-drawing-${replyCompany}`];
-               if (dwgLink) {
-                  const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
-                  window.open(res.data, '_blank');
-               } else {
-                  message.info('There is no drawing attached!');
-               };
-
-            } else if (btn === 'Edit') {
-               let adminEditData = {};
-               const listEmailTo = getInfoValueFromRfaData(rfaData, 'reply', 'emailTo', replyCompany);
-               if (isUserCanSubmitBothSide) {
-                  adminEditData = {
-                     isAdminAction: true,
-                     isAdminActionWithNoEmailSent: !listEmailTo || listEmailTo.length === 0,
-                     adminActionConsultantToReply: replyCompany
-                  };
-               };
-
+         if (btnName === 'btn-reply') {
+            if (isBothSideActionUser) {
+               setModalPickConsultantForAdmin(true);
+            } else {
                buttonPanelFunction('form-reply-RFA');
                getSheetRows({
                   ...stateRow,
-                  currentRfaToAddNewOrReplyOrEdit: {
-                     currentRfaNumber: rowData.rfaNumber,
-                     currentRfaRef: rowData['RFA Ref'],
-                     currentRfaData: rfaData,
-                     formRfaType: 'form-reply-RFA',
-                     isFormEditting: true,
-                     ...adminEditData
-                  },
+                  currentRefToAddNewOrReplyOrEdit: {
+                     currentRefData: oneRowInThisRfaForParentRow,
+                     formRefType: 'form-reply-RFA',
+                     isFormEditting: false
+                  }
                });
             };
-         } else {
-            return message.warn('Consultant is replying this RFA, please wait ...');
-         };
-      } catch (err) {
-         console.log(err);
-      };
-   };
-
-
-   const onMouseDownCellButtonRfaRef = async (btn) => {
-      try {
-         let userSubmission, isEditTimeOver;
-         if (isDrawingDetailTableDms === 'drawing-detail-rfa') {
-            userSubmission = getInfoValueFromRfaData(rfaData, 'submission', 'user');
-            isEditTimeOver = checkIfEditTimeIsOver(rfaData, null, EDIT_DURATION_MIN, 'check-if-rfa-button-ready');
-         } else {
-            userSubmission = getInfoValueFromRfaData(rowData, 'submission', 'user');
-            isEditTimeOver = checkIfEditTimeIsOver(rowData, null, EDIT_DURATION_MIN, 'check-if-rfa-button-ready');
-         };
-
-         if (!isEditTimeOver && userSubmission === email && btn === 'Open 3D File') {
-            return message.warn('3D model is uploading, please wait ...');
-         };
-
-         if (isEditTimeOver || userSubmission === email) {
-            if (btn === 'Open Drawing File') {
-               const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'drawing');
-               if (dwgLink) {
-                  const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
-                  window.open(res.data, '_blank');
-               } else {
-                  message.info('There is no drawing attached!');
-               };
-
-            } else if (btn === 'Open 3D File') {
-               const dwgLink = getInfoValueFromRfaData(rfaData, 'submission', 'dwfxLink');
-               if (dwgLink) {
-                  window.open(dwgLink);
-               } else {
-                  message.info('There is no 3D model attached!');
-               };
-
-            } else if (btn === 'Edit') {
-               const typeBtn = rowData['RFA Ref'] !== rowData.rfaNumber ? 'form-resubmit-RFA' : 'form-submit-RFA';
-
-
-               let adminEditData = {};
-               const listEmailTo = getInfoValueFromRfaData(rfaData, 'submission', 'emailTo', company);
-               if (isUserCanSubmitBothSide) {
-                  adminEditData = {
-                     isAdminAction: true,
-                     isAdminActionWithNoEmailSent: !listEmailTo || listEmailTo.length === 0,
-                  };
-               };
-
-               buttonPanelFunction(typeBtn);
+         } else if (btnName === 'btn-resubmit') {
+            if (isBothSideActionUser) {
+               buttonPanelFunction('option-email-or-not-for-admin');
                getSheetRows({
                   ...stateRow,
-                  currentRfaToAddNewOrReplyOrEdit: {
-                     currentRfaNumber: rowData.rfaNumber,
-                     currentRfaRef: rowData['RFA Ref'],
-                     currentRfaData: rfaData,
-                     formRfaType: typeBtn,
-                     isFormEditting: true,
-                     ...adminEditData
+                  currentRefToAddNewOrReplyOrEdit: {
+                     tempRefData: oneRowInThisRfaForParentRow
                   },
                });
+            } else {
+               buttonPanelFunction('form-resubmit-RFA');
+               getSheetRows({
+                  ...stateRow,
+                  currentRefToAddNewOrReplyOrEdit: {
+                     currentRefData: oneRowInThisRfaForParentRow,
+                     formRefType: 'form-resubmit-RFA',
+                     isFormEditting: false
+                  }
+               });
             };
-         } else {
-            return message.warn('Woh Hup is submitting this RFA, please wait ...');
+
+         } else if (btnName === 'btn-drawing') {
+
+            let dwgLink;
+
+            if (column.key === 'RFA Ref') {
+               dwgLink = getInfoValueFromRfaData(rowData, 'submission', 'drawing');
+
+            } else if (isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) {
+               dwgLink = getInfoValueFromRfaData(rowData, 'reply', 'drawing', replyCompany);
+
+            } else if (column.key.includes('Version ') && isDrawingDetailTableDms === 'drawing-detail-consultant-row') {
+               dwgLink = getInfoValueFromRfaData(dataForDetailVersionTable, 'reply', 'drawing', replyCompany);
+
+            } else if (column.key.includes('Version ') && isDrawingDetailTableDms === 'drawing-detail-rfa-row') {
+               dwgLink = getInfoValueFromRfaData(dataForDetailVersionTable, 'submission', 'drawing');
+
+            };
+
+            if (dwgLink) {
+               const res = await Axios.get('/api/issue/get-public-url', { params: { key: dwgLink, expire: 1000 } });
+               window.open(res.data, '_blank');
+            };
+
+         } else if (btnName === 'btn-comment') {
+
+            const rowDataInput = isDrawingDetailTableDms === 'drawing-detail-consultant-row' ? dataForDetailVersionTable : rowData;
+
+            setModalContent(
+               <div>
+                  <div style={{ fontWeight: 'bold' }}>{getInfoValueFromRfaData(rowDataInput, 'reply', 'user', replyCompany) || ''}</div>
+                  <div style={{ fontWeight: 'bold' }}>{getInfoValueFromRfaData(rowDataInput, 'reply', 'status', replyCompany) || ''}</div>
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{replaceBreakLine(getInfoValueFromRfaData(rowDataInput, 'reply', 'comment', replyCompany) || '')}</div>
+               </div>
+            );
+         } else if (btnName === 'btn-3d-model') {
+
+            const rowDataInput = isDrawingDetailTableDms === 'drawing-detail-rfa-row' ? dataForDetailVersionTable : rowData;
+
+            const isEditTimeSubmissionIsOver = checkIfEditTimeRfaIsOver(rowDataInput, null, EDIT_DURATION_MIN, 'check-if-submission-edit-is-over');
+            if (isEditTimeSubmissionIsOver > 0) {
+               return message.warn('3D model is uploading, please wait ...');
+            };
+            const dwg3DLink = getInfoValueFromRfaData(rowDataInput, 'submission', 'dwfxLink');
+            if (dwg3DLink) {
+               window.open(dwg3DLink);
+            };
+
+         } else if (btnName === 'btn-edit') {
+
+            let actionType, dataSendNoEmail;
+            let objConsultantNameToReplyByBothSideActionUser = {};
+            if (isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) {
+               actionType = 'form-reply-RFA';
+               dataSendNoEmail = getInfoValueFromRfaData(rowData, 'reply', 'dateSendNoEmail', replyCompany);
+               if (isBothSideActionUser) {
+                  objConsultantNameToReplyByBothSideActionUser = {
+                     consultantNameToReplyByBothSideActionUser: replyCompany
+                  }
+               };
+            } else if (column.key === 'RFA Ref') {
+               actionType = rowData['RFA Ref'] !== rowData.rfaNumber ? 'form-resubmit-RFA' : 'form-submit-RFA';
+               dataSendNoEmail = getInfoValueFromRfaData(rowData, 'submission', 'dateSendNoEmail');
+            };
+            buttonPanelFunction(actionType);
+            getSheetRows({
+               ...stateRow,
+               currentRefToAddNewOrReplyOrEdit: {
+                  currentRefData: rowData,
+                  formRefType: actionType,
+                  isFormEditting: true,
+                  isBothSideActionUserWithNoEmailSent: dataSendNoEmail ? true : false,
+                  ...objConsultantNameToReplyByBothSideActionUser
+               },
+            });
          };
       } catch (err) {
          console.log(err);
@@ -397,113 +437,20 @@ const CellRFA = (props) => {
    };
 
 
-
-   const checkIfEditBtnShown = (header) => {
-
-      if (isAdmin) {
-         setIsEditButtonShownInCell(true);
-         return;
-      };
-
-      if (header === 'RFA Ref' && (roleTradeCompany.role === 'Document Controller' || isUserCanSubmitBothSide)) {
-         const userSubmission = getInfoValueFromRfaData(rowData, 'submission', 'user');
-         const isEditTimeOver = checkIfEditTimeIsOver(rowData, null, EDIT_DURATION_MIN, 'check-if-rfa-button-ready');
-         if (!isEditTimeOver && userSubmission === email) {
-            setIsEditButtonShownInCell(true);
-         } else {
-            setIsEditButtonShownInCell(false);
-         };
-
-      } else if (
-         (isColumnWithReplyData(column.key) || isColumnConsultant(column.key) || column.key.includes('Version ')) &&
-         (roleTradeCompany.role === 'Consultant' || isUserCanSubmitBothSide)
-      ) {
-         const userReply = getInfoValueFromRfaData(rowData, 'reply', 'user', replyCompany);
-         const isEditTimeOver = checkIfEditTimeIsOver(rowData, replyCompany, EDIT_DURATION_MIN, 'check-if-status-button-ready');
-         if (!isEditTimeOver && userReply === email) {
-            setIsEditButtonShownInCell(true);
-         } else {
-            setIsEditButtonShownInCell(false);
-         };
-      } else {
-         setIsEditButtonShownInCell(false);
-      };
+   const viewEmailContent = () => {
+      
    };
 
 
-
-
-   const applyChooseConsultantToReplyForAdminOnly = (consultantToReply) => {
-      setModalPickConsultantForAdmin(false);
-      buttonPanelFunction('form-reply-RFA');
-      getSheetRows({
-         ...stateRow,
-         currentRfaToAddNewOrReplyOrEdit: {
-            currentRfaNumber: rowData.rfaNumber,
-            currentRfaRef: rfaRefText,
-            currentRfaData: rfaData,
-            formRfaType: 'form-reply-RFA',
-            isFormEditting: false,
-
-            isAdminAction: true,
-            isAdminActionWithNoEmailSent,
-            adminActionConsultantToReply: consultantToReply
-         },
-      });
-   };
-
-   const applyResubmitForAdminOnly = (isNoEmailSent) => {
-      buttonPanelFunction('form-resubmit-RFA');
-      getSheetRows({
-         ...stateRow,
-         currentRfaToAddNewOrReplyOrEdit: {
-            currentRfaNumber: rowData.rfaNumber,
-            currentRfaRef: rfaRefText,
-            currentRfaData: rfaData,
-            formRfaType: 'form-resubmit-RFA',
-            isFormEditting: false,
-
-            isAdminAction: true,
-            isAdminActionWithNoEmailSent: isNoEmailSent,
-         },
-      });
-   };
-
-
-
-
-   const additionalBtnToEdit = (isEditButtonShownInCell && pageSheetTypeName !== 'page-spreadsheet') ? ['Edit'] : [];
-   const additionalBtn3DModel = is3dModelAttached ? ['Open 3D File'] : [];
-
-   let arrayButtonReplyAndResubmit = [];
-   if (isUserCanSubmitBothSide) {
-      if (thereIsDrawingWithNoRfaRef) {
-         arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'plus-square'];
-      };
-      if (thereIsDrawingWithNoReplyAndConsultantAllowedReply) {
-         arrayButtonReplyAndResubmit = [...arrayButtonReplyAndResubmit, 'form'];
-      };
-   } else {
-      if (thereIsDrawingWithNoReplyAndConsultantAllowedReply && roleTradeCompany.role === 'Consultant') {
-         arrayButtonReplyAndResubmit = ['form'];
-      } else if (thereIsDrawingWithNoRfaRef && roleTradeCompany.role === 'Document Controller') {
-         arrayButtonReplyAndResubmit = ['plus-square'];
-      };
-   };
-
+   const cellStyle = pageSheetTypeName === 'page-rfa' && rowData.treeLevel === 3 && column.key === 'Drawing Number'
+   ? {}
+   : { textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' };
 
    return (
       <div
          style={{
-            width: '100%',
-            height: '100%',
-            position: 'relative',
-            padding: 5,
-
-            textOverflow: 'ellipsis',
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
-
+            width: '100%', height: '100%', position: 'relative', padding: 5,
+            ...cellStyle,
             color: replyStatus ? 'white' : 'black',
             background: (column.key === 'Due Date' && overdueCount < 0)
                ? '#FFEBCD'
@@ -511,149 +458,84 @@ const CellRFA = (props) => {
             fontWeight: (column.key === 'RFA Ref' && rowData.treeLevel) && 'bold'
          }}
          onMouseOver={() => {
-            if (
-               !rowData.treeLevel &&
-               (isColumnWithReplyData(column.key) || isColumnConsultant(column.key) || column.key === 'RFA Ref')
-            ) {
-               checkIfEditBtnShown(column.key);
-            };
             if (!btnShown) setBtnShown(true);
          }}
          onMouseLeave={() => {
             if (btnShown) setBtnShown(false);
          }}
       >
-         {(pageSheetTypeName === 'page-rfa' && rowData.treeLevel === 3 && column.key === 'RFA Ref') ? (
-            <div style={{ display: 'flex', position: 'relative' }}>
+         {(pageSheetTypeName === 'page-rfa' && rowData.treeLevel <= 2 && column.key === 'RFA Ref')
+            ? rowData.title
+            : (pageSheetTypeName === 'page-rfa' && rowData.treeLevel === 3 && column.key === 'RFA Ref')
+               ? (
+                  <div style={{ display: 'flex', position: 'relative' }}>
+                     <span style={{ marginRight: 5 }}>{rowData['rfaNumber']}</span>
+                     <div style={{ display: 'flex' }}>
+                        {[...rowData['btn'].sort(), 'All'].map(btn => (
+                           <Tooltip key={btn} placement='top' title={btn === '-' ? '0' : btn === 'All' ? 'Consolidate latest drawings' : btn}>
+                              <ButtonRFA
+                                 onClick={() => onClickRfaVersion(btn)}
+                                 isActive={btn === activeBtn}
+                              >{btn === '-' ? '0' : btn}</ButtonRFA>
+                           </Tooltip>
+                        ))}
+                     </div>
 
-               <span style={{ marginRight: 5 }}>{rowData['rfaNumber']}</span>
+                     {arrayButtonCell.map((btn, i) => (
+                        <Tooltip key={btn} placement='top' title={getTooltipRfaText(btn)}>
+                           <Icon
+                              type={getButtonRfaType(btn)}
+                              style={{
+                                 fontSize: 17, transform: 'translateY(1.5px)',
+                                 position: 'absolute', right: getOffsetRight(i), top: 0
+                              }}
+                              onClick={() => onClickCellButton(btn)}
+                           />
+                        </Tooltip>
+                     ))}
+                  </div>
+               ) : (pageSheetTypeName === 'page-rfa' && rowData.treeLevel === 3 && column.key === 'Drawing Number') ? (
+                  <div style={{ whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                     {/* <Tooltip placement='top' title={'RFA Content'}>
+                        <Icon
+                           type={'file'}
+                           style={{ fontSize: 15, transform: 'translateY(1.5px)', marginRight: 5 }}
+                           onClick={viewEmailContent}
+                        />
+                     </Tooltip>  */}
+                     {getRfaSubject(rowData, rowsRfaAllInit)}
+                  </div>
+               ) : (!rowData.treeLevel) 
+               ? getCellDataRfaView(
+                  rowData, column.key, replyCompany, replyStatus, replyDate, overdueCount,
+                  isDrawingDetailTableDms, dataForDetailVersionTable, cellData
+               ) : null}
 
-               <div style={{ display: 'flex' }}>
-                  {[...rowData['btn'].sort(), 'All'].map(btn => (
-                     <Tooltip key={btn} placement='top' title={btn === '-' ? '0' : btn === 'All' ? 'Consolidate latest drawings' : btn}>
-                        <ButtonRFA
-                           onClick={() => onClickRfaDrawing(rowData['rfaNumber'], btn)}
-                           isActive={btn === activeBtn}
-                        >{btn === '-' ? '0' : btn}</ButtonRFA>
-                     </Tooltip>
-                  ))}
-               </div>
 
-               {arrayButtonReplyAndResubmit.map(button => (
-                  <Tooltip key={button} placement='top' title={button === 'form' ? 'Reply To This RFA' : button === 'plus-square' ? 'Add New RFA For This RFA' : null} >
+         {btnShown && !rowData.treeLevel && (
+            <>
+               {arrayButtonCell.map((btn, i) => (
+                  <Tooltip key={btn} placement='topLeft' title={getTooltipRfaText(btn)}>
                      <Icon
-                        type={button}
+                        type={getButtonRfaType(btn)}
                         style={{
-                           fontSize: 17,
-                           transform: 'translateY(1.5px)',
-                           position: 'absolute',
-                           right: arrayButtonReplyAndResubmit.length === 2 ? (button === 'form' ? 30 : 3) : 3,
-                           top: 0
+                           color: replyStatus ? 'white' : 'black', fontSize: 15,
+                           cursor: 'pointer', position: 'absolute',
+                           right: getOffsetRight(i),
+                           top: 5, height: 17, width: 17
                         }}
-                        onClick={() => onClickSubmitOrReplyRFA(button === 'form' ? 'form-reply-RFA' : button === 'plus-square' ? 'form-resubmit-RFA' : null)}
+                        onClick={() => onClickCellButton(btn)}
                      />
                   </Tooltip>
                ))}
-            </div>
-         ) : (pageSheetTypeName !== 'page-spreadsheet' && rowData.treeLevel >= 2 && column.key === 'RFA Ref') ? rowData.title
+            </>
+         )}
 
-            : (!rowData.treeLevel && (isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) && !replyStatus && rowData['RFA Ref']) ? (
-               <div>{replyCompany}</div>
-            ) : (!rowData.treeLevel && (isColumnWithReplyData(column.key) || isColumnConsultant(column.key)) && replyStatus) ? (
-               <div>
-                  <span style={{ fontWeight: 'bold' }}>{replyCompany}</span>
-                  <span>{` - (${replyDate})`}</span>
-               </div>
-
-            ) : (
-               !rowData.treeLevel &&
-               column.key.includes('Version ') &&
-               isDrawingDetailTableDms === 'drawing-detail-consultant' &&
-               replyStatus
-            ) ? (
-               <div style={{ float: 'left', paddingLeft: 3, fontWeight: 'bold' }}>{replyCompany}</div>
-
-            ) : (
-               !rowData.treeLevel &&
-               column.key.includes('Version ') &&
-               isDrawingDetailTableDms === 'drawing-detail-rfa'
-            ) ? (
-               <div style={{ float: 'left', paddingLeft: 3, fontWeight: 'bold' }}>{rfaData.rfaRef}</div>
-
-            ) : (!rowData.treeLevel && column.key === 'Due Date') ? (
-               <span style={{
-                  fontWeight: overdueCount < 0 && 'bold',
-                  color: overdueCount < 0 && 'red',
-               }}>
-                  {rowData['Consultant Reply (T)']}
-               </span>
-
-            ) : (!rowData.treeLevel && column.key === 'Submission Date') ? (
-               <span>{rowData['Drg To Consultant (A)']}</span>
-
-            ) : (!rowData.treeLevel && column.key === 'Requested By') ? (
-               <span>{requestedByCellData}</span>
-
-            ) : (!rowData.treeLevel && !isColumnWithReplyData(column.key)) ? cellData
-               : ''}
-
-
-         {btnShown && !rowData.treeLevel && replyCompany && (
-            isColumnWithReplyData(column.key) ||
-            isColumnConsultant(column.key) ||
-            (column.key.includes('Version ') && isDrawingDetailTableDms === 'drawing-detail-consultant')
-         ) && (
-               <>
-                  {['See Note', 'Open Drawing File', ...additionalBtnToEdit].map(btn => (
-                     <Tooltip key={btn} placement='topLeft' title={btn}>
-                        <div
-                           style={{
-                              cursor: 'pointer', position: 'absolute',
-                              right: btn === 'See Note' ? 27 : btn === 'Open Drawing File' ? 5 : 51,
-                              top: 5, height: 17, width: 17,
-                           }}
-                           onClick={() => onMouseDownCellButtonConsultant(btn, replyCompany, rfaData)}
-                        >
-                           <Icon
-                              type={btn === 'See Note' ? 'message' : btn === 'Open Drawing File' ? 'file' : 'edit'}
-                              style={{ color: replyStatus ? 'white' : 'black', fontSize: 15 }}
-                           />
-                        </div>
-                     </Tooltip>
-                  ))}
-               </>
-            )}
-
-         {btnShown && !rowData.treeLevel && (
-            (projectIsAppliedRfaView && column.key === 'RFA Ref' && rowData['RFA Ref']) ||
-            (column.key.includes('Version ') && isDrawingDetailTableDms === 'drawing-detail-rfa')
-         ) && (
-               <>
-                  {['Open Drawing File', ...additionalBtn3DModel, ...additionalBtnToEdit].map(btn => (
-                     <Tooltip key={btn} placement='top' title={btn}>
-                        <div
-                           style={{
-                              cursor: 'pointer', position: 'absolute',
-                              right: btn === 'Open Drawing File' ? 5 : btn === 'Open 3D File' ? 27 : (additionalBtn3DModel.length === 1 ? 51 : 27),
-                              top: 5, height: 17, width: 17,
-                           }}
-                           onClick={() => onMouseDownCellButtonRfaRef(btn)}
-                        >
-                           <Icon
-                              type={btn === 'Open Drawing File' ? 'file' : btn === 'Open 3D File' ? 'shake' : 'edit'}
-                              style={{ color: 'black', fontSize: 15 }}
-                           />
-                        </div>
-                     </Tooltip>
-                  ))}
-               </>
-            )
-         }
 
 
          {modalContent && (
             <ModalStyledSetting
-               title={'Drawing comment'}
+               title={'Drawing Comment'}
                visible={modalContent !== null ? true : false}
                footer={null}
                onCancel={() => {
@@ -671,49 +553,7 @@ const CellRFA = (props) => {
          )}
 
 
-         {modalActionTypeForAdminSubmit && (
-            <ModalStyledSetting
-               title={'Choose Action (Admin)'}
-               visible={modalActionTypeForAdminSubmit === null ? false : true}
-               footer={null}
-               onCancel={() => setModalActionTypeForAdminSubmit(null)}
-               destroyOnClose={true}
-               centered={true}
-            >
-               <div style={{ flexDirection: 'column' }}>
 
-                  <div style={{ color: 'black', marginBottom: 10 }}>Do you want to submit/reply RFA and send an email ? (Not sending email option allows you to migrate RFA drawings already submitted previously)</div>
-                  <div style={{ marginTop: 20, padding: 10, display: 'flex', flexDirection: 'row-reverse' }}>
-                     <ButtonGroupComp
-                        onClickApply={() => {
-                           if (modalActionTypeForAdminSubmit === 'form-reply-RFA') {
-                              setModalPickConsultantForAdmin(true);
-                              setIsAdminActionWithNoEmailSent(false);
-                              setModalActionTypeForAdminSubmit(null);
-                           } else if (modalActionTypeForAdminSubmit === 'form-resubmit-RFA') {
-                              setIsAdminActionWithNoEmailSent(false);
-                              applyResubmitForAdminOnly(false);
-                              setModalActionTypeForAdminSubmit(null);
-                           };
-                        }}
-                        onClickCancel={() => {
-                           if (modalActionTypeForAdminSubmit === 'form-reply-RFA') {
-                              setModalPickConsultantForAdmin(true);
-                              setIsAdminActionWithNoEmailSent(true);
-                              setModalActionTypeForAdminSubmit(null);
-                           } else if (modalActionTypeForAdminSubmit === 'form-resubmit-RFA') {
-                              setIsAdminActionWithNoEmailSent(true);
-                              applyResubmitForAdminOnly(true);
-                              setModalActionTypeForAdminSubmit(null);
-                           };
-                        }}
-                        newTextBtnApply='Send Email'
-                        newTextBtnCancel='Update RFA Without Sending Email'
-                     />
-                  </div>
-               </div>
-            </ModalStyledSetting>
-         )}
 
          {modalPickConsultantForAdmin && (
             <ModalStyledSetting
@@ -726,9 +566,19 @@ const CellRFA = (props) => {
                width={window.innerWidth * 0.3}
             >
                <FormPickConsultantToReplyForAdmin
-                  applyChooseConsultantToReplyForAdminOnly={applyChooseConsultantToReplyForAdminOnly}
+                  applyChooseConsultantToReplyForBothSideUser={(consultantName) => {
+                     setModalPickConsultantForAdmin(false);
+                     buttonPanelFunction('option-email-or-not-for-admin');
+                     getSheetRows({
+                        ...stateRow,
+                        currentRefToAddNewOrReplyOrEdit: {
+                           tempRefData: oneRowInThisRfaForParentRow,
+                           tempConsultantToReply: consultantName,
+                        },
+                     });
+                  }}
                   onClickCancelModal={() => setModalPickConsultantForAdmin(false)}
-                  listConsultants={consultantsNotReplyYet}
+                  oneRowInThisRfaForParentRow={oneRowInThisRfaForParentRow}
                />
             </ModalStyledSetting>
          )}
@@ -743,7 +593,6 @@ export default CellRFA;
 const ButtonRFA = styled.div`
    &:hover {
       cursor: pointer;
-      /* background: yellow; */
    };
    border-radius: 0;
    border: 1px solid grey;
@@ -754,7 +603,6 @@ const ButtonRFA = styled.div`
    text-align: center;
    transition: 0.3s;
 `;
-
 const ModalStyledSetting = styled(Modal)`
    .ant-modal-content {
       border-radius: 0;
@@ -772,23 +620,17 @@ const ModalStyledSetting = styled(Modal)`
    }
    .ant-modal-body {
       padding: 20px;
-      display: flex;
       justify-content: center;
    }
 `;
 
 
-export const getConsultantReplyData = (rowData, header, companies) => {
-
+export const getConsultantReplyData = (rowData, header) => {
    let replyStatus, replyCompany, replyDate;
-
    const listConsultantMustReply = getInfoValueFromRfaData(rowData, 'submission', 'consultantMustReply');
    if (!listConsultantMustReply || listConsultantMustReply.length === 0) return { replyStatus, replyCompany, replyDate };
-
    const consultantHeaderNumber = parseInt(header.slice(12, header.length - 1));
-
    const consultantNameOfThisCell = listConsultantMustReply[consultantHeaderNumber - 1];
-
    return {
       replyStatus: rowData[`reply-$$$-status-${consultantNameOfThisCell}`],
       replyCompany: consultantNameOfThisCell,
@@ -796,21 +638,49 @@ export const getConsultantReplyData = (rowData, header, companies) => {
    };
 };
 
-const cloneRfaData = (row) => {
-   let obj = {};
-   for (const key in row) {
-      if (
-         key.includes('reply-') ||
-         key.includes('submission-') ||
-         key === 'rfaNumber' ||
-         key === 'Consultant Reply (T)' ||
-         key === 'Drg To Consultant (A)'
-      ) {
-         obj[key] = row[key];
-      };
+
+const getCellDataRfaView = (row, header, replyCompany, replyStatus, replyDate, overdueCount, isDrawingDetailTableDms, dataForDetailVersionTable, cellData) => {
+
+   if (header === 'Submission Date') {
+      return row['Drg To Consultant (A)'];
+
+   } else if (header === 'Requested By') {
+      return getInfoValueFromRfaData(row, 'submission', 'requestedBy');
+
+   } else if (header === 'Due Date') {
+      return (
+         <span style={{
+            fontWeight: overdueCount < 0 && 'bold',
+            color: overdueCount < 0 && 'red',
+         }}>
+            {row['Consultant Reply (T)']}
+         </span>
+      );
+   } else if (isColumnWithReplyData(header) || isColumnConsultant(header)) {
+      return replyStatus ? (
+         <>
+            <span style={{ fontWeight: 'bold' }}>{replyCompany}</span>
+            <span>{` - (${replyDate})`}</span>
+         </>
+      ) : replyCompany;
+
+   } else if (header.includes('Version ') && isDrawingDetailTableDms === 'drawing-detail-consultant-row' && replyStatus) {
+      return (
+         <span style={{ float: 'left', paddingLeft: 3, fontWeight: 'bold' }}>
+            {replyCompany}
+         </span>
+      );
+   } else if (header.includes('Version ') && isDrawingDetailTableDms === 'drawing-detail-rfa-row') {
+      return (
+         <span style={{ float: 'left', paddingLeft: 3, fontWeight: 'bold' }}>{dataForDetailVersionTable.rfaRef}</span>
+      );
+
+   } else {
+      return cellData;
    };
-   return obj;
 };
+
+
 
 export const isColumnWithReplyData = (header) => {
    return header.includes('Consultant (') && !header.includes('Drg To Consultant (') && header !== 'Consultant';
@@ -819,16 +689,24 @@ export const isColumnConsultant = (header) => {
    return header === 'Consultant';
 };
 
-export const getInfoValueFromRfaData = (obj, type, info, company = '') => {
+export const getInfoValueFromRfaData = (obj, type, info, company) => {
    for (const key in obj) {
-      if (key.includes(`${type}-$$$-${info}-${company}`)) {
+      if (key.includes(
+         type === 'reply'
+            ? `${type}-$$$-${info}-${company}`
+            : `${type}-$$$-${info}-` // must have '-' ending 
+      )) {
          return obj[key];
       };
    };
 };
-export const getInfoKeyFromRfaData = (obj, type, info, company = '') => {
+export const getInfoKeyFromRfaData = (obj, type, info, company) => {
    for (const key in obj) {
-      if (key.includes(`${type}-$$$-${info}-${company}`)) {
+      if (key.includes(
+         type === 'reply'
+            ? `${type}-$$$-${info}-${company}`
+            : `${type}-$$$-${info}-` // must have '-' ending 
+      )) {
          return key;
       };
    };
@@ -854,51 +732,59 @@ export const convertReplyOrSubmissionDate = (date) => {
    return output;
 };
 
-const checkIfEditTimeIsOver = (rowData, replyCompany, editTimeAllowed, type) => {
-   let result = false;
-   let duration;
 
-   if (type === 'consultant-check-if-rfa-ready-to-reply' || type === 'check-if-rfa-button-ready') {
+export const checkIfEditTimeRfaIsOver = (rowData, company, editTimeAllowed, type) => {
+
+   if (type === 'check-if-submission-edit-is-over') {
+      const dateNoSendEmailSubmission = getInfoValueFromRfaData(rowData, 'submission', 'dateSendNoEmail');
       const dateSubmission = getInfoValueFromRfaData(rowData, 'submission', 'date');
-      if (dateSubmission) {
-         duration = moment.duration(moment(new Date()).diff(dateSubmission)).asMinutes();
+      const date = dateNoSendEmailSubmission || dateSubmission;
+
+      if (typeof date === 'string' && date.length > 8) {
+         const duration = moment.duration(moment(new Date()).diff(date)).asMinutes();
+         return editTimeAllowed - duration;
       } else {
-         return true;
+         return -1;
       };
-   } else if (type === 'check-if-status-button-ready') {
-      const dateReply = getInfoValueFromRfaData(rowData, 'reply', 'date', replyCompany);
+   } else if (type === 'check-if-reply-edit-is-over') {
 
-      if (typeof dateReply === 'string' && dateReply.length > 8) {
-         duration = moment.duration(moment(new Date()).diff(dateReply)).asMinutes();
-      } else if (typeof dateReply === 'string' && dateReply.length === 8) {
-         return true;
-      };
-   } else if (type === 'wohhup-check-if-rfa-ready-to-resubmit') {
-      const consultantLead = getInfoValueFromRfaData(rowData, 'submission', 'consultantMustReply')[0];
-      const dateConsultantLeadReply = getInfoValueFromRfaData(rowData, 'reply', 'date', consultantLead);
-      if (typeof dateConsultantLeadReply === 'string' && dateConsultantLeadReply.length > 8) {
-         duration = moment.duration(moment(new Date()).diff(dateConsultantLeadReply)).asMinutes();
+      const dateNoSendEmailReply = getInfoValueFromRfaData(rowData, 'reply', 'dateSendNoEmail', company);
+      const dateReply = getInfoValueFromRfaData(rowData, 'reply', 'date', company);
+      const date = dateNoSendEmailReply || dateReply;
 
-      } else if (typeof dateConsultantLeadReply === 'string' && dateConsultantLeadReply.length === 8) {
-         return true;
+      if (typeof date === 'string' && date.length > 8) {
+         const duration = moment.duration(moment(new Date()).diff(date)).asMinutes();
+         return editTimeAllowed - duration;
+      } else {
+         return -1;
       };
    };
-
-   if (duration && duration > editTimeAllowed) {
-      return true;
-   };
-   return result;
 };
 
 
+const getOffsetRight = (index) => {
+   if (index === 0) return 5;
+   else {
+      return 5 + index * 22;
+   };
+};
 
 
+const FormPickConsultantToReplyForAdmin = ({ applyChooseConsultantToReplyForBothSideUser, onClickCancelModal, oneRowInThisRfaForParentRow }) => {
+
+   const consultantMustReplyArray = getInfoValueFromRfaData(oneRowInThisRfaForParentRow, 'submission', 'consultantMustReply') || [];
+   let arrayConsultantsNotReplyYet = [];
+   consultantMustReplyArray.forEach(cmp => {
+      const replyStatus = getInfoValueFromRfaData(oneRowInThisRfaForParentRow, 'reply', 'status', cmp);
+      const isEditTimeSubmissionIsOver = checkIfEditTimeRfaIsOver(oneRowInThisRfaForParentRow, null, EDIT_DURATION_MIN, 'check-if-submission-edit-is-over');
+
+      if (!replyStatus && isEditTimeSubmissionIsOver <= 0) {
+         arrayConsultantsNotReplyYet = [...arrayConsultantsNotReplyYet, cmp];
+      };
+   });
 
 
-const FormPickConsultantToReplyForAdmin = ({ applyChooseConsultantToReplyForAdminOnly, onClickCancelModal, listConsultants }) => {
-
-
-   const [list, setList] = useState(listConsultants.map(cst => ({
+   const [list, setList] = useState(arrayConsultantsNotReplyYet.map(cst => ({
       id: mongoObjectId(),
       header: cst,
       mode: 'hidden'
@@ -909,7 +795,7 @@ const FormPickConsultantToReplyForAdmin = ({ applyChooseConsultantToReplyForAdmi
       if (!consultantToReply) {
          return message.warn('Please choose consultant to reply!');
       };
-      applyChooseConsultantToReplyForAdminOnly(consultantToReply.header);
+      applyChooseConsultantToReplyForBothSideUser(consultantToReply.header);
    };
 
    const setMode = (item) => {
@@ -923,26 +809,26 @@ const FormPickConsultantToReplyForAdmin = ({ applyChooseConsultantToReplyForAdmi
       setList([...list]);
    };
 
-
-
    return (
       <div style={{ width: '100%', height: '100%' }}>
          <PanelStyled>
-            <div style={{ fontSize: 11, paddingLeft: 20 }}>Click to select consultant to reply.</div>
+            {list.length > 0 && (
+               <div style={{ fontSize: 12, paddingLeft: 20 }}>Click to select consultant to reply.</div>
+            )}
             <div style={{ width: '100%', paddingTop: 20 }}>
-               {list.map((tag, i) => (
+               {list.length > 0 ? list.map((tag, i) => (
                   <ButtonColumnTag
                      key={i}
                      tag={tag}
                      setMode={setMode}
                      actionType='admin-pick-consultant-to-reply'
                   />
-               ))}
+               )) : 'Woh Hup is submitting the form, please wait!'}
 
             </div>
 
          </PanelStyled>
-         <div style={{ marginTop: 20, padding: 10, display: 'flex', flexDirection: 'row-reverse' }}>
+         <div style={{ marginTop: 10, padding: 10, display: 'flex', flexDirection: 'row-reverse' }}>
             <ButtonGroupComp
                onClickCancel={onClickCancelModal}
                onClickApply={onClickApply}
@@ -953,13 +839,59 @@ const FormPickConsultantToReplyForAdmin = ({ applyChooseConsultantToReplyForAdmi
    );
 };
 
+
 const PanelStyled = styled.div`
    max-height: 60vh;
    width: 100%;
-   /* overflow-y: scroll;
-   overflow-x: hidden; */
    border-bottom: 1px solid ${colorType.grey4};
 `;
 
 
+const getTooltipRfaText = (btnName) => {
+   let result = 'No Tooltip';
+   if (btnName === 'btn-reply') {
+      result = 'Reply To This RFA';
+   } else if (btnName === 'btn-resubmit') {
+      result = 'Resubmit This RFA';
+   } else if (btnName === 'btn-drawing') {
+      result = 'Open Drawing File';
+   } else if (btnName === 'btn-comment') {
+      result = 'See Note';
+   } else if (btnName === 'btn-3d-model') {
+      result = 'Open 3D File';
+   } else if (btnName === 'btn-edit') {
+      result = 'Edit';
+   };
+   return result;
+};
 
+
+const getButtonRfaType = (btnName) => {
+   let result = 'xxx';
+   if (btnName === 'btn-reply') {
+      result = 'form';
+   } else if (btnName === 'btn-resubmit') {
+      result = 'plus-square';
+   } else if (btnName === 'btn-drawing') {
+      result = 'file';
+   } else if (btnName === 'btn-comment') {
+      result = 'message';
+   } else if (btnName === 'btn-3d-model') {
+      result = 'shake';
+   } else if (btnName === 'btn-edit') {
+      result = 'edit';
+   };
+   return result;
+};
+
+const getRfaSubject = (rowData, rowsRfaAllInit) => {
+   let output = '';
+   const rowFound = rowsRfaAllInit
+      .sort((b, a) => (a['RFA Ref'] > b['RFA Ref'] ? 1 : -1))
+      .find(r => r['RFA Ref'].includes(rowData.id) && getInfoValueFromRfaData(r, 'submission', 'emailTitle'));
+
+   if (rowFound) {
+      output = getInfoValueFromRfaData(rowFound, 'submission', 'emailTitle');
+   };
+   return output;
+};

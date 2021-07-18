@@ -16,8 +16,6 @@ router.get('/', validateToken, Sheet.findOneWithUserEmail);
 router.get('/get-all-collections', Sheet.getAllCollections);
 
 
-// EMAIL CHECK
-// router.get('/get-rows-email', Sheet.findManyRowsToSendEmail);
 
 router.post('/update-rows/', validateToken, Sheet.updateOrCreateRows);
 

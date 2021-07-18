@@ -4,48 +4,47 @@ import ButtonStyle from './ButtonStyle';
 
 
 
-const ButtonGroupComp = ({ 
-    onClickCancel, 
-    newTextBtnCancel,
+const ButtonGroupComp = ({
+   onClickCancel,
+   newTextBtnCancel,
 
-    onClickApply, 
-    newTextBtnApply, 
+   onClickApply,
+   newTextBtnApply,
 
-    onClickApplyAdditional01,
-    newTextBtnApplyAdditional01
+   onClickApplyAdditional01,
+   newTextBtnApplyAdditional01
 }) => {
 
-    return (
-        <div style={{ display: 'flex' }}>
+   return (
+      <div style={{ display: 'flex' }}>
+         <ButtonStyle
+            colorText='black'
+            marginRight={10}
+            borderColor={colorType.grey1}
+            background={colorType.grey4}
+            onClick={onClickCancel}
+            name={newTextBtnCancel || 'Cancel'}
+         />
+
+         {newTextBtnApplyAdditional01 && (
             <ButtonStyle
-                colorText='black'
-                marginRight={10}
-                borderColor={colorType.grey1}
-                background={colorType.grey4}
-                onClick={onClickCancel}
-                name={newTextBtnCancel || 'Cancel'}
+               colorText='white'
+               marginRight={10}
+               background={colorType.primary}
+               onClick={onClickApplyAdditional01}
+               name={newTextBtnApplyAdditional01}
             />
-
-            {newTextBtnApplyAdditional01 && (
-                <ButtonStyle
-                    colorText='white'
-                    marginRight={10}
-                    background={colorType.primary}
-                    onClick={onClickApplyAdditional01}
-                    name={newTextBtnApplyAdditional01}
-                />
-            )}
-
+         )}
+         {newTextBtnApply !== 'No Submit Button' && (
             <ButtonStyle
-                colorText='white'
-                background={colorType.primary}
-                onClick={onClickApply}
-                name={newTextBtnApply || 'Apply'}
+               colorText='white'
+               background={colorType.primary}
+               onClick={onClickApply}
+               name={newTextBtnApply || 'Apply'}
             />
-
-            
-        </div>
-    );
+         )}
+      </div>
+   );
 };
 
 export default ButtonGroupComp;

@@ -37,14 +37,19 @@ const FormCellColorizedCheck = ({ setCellHistoryArr }) => {
          let createdAt = moment(cell.createdAt).toDate();
          return createdAt >= start && createdAt <= end;
       });
-      const cellArr = filterCells.map(ch => {
+      
+      let cellArr = [];
+      filterCells.forEach(ch => {
          const { row: rowId, headerKey } = ch;
-         let headerText = headersArr.find(hd => hd.key === headerKey).text;
-         return {
-            rowId,
-            header: headerText
-         }
+         let headerFound = headersArr.find(hd => hd.key === headerKey);
+         if (headerFound) {
+            cellArr.push({
+               rowId,
+               header: headerFound.text
+            });
+         };
       });
+
       let unique = cellArr.reduce((res, itm) => {
          let result = res.find(item => JSON.stringify(item) == JSON.stringify(itm));
          if (!result) return res.concat(itm);
