@@ -2,24 +2,18 @@ import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/
 import moment from 'moment';
 import React from 'react';
 import { imgLink } from '../../constants';
+import robotoBold from '../../constants/Roboto-Bold.ttf';
+import robotoRegular from '../../constants/Roboto-Regular.ttf';
 import { getInfoValueFromRfaData } from '../pageSpreadsheet/CellRFA';
 import { getFileNameFromLinkResponse } from '../pageSpreadsheet/PanelSetting';
 
 
+Font.register({ family: 'Roboto-Regular', fonts: [{ src: robotoRegular }] });
+Font.register({ family: 'Roboto-Bold', fonts: [{ src: robotoBold }] });
+
 const fontStyles = StyleSheet.create({
-   bold: {
-     fontWeight: 800,
-   }
-});
-
-
-Font.register({
-   fonts: [
-      {
-         src: `/Roboto-Bold.ttf`,
-         fontWeight: 'bold'
-      },
-   ]
+   fontRegular: { fontFamily: 'Roboto-Regular' },
+   fontBold: { fontFamily: 'Roboto-Bold' },
 });
 
 
@@ -59,13 +53,12 @@ const ExportPdf = ({ pdfContent }) => {
 
 
 
-
    const formTitle = pageSheetTypeName === 'page-rfam' ? 'Request For Approval Of Material'
       : pageSheetTypeName === 'page-rfi' ? 'Request For Information'
          : pageSheetTypeName === 'page-cvi' ? 'Confirmation of Verbal Instruction'
             : pageSheetTypeName === 'page-dt' ? 'Document Transmittal'
                : pageSheetTypeName === 'page-mm' ? 'Meeting Minutes'
-               : null;
+                  : null;
 
 
    const testLorem1 = 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industrys standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.';
@@ -73,27 +66,29 @@ const ExportPdf = ({ pdfContent }) => {
    const testLorem3 = 'There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which dont look even slightly believable.';
 
 
+
    return (
       <Document>
          <Page size='A4' style={{ fontSize: 9, padding: 12 }}>
-            <View style={{
-               border: '1px solid grey', padding: 12, height: '100%', width: '100%', position: 'relative'
-            }}>
-               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
-                  <Image src={imgLink.logoWohhup} style={{ width: 90, height: 25, marginRight: 6 }} />
-                  <Text style={{ fontSize: 13 }}>{formTitle}</Text>
-               </View>
-
+            <View style={{ border: '1px solid black', padding: 0, height: '100%', width: '100%', position: 'relative' }}>
 
                <View style={{
-                  flexDirection: 'row', marginBottom: 15, paddingBottom: 5, borderBottom: '1px solid grey'
+                  flexDirection: 'row', justifyContent: 'space-between',
+                  paddingRight: 10, paddingLeft: 10, paddingTop: 10
+               }}>
+                  <Image src={imgLink.logoWohhup} style={{ width: 90, height: 25, marginRight: 6 }} />
+                  <Text style={{ fontSize: 13, ...fontStyles.fontBold, textDecoration: 'underline' }}>{formTitle}</Text>
+               </View>
+
+               <View style={{
+                  flexDirection: 'row', padding: 10, borderBottom: '1px solid black', ...fontStyles.fontRegular
                }}>
                   <View style={{ width: '9%' }}>
                      <Text style={{ marginBottom: 4 }}>To</Text>
                      <Text>Project</Text>
                   </View>
 
-                  <View style={{ width: '53%' }}>
+                  <View style={{ width: '53%', ...fontStyles.fontBold }}>
                      <Text style={{ marginBottom: 4 }}>{`: ${(listConsultantMustReply || []).join(', ')}`}</Text>
                      <Text style={{
                         marginRight: 20, height: 20,
@@ -108,15 +103,15 @@ const ExportPdf = ({ pdfContent }) => {
                      <Text style={{ marginBottom: 4 }}>Date Submission</Text>
                      <Text>Page</Text>
                   </View>
-                  <View style={{ width: '20%', ...fontStyles.bold }}>
-                     <Text style={{ marginBottom: 4, ...fontStyles.bold }}>{`: ${refNumberText}`}</Text>
+                  <View style={{ width: '20%', ...fontStyles.fontBold }}>
+                     <Text style={{ marginBottom: 4 }}>{`: ${refNumberText}`}</Text>
                      <Text style={{ marginBottom: 4 }}>{`: ${moment(new Date()).format('DD/MM/YY')}`}</Text>
                      <Text>: 01/01</Text>
                   </View>
                </View>
 
 
-               <View style={{ flexDirection: 'row', marginBottom: 15, paddingBottom: 5, borderBottom: '1px solid grey' }}>
+               <View style={{ flexDirection: 'row', padding: 10, paddingTop: 5, borderBottom: '1px solid black', ...fontStyles.fontRegular }}>
                   <Text>Subject: </Text>
                   <Text style={{
                      fontWeight: 'bold',
@@ -125,12 +120,12 @@ const ExportPdf = ({ pdfContent }) => {
                      textOverflow: 'ellipsis',
                      overflow: 'hidden',
                      whiteSpace: 'nowrap',
-
+                     ...fontStyles.fontBold
                   }}>{` ${emailTextTitle}`}</Text>
                </View>
 
                {pageSheetTypeName === 'page-dt' && (
-                  <>
+                  <View style={{ ...fontStyles.fontRegular, padding: 10 }}>
                      <Text>We forward herewith the following :</Text>
                      <View style={{ flexDirection: 'row' }}>
                         <View style={{ width: '34%', padding: 10, marginRight: 10 }}>
@@ -171,10 +166,12 @@ const ExportPdf = ({ pdfContent }) => {
                            ))}
                         </View>
                      </View>
-                  </>
+                  </View>
                )}
+
+
                {pageSheetTypeName === 'page-cvi' && (
-                  <>
+                  <View style={{ ...fontStyles.fontRegular, padding: 10, borderBottom: '1px solid black' }}>
                      <View>
                         <Text>Conversation Among: </Text>
                         <Text style={{
@@ -193,7 +190,7 @@ const ExportPdf = ({ pdfContent }) => {
                         <Text>Time</Text>
                         <Text>{`: ${moment(timeConversation).format('HH: mm')}`}</Text>
                      </View>
-                     <View style={{ flexDirection: 'row', marginBottom: 15, paddingBottom: 5, borderBottom: '1px solid grey' }}>
+                     <View style={{ flexDirection: 'row', marginBottom: 15, paddingBottom: 5 }}>
                         <Text>Details :</Text>
                         <Text style={{
                            marginRight: 10,
@@ -204,16 +201,16 @@ const ExportPdf = ({ pdfContent }) => {
                            whiteSpace: 'nowrap',
                         }}>{` ${description}`}</Text>
                      </View>
-                  </>
+                  </View>
                )}
 
                {pageSheetTypeName === 'page-rfam' && (
                   <View style={{
-                     flexDirection: 'row', marginBottom: 15, paddingBottom: 5, borderBottom: '1px solid grey'
+                     flexDirection: 'row', padding: 10, borderBottom: '1px solid black', ...fontStyles.fontRegular
                   }}>
                      <View style={{ width: '70%' }}>
-                        <Text style={{ marginBottom: 5 }}>Reply Required By:</Text>
-                        <Text>{(listConsultantMustReply || []).join(', ')}</Text>
+                        <Text style={{ marginBottom: 5 }}>Reply Required By : </Text>
+                        <Text style={{ ...fontStyles.fontBold }}>{` ${(listConsultantMustReply || []).join(', ')}`}</Text>
                      </View>
 
 
@@ -234,20 +231,25 @@ const ExportPdf = ({ pdfContent }) => {
                )}
 
                {pageSheetTypeName === 'page-rfam' && (
-                  <TableDrawings
-                     th
-                     col={['34%', '33%', '33%']}
-                     children={[
-                        ['DESCRIPTION OF ITEM SUBMITTED', 'CONTRACT SPECIFICATION / SUPPLIER', 'PROPOSED SPECIFICATION / SUPPLIER'],
-                        [description, contractSpecification, proposedSpecification]
-                     ]}
-                     isRfamDescriptionTable={true}
-                  />
+                  <View style={{ paddingLeft: 10, paddingRight: 10, marginTop: 5 }}>
+                     <TableDrawings
+                        th
+                        col={['34%', '33%', '33%']}
+                        children={[
+                           ['DESCRIPTION OF ITEM SUBMITTED', 'CONTRACT SPECIFICATION / SUPPLIER', 'PROPOSED SPECIFICATION / SUPPLIER'],
+                           [description, contractSpecification, proposedSpecification]
+                        ]}
+                        isRfamDescriptionTable={true}
+                     />
+                  </View>
                )}
 
 
-               {(pageSheetTypeName === 'page-rfi' || pageSheetTypeName === 'page-dt') && (
-                  <View style={{ marginBottom: pageSheetTypeName === 'page-rfi' ? 10 : 5, paddingBottom: 10, borderBottom: '1px solid black' }}>
+               {(pageSheetTypeName === 'page-rfi' || pageSheetTypeName === 'page-dt' || pageSheetTypeName === 'page-mm') && (
+                  <View style={{
+                     marginBottom: pageSheetTypeName === 'page-rfi' ? 10 : 5,
+                     padding: 10, ...fontStyles.fontRegular
+                  }}>
                      <Text>Description:</Text>
                      <Text style={{
                         marginRight: 20, height: pageSheetTypeName === 'page-rfi' ? 150 : 70,
@@ -261,7 +263,7 @@ const ExportPdf = ({ pdfContent }) => {
 
 
                {dataTableInput.length > 0 && (
-                  <>
+                  <View style={{ paddingLeft: 10, paddingRight: 10 }}>
                      <View style={{ marginTop: 10 }}>
                         <Text>Document / Drawing Reference</Text>
                      </View>
@@ -273,12 +275,12 @@ const ExportPdf = ({ pdfContent }) => {
                            ...dataTableInput
                         ]}
                      />
-                  </>
+                  </View>
                )}
 
 
                {pageSheetTypeName === 'page-cvi' && (
-                  <>
+                  <View style={{ ...fontStyles.fontRegular, padding: 10 }}>
                      <View style={{ flexDirection: 'row' }}>
                         <View style={{ width: '50%', padding: 10, marginRight: 10 }}>
                            <View style={{ flexDirection: 'row', marginBottom: 10 }}>
@@ -302,12 +304,12 @@ const ExportPdf = ({ pdfContent }) => {
                         </View>
                      </View>
                      <Text>This form is issued pursuant to the Conditions of Contract and also constitutes our notification of an event which may form the basis of a possible claim for additional costs or an extension of time or both.</Text>
-                  </>
+                  </View>
                )}
 
 
                {pageSheetTypeName === 'page-rfi' && (
-                  <>
+                  <View style={{ padding: 10, ...fontStyles.fontRegular }}>
                      <View style={{ flexDirection: 'row', marginBottom: 5, marginTop: 10 }}>
                         <Text>Date Required: </Text>
                         <Text>{moment(dateReplyForSubmitForm).format('DD/MM/YY')}</Text>
@@ -316,33 +318,35 @@ const ExportPdf = ({ pdfContent }) => {
                         <Text>Requested By: </Text>
                         <Text>{requestedBy}</Text>
                      </View>
-                  </>
+                  </View>
                )}
 
 
 
 
-               <View style={{ position: 'absolute', bottom: 0, left: 8 }}>
-
-                  <View style={{ marginBottom: 2, marginTop: 35, paddingTop: 3, borderTop: '1px solid black', width: 100 }}>
+               <View style={{ position: 'absolute', bottom: 0, ...fontStyles.fontRegular, width: '100%' }}>
+                  <View style={{ marginLeft: 10, marginTop: 35, padding: 10, paddingTop: 5, borderTop: '1px solid black', width: 100 }}>
                      <Text>Site Manager</Text>
                   </View>
                   {pageSheetTypeName === 'page-dt' && (
-                     <Text>Please Sign and Return the Duplicate copy of this transmittal to Woh Hup (Private) Limited at Technical Department</Text>
+                     <Text style={{ paddingRight: 10, paddingLeft: 10, paddingBottom: 5 }}>Please Sign and Return the Duplicate copy of this transmittal to Woh Hup (Private) Limited at Technical Department</Text>
                   )}
 
-                  <View style={{ marginBottom: 15, marginTop: 15, borderTop: '1px solid grey', paddingTop: 10 }}>
+                  <View style={{ borderTop: '1px solid black', padding: 10 }}>
                      <Text style={{ fontSize: 10, marginBottom: 5, textDecoration: 'underline' }}>REPLY</Text>
-                     <Text style={{ marginBottom: 5 }}>To: Woh Hup (Private) Limited</Text>
+                     <Text style={{ marginBottom: 5 }}>To: <Text style={{ ...fontStyles.fontBold }}>Woh Hup (Private) Limited</Text></Text>
                      {pageSheetTypeName === 'page-rfi' ? (
                         <Text>Ref to the above query, we advise as follows: </Text>
                      ) : (
-                        <Text>Attention: </Text>
+                        <Text>Attention: <Text style={{ ...fontStyles.fontBold }}>{recipientName}</Text></Text>
                      )}
                   </View>
 
                   {pageSheetTypeName === 'page-rfam' ? (
-                     <View style={{ border: '1px solid black', width: '100%', flexDirection: 'row' }}>
+                     <View style={{
+                        borderTop: '1px solid black', borderBottom: '1px solid black',
+                        width: '100%', flexDirection: 'row'
+                     }}>
                         <View style={{ width: '67%', borderRight: '1px solid black', padding: 10 }}>
                            <Text>The material / equipment submitted is hereby transmitted with actions as indicated.</Text>
                            <View style={{ flexDirection: 'row' }}>
@@ -380,27 +384,24 @@ const ExportPdf = ({ pdfContent }) => {
                         </View>
                      </View>
                   ) : (
-                     <>
+                     <View style={{ paddingLeft: 10, paddingRight: 10, paddingBottom: 10, borderBottom: '1px solid black' }}>
                         <Text style={{ marginBottom: 10 }}>Company Stamp & Signature : _________________</Text>
                         <View style={{ flexDirection: 'row' }}>
                            <Text style={{ marginRight: 20 }}>Name :_________________________</Text>
                            <Text>Date :_____________</Text>
                         </View>
-                     </>
+                     </View>
                   )}
 
 
                   <View style={{
                      flexDirection: 'row',
-                     marginBottom: 15,
-                     marginTop: 7,
-                     borderTop: '1px solid grey',
-                     paddingTop: 12,
+                     padding: 10,
+                     ...fontStyles.fontRegular
                   }}>
                      <Text>CC</Text>
                      <Text style={{
                         fontWeight: 'bold',
-                        marginRight: 5,
                         height: 30,
                         textOverflow: 'ellipsis',
                         overflow: 'hidden',
@@ -473,7 +474,6 @@ const TableDrawings = ({ children, col, th, isRfamDescriptionTable }) => {
                         }]}>
                            {(typeof (cell) === 'string' || typeof (cell) === 'number')
                               ? <Text>{cell}</Text>
-                              // ? cell
                               : cell
                            }
                         </View>

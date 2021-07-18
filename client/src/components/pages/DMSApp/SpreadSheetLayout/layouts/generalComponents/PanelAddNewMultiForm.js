@@ -824,7 +824,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                   filesPdfDrawing: Object.values(filesPdfDrawing),
                   dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
                   projectName, listConsultantMustReply,
-                  contractSpecification,
+                  contractSpecification, recipientName,
                   proposedSpecification,
                   submissionType,
                   herewithForDt,
