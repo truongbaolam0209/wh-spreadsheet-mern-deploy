@@ -375,8 +375,11 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
       } else if (formRefType === 'form-reply-multi-type') {
          if (!isFormEditting) {
 
+            const signaturedByData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'signaturedBy');
+
             setListRecipientTo([getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'user')]);
             setListRecipientCc([...new Set([
+               signaturedByData,
                ...(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTo') || []),
                ...(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailCc') || []),
             ])]);

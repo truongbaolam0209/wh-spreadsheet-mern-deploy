@@ -256,7 +256,7 @@ const propsSheet = {
    projectName: 'The Reef',
    projectNameShort: 'RKD',
    token: 'xxx-xxxxx-xxx-x-xxxxx',
-   // isAdmin: true,
+   isAdmin: true,
    companies: [
       { company: 'Woh Hup Private Ltd', companyType: 'Main con' },
       { company: 'DCA', companyType: 'Consultant', fullName: 'DCA Architects' },

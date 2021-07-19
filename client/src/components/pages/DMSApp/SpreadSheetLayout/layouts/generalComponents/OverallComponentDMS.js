@@ -89,7 +89,7 @@ const OverallComponentDMS = (props) => {
 
 
    const roleTradeCompany = getUserRoleTradeCompany(role, company, pageSheetTypeName);
-   const listUser = [...listUserInput || [], 'truongbaolam0209@gmail.com'];
+   const listUser = [...new Set(listUserInput)];
    const listGroup = [...new Set(listGroupInput)];
    const isBothSideActionUser = isAdmin && company === 'Woh Hup Private Ltd' && roleInit === 'Document Controller';
 
