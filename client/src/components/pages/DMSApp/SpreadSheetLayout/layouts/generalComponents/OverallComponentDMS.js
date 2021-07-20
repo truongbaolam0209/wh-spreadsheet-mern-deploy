@@ -1,8 +1,5 @@
 import { Divider, Icon, message, Modal } from 'antd';
 import Axios from 'axios';
-import { saveAs } from 'file-saver';
-import zip from 'jszip';
-import JSZipUtils from 'jszip-utils';
 import moment from 'moment';
 import React, { forwardRef, useContext, useEffect, useRef, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
@@ -729,7 +726,7 @@ const OverallComponentDMS = (props) => {
       if (expanded) {
          arr.push(rowKey);
       } else {
-         arr.splice(arr.indexOf(rowKey), 1);
+         arr = arr.filter(id => id !== rowKey);
       };
       setExpandedRows(arr);
    };
