@@ -2382,7 +2382,7 @@ const DrawingStatusStatisticRight = ({ onClickquickFilterStatus, stateRow, pageS
 
    return (
       <div style={{ display: 'flex', marginRight: 25, transform: 'translate(0, 5px)' }}>
-         {[
+         {rowsToFilter && [
             'Approved with Comment, no submission Required',
             'Approved with comments, to Resubmit',
             'Approved for Construction',
