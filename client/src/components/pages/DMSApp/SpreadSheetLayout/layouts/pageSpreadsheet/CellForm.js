@@ -569,7 +569,8 @@ const CellForm = (props) => {
 
             await Axios.post('/api/rfa/mail', {
                token, data,
-               momentToTriggerEmail: moment().add(moment.duration(0.01, 'minutes'))
+               momentToTriggerEmail: moment().add(moment.duration(EDIT_DURATION_MIN, 'minutes')),
+               isInstant: true
             });
          };
 
