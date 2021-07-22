@@ -1046,25 +1046,22 @@ const OverallComponentDMS = (props) => {
             commandAction({ type: '' });
 
             await saveDataToServer(stateCell, stateRow, stateProject, commandAction, setLoading);
-            history1.push(`/${'dms-' + routeSuffix}`);
-            // history.push({
-            //    pathname: `/${'dms-' + routeSuffix}`,
-            //    state: localState
-            // });
+            history.push({
+               pathname: `/${'dms-' + routeSuffix}`,
+               state: localState
+            });
 
          } else {
             if (routeSuffix === 'dms') {
-               history1.push('/dms-spreadsheet');
-               // history.push({
-               //    pathname: '/dms-spreadsheet',
-               //    state: localState
-               // });
+               history.push({
+                  pathname: '/dms-spreadsheet',
+                  state: localState
+               });
             } else {
-               history1.push(`/${'dms-' + routeSuffix}`);
-               // history.push({
-               //    pathname: `/${'dms-' + routeSuffix}`,
-               //    state: localState
-               // });
+               history.push({
+                  pathname: `/${'dms-' + routeSuffix}`,
+                  state: localState
+               });
             };
          };
       } catch (err) {
