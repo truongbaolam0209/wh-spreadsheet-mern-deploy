@@ -101,7 +101,7 @@ export const tradeArrayForm = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
 export const tradeArrayMeetingMinutesForm = ['PROJECT PROGRESS MEETING', 'TECHNICAL MEETING', 'ICE MEETING'];
 
 
-export const EDIT_DURATION_MIN = 15;
+export const EDIT_DURATION_MIN = window.location.origin.includes('https://idd.wohhup.com') ? 15 : 3;
 
 export const versionTextArray = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
 

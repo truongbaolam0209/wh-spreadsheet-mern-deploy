@@ -4,6 +4,7 @@ import moment from 'moment';
 import React, { forwardRef, useContext, useEffect, useRef, useState } from 'react';
 import BaseTable, { AutoResizer, Column } from 'react-base-table';
 import 'react-base-table/styles.css';
+import { useHistory } from 'react-router-dom';
 import styled from 'styled-components';
 import { colorTextRow, colorType, SERVER_URL, tradeArrayForm, tradeArrayMeetingMinutesForm } from '../../constants';
 import { Context as CellContext } from '../../contexts/cellContext';
@@ -19,7 +20,7 @@ import CellRFA, { getConsultantReplyData, getInfoValueFromRfaData, isColumnConsu
 import ExcelExport from '../pageSpreadsheet/ExcelExport';
 import { convertFlattenArraytoTree1, getTreeFlattenOfNodeInArray } from '../pageSpreadsheet/FormDrawingTypeOrder';
 import PanelFunction, { getPanelPosition } from '../pageSpreadsheet/PanelFunction';
-import PanelSetting, { convertRowHistoryData, getDataForMultiFormSheet, getDataForRFASheet, getKeyTextForSheet, updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from '../pageSpreadsheet/PanelSetting';
+import PanelSetting, { convertRowHistoryData, getDataForMultiFormSheet, getDataForRFASheet, getKeyTextForSheet, saveDataToServer, updatePreRowParentRowToState, _processRowsChainNoGroupFnc1 } from '../pageSpreadsheet/PanelSetting';
 import CellHeader from './CellHeader';
 import { sortFnc } from './FormSort';
 import IconSidePanel from './IconSidePanel';
@@ -27,7 +28,6 @@ import IconTable from './IconTable';
 import InputSearch from './InputSearch';
 import LoadingIcon from './LoadingIcon';
 import ViewTemplateSelect from './ViewTemplateSelect';
-
 
 
 
@@ -90,7 +90,7 @@ const OverallComponentDMS = (props) => {
    const listGroup = [...new Set(listGroupInput)];
    const isBothSideActionUser = isAdmin && company === 'Woh Hup Private Ltd' && roleInit === 'Document Controller';
 
-
+   let history1 = useHistory();
 
 
 
@@ -903,7 +903,7 @@ const OverallComponentDMS = (props) => {
 
       let headersObj = [{
          key: 'Index', dataKey: 'Index', title: '', width: 50,
-         frozen: Column.FrozenDirection.LEFT,
+         frozen: (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') ? Column.FrozenDirection.LEFT : undefined,
          cellRenderer: (
             <CellIndex
                contextInput={{
@@ -1034,6 +1034,43 @@ const OverallComponentDMS = (props) => {
             { isIncludedParent: 'included' }
          ]
       });
+   };
+
+   
+   const switchToOtherPage = async (buttonPanelName) => {
+      
+      const routeSuffix = buttonPanelName.slice(5,buttonPanelName.length);
+      try {
+         if (pageSheetTypeName === 'page-spreadsheet') {
+            setLoading(true);
+            commandAction({ type: '' });
+
+            await saveDataToServer(stateCell, stateRow, stateProject, commandAction, setLoading);
+            history1.push(`/${'dms-' + routeSuffix}`);
+            // history.push({
+            //    pathname: `/${'dms-' + routeSuffix}`,
+            //    state: localState
+            // });
+
+         } else {
+            if (routeSuffix === 'dms') {
+               history1.push('/dms-spreadsheet');
+               // history.push({
+               //    pathname: '/dms-spreadsheet',
+               //    state: localState
+               // });
+            } else {
+               history1.push(`/${'dms-' + routeSuffix}`);
+               // history.push({
+               //    pathname: `/${'dms-' + routeSuffix}`,
+               //    state: localState
+               // });
+            };
+         };
+      } catch (err) {
+         commandAction({ type: 'save-data-failure' });
+         console.log(err);
+      };
    };
 
 
@@ -1189,7 +1226,6 @@ const OverallComponentDMS = (props) => {
       });
 
    }, [rowsImportedFromModel]);
-
 
    const getCurrentDataTable = () => {
       const { rowsAll } = stateRow;
@@ -1416,7 +1452,7 @@ const OverallComponentDMS = (props) => {
                         <IconSidePanel
                            key={i}
                            type={btnType}
-                           onClick={() => buttonPanelFunction(btnType)}
+                           onClick={() => switchToOtherPage(btnType)}
                            isLocked={
                               pageSheetTypeName.slice(5, pageSheetTypeName.length) === btnType.slice(5, btnType.length) ||
                               (pageSheetTypeName.slice(5, pageSheetTypeName.length) === 'spreadsheet' && btnType.slice(5, btnType.length) === 'dms')
@@ -1536,9 +1572,6 @@ const OverallComponentDMS = (props) => {
                }}
                setLoading={setLoading}
                buttonPanelFunction={buttonPanelFunction}
-               history={history}
-               localState={localState}
-               resetAllPanelInitMode={resetAllPanelInitMode}
             />
          </ModalStyledSetting>
 
@@ -2380,9 +2413,9 @@ const DrawingStatusStatisticRight = ({ onClickquickFilterStatus, stateRow, pageS
    return (
       <div style={{ display: 'flex', marginRight: 25, transform: 'translate(0, 5px)' }}>
          {rowsToFilter && [
+            'Approved for Construction',
             'Approved with Comment, no submission Required',
             'Approved with comments, to Resubmit',
-            'Approved for Construction',
             'Reject and resubmit',
             'Consultant reviewing'
          ].map(btn => (

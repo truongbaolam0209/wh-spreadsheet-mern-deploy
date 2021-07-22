@@ -52,7 +52,6 @@ const PanelSetting = (props) => {
    const { isShowAllConsultant, rowsSelected } = stateRow;
    const {
       panelType, panelSettingType, commandAction, onClickCancelModal, setLoading, buttonPanelFunction,
-      history, localState, resetAllPanelInitMode
    } = props;
 
 
@@ -640,354 +639,7 @@ const PanelSetting = (props) => {
          }
       });
    };
-   const saveDataToServer = async () => {
-      const { email, projectId, token, role, projectName, projectIsAppliedRfaView, publicSettings, company } = stateProject.allDataOneSheet;
-      const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
-      const { headers } = publicSettings;
-
-      let { cellsModifiedTemp } = stateCell;
-      let {
-         rowsVersionsToSave,
-         rowsUpdatePreRowOrParentRow,
-         drawingTypeTreeInit,
-         drawingTypeTree,
-         drawingsTypeDeleted,
-         rowsDeleted,
-
-         rowsAll,
-         rowsUpdateSubmissionOrReplyForNewDrawingRev,
-
-         viewTemplateNodeId,
-         viewTemplates,
-         modeFilter,
-         modeSort,
-      } = stateRow;
-
-
-      // check new version reply go blank
-      const rowsGetNewRev = rowsAll.filter(r => rowsUpdateSubmissionOrReplyForNewDrawingRev.indexOf(r.id) !== -1);
-
-
-      try {
-         setLoading(true);
-         commandAction({ type: '' });
-
-         const resDB = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
-         const resCellsHistory = await Axios.get(`${SERVER_URL}/cell/history/`, { params: { token, projectId } });
-
-         let { publicSettings: publicSettingsFromDB, rows: rowsFromDBInit } = resDB.data;
-         let { drawingTypeTree: drawingTypeTreeFromDB, activityRecorded: activityRecordedFromDB } = publicSettingsFromDB;
-
-         const headerKeyDrawingNumber = headers.find(hd => hd.text === 'Drawing Number').key;
-         const headerKeyDrawingName = headers.find(hd => hd.text === 'Drawing Name').key;
-
-         let rowsFromDB = rowsFromDBInit.map(row => ({ ...row }));
-
-         let {
-            needToSaveTree,
-            treeDBModifiedToSave,
-            nodesToAddToDB,
-            nodesToRemoveFromDB
-         } = compareCurrentTreeAndTreeFromDB(
-            drawingTypeTreeInit,
-            drawingTypeTree,
-            drawingsTypeDeleted,
-            drawingTypeTreeFromDB,
-            activityRecordedFromDB.filter(x => x.action === 'Delete Drawing Type'),
-         );
-         let activityRecordedArr = [];
-
-
-         // check if row or its parents deleted by other users
-         const rowsUpdatePreRowOrParentRowArray = Object.values(rowsUpdatePreRowOrParentRow)
-            .filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing') &&
-               !activityRecordedFromDB.find(r => r.id === row._parentRow && r.action === 'Delete Drawing Type'));
-
-
-         if (rowsUpdatePreRowOrParentRowArray.length > 0) {
-
-            let arrID = [];
-            rowsFromDB.forEach(r => { // take out temporarily all rowsUpdatePreRowOrParentRowArray from DB
-               if (rowsUpdatePreRowOrParentRowArray.find(row => row.id === r.id)) {
-                  arrID.push(r.id);
-                  const rowBelow = rowsFromDB.find(rrr => rrr._preRow === r.id);
-                  if (rowBelow) rowBelow._preRow = r._preRow;
-               };
-            });
-            rowsFromDB = rowsFromDB.filter(r => arrID.indexOf(r.id) === -1);
-
-
-
-            const rowsInOldParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
-               return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && !treeDBModifiedToSave.find(x => x.parentId === tr.id));
-            });
-            const rowsInOldParentDivertBranches = rowsUpdatePreRowOrParentRowArray.filter(r => {
-               return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && treeDBModifiedToSave.find(x => x.parentId === tr.id));
-            });
-            const rowsInNewParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
-               return !treeDBModifiedToSave.find(tr => tr.id === r._parentRow);
-            });
-
-
-
-            const rowsInOldParentOutput = _processChainRowsSplitGroupFnc2([...rowsInOldParent]);
-            rowsInOldParentOutput.forEach(arrChain => {
-               const rowFirst = arrChain[0];
-               const parentRowInDB = treeDBModifiedToSave.find(tr => tr.id === rowFirst._parentRow);
-               const rowAbove = rowsFromDB.find(r => r.id === rowFirst._preRow);
-               if (rowAbove) {
-                  if (rowAbove._parentRow !== rowFirst._parentRow) { // rowAbove move to other parent by other user
-                     const lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
-                     rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
-                  } else { // rowAbove is still in the same parent
-                     const rowBelowRowAbove = rowsFromDB.find(r => r._preRow === rowAbove.id);
-                     if (rowBelowRowAbove) rowBelowRowAbove._preRow = arrChain[arrChain.length - 1].id;
-                     rowFirst._preRow = rowAbove.id;
-                  };
-               } else {
-                  if (rowFirst._preRow === null) {
-                     const firstRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && r._preRow === null);
-                     if (firstRowInParent) { // if firstRowInParent undefined means Drawing type has 0 drawing currently...
-                        firstRowInParent._preRow = arrChain[arrChain.length - 1].id;
-                     };
-                  } else {
-                     const lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
-                     rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
-                  };
-               };
-               rowsFromDB = [...rowsFromDB, ...arrChain];
-            });
-
-
-
-            let idsOldParentDivertBranches = [...new Set(rowsInOldParentDivertBranches.map(r => r._parentRow))];
-            idsOldParentDivertBranches.forEach(idP => {
-               let arrInput = rowsInOldParentDivertBranches.filter(r => r._parentRow === idP);
-               let rowsChildren = _processRowsChainNoGroupFnc1([...arrInput]);
-
-               const treeNode = treeDBModifiedToSave.find(x => x.id === idP);
-               const newIdParent = mongoObjectId();
-               treeDBModifiedToSave.push({
-                  title: 'New Drawing Type',
-                  id: newIdParent,
-                  parentId: treeNode.id,
-                  treeLevel: treeNode.treeLevel + 1,
-                  expanded: true,
-               });
-               needToSaveTree = true;
-
-               activityRecordedArr.push({
-                  id: newIdParent,
-                  email,
-                  createdAt: new Date(),
-                  action: 'Create Drawing Type',
-                  [headerKeyDrawingNumber]: 'New Drawing Type',
-               });
-
-               rowsChildren.forEach((r, i) => {
-                  r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
-                  r._parentRow = newIdParent;
-               });
-               rowsFromDB = [...rowsFromDB, ...rowsChildren];
-            });
-
-
-
-            let idsNewParentArray = [...new Set(rowsInNewParent.map(r => r._parentRow))];
-            idsNewParentArray.forEach(idP => {
-               let arrInput = rowsInNewParent.filter(r => r._parentRow === idP);
-               let rowsChildren = _processRowsChainNoGroupFnc1([...arrInput]);
-               rowsChildren.forEach((r, i) => {
-                  r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
-               });
-               rowsFromDB = [...rowsFromDB, ...rowsChildren];
-            });
-         };
-
-
-         // SAVE CELL HISTORY
-         let objCellHistory = {};
-         resCellsHistory.data.map(cell => {
-            const headerFound = headers.find(hd => hd.key === cell.headerKey);
-            if (headerFound) {
-               const headerText = headerFound.text;
-               if (cell.histories.length > 0) {
-                  const latestHistoryText = cell.histories[cell.histories.length - 1].text;
-                  objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
-               };
-            };
-         });
-         Object.keys(cellsModifiedTemp).forEach(key => {
-            if (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) {
-               delete cellsModifiedTemp[key];
-            } else {
-               let rowId = extractCellInfo(key).rowId;
-               if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
-                  delete cellsModifiedTemp[key];
-               };
-            };
-         });
-
-         if (Object.keys(cellsModifiedTemp).length > 0) {
-            await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject) });
-         };
-
-         // SAVE DRAWINGS NEW VERSION
-         rowsVersionsToSave = rowsVersionsToSave.filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing'));
-         if (rowsVersionsToSave.length > 0) {
-            await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: convertDrawingVersionToHistory(rowsVersionsToSave, stateProject) });
-         };
-
-
-
-
-         // DELETE ROWS
-         let rowDeletedFinal = [];
-         rowsDeleted.forEach(row => { // some rows already deleted by previous user => no need to delete anymore
-            const rowInDB = rowsFromDB.find(r => r.id === row.id);
-            if (rowInDB) {
-               const rowBelow = rowsFromDB.find(r => r._preRow === rowInDB.id);
-               if (rowBelow) {
-                  rowBelow._preRow = rowInDB._preRow;
-               };
-               rowsFromDB = rowsFromDB.filter(r => r.id !== rowInDB.id); // FIXEDDDDDDDDDDDDDDDDDDD
-               rowDeletedFinal.push(row);
-            };
-         });
-
-
-
-
-         if (nodesToRemoveFromDB.length > 0) {
-            nodesToRemoveFromDB.forEach(fd => {
-               activityRecordedArr.push({
-                  id: fd.id, email, createdAt: new Date(), action: 'Delete Drawing Type',
-                  [headerKeyDrawingNumber]: fd.title,
-               });
-            });
-         };
-         if (nodesToAddToDB.length > 0) {
-            nodesToAddToDB.forEach(fd => {
-               activityRecordedArr.push({
-                  id: fd.id, email, createdAt: new Date(), action: 'Create Drawing Type',
-                  [headerKeyDrawingNumber]: fd.title,
-               });
-            });
-         };
-
-         // SAVE PUBLIC SETTINGS RECORDED
-         activityRecordedArr.forEach(rc => {
-            const newRowsAddedByPreviousUserButParentDeletedByCurrentUser = rowsFromDB.filter(e => {
-               return e._parentRow === rc.id &&
-                  rc.action === 'Delete Drawing Type' &&
-                  !rowDeletedFinal.find(x => x.id === e.id);
-            });
-            rowDeletedFinal = [...rowDeletedFinal, ...newRowsAddedByPreviousUserButParentDeletedByCurrentUser];
-         });
-
-         rowDeletedFinal.forEach(r => {
-            activityRecordedArr.push({
-               id: r.id, email, createdAt: new Date(), action: 'Delete Drawing',
-               [headerKeyDrawingNumber]: r['Drawing Number'],
-               [headerKeyDrawingName]: r['Drawing Name'],
-            });
-         });
-
-
-         rowsFromDB = rowsFromDB.filter(r => !rowDeletedFinal.find(x => x.id === r.id));
-         // DELETE ...
-         if (rowDeletedFinal.length > 0) {
-            await Axios.post(`${SERVER_URL}/sheet/delete-rows/`, { token, projectId, email, rowIdsArray: rowDeletedFinal.map(r => r.id) });
-         };
-
-
-         treeDBModifiedToSave.forEach(tr => {
-            headers.forEach(hd => {
-               if (hd.text in tr) {
-                  tr[hd.key] = tr[hd.text];
-                  delete tr[hd.text];
-               };
-            });
-         });
-
-         let publicSettingsUpdated = { projectName };
-         if (needToSaveTree) {
-            publicSettingsUpdated = { ...publicSettingsUpdated, drawingTypeTree: treeDBModifiedToSave };
-         };
-         if (activityRecordedArr.length > 0) {
-            publicSettingsUpdated = { ...publicSettingsUpdated, activityRecorded: [...activityRecordedFromDB, ...activityRecordedArr] };
-         };
-         await Axios.post(`${SERVER_URL}/sheet/update-setting-public/`, { token, projectId, email, publicSettings: publicSettingsUpdated });
-
-         const userSettingsUpdated = {
-            headersShown: headersShown.map(hd => headers.find(h => h.text === hd).key),
-            headersHidden: headersHidden.map(hd => headers.find(h => h.text === hd).key),
-            nosColumnFixed, colorization, role, viewTemplateNodeId, viewTemplates, modeFilter, modeSort
-         };
-         await Axios.post(`${SERVER_URL}/sheet/update-setting-user/`, { token, projectId, email, userSettings: userSettingsUpdated });
-
-
-
-         // FILTER FINAL ROW TO UPDATE......
-         let rowsToUpdateFinal = [];
-         rowsFromDB.map(row => {
-
-            Object.keys(cellsModifiedTemp).forEach(key => {
-               const { rowId, headerName } = extractCellInfo(key);
-               if (rowId === row.id) row[headerName] = cellsModifiedTemp[key];
-            });
-
-            let rowOutput;
-            const found = rowsFromDBInit.find(r => r.id === row.id);
-            if (found) {
-               let toUpdate = false;
-               Object.keys(row).forEach(key => {
-                  if (found[key] !== row[key]) toUpdate = true;
-               });
-               if (toUpdate) rowOutput = { ...row };
-            } else {
-               rowOutput = { ...row };
-            };
-
-            if (rowOutput) {
-               let rowToSave = { _id: rowOutput.id, parentRow: rowOutput._parentRow, preRow: rowOutput._preRow };
-               headers.forEach(hd => {
-                  if (rowOutput[hd.text] || rowOutput[hd.text] === '') {
-                     rowToSave.data = { ...rowToSave.data || {}, [hd.key]: rowOutput[hd.text] };
-                  };
-               });
-
-               const rowFoundInRowsGetNewRev = rowsGetNewRev.find(x => x.id === rowToSave._id);
-               if (rowFoundInRowsGetNewRev) {
-                  Object.keys(rowFoundInRowsGetNewRev).forEach(key => {
-                     if (
-                        key.includes('reply-$$$-') ||
-                        key === `submission-$$$-drawing-${company}` ||
-                        key === `submission-$$$-dwfxLink-${company}` ||
-                        key === `submission-$$$-dwfxName-${company}` ||
-                        key === `submission-$$$-trade-${company}` ||
-                        key === `submission-$$$-user-${company}` ||
-                        key === `submission-$$$-emailAdditionalNotes-${company}`
-                     ) {
-                        rowToSave.data = { ...rowToSave.data || {}, [key]: '' };
-                     };
-                  });
-               };
-
-               rowsToUpdateFinal.push(rowToSave);
-            };
-         });
-
-         if (rowsToUpdateFinal.length > 0) {
-            await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdateFinal });
-         };
-         commandAction({ type: 'save-data-successfully' });
-
-      } catch (err) {
-         commandAction({ type: 'save-data-failure' });
-         console.log(err);
-      };
-   };
+   
    const saveDataToServerDataEntry = async () => {
       const { email, token, role, projectName, projectIsAppliedRfaView, publicSettings, company } = stateProject.allDataOneSheet;
       const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
@@ -1372,7 +1024,8 @@ const PanelSetting = (props) => {
       try {
          if (pageSheetTypeName === 'page-spreadsheet') {
 
-            await saveDataToServer();
+            await saveDataToServer(stateCell, stateRow, stateProject, commandAction, setLoading);
+
             const res = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
             commandAction({ type: 'reload-data-from-server', data: res.data });
 
@@ -1390,22 +1043,7 @@ const PanelSetting = (props) => {
          console.log(err);
       };
    };
-   const switchFromDmsToOtherSheet = async (route) => {
-      try {
-         setLoading(true);
-         commandAction({ type: '' });
 
-         await saveDataToServer();
-         history.push({
-            pathname: route,
-            state: localState
-         });
-
-      } catch (err) {
-         commandAction({ type: 'save-data-failure' });
-         console.log(err);
-      };
-   };
 
    const onClickApplyAddNewRFA = async (dataRfaForm) => {
 
@@ -1780,7 +1418,7 @@ const PanelSetting = (props) => {
          submissionType,
          herewithForDt,
          transmittedForDt,
-
+         contractDrawingNo
       } = dataForm;
 
 
@@ -1796,7 +1434,7 @@ const PanelSetting = (props) => {
                   : pageSheetTypeName === 'page-mm' ? rowsMmAllInit
                      : [];
 
-      const { email, projectId, projectName, projectNameShort, token, roleTradeCompany: { role, company: companyUser } } = stateProject.allDataOneSheet;
+      const { email, projectId, projectName, companies, token, roleTradeCompany: { role, company: companyUser } } = stateProject.allDataOneSheet;
 
 
       const company = (type === 'form-reply-multi-type' && isBothSideActionUser && consultantNameToReplyByBothSideActionUser)
@@ -1807,6 +1445,11 @@ const PanelSetting = (props) => {
       const refKey = refType + 'Ref';
 
       const refNumberTextInfo = refToSaveVersionOrToReply === '0' ? refToSave : refToSave + refToSaveVersionOrToReply;
+
+      let formReplyFileName;
+      if (formReplyUpload[0]) {
+         formReplyFileName = formReplyUpload[0].name;
+      };
 
       try {
 
@@ -1853,7 +1496,8 @@ const PanelSetting = (props) => {
                      dateConversation, timeConversation, description, dateReplyForSubmitForm,
                      filesPdfDrawing: Object.values(filesPdfDrawing),
                      dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
-                     contractSpecification, proposedSpecification, submissionType, herewithForDt, transmittedForDt, pageSheetTypeName
+                     contractSpecification, proposedSpecification, submissionType, herewithForDt, transmittedForDt, pageSheetTypeName,
+                     companies, contractDrawingNo
                   }}
                />
             );
@@ -1927,10 +1571,21 @@ const PanelSetting = (props) => {
             rowOutput[refKey] = refToSave;
             rowOutput.revision = refToSaveVersionOrToReply;
 
+            
             rowOutput.data[`submission-${refType}-emailTo-${company}`] = recipient.to;
             rowOutput.data[`submission-${refType}-emailCc-${company}`] = recipient.cc;
             rowOutput.data[`submission-${refType}-emailTitle-${company}`] = emailTextTitle;
             rowOutput.data[`submission-${refType}-description-${company}`] = description;
+            // MM also needs consultantMustReply = [];
+            rowOutput.data[`submission-${refType}-consultantMustReply-${company}`] = pageSheetTypeName === 'page-mm' ? [] : listConsultantMustReply;
+            rowOutput.data[`submission-${refType}-user-${company}`] = email;
+            if (!(isFormEditting && arrayFilesPdfUploadLink.length === 0 && linkRfaDrawingsUploaded.length === 0)) {
+               rowOutput.data[`submission-${refType}-linkDrawings-${company}`] = arrayFilesPdfUploadLink;
+               rowOutput.data[`submission-${refType}-linkDrawingsRfa-${company}`] = linkRfaDrawingsUploaded;
+            };
+
+            if (linkFormPdfNoSignature) rowOutput.data[`submission-${refType}-linkFormNoSignature-${company}`] = linkFormPdfNoSignature;
+
 
 
             if (pageSheetTypeName !== 'page-mm') {
@@ -1940,21 +1595,30 @@ const PanelSetting = (props) => {
                rowOutput.data[`submission-${refType}-due-${company}`] = dateReplyForSubmitForm;
             };
 
-            // MM also needs consultantMustReply = [];
-            rowOutput.data[`submission-${refType}-consultantMustReply-${company}`] = pageSheetTypeName === 'page-mm' ? [] : listConsultantMustReply;
+            
+            if (pageSheetTypeName === 'page-rfam') {
+               if (contractSpecification) rowOutput.data[`submission-${refType}-contractSpecification-${company}`] = contractSpecification;
+               if (proposedSpecification) rowOutput.data[`submission-${refType}-proposedSpecification-${company}`] = proposedSpecification;
+               if (submissionType) rowOutput.data[`submission-${refType}-submissionType-${company}`] = submissionType;
+               if (contractDrawingNo) rowOutput.data[`submission-${refType}-contractDrawingNo-${company}`] = contractDrawingNo;
+            };
 
+            if (pageSheetTypeName === 'page-rfi') {
 
-
-            if (dateConversation) rowOutput.data[`submission-${refType}-dateConversation-${company}`] = dateConversation;
-            if (timeConversation) rowOutput.data[`submission-${refType}-timeConversation-${company}`] = timeConversation;
-            if (conversationAmong) rowOutput.data[`submission-${refType}-conversationAmong-${company}`] = conversationAmong;
+            };
 
             if (pageSheetTypeName === 'page-cvi') {
                rowOutput.data[`submission-${refType}-isCostImplication-${company}`] = isCostImplication;
                rowOutput.data[`submission-${refType}-isTimeExtension-${company}`] = isTimeExtension;
+               if (dateConversation) rowOutput.data[`submission-${refType}-dateConversation-${company}`] = dateConversation;
+               if (timeConversation) rowOutput.data[`submission-${refType}-timeConversation-${company}`] = timeConversation;
+               if (conversationAmong) rowOutput.data[`submission-${refType}-conversationAmong-${company}`] = conversationAmong;
             };
 
-            rowOutput.data[`submission-${refType}-user-${company}`] = email;
+            if (pageSheetTypeName === 'page-dt') {
+               if (herewithForDt) rowOutput.data[`submission-${refType}-herewithForDt-${company}`] = herewithForDt;
+               if (transmittedForDt) rowOutput.data[`submission-${refType}-transmittedForDt-${company}`] = transmittedForDt;
+            };
 
 
             if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
@@ -1967,20 +1631,6 @@ const PanelSetting = (props) => {
                   rowOutput.data[`submission-${refType}-date-${company}`] = new Date();
                };
             };
-
-            if (!(isFormEditting && arrayFilesPdfUploadLink.length === 0 && linkRfaDrawingsUploaded.length === 0)) {
-               rowOutput.data[`submission-${refType}-linkDrawings-${company}`] = arrayFilesPdfUploadLink;
-               rowOutput.data[`submission-${refType}-linkDrawingsRfa-${company}`] = linkRfaDrawingsUploaded;
-            };
-
-
-            if (linkFormPdfNoSignature) rowOutput.data[`submission-${refType}-linkFormNoSignature-${company}`] = linkFormPdfNoSignature;
-
-            if (contractSpecification) rowOutput.data[`submission-${refType}-contractSpecification-${company}`] = contractSpecification;
-            if (proposedSpecification) rowOutput.data[`submission-${refType}-proposedSpecification-${company}`] = proposedSpecification;
-            if (submissionType) rowOutput.data[`submission-${refType}-submissionType-${company}`] = submissionType;
-            if (herewithForDt) rowOutput.data[`submission-${refType}-herewithForDt-${company}`] = herewithForDt;
-            if (transmittedForDt) rowOutput.data[`submission-${refType}-transmittedForDt-${company}`] = transmittedForDt;
 
 
          } else if (type === 'form-reply-multi-type') {
@@ -2015,8 +1665,8 @@ const PanelSetting = (props) => {
             };
 
             if (!(isFormEditting && arrayFilesPdfUploadLink.length === 0)) {
-               rowOutput.data[`reply-${refType}-linkFormReply-${company}`] = arrayFilesPdfUploadLink[0];
-               rowOutput.data[`reply-${refType}-linkDocumentsReply-${company}`] = arrayFilesPdfUploadLink.filter((x, i) => i > 0);
+               rowOutput.data[`reply-${refType}-linkFormReply-${company}`] = arrayFilesPdfUploadLink.find(link => getFileNameFromLinkResponse(link) === formReplyFileName);
+               rowOutput.data[`reply-${refType}-linkDocumentsReply-${company}`] = arrayFilesPdfUploadLink.filter(link => getFileNameFromLinkResponse(link) !== formReplyFileName);
             };
          };
 
@@ -2395,32 +2045,7 @@ const PanelSetting = (props) => {
             )}
 
 
-         {(panelSettingType.includes('side-')) && (
-            <PanelConfirm
-               onClickCancel={onClickCancelModal}
-               onClickApply={() => {
 
-                  const routeSuffix = panelSettingType.slice(5, panelSettingType.length);
-
-                  if (pageSheetTypeName === 'page-spreadsheet') {
-                     switchFromDmsToOtherSheet(`/${'dms-' + routeSuffix}`);
-                  } else {
-                     if (routeSuffix === 'dms') {
-                        history.push({
-                           pathname: '/dms-spreadsheet',
-                           state: localState
-                        });
-                     } else {
-                        history.push({
-                           pathname: `/${'dms-' + routeSuffix}`,
-                           state: localState
-                        });
-                     };
-                  };
-               }}
-               content={`Do you want to go to ${panelSettingType.slice(5, panelSettingType.length).toUpperCase()} sheet ?`}
-            />
-         )}
 
 
          {(panelSettingType === 'acknowledge-form' || panelSettingType === 'acknowledge-or-reply-form') && (
@@ -2539,9 +2164,6 @@ export const updatePreRowParentRowToState = (objState, row) => {
       _parentRow: row._parentRow,
    };
 };
-
-
-
 export const convertRowHistoryData = (dataRowsHistory, headers) => {
    return dataRowsHistory.map(r => {
       const { history } = r;
@@ -2561,7 +2183,6 @@ export const convertRowHistoryData = (dataRowsHistory, headers) => {
       };
    });
 };
-
 export const getDataForRFASheet = (rows, rowsHistory, role, company) => {
 
    const nodeTitleArr = ['ARCHI', 'C&S', 'M&E', 'PRECAST'];
@@ -2703,9 +2324,6 @@ export const getDataForRFASheet = (rows, rowsHistory, role, company) => {
       }
    };
 };
-
-
-
 export const getDataForMultiFormSheet = (rows, pageSheetTypeName) => {
 
    const nodeTitleArr = pageSheetTypeName === 'page-mm' ? tradeArrayMeetingMinutesForm : tradeArrayForm;
@@ -2744,9 +2362,6 @@ export const getDataForMultiFormSheet = (rows, pageSheetTypeName) => {
       treeView: tree,
    };
 };
-
-
-
 export const getKeyTextForSheet = (pageSheetTypeName) => {
    return pageSheetTypeName === 'page-rfa' ? 'rfa'
       : pageSheetTypeName === 'page-rfam' ? 'rfam'
@@ -2755,4 +2370,355 @@ export const getKeyTextForSheet = (pageSheetTypeName) => {
                : pageSheetTypeName === 'page-dt' ? 'dt'
                   : pageSheetTypeName === 'page-mm' ? 'mm'
                      : 'n/a';
+};
+
+
+
+export const saveDataToServer = async (stateCell, stateRow, stateProject, commandAction, setLoading) => {
+   const { email, projectId, token, role, projectName, projectIsAppliedRfaView, publicSettings, company } = stateProject.allDataOneSheet;
+   const { headersShown, headersHidden, nosColumnFixed, colorization } = stateProject.userData;
+   const { headers } = publicSettings;
+
+   let { cellsModifiedTemp } = stateCell;
+   let {
+      rowsVersionsToSave,
+      rowsUpdatePreRowOrParentRow,
+      drawingTypeTreeInit,
+      drawingTypeTree,
+      drawingsTypeDeleted,
+      rowsDeleted,
+
+      rowsAll,
+      rowsUpdateSubmissionOrReplyForNewDrawingRev,
+
+      viewTemplateNodeId,
+      viewTemplates,
+      modeFilter,
+      modeSort,
+   } = stateRow;
+
+
+   // check new version reply go blank
+   const rowsGetNewRev = rowsAll.filter(r => rowsUpdateSubmissionOrReplyForNewDrawingRev.indexOf(r.id) !== -1);
+
+
+   try {
+      setLoading(true);
+      commandAction({ type: '' });
+
+      const resDB = await Axios.get(`${SERVER_URL}/sheet/`, { params: { token, projectId, email } });
+      const resCellsHistory = await Axios.get(`${SERVER_URL}/cell/history/`, { params: { token, projectId } });
+
+      let { publicSettings: publicSettingsFromDB, rows: rowsFromDBInit } = resDB.data;
+      let { drawingTypeTree: drawingTypeTreeFromDB, activityRecorded: activityRecordedFromDB } = publicSettingsFromDB;
+
+      const headerKeyDrawingNumber = headers.find(hd => hd.text === 'Drawing Number').key;
+      const headerKeyDrawingName = headers.find(hd => hd.text === 'Drawing Name').key;
+
+      let rowsFromDB = rowsFromDBInit.map(row => ({ ...row }));
+
+      let {
+         needToSaveTree,
+         treeDBModifiedToSave,
+         nodesToAddToDB,
+         nodesToRemoveFromDB
+      } = compareCurrentTreeAndTreeFromDB(
+         drawingTypeTreeInit,
+         drawingTypeTree,
+         drawingsTypeDeleted,
+         drawingTypeTreeFromDB,
+         activityRecordedFromDB.filter(x => x.action === 'Delete Drawing Type'),
+      );
+      let activityRecordedArr = [];
+
+
+      // check if row or its parents deleted by other users
+      const rowsUpdatePreRowOrParentRowArray = Object.values(rowsUpdatePreRowOrParentRow)
+         .filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing') &&
+            !activityRecordedFromDB.find(r => r.id === row._parentRow && r.action === 'Delete Drawing Type'));
+
+
+      if (rowsUpdatePreRowOrParentRowArray.length > 0) {
+
+         let arrID = [];
+         rowsFromDB.forEach(r => { // take out temporarily all rowsUpdatePreRowOrParentRowArray from DB
+            if (rowsUpdatePreRowOrParentRowArray.find(row => row.id === r.id)) {
+               arrID.push(r.id);
+               const rowBelow = rowsFromDB.find(rrr => rrr._preRow === r.id);
+               if (rowBelow) rowBelow._preRow = r._preRow;
+            };
+         });
+         rowsFromDB = rowsFromDB.filter(r => arrID.indexOf(r.id) === -1);
+
+
+
+         const rowsInOldParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
+            return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && !treeDBModifiedToSave.find(x => x.parentId === tr.id));
+         });
+         const rowsInOldParentDivertBranches = rowsUpdatePreRowOrParentRowArray.filter(r => {
+            return treeDBModifiedToSave.find(tr => tr.id === r._parentRow && treeDBModifiedToSave.find(x => x.parentId === tr.id));
+         });
+         const rowsInNewParent = rowsUpdatePreRowOrParentRowArray.filter(r => {
+            return !treeDBModifiedToSave.find(tr => tr.id === r._parentRow);
+         });
+
+
+
+         const rowsInOldParentOutput = _processChainRowsSplitGroupFnc2([...rowsInOldParent]);
+         rowsInOldParentOutput.forEach(arrChain => {
+            const rowFirst = arrChain[0];
+            const parentRowInDB = treeDBModifiedToSave.find(tr => tr.id === rowFirst._parentRow);
+            const rowAbove = rowsFromDB.find(r => r.id === rowFirst._preRow);
+            if (rowAbove) {
+               if (rowAbove._parentRow !== rowFirst._parentRow) { // rowAbove move to other parent by other user
+                  const lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
+                  rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
+               } else { // rowAbove is still in the same parent
+                  const rowBelowRowAbove = rowsFromDB.find(r => r._preRow === rowAbove.id);
+                  if (rowBelowRowAbove) rowBelowRowAbove._preRow = arrChain[arrChain.length - 1].id;
+                  rowFirst._preRow = rowAbove.id;
+               };
+            } else {
+               if (rowFirst._preRow === null) {
+                  const firstRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && r._preRow === null);
+                  if (firstRowInParent) { // if firstRowInParent undefined means Drawing type has 0 drawing currently...
+                     firstRowInParent._preRow = arrChain[arrChain.length - 1].id;
+                  };
+               } else {
+                  const lastRowInParent = rowsFromDB.find(r => r._parentRow === parentRowInDB.id && !rowsFromDB.find(x => x._preRow === r.id));
+                  rowFirst._preRow = lastRowInParent ? lastRowInParent.id : null;
+               };
+            };
+            rowsFromDB = [...rowsFromDB, ...arrChain];
+         });
+
+
+
+         let idsOldParentDivertBranches = [...new Set(rowsInOldParentDivertBranches.map(r => r._parentRow))];
+         idsOldParentDivertBranches.forEach(idP => {
+            let arrInput = rowsInOldParentDivertBranches.filter(r => r._parentRow === idP);
+            let rowsChildren = _processRowsChainNoGroupFnc1([...arrInput]);
+
+            const treeNode = treeDBModifiedToSave.find(x => x.id === idP);
+            const newIdParent = mongoObjectId();
+            treeDBModifiedToSave.push({
+               title: 'New Drawing Type',
+               id: newIdParent,
+               parentId: treeNode.id,
+               treeLevel: treeNode.treeLevel + 1,
+               expanded: true,
+            });
+            needToSaveTree = true;
+
+            activityRecordedArr.push({
+               id: newIdParent,
+               email,
+               createdAt: new Date(),
+               action: 'Create Drawing Type',
+               [headerKeyDrawingNumber]: 'New Drawing Type',
+            });
+
+            rowsChildren.forEach((r, i) => {
+               r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
+               r._parentRow = newIdParent;
+            });
+            rowsFromDB = [...rowsFromDB, ...rowsChildren];
+         });
+
+
+
+         let idsNewParentArray = [...new Set(rowsInNewParent.map(r => r._parentRow))];
+         idsNewParentArray.forEach(idP => {
+            let arrInput = rowsInNewParent.filter(r => r._parentRow === idP);
+            let rowsChildren = _processRowsChainNoGroupFnc1([...arrInput]);
+            rowsChildren.forEach((r, i) => {
+               r._preRow = i === 0 ? null : rowsChildren[i - 1].id;
+            });
+            rowsFromDB = [...rowsFromDB, ...rowsChildren];
+         });
+      };
+
+
+      // SAVE CELL HISTORY
+      let objCellHistory = {};
+      resCellsHistory.data.map(cell => {
+         const headerFound = headers.find(hd => hd.key === cell.headerKey);
+         if (headerFound) {
+            const headerText = headerFound.text;
+            if (cell.histories.length > 0) {
+               const latestHistoryText = cell.histories[cell.histories.length - 1].text;
+               objCellHistory[`${cell.row}-${headerText}`] = latestHistoryText;
+            };
+         };
+      });
+      Object.keys(cellsModifiedTemp).forEach(key => {
+         if (objCellHistory[key] && objCellHistory[key] === cellsModifiedTemp[key]) {
+            delete cellsModifiedTemp[key];
+         } else {
+            let rowId = extractCellInfo(key).rowId;
+            if (activityRecordedFromDB.find(x => x.id === rowId && x.action === 'Delete Drawing')) {
+               delete cellsModifiedTemp[key];
+            };
+         };
+      });
+
+      if (Object.keys(cellsModifiedTemp).length > 0) {
+         await Axios.post(`${SERVER_URL}/cell/history/`, { token, projectId, cellsHistory: convertCellTempToHistory(cellsModifiedTemp, stateProject) });
+      };
+
+      // SAVE DRAWINGS NEW VERSION
+      rowsVersionsToSave = rowsVersionsToSave.filter(row => !activityRecordedFromDB.find(r => r.id === row.id && r.action === 'Delete Drawing'));
+      if (rowsVersionsToSave.length > 0) {
+         await Axios.post(`${SERVER_URL}/row/history/`, { token, projectId, email, rowsHistory: convertDrawingVersionToHistory(rowsVersionsToSave, stateProject) });
+      };
+
+
+
+
+      // DELETE ROWS
+      let rowDeletedFinal = [];
+      rowsDeleted.forEach(row => { // some rows already deleted by previous user => no need to delete anymore
+         const rowInDB = rowsFromDB.find(r => r.id === row.id);
+         if (rowInDB) {
+            const rowBelow = rowsFromDB.find(r => r._preRow === rowInDB.id);
+            if (rowBelow) {
+               rowBelow._preRow = rowInDB._preRow;
+            };
+            rowsFromDB = rowsFromDB.filter(r => r.id !== rowInDB.id); // FIXEDDDDDDDDDDDDDDDDDDD
+            rowDeletedFinal.push(row);
+         };
+      });
+
+
+
+
+      if (nodesToRemoveFromDB.length > 0) {
+         nodesToRemoveFromDB.forEach(fd => {
+            activityRecordedArr.push({
+               id: fd.id, email, createdAt: new Date(), action: 'Delete Drawing Type',
+               [headerKeyDrawingNumber]: fd.title,
+            });
+         });
+      };
+      if (nodesToAddToDB.length > 0) {
+         nodesToAddToDB.forEach(fd => {
+            activityRecordedArr.push({
+               id: fd.id, email, createdAt: new Date(), action: 'Create Drawing Type',
+               [headerKeyDrawingNumber]: fd.title,
+            });
+         });
+      };
+
+      // SAVE PUBLIC SETTINGS RECORDED
+      activityRecordedArr.forEach(rc => {
+         const newRowsAddedByPreviousUserButParentDeletedByCurrentUser = rowsFromDB.filter(e => {
+            return e._parentRow === rc.id &&
+               rc.action === 'Delete Drawing Type' &&
+               !rowDeletedFinal.find(x => x.id === e.id);
+         });
+         rowDeletedFinal = [...rowDeletedFinal, ...newRowsAddedByPreviousUserButParentDeletedByCurrentUser];
+      });
+
+      rowDeletedFinal.forEach(r => {
+         activityRecordedArr.push({
+            id: r.id, email, createdAt: new Date(), action: 'Delete Drawing',
+            [headerKeyDrawingNumber]: r['Drawing Number'],
+            [headerKeyDrawingName]: r['Drawing Name'],
+         });
+      });
+
+
+      rowsFromDB = rowsFromDB.filter(r => !rowDeletedFinal.find(x => x.id === r.id));
+      // DELETE ...
+      if (rowDeletedFinal.length > 0) {
+         await Axios.post(`${SERVER_URL}/sheet/delete-rows/`, { token, projectId, email, rowIdsArray: rowDeletedFinal.map(r => r.id) });
+      };
+
+
+      treeDBModifiedToSave.forEach(tr => {
+         headers.forEach(hd => {
+            if (hd.text in tr) {
+               tr[hd.key] = tr[hd.text];
+               delete tr[hd.text];
+            };
+         });
+      });
+
+      let publicSettingsUpdated = { projectName };
+      if (needToSaveTree) {
+         publicSettingsUpdated = { ...publicSettingsUpdated, drawingTypeTree: treeDBModifiedToSave };
+      };
+      if (activityRecordedArr.length > 0) {
+         publicSettingsUpdated = { ...publicSettingsUpdated, activityRecorded: [...activityRecordedFromDB, ...activityRecordedArr] };
+      };
+      await Axios.post(`${SERVER_URL}/sheet/update-setting-public/`, { token, projectId, email, publicSettings: publicSettingsUpdated });
+
+      const userSettingsUpdated = {
+         headersShown: headersShown.map(hd => headers.find(h => h.text === hd).key),
+         headersHidden: headersHidden.map(hd => headers.find(h => h.text === hd).key),
+         nosColumnFixed, colorization, role, viewTemplateNodeId, viewTemplates, modeFilter, modeSort
+      };
+      await Axios.post(`${SERVER_URL}/sheet/update-setting-user/`, { token, projectId, email, userSettings: userSettingsUpdated });
+
+
+
+      // FILTER FINAL ROW TO UPDATE......
+      let rowsToUpdateFinal = [];
+      rowsFromDB.map(row => {
+
+         Object.keys(cellsModifiedTemp).forEach(key => {
+            const { rowId, headerName } = extractCellInfo(key);
+            if (rowId === row.id) row[headerName] = cellsModifiedTemp[key];
+         });
+
+         let rowOutput;
+         const found = rowsFromDBInit.find(r => r.id === row.id);
+         if (found) {
+            let toUpdate = false;
+            Object.keys(row).forEach(key => {
+               if (found[key] !== row[key]) toUpdate = true;
+            });
+            if (toUpdate) rowOutput = { ...row };
+         } else {
+            rowOutput = { ...row };
+         };
+
+         if (rowOutput) {
+            let rowToSave = { _id: rowOutput.id, parentRow: rowOutput._parentRow, preRow: rowOutput._preRow };
+            headers.forEach(hd => {
+               if (rowOutput[hd.text] || rowOutput[hd.text] === '') {
+                  rowToSave.data = { ...rowToSave.data || {}, [hd.key]: rowOutput[hd.text] };
+               };
+            });
+
+            const rowFoundInRowsGetNewRev = rowsGetNewRev.find(x => x.id === rowToSave._id);
+            if (rowFoundInRowsGetNewRev) {
+               Object.keys(rowFoundInRowsGetNewRev).forEach(key => {
+                  if (
+                     key.includes('reply-$$$-') ||
+                     key === `submission-$$$-drawing-${company}` ||
+                     key === `submission-$$$-dwfxLink-${company}` ||
+                     key === `submission-$$$-dwfxName-${company}` ||
+                     key === `submission-$$$-trade-${company}` ||
+                     key === `submission-$$$-user-${company}` ||
+                     key === `submission-$$$-emailAdditionalNotes-${company}`
+                  ) {
+                     rowToSave.data = { ...rowToSave.data || {}, [key]: '' };
+                  };
+               });
+            };
+
+            rowsToUpdateFinal.push(rowToSave);
+         };
+      });
+
+      if (rowsToUpdateFinal.length > 0) {
+         await Axios.post(`${SERVER_URL}/sheet/update-rows/`, { token, projectId, rows: rowsToUpdateFinal });
+      };
+      commandAction({ type: 'save-data-successfully' });
+
+   } catch (err) {
+      commandAction({ type: 'save-data-failure' });
+      console.log(err);
+   };
 };

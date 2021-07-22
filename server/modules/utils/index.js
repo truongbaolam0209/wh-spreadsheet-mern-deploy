@@ -176,7 +176,7 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
          <div>Submission Date: <span style='font-weight: bold;'>${drgToConsultantA}</span></div>
          <div>Requested by: <span style='font-weight: bold;'>${requestedBy}</span></div>
          <br />
-         <div>Dear all,</div>
+         <div>Dear All,</div>
          <div>
             <span style='font-weight: bold;'>${company}</span> has submitted <span
                style='font-weight: bold;'>${rfaRefText}</span> for you to review, the
@@ -186,9 +186,9 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
          </div>
          <div>Please review and reply to us by <span style='font-weight: bold;'>${consultantReplyT}</span>.</div>
       ` : `
-         <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
+         <div>Reply Date: <span style='font-weight: bold;'>${moment().format('Do MMM YYYY')}</span></div>
          <br />
-         <div>Dear all,</div>
+         <div>Dear All,</div>
          <div>
             <span style='font-weight: bold;'>${company}</span> has replied <span style='font-weight: bold;'>${rfaRefText}</span>
             , the replied and commented drawings can be found below.
@@ -206,7 +206,7 @@ const generateEmailInnerHTMLBackend = (company, emailType, rowsData) => {
          ${tableBody}
       </table>
       
-      <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('MMM Do YYYY')}.</div>
+      <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('Do MMM YYYY')}.</div>
       <br />
       <a href="https://idd.wohhup.com/projects">Go to BIM APP</a>
       <div>This is an automatic email from <span style='font-weight: bold;'>${company}</span>.</div>
@@ -310,17 +310,17 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
          <div>${formSubmitType.toUpperCase()} Ref: <span style='font-weight: bold;'>${refNumber}</span></div>
          ${action === 'submit-request-signature' ?
          `
-            <div>Submission Date: <span style='font-weight: bold;'>${moment(dateSubmission).format('MMM Do YYYY')}</span></div>
+            <div>Submission Date: <span style='font-weight: bold;'>${moment(dateSubmission).format('Do MMM YYYY')}</span></div>
             <div>Requested by: <span style='font-weight: bold;'>${requestedBy}</span></div>
             <br />
             <div>Dear Mr ${recipientName},</div>
             <div>
-               Please help to sign in cover form 
+               Please review and sign on cover form for submission of
                <a href='${linkFormNoSignature}' download target='_blank'>
                   <span style='font-weight: bold;'>${refNumber}</span> 
-               </a>
-               for submission. Please pass this attached signed form back to DC or give him by hand.
-	            The form can find in this 
+               </a>.
+               <br />
+	            The form can be downloaded via this
                <a href='${linkFormNoSignature}' download target='_blank'>
                   <span style='font-weight: bold;'>link</span> 
                </a>.
@@ -328,7 +328,7 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
 
          ` : action === 'submit-signed-off-final' ?
             `
-            <div>Submission Date: <span style='font-weight: bold;'>${moment(dateSubmission).format('MMM Do YYYY')}</span></div>
+            <div>Submission Date: <span style='font-weight: bold;'>${moment(dateSubmission).format('Do MMM YYYY')}</span></div>
             <div>Requested by: <span style='font-weight: bold;'>${requestedBy}</span></div>
             <br />
             <div>Dear All,</div>
@@ -338,7 +338,7 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
                   <span style='font-weight: bold;'>${refNumber}</span>
                </a> for you to review.
             </div>
-            <div>Please reply to us by <span style='font-weight: bold;'>${moment(dueDate).format('MMM Do YYYY')}</span>.</div>
+            <div>Please reply to us by <span style='font-weight: bold;'>${moment(dueDate).format('Do MMM YYYY')}</span>.</div>
             <br />
             ${(linkAttachedArray && linkAttachedArray.length > 0) ?
                `
@@ -347,11 +347,11 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
                   ${tableHeader}
                   ${tableBody}
                </table>
-               <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('MMM Do YYYY')}.</div>
+               <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('Do MMM YYYY')}.</div>
             ` : ''}
          ` : action === 'submit-meeting-minutes' ?
                `
-            <div>Submission Date: <span style='font-weight: bold;'>${moment(dateSubmission).format('MMM Do YYYY')}</span></div>
+            <div>Submission Date: <span style='font-weight: bold;'>${moment(dateSubmission).format('Do MMM YYYY')}</span></div>
             <br />
             <div>Dear All,</div>
             <div>
@@ -362,19 +362,19 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
                for you to review.
             </div>
          ` : action === 'reply-signed-off' ? `
-            <div>Reply Date: <span style='font-weight: bold;'>${moment().format('MMM Do YYYY')}</span></div>
+            <div>Reply Date: <span style='font-weight: bold;'>${moment().format('Do MMM YYYY')}</span></div>
             <div>Status: <span style='font-weight: bold;'>${replyStatus}</span></div>
             <br />
-            <div>Dear all,</div>
+            <div>Dear All,</div>
             <div>
                <span style='font-weight: bold;'>${company}</span> has replied 
                <a href='${linkFormReply}' download target='_blank'>
                   <span style='font-weight: bold;'>${refNumber}</span>
-               </a>. Please review and proceed accordingly.
+               </a>. Please refer to the reply below.
                <br />
                <br />
                <div>${emailAdditionalNotes.replace('\n', '<br />')}</div>
-
+               <br />
                ${(linkAttachedArray && linkAttachedArray.length > 0) ?
                      `
                   <div>Uploaded Documents</div>
@@ -382,7 +382,7 @@ const generateEmailMultiFormInnerHtml = (company, formSubmitType, rowData, actio
                      ${tableHeader}
                      ${tableBody}
                   </table>
-                  <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('MMM Do YYYY')}.</div>
+                  <div style='font-size: 12px;'>The links will expire on ${moment().add(7, 'days').format('Do MMM YYYY')}.</div>
                ` : ''}
 
             </div>

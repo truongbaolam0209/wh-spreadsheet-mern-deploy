@@ -156,7 +156,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    const [transmittedForDt, setTransmittedForDt] = useState('');
 
    const [dateSendThisForm, setDateSendThisForm] = useState(null);
-
+   const [contractDrawingNo, setContractDrawingNo] = useState('');
 
    useEffect(() => {
       setDataInputForTable(getInputForTable(filesPdfDrawing, dwgsImportFromRFA, formReplyUpload));
@@ -271,6 +271,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             setTransmittedForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'transmittedForDt'));
             setSubmissionType(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'submissionType'));
 
+            if (pageSheetTypeName === 'page-rfam') {
+               setContractDrawingNo(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'contractDrawingNo'));
+            };
+
             if (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm') {
                setTimeConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'timeConversation')));
                setDateConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'dateConversation')));
@@ -310,6 +314,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             setRecipientName(recipientNameData);
             const listConsultantMustReplyData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'consultantMustReply') || [];
             setListConsultantMustReply(listConsultantMustReplyData);
+
+            if (pageSheetTypeName === 'page-rfam') {
+               setContractDrawingNo(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'contractDrawingNo'));
+            };
 
             const textEmailTitleData = getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'emailTitle') || '';
             setTextEmailTitle('Resubmit - ' + textEmailTitleData);
@@ -361,6 +369,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             setHerewithForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'herewithForDt'));
             setTransmittedForDt(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'transmittedForDt'));
             setSubmissionType(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'submissionType'));
+
+            if (pageSheetTypeName === 'page-rfam') {
+               setContractDrawingNo(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'contractDrawingNo'));
+            };
 
             if (pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-mm') {
                setTimeConversation(moment(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'timeConversation')));
@@ -690,6 +702,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
          submissionType,
          herewithForDt,
          transmittedForDt,
+         contractDrawingNo,
 
          isBothSideActionUserWithNoEmailSent,
          consultantNameToReplyByBothSideActionUser,
@@ -832,7 +845,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                   submissionType,
                   herewithForDt,
                   transmittedForDt,
-                  pageSheetTypeName
+                  pageSheetTypeName, contractDrawingNo, companies
                }}
             />
          )} */}
@@ -1193,14 +1206,11 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
 
-               {
-                  formRefType !== 'form-reply-multi-type' &&
-                  pageSheetTypeName === 'page-rfam' &&
-                  (
+               {formRefType !== 'form-reply-multi-type' && pageSheetTypeName === 'page-rfam' && (
                      <div style={{ display: 'flex' }}>
                         <div style={{ marginRight: 10, fontWeight: 'bold' }}>Submission Type</div>
                         <SelectTradeStyled
-                           style={{ width: 150 }}
+                           style={{ width: 150, marginRight: 100 }}
                            showSearch
                            optionFilterProp='children'
                            onChange={(value) => setSubmissionType(value)}
@@ -1210,14 +1220,17 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                            suffixIcon={<div></div>}
                            value={submissionType}
                         >
-                           {[
-                              'New Submittal',
-                              'Alternative',
-                              'Resubmittal',
-                           ].map(typeSubmit => (
+                           {['New Submittal', 'Alternative', 'Resubmittal'].map(typeSubmit => (
                               <Select.Option key={typeSubmit} value={typeSubmit}>{typeSubmit}</Select.Option>
                            ))}
                         </SelectTradeStyled>
+
+                        <div style={{ marginRight: 10, fontWeight: 'bold' }}>Contract Drawing No. (if applicable)</div>
+                        <InputStyled
+                           style={{  width: 150 }}
+                           onChange={(e) => setContractDrawingNo(e.target.value)}
+                           value={contractDrawingNo}
+                        />
                      </div>
                   )}
 
