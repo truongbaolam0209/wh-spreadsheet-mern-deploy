@@ -509,8 +509,8 @@ const findManyRowsToSendEmail = async (sheetId, qRowIds, company, type, emailSen
          const keyFormNoSignature = getInfoKeyFromRefDataForm(rowData, 'submission', formSubmitType, 'linkFormNoSignature');
          rowData[keyFormNoSignature] = resFormNoSignature;
 
-         listUserOutput.to = emailSignaturedBy;
-         listUserOutput.cc = emailSender;
+         listUserOutput.to = [emailSignaturedBy];
+         listUserOutput.cc = [emailSender];
 
       } else if (type === 'submit-signed-off-final') {
 
