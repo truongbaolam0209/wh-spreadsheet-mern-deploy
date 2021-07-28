@@ -88,7 +88,7 @@ const OverallComponentDMS = (props) => {
    const roleTradeCompany = getUserRoleTradeCompany(role, company, pageSheetTypeName);
    const listUser = [...new Set(listUserInput)];
    const listGroup = [...new Set(listGroupInput)];
-   const isBothSideActionUser = isAdmin && company === 'Woh Hup Private Ltd' && roleInit === 'Document Controller';
+   const isBothSideActionUser = isAdmin || (roleInit === 'Document Controller' && company === 'Woh Hup Private Ltd');
 
    let history1 = useHistory();
 
