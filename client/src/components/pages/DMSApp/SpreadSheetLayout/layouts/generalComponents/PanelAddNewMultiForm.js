@@ -62,16 +62,25 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
    const { state: stateProject } = useContext(ProjectContext);
 
    const {
-      roleTradeCompany: { role, company: companyUser }, companies, listUser, email,
+      roleTradeCompany: { role, company: companyUser }, companies, listUser, email, 
       listGroup: listGroupOutput, projectName, projectNameShort: projectNameShortText, pageSheetTypeName, isBothSideActionUser
    } = stateProject.allDataOneSheet;
 
    const projectNameShort = projectNameShortText || 'NO-PROJECT-NAME';
 
    const {
-      rowsAll, loading, currentRefToAddNewOrReplyOrEdit,
+      rowsAll, loading, currentRefToAddNewOrReplyOrEdit, projectTree,
       rowsRfamAllInit, rowsRfiAllInit, rowsCviAllInit, rowsDtAllInit, rowsMmAllInit
    } = stateRow;
+
+   const subconNode = projectTree.find(nd => nd.title === 'M&E (SUBCON)');
+   let arraySubTrade = ['ME Subtrade'];
+   if (subconNode) {
+      const subTradeNodes = projectTree.filter(node => node.parentId === subconNode.id);
+      if (subTradeNodes.length > 0) {
+         arraySubTrade = subTradeNodes.map(node => node.title);
+      };
+   };
 
    const rowsRefAllInit = pageSheetTypeName === 'page-rfam' ? rowsRfamAllInit
       : pageSheetTypeName === 'page-rfi' ? rowsRfiAllInit
@@ -105,6 +114,10 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
    const [tradeForFirstTimeSubmit, setTradeForFirstTimeSubmit] = useState('');
+
+   const [mepSubTradeFirstTime, setMepSubTradeFirstTime] = useState(null);
+   const [mepSubTradeArray, setMepSubTradeArray] = useState(null);
+
    const [refNumberSuffixFirstTimeSubmit, setRefNumberSuffixFirstTimeSubmit] = useState('');
    const [refNewVersionResubmitSuffix, setRefNewVersionResubmitSuffix] = useState('');
 
@@ -288,6 +301,9 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             const refNumberSuffixFirstTimeSubmitData = /[^/]*$/.exec(currentRefData[refKey])[0];
             setRefNumberSuffixFirstTimeSubmit(refNumberSuffixFirstTimeSubmitData);
 
+            setMepSubTradeFirstTime(getInfoValueFromRefDataForm(currentRefData, 'submission', refType, 'subTradeForMep'));
+            setMepSubTradeArray(arraySubTrade);
+
          };
 
       } else if (formRefType === 'form-resubmit-multi-type') {
@@ -433,13 +449,18 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
       if (tradeForFirstTimeSubmit && formRefType === 'form-submit-multi-type') {
 
          if (!isFormEditting) {
-            const allRefNumberUnderThisTrade = rowsRefAllInit.filter(r => {
+            let filterRows = rowsRefAllInit.filter(r => {
                const tradeToCheck = pageSheetTypeName === 'page-mm' ? convertTradeCodeMeetingMinutesInverted(tradeForFirstTimeSubmit) : convertTradeCodeInverted(tradeForFirstTimeSubmit)
                return r.trade === tradeToCheck;
             });
 
-            let refNumberExtracted = [... new Set(allRefNumberUnderThisTrade.map(x => /[^/]*$/.exec(x[refKey])[0]))];
+            if (tradeForFirstTimeSubmit === 'ME') {
+               filterRows = filterRows.filter(x => {
+                  return x[refKey].split('/')[3] === mepSubTradeFirstTime;
+               });
+            };
 
+            let refNumberExtracted = [... new Set(filterRows.map(x => /[^/]*$/.exec(x[refKey])[0]))];
             refNumberExtracted = refNumberExtracted
                .filter(x => x.length === 3 && parseInt(x) > 0)
                .map(x => parseInt(x));
@@ -456,6 +477,36 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             } else {
                setRefNumberSuffixFirstTimeSubmit('001');
             };
+
+
+            filterRows.sort((b, a) => (a[refKey] > b[refKey] ? 1 : -1));
+
+
+            const rowFoundTo = filterRows.find(r => {
+               return getInfoValueFromRefDataForm(r, 'submission', refType, 'emailTo') &&
+                  getInfoValueFromRefDataForm(r, 'submission', refType, 'emailTo').length > 0;
+            });
+            console.log('rowFoundTo', rowFoundTo, isBothSideActionUserWithNoEmailSent);
+            if (rowFoundTo) {
+               const consultantMustReplyArray = getInfoValueFromRefDataForm(rowFoundTo, 'submission', refType, 'consultantMustReply') || [];
+               if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
+                  setListRecipientTo(consultantMustReplyArray.map(cmp => `${cmp}_%$%_`));
+                  setListConsultantMustReply(consultantMustReplyArray);
+               } else {
+                  setListRecipientTo(getInfoValueFromRefDataForm(rowFoundTo, 'submission', refType, 'emailTo') || []);
+                  setListConsultantMustReply(consultantMustReplyArray);
+               };
+            };
+
+            const rowFoundCc = filterRows.find(r => {
+               return getInfoValueFromRefDataForm(r, 'submission', refType, 'emailCc') &&
+                  getInfoValueFromRefDataForm(r, 'submission', refType, 'emailCc').length > 0;
+            });
+            console.log('rowFoundCc', rowFoundCc);
+            if (rowFoundCc) {
+               setListRecipientCc(getInfoValueFromRefDataForm(rowFoundCc, 'submission', refType, 'emailCc') || []);
+            };
+
          } else {
             if (checkIfRefIsDuplicated()) {
                message.info(`This ${refType.toUpperCase()} number has already existed, please choose a new number!`);
@@ -463,7 +514,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             };
          };
       };
-   }, [tradeForFirstTimeSubmit]);
+   }, [tradeForFirstTimeSubmit, mepSubTradeFirstTime]);
 
 
 
@@ -569,12 +620,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
       const isSubmitOrResubmitForm = formRefType === 'form-submit-multi-type' || formRefType === 'form-resubmit-multi-type';
       
       if (isFormEditting) {
-         console.log(
-            currentRefData,
-            company,
-            refType,
-            checkIfEditTimeIsOverMultiForm(currentRefData, company, EDIT_DURATION_MIN, refType, 'check-if-reply-edit-is-over'));
-
          if (
             (isSubmitOrResubmitForm && checkIfEditTimeIsOverMultiForm(currentRefData, null, EDIT_DURATION_MIN, refType, 'check-if-submission-edit-is-over') <= 0) ||
             (!isSubmitOrResubmitForm && checkIfEditTimeIsOverMultiForm(currentRefData, company, EDIT_DURATION_MIN, refType, 'check-if-reply-edit-is-over') <= 0)
@@ -592,7 +637,14 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             trade = convertTradeCodeInverted(tradeForFirstTimeSubmit);
          };
          refToSaveVersionOrToReply = '0';
-         refToSave = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
+
+         if (tradeForFirstTimeSubmit === 'ME') {
+            if (!mepSubTradeFirstTime || mepSubTradeFirstTime === 'ME Subtrade') return message.info('Please fill in ME Sub trade!', 2);
+            refToSave = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${mepSubTradeFirstTime}/${refNumberSuffixFirstTimeSubmit}`;
+         } else {
+            refToSave = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
+         };
+
       } else if (formRefType === 'form-resubmit-multi-type') {
          trade = currentRefData.trade;
          refToSaveVersionOrToReply = refNewVersionResubmitSuffix;
@@ -679,7 +731,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
       onClickApplySendFormToSignature(typeButton, {
          type: formRefType,
          isFormEditting, trade,
-
+         mepSubTradeFirstTime,
          filesPdfDrawing: Object.values(filesPdfDrawing),
          formReplyUpload: Object.values(formReplyUpload),
          dwgsImportFromRFA: dwgsImportFromRFA.map(x => ({ ...x })),
@@ -864,7 +916,12 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                            optionFilterProp='children'
                            onChange={(value) => {
                               setTradeForFirstTimeSubmit(value);
-                              getEmailListFromPreviousSubmission(value);
+                              if (value === 'ME') {
+                                 setMepSubTradeArray(arraySubTrade);
+                              } else {
+                                 setMepSubTradeArray(null);
+                                 setMepSubTradeFirstTime(null);
+                              };
                            }}
                            filterOption={(input, option) => option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0}
                            suffixIcon={<div></div>}
@@ -878,6 +935,29 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                               <Select.Option key={trade} value={trade}>{trade}</Select.Option>
                            ))}
                         </SelectTradeStyled>
+
+                        {mepSubTradeArray && (
+                           <>
+                              <div style={{ marginLeft: 10 }}>/</div>
+                              <SelectTradeStyled
+                                 style={{ width: 90 }}
+                                 showSearch
+                                 optionFilterProp='children'
+                                 onChange={(value) => {
+                                    setMepSubTradeFirstTime(value);
+                                 }}
+                                 filterOption={(input, option) => option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0}
+                                 suffixIcon={<div></div>}
+                                 value={mepSubTradeFirstTime}
+                              >
+                                 {mepSubTradeArray.map(subTrade => (
+                                    <Select.Option key={subTrade} value={subTrade}>{subTrade}</Select.Option>
+                                 ))}
+                              </SelectTradeStyled>
+                           </>
+                        )}
+
+
                         <div style={{ marginLeft: 10 }}>/</div>
                         {tradeForFirstTimeSubmit ? (
                            <InputStyled
@@ -1515,7 +1595,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                   typeConfirm={modalConfirmsubmitOrCancel}
                   formRefType={formRefType}
                   refData={formRefType.includes('form-submit-multi-')
-                     ? `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`
+                     ? `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${mepSubTradeFirstTime ? (mepSubTradeFirstTime + '/') : ''}${refNumberSuffixFirstTimeSubmit}`
                      : formRefType.includes('form-resubmit-multi-')
                         ? `${currentRefData[refKey]}${refNewVersionResubmitSuffix}`
                         : formRefType.includes('form-reply-multi-')

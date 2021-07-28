@@ -1411,7 +1411,7 @@ const PanelSetting = (props) => {
          conversationAmong,
          isCostImplication, isTimeExtension,
          consultantReplyStatus,
-
+         mepSubTradeFirstTime,
 
          contractSpecification,
          proposedSpecification,
@@ -1603,9 +1603,7 @@ const PanelSetting = (props) => {
                if (contractDrawingNo) rowOutput.data[`submission-${refType}-contractDrawingNo-${company}`] = contractDrawingNo;
             };
 
-            if (pageSheetTypeName === 'page-rfi') {
 
-            };
 
             if (pageSheetTypeName === 'page-cvi') {
                rowOutput.data[`submission-${refType}-isCostImplication-${company}`] = isCostImplication;
@@ -1630,6 +1628,10 @@ const PanelSetting = (props) => {
                if (!isFormEditting) {
                   rowOutput.data[`submission-${refType}-date-${company}`] = new Date();
                };
+            };
+
+            if (mepSubTradeFirstTime) {
+               rowOutput.data[`submission-${refType}-subTradeForMep-${company}`] = mepSubTradeFirstTime;
             };
 
 
@@ -1709,6 +1711,13 @@ const PanelSetting = (props) => {
                   : pageSheetTypeName === 'page-dt' ? 'row-dt'
                      : pageSheetTypeName === 'page-mm' ? 'row-mm'
                         : 'n/a';
+         
+         const resSettings = await Axios.get(`${SERVER_URL}/settings/get-all-settings-this-project/`, { params: { token, projectId } });
+         const projectSetting = resSettings.data.find(x => x.headers);
+         let projectTree = [];
+         if (projectSetting) {
+            projectTree = projectSetting.drawingTypeTree;
+         };
 
          const res = await Axios.get(`${SERVER_URL}/${route}/`, { params: { token, projectId, email } });
          const rowsAllMultiForm = res.data;
@@ -1723,6 +1732,7 @@ const PanelSetting = (props) => {
             data: {
                rowsAllMultiForm,
                expandedRowsIdArr,
+               projectTree
             }
          });
 

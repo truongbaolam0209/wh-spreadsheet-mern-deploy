@@ -304,12 +304,13 @@ export const getHeaderWidthForRFAView = (header, pageSheetTypeName) => {
    if (pageSheetTypeName === 'page-mm' && header === 'Description') return 700;
    if ((pageSheetTypeName === 'page-cvi' || pageSheetTypeName === 'page-dt') && header === 'Received By') return 800;
    if (header === 'RFA Ref') return 380;
-   else if (header === 'Drawing Number') return 250;
-   else if (header === 'Drawing Name') return 400;
-   else if (header === 'Due Date') return 80;
+   else if (header === 'Drawing Number') return 220;
+   else if (header === 'Drawing Name') return 300;
+   else if (header === 'Due Date') return 65;
    else if (header === 'Submission Date') return 80;
-   else if (header === 'Rev') return 40;
-   else if (header === 'Requested By') return 150;
+   else if (header === 'Rev') return 30;
+   else if (header === 'Requested By') return 80;
+   else if (header === 'Consultant') return 200;
 
    return getHeaderWidth(header);
 };

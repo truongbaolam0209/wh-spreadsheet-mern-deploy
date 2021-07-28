@@ -585,6 +585,13 @@ const CellForm = (props) => {
                      : pageSheetTypeName === 'page-mm' ? 'row-mm'
                         : 'n/a';
 
+         const resSettings = await Axios.get(`${SERVER_URL}/settings/get-all-settings-this-project/`, { params: { token, projectId } });
+         const projectSetting = resSettings.data.find(x => x.headers);
+         let projectTree = [];
+         if (projectSetting) {
+            projectTree = projectSetting.drawingTypeTree;
+         };
+
          const res = await Axios.get(`${SERVER_URL}/${route}/`, { params: { token, projectId, email } });
          const rowsAllMultiForm = res.data;
 
@@ -598,6 +605,7 @@ const CellForm = (props) => {
             data: {
                rowsAllMultiForm,
                expandedRowsIdArr,
+               projectTree
             }
          });
 

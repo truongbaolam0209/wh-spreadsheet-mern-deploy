@@ -46,7 +46,7 @@ const Cell = (props) => {
 
 
    let info = '';
-   if (rowData.treeLevel && column.key === columnKeyToPutFolderName && pageSheetTypeName !== 'page-data-entry') {
+   if (rowData.treeLevel && column.key === columnKeyToPutFolderName) {
       const node = drawingTypeTree.find(x => x.id === rowData.id);
       const branches = getTreeFlattenOfNodeInArray(drawingTypeTree, node);
 
@@ -109,7 +109,7 @@ const Cell = (props) => {
 
    const [btnShown, setBtnShown] = useState(false);
    const [panelData, setPanelData] = useState(false);
-   const [btnDrawingShown, setBtnDrawingShown] = useState(false);
+
 
    const cellDataTypeBtn = checkCellDataFormat(column.key, headerDataEntry, pageSheetTypeName);
 
@@ -173,31 +173,40 @@ const Cell = (props) => {
    };
 
 
-   const onDoubleClick = () => {
-      if (pageSheetTypeName === 'page-data-entry' && headerDataEntry.type === 'checkbox') return;
-      if (isLockedColumn || isLockedRow) return;
-      setInputRender(true);
-      setBtnShown(false);
-      getCurrentDOMCell(); // double click to activate cell
-   };
+   
    const onClick = () => {
       if (rowsSelected.length > 0 || rowsSelectedToMove.length > 0) {
          getSheetRows({
             ...stateRow, rowsSelected: [], rowsSelectedToMove: []
          });
       };
-      if (isLockedColumn || isLockedRow) return;
 
+      if (isLockedColumn || isLockedRow) return;
 
       setBtnShown(true);
       if (!inputRender) { // single click just highlight cell, not activate
          setPosition({ cell: cellRef.current.parentElement, rowIndex, columnIndex });
       };
+   };
+   const onDoubleClick = () => {
 
-      if (rowsSelected.length > 0) {
-         getSheetRows({ ...stateRow, rowsSelected: [] });
+      if (isLockedColumn || isLockedRow) return;
+      setInputRender(true);
+      setBtnShown(false);
+      getCurrentDOMCell(); // double click to activate cell
+   };
+   const onMouseLeave = () => {
+      if (btnShown) setBtnShown(false);
+   };
+   const onMouseDown = (e) => {
+      if (e.button === 2) { // check mouse RIGHT CLICK ...
+         onRightClickCell(e, props);
+      } else {
+         if (isLockedColumn || isLockedRow) return;
       };
    };
+
+
 
 
    useEffect(() => {
@@ -212,17 +221,7 @@ const Cell = (props) => {
    };
 
 
-   const onMouseLeave = () => {
-      if (btnShown) setBtnShown(false);
-      if (btnDrawingShown) setBtnDrawingShown(false);
-   };
-   const onMouseDown = (e) => {
-      if (e.button === 2) { // check mouse RIGHT CLICK ...
-         onRightClickCell(e, props);
-      } else {
-         if (isLockedColumn || isLockedRow) return;
-      };
-   };
+   
 
    const pickDataSelect = (type, value) => {
       setBtnShown(false);
@@ -337,11 +336,10 @@ const Cell = (props) => {
       <>
          <div
             ref={cellRef}
-            onDoubleClick={onDoubleClick}
             onClick={onClick}
+            onDoubleClick={onDoubleClick}
             onMouseLeave={onMouseLeave}
             onMouseDown={onMouseDown}
-            onMouseEnter={() => setBtnDrawingShown(true)}
             style={{
                width: '100%', height: '100%', padding: 5, position: 'relative', color: 'black', background: 'transparent',
                paddingLeft: 5,

@@ -82,6 +82,20 @@ const findAllSettingsInCollection = async (req, res, next) => {
    };
 };
 
+const findAllSettingsThisProject = async (req, res, next) => {
+
+   try {
+      const { projectId: sheetId } = req.query;
+      let items = await model.find({
+         sheet: sheetId,
+      });
+      return res.json(items);
+
+   } catch (error) {
+      next(error);
+   };
+};
+
 module.exports = {
    schema,
    model,
@@ -93,5 +107,6 @@ module.exports = {
    findUserSettings,
    updateUserSettings,
    deleteAllDataInCollection,
-   findAllSettingsInCollection
+   findAllSettingsInCollection,
+   findAllSettingsThisProject
 };

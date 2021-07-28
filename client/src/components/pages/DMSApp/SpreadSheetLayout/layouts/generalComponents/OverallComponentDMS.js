@@ -449,7 +449,7 @@ const OverallComponentDMS = (props) => {
 
       } else if (update.type === 'reload-data-view-multi-form') {
 
-         getSheetRows(getInputDataInitially(update.data.rowsAllMultiForm, roleTradeCompany, pageSheetTypeName));
+         getSheetRows(getInputDataInitially(update.data.rowsAllMultiForm, roleTradeCompany, pageSheetTypeName, update.data.projectTree));
          setExpandedRows(update.data.expandedRowsIdArr);
 
          OverwriteCellsModified({});
@@ -633,10 +633,17 @@ const OverallComponentDMS = (props) => {
 
                const refKey = getKeyTextForSheet(pageSheetTypeName) + 'Ref';
 
+               const resSettings = await Axios.get(`${SERVER_URL}/settings/get-all-settings-this-project/`, { params: { token, projectId } });
+               const projectSetting = resSettings.data.find(x => x.headers);
+               let projectTree = [];
+               if (projectSetting) {
+                  projectTree = projectSetting.drawingTypeTree;
+               };
+
                const res = await Axios.get(`${SERVER_URL}/${route}/`, { params: { token, projectId, email } });
                const rows = res.data;
 
-               getSheetRows(getInputDataInitially(rows, roleTradeCompany, pageSheetTypeName));
+               getSheetRows(getInputDataInitially(rows, roleTradeCompany, pageSheetTypeName, projectTree));
                setExpandedRows([
                   ...(pageSheetTypeName === 'page-mm' ? tradeArrayMeetingMinutesForm : tradeArrayForm),
                   ...rows.filter(x => x[refKey]).map(x => x[refKey])
@@ -906,11 +913,10 @@ const OverallComponentDMS = (props) => {
          frozen: (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') ? Column.FrozenDirection.LEFT : undefined,
          cellRenderer: (
             <CellIndex
-               contextInput={{
-                  contextCell: { setCellActive },
-                  contextRow: { stateRow, getSheetRows },
-                  contextProject: { stateProject },
-               }}
+               setCellActive={setCellActive}
+               stateRow={stateRow}
+               getSheetRows={getSheetRows}
+               stateProject={stateProject}
             />
          ),
       }];
@@ -1439,12 +1445,9 @@ const OverallComponentDMS = (props) => {
                <div style={{ width: sideBarWidth, background: colorType.primary }}>
                   {(
                      (role !== 'Consultant' && role !== 'Client')
-                        ? ['side-dms', 'side-rfa']
-                        : ['side-rfa']
-                     // ? ['side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
-                     // : ['side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
+                        ? ['side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
+                        : ['side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
                   ).map((btnType, i) => {
-
                      return (
                         <IconSidePanel
                            key={i}
@@ -1726,7 +1729,7 @@ const ButtonBox = styled.div`
 `;
 
 
-export const getInputDataInitially = (data, { role, company }, pageSheetTypeName) => {
+export const getInputDataInitially = (data, { role, company }, pageSheetTypeName, projectTree) => {
 
 
    if (pageSheetTypeName === 'page-rfa') {
@@ -1847,7 +1850,7 @@ export const getInputDataInitially = (data, { role, company }, pageSheetTypeName
 
          isShowAllConsultant: false,
          loading: false,
-
+         projectTree,
 
 
       };
