@@ -664,7 +664,7 @@ const CellForm = (props) => {
 
                {(column.key === expandedColumn && pageSheetTypeName !== 'page-mm') && (
                   <div style={{
-                     position: 'absolute', left: 150, top: 4,
+                     position: 'absolute', left: 170, top: 4,
                      display: 'flex',
                   }}>
                      {rowData['btn'].map(btn => (

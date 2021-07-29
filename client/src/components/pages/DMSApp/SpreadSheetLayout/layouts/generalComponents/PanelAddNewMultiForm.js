@@ -528,12 +528,11 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
 
 
    const checkIfRefIsDuplicated = () => {
-
       const arr = [...new Set(rowsRefAllInit.map(r => {
          return (r[refKey] || '') + ((r.revision === '0' ? '' : r.revision)) || '';
       }))];
       if (formRefType === 'form-submit-multi-type') {
-         const newRefToSubmit = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${refNumberSuffixFirstTimeSubmit}`;
+         const newRefToSubmit = `${refType.toUpperCase()}/${projectNameShort}/${tradeForFirstTimeSubmit}/${mepSubTradeFirstTime ? (mepSubTradeFirstTime + '/') : ''}${refNumberSuffixFirstTimeSubmit}`;
          return (
             (!isFormEditting && arr.indexOf(newRefToSubmit) !== -1) ||
             (isFormEditting && arr.indexOf(newRefToSubmit) !== -1 && newRefToSubmit !== currentRefData[refKey])
@@ -637,6 +636,9 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
             trade = convertTradeCodeInverted(tradeForFirstTimeSubmit);
          };
          refToSaveVersionOrToReply = '0';
+
+         if (!tradeForFirstTimeSubmit) return message.info('Please fill in trade!', 2);
+         if (!refNumberSuffixFirstTimeSubmit) return message.info('Please fill in ref number!', 2);
 
          if (tradeForFirstTimeSubmit === 'ME') {
             if (!mepSubTradeFirstTime || mepSubTradeFirstTime === 'ME Subtrade') return message.info('Please fill in ME Sub trade!', 2);
@@ -843,40 +845,6 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
       setNosColumnFixed(1);
    }, 1);
 
-
-   const getEmailListFromPreviousSubmission = (value) => {
-
-      const rowsThisTrade = rowsRefAllInit
-         .filter(r => r.trade === convertTradeCodeInverted(value))
-         .sort((b, a) => (a[refKey] > b[refKey] ? 1 : -1));
-
-      if (listRecipientTo.length === 0) {
-         const rowFoundTo = rowsThisTrade.find(r => {
-            return getInfoValueFromRefDataForm(r, 'submission', refType, 'emailTo') &&
-               getInfoValueFromRefDataForm(r, 'submission', refType, 'emailTo').length > 0;
-         });
-         if (rowFoundTo) {
-            const consultantMustReplyArray = getInfoValueFromRefDataForm(rowFoundTo, 'submission', refType, 'consultantMustReply') || [];
-            if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
-               setListRecipientTo(consultantMustReplyArray.map(cmp => `${cmp}_%$%_`));
-               setListConsultantMustReply(consultantMustReplyArray);
-            } else {
-               setListRecipientTo(getInfoValueFromRefDataForm(rowFoundTo, 'submission', refType, 'emailTo') || []);
-               setListConsultantMustReply(consultantMustReplyArray);
-            };
-         };
-      };
-
-      if (listRecipientCc.length === 0) {
-         const rowFoundCc = rowsThisTrade.find(r => {
-            return getInfoValueFromRefDataForm(r, 'submission', refType, 'emailCc') &&
-               getInfoValueFromRefDataForm(r, 'submission', refType, 'emailCc').length > 0;
-         });
-         if (rowFoundCc) {
-            setListRecipientCc(getInfoValueFromRefDataForm(rowFoundCc, 'submission', refType, 'emailCc') || []);
-         };
-      };
-   };
 
 
 

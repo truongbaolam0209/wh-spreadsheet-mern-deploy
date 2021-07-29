@@ -348,7 +348,7 @@ export const getHeaderWidth = (header) => {
    else if (header === 'Cost Implication')return 80;
    else if (header === 'Time Extension')return 70;
    else if (header === 'Description') return 100;
-   else if (header === 'Signatured By') return 200;
+   else if (header === 'Signatured By') return 170;
    else if (header === 'Conversation Among') return 180;
    else if (header === 'Conversation Date') return 150;
    else if (header === 'Received By') return 400;

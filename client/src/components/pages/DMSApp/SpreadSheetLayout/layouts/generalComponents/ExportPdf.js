@@ -81,7 +81,7 @@ const ExportPdf = ({ pdfContent }) => {
                </View>
 
                <View style={{ flexDirection: 'row', padding: 10, paddingBottom: 5, borderBottom: '1px solid black', ...fontStyles.fontRegular }}>
-                  <View style={{ width: '68%' }}>
+                  <View style={{ width: '66%' }}>
                      <View style={{ flexDirection: 'row', marginBottom: 4 }}>
                         <Text style={{ width: '9%' }}>To</Text>
                         <Text style={{ width: '91%', ...fontStyles.fontBold, paddingRight: 10, paddingLeft: 5 }}>
@@ -104,7 +104,7 @@ const ExportPdf = ({ pdfContent }) => {
                      <Text style={{ marginBottom: 4 }}>Date Submission</Text>
                      <Text>Page</Text>
                   </View>
-                  <View style={{ width: '19%', ...fontStyles.fontBold }}>
+                  <View style={{ width: '21%', ...fontStyles.fontBold }}>
                      <Text style={{ marginBottom: 4 }}>{`: ${refNumberText}`}</Text>
                      <Text style={{ marginBottom: 4 }}>{`: ${moment(new Date()).format('DD/MM/YY')}`}</Text>
                      <Text>: 01/01</Text>

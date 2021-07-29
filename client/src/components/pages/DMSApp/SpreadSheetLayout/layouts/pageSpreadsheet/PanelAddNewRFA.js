@@ -579,6 +579,10 @@ const PanelAddNewRFA = ({ onClickCancelModal, onClickApplyAddNewRFA }) => {
          mepSubTradeInfo = (mepSubTradeFirstTime && mepSubTradeFirstTime !== 'Select Sub Trade...') ? mepSubTradeFirstTime : null;
 
          rfaToSaveVersionOrToReply = '-';
+
+         if (!tradeOfRfaForFirstTimeSubmit) return message.info('Please fill in trade!', 2);
+         if (!rfaNumberSuffixFirstTimeSubmit) return message.info('Please fill in ref number!', 2);
+
          if (tradeOfRfaForFirstTimeSubmit === 'ME') {
             rfaToSave = `RFA/${projectNameShort}/${tradeOfRfaForFirstTimeSubmit}/${mepSubTradeInfo}/${rfaNumberSuffixFirstTimeSubmit}`;
          } else {
@@ -1398,8 +1402,13 @@ const CellInputRevision = ({ setRevisionDwg, rowData, rowsThisRFAWithRev, isFirs
             value={value}
             onBlur={(e) => {
                if (allRevsExisting.indexOf(e.target.value) !== -1) {
-                  message.info('This rev has already existed, please choose a new number!');
+                  message.info('This rev has already existed, please choose a new letter!');
                   setValue('');
+                  setRevisionDwg(rowData.id, '');
+               } else if (versionArray.indexOf(e.target.value) === -1) {
+                  message.info('Please key in letter only!');
+                  setValue('');
+                  setRevisionDwg(rowData.id, '');
                } else {
                   setValue(e.target.value);
                   setRevisionDwg(rowData.id, e.target.value);
