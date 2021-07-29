@@ -486,7 +486,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                return getInfoValueFromRefDataForm(r, 'submission', refType, 'emailTo') &&
                   getInfoValueFromRefDataForm(r, 'submission', refType, 'emailTo').length > 0;
             });
-            console.log('rowFoundTo', rowFoundTo, isBothSideActionUserWithNoEmailSent);
+
             if (rowFoundTo) {
                const consultantMustReplyArray = getInfoValueFromRefDataForm(rowFoundTo, 'submission', refType, 'consultantMustReply') || [];
                if (isBothSideActionUser && isBothSideActionUserWithNoEmailSent) {
@@ -502,7 +502,7 @@ const PanelAddNewMultiForm = ({ onClickCancelModal, onClickApplySendFormToSignat
                return getInfoValueFromRefDataForm(r, 'submission', refType, 'emailCc') &&
                   getInfoValueFromRefDataForm(r, 'submission', refType, 'emailCc').length > 0;
             });
-            console.log('rowFoundCc', rowFoundCc);
+
             if (rowFoundCc) {
                setListRecipientCc(getInfoValueFromRefDataForm(rowFoundCc, 'submission', refType, 'emailCc') || []);
             };
