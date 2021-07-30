@@ -616,13 +616,13 @@ const OverallComponentDMS = (props) => {
 
                setSearchInputShown(true);
 
-            } else if (pageSheetTypeName && (
+            } else if (
                pageSheetTypeName === 'page-rfam' ||
                pageSheetTypeName === 'page-rfi' ||
                pageSheetTypeName === 'page-cvi' ||
                pageSheetTypeName === 'page-dt' ||
                pageSheetTypeName === 'page-mm'
-            )) {
+            ) {
 
                const route = pageSheetTypeName === 'page-rfam' ? 'row-rfam'
                   : pageSheetTypeName === 'page-cvi' ? 'row-cvi'
@@ -1042,10 +1042,10 @@ const OverallComponentDMS = (props) => {
       });
    };
 
-   
+
    const switchToOtherPage = async (buttonPanelName) => {
-      
-      const routeSuffix = buttonPanelName.slice(5,buttonPanelName.length);
+
+      const routeSuffix = buttonPanelName.slice(5, buttonPanelName.length);
       try {
          if (pageSheetTypeName === 'page-spreadsheet') {
             setLoading(true);
@@ -1286,157 +1286,155 @@ const OverallComponentDMS = (props) => {
          style={{ color: 'black' }}
          onContextMenu={(e) => e.preventDefault()}
       >
-         {stateRow && (
-            <ButtonBox>
-               {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') && (
-                  <>
-                     <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
-                     <DividerRibbon />
-                     <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
-                     <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
-                     <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
-                  </>
-               )}
-
-               <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
-
-               {searchInputShown
-                  ? <InputSearch
-                     searchGlobal={searchGlobal}
-                     stateRow={stateRow}
-                     getSheetRows={getSheetRows}
-                     modeFilter={stateRow.modeFilter}
-                  />
-                  : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
-
-               {stateRow.modeGroup.length > 0 ? (
-                  <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-1')} />
-               ) : (
-                  <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-2')} />
-               )}
-
-               <IconTable type='retweet' onClick={clearAllFilterSortSearchGroup} />
-
-               {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') && (
-                  <>
-                     <DividerRibbon />
-                     <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
-
-                     {pageSheetTypeName === 'page-spreadsheet' && (
-                        <>
-                           <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
-                           <DividerRibbon />
-                           <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
-                           <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
-                        </>
-                     )}
-
-                     <ExcelExport fileName={projectName} />
-                     <DividerRibbon />
-                     {pageSheetTypeName === 'page-data-entry' && (
-                        <>
-                           <IconTable type='border-outer' onClick={() => buttonPanelFunction('select-single-row-ICON')} />
-                           <DividerRibbon />
-                        </>
-                     )}
-                     {pageSheetTypeName === 'page-spreadsheet' && (
-                        <>
-                           <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
-                           <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
-                           <DividerRibbon />
-                        </>
-                     )}
-                  </>
-               )}
-
-
-
-               {projectIsAppliedRfaView && (
-                  pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry' &&
-                  pageSheetTypeName !== 'page-cvi' && pageSheetTypeName !== 'page-dt' && pageSheetTypeName !== 'page-mm'
-               ) && (
-                     <IconTable type='block' onClick={switchConsultantsHeader} />
+         <ButtonBox>
+            {stateRow && !loading && (
+               <>
+                  {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') && (
+                     <>
+                        <IconTable type='save' onClick={() => buttonPanelFunction('save-ICON')} />
+                        <DividerRibbon />
+                        <IconTable type='layout' onClick={() => buttonPanelFunction('reorderColumn-ICON')} />
+                        <IconTable type='apartment' onClick={() => buttonPanelFunction('group-ICON')} />
+                        <IconTable type='sort-ascending' onClick={() => buttonPanelFunction('sort-ICON')} />
+                     </>
                   )}
 
-               {(pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry') && (
-                  <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
-               )}
-               <DividerRibbon />
+                  <IconTable type='filter' onClick={() => buttonPanelFunction('filter-ICON')} />
 
+                  {searchInputShown
+                     ? <InputSearch
+                        searchGlobal={searchGlobal}
+                        stateRow={stateRow}
+                        getSheetRows={getSheetRows}
+                        modeFilter={stateRow.modeFilter}
+                     />
+                     : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 
-               {projectIsAppliedRfaView && (
-                  pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam' ||
-                  pageSheetTypeName === 'page-rfi' || pageSheetTypeName === 'page-cvi' ||
-                  pageSheetTypeName === 'page-dt' || pageSheetTypeName === 'page-mm'
-               ) &&
-                  (isBothSideActionUser || role === 'Document Controller') && (
+                  {stateRow.modeGroup.length > 0 ? (
+                     <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-1')} />
+                  ) : (
+                     <IconTable type='swap' onClick={() => buttonPanelFunction('swap-ICON-2')} />
+                  )}
+
+                  <IconTable type='retweet' onClick={clearAllFilterSortSearchGroup} />
+
+                  {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') && (
                      <>
-                        <IconTable
-                           type='plus-square'
-                           pageSheetTypeName={pageSheetTypeName}
-                           onClick={() => {
-                              if (isBothSideActionUser) {
-                                 buttonPanelFunction('option-email-or-not-for-admin');
-                              } else {
-                                 buttonPanelFunction(pageSheetTypeName === 'page-rfa' ? 'form-submit-RFA' : 'form-submit-multi-type');
-                                 getSheetRows({
-                                    ...stateRow,
-                                    currentRefToAddNewOrReplyOrEdit: {
-                                       currentRefData: null,
-                                       formRefType: pageSheetTypeName === 'page-rfa' ? 'form-submit-RFA' : 'form-submit-multi-type',
-                                       isFormEditting: false,
-                                    },
-                                 });
-                              };
-                           }}
-                        />
                         <DividerRibbon />
+                        <IconTable type='folder-add' onClick={() => buttonPanelFunction('addDrawingType-ICON')} />
+
+                        {pageSheetTypeName === 'page-spreadsheet' && (
+                           <>
+                              <IconTable type='highlight' onClick={() => buttonPanelFunction('colorized-ICON')} />
+                              <DividerRibbon />
+                              <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
+                              <IconTable type='heat-map' onClick={() => buttonPanelFunction('color-cell-history-ICON')} />
+                           </>
+                        )}
+
+                        <ExcelExport fileName={projectName} />
+                        <DividerRibbon />
+                        {pageSheetTypeName === 'page-data-entry' && (
+                           <>
+                              <IconTable type='border-outer' onClick={() => buttonPanelFunction('select-single-row-ICON')} />
+                              <DividerRibbon />
+                           </>
+                        )}
+                        {pageSheetTypeName === 'page-spreadsheet' && (
+                           <>
+                              <IconTable type='plus' onClick={() => buttonPanelFunction('viewTemplate-ICON')} />
+                              <ViewTemplateSelect updateExpandedRowIdsArray={updateExpandedRowIdsArray} />
+                              <DividerRibbon />
+                           </>
+                        )}
                      </>
                   )}
 
 
 
-               {projectIsAppliedRfaView && stateRow.rfaStatistics && (
-                  <>
-                     {Object.keys(stateRow.rfaStatistics).map((item, i) => {
-                        return (
-                           <DataStatisticRibbon
-                              item={item}
-                              key={i}
-                              onClickQuickFilter={onClickQuickFilter}
-                              filterState={stateRow.modeFilter}
-                           />
-                        )
-                     })}
-                     <DividerRibbon />
-                  </>
-               )}
+                  {projectIsAppliedRfaView && (
+                     pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry' &&
+                     pageSheetTypeName !== 'page-cvi' && pageSheetTypeName !== 'page-dt' && pageSheetTypeName !== 'page-mm'
+                  ) && (
+                        <IconTable type='block' onClick={switchConsultantsHeader} />
+                     )}
 
-
-               {isAdmin && (
-                  <div style={{ display: 'flex' }}>
-                     <ButtonAdminCreateAndUpdateRows />
-                     <ButtonAdminCreateAndUpdateRowsHistory />
-
-                  </div>
-               )}
-
-
-               <div style={{ position: 'absolute', display: 'flex', right: 30 }}>
-                  {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam') && (
-                     <DrawingStatusStatisticRight
-                        onClickquickFilterStatus={onClickquickFilterStatus}
-                        stateRow={stateRow}
-                        pageSheetTypeName={pageSheetTypeName}
-                     />
+                  {(pageSheetTypeName !== 'page-spreadsheet' && pageSheetTypeName !== 'page-data-entry') && (
+                     <IconTable type='history' onClick={() => buttonPanelFunction('history-ICON')} />
                   )}
-                  <div style={{ fontSize: 25, color: colorType.primary, marginTop: -5, paddingTop: 0 }}>{projectName}</div>
-               </div>
+                  <DividerRibbon />
+
+
+                  {projectIsAppliedRfaView && (
+                     pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam' ||
+                     pageSheetTypeName === 'page-rfi' || pageSheetTypeName === 'page-cvi' ||
+                     pageSheetTypeName === 'page-dt' || pageSheetTypeName === 'page-mm'
+                  ) &&
+                     (isBothSideActionUser || role === 'Document Controller') && (
+                        <>
+                           <IconTable
+                              type='plus-square'
+                              pageSheetTypeName={pageSheetTypeName}
+                              onClick={() => {
+                                 if (isBothSideActionUser) {
+                                    buttonPanelFunction('option-email-or-not-for-admin');
+                                 } else {
+                                    buttonPanelFunction(pageSheetTypeName === 'page-rfa' ? 'form-submit-RFA' : 'form-submit-multi-type');
+                                    getSheetRows({
+                                       ...stateRow,
+                                       currentRefToAddNewOrReplyOrEdit: {
+                                          currentRefData: null,
+                                          formRefType: pageSheetTypeName === 'page-rfa' ? 'form-submit-RFA' : 'form-submit-multi-type',
+                                          isFormEditting: false,
+                                       },
+                                    });
+                                 };
+                              }}
+                           />
+                           <DividerRibbon />
+                        </>
+                     )}
 
 
 
-            </ButtonBox>
-         )}
+                  {projectIsAppliedRfaView && stateRow.rfaStatistics && (
+                     <>
+                        {Object.keys(stateRow.rfaStatistics).map((item, i) => {
+                           return (
+                              <DataStatisticRibbon
+                                 item={item}
+                                 key={i}
+                                 onClickQuickFilter={onClickQuickFilter}
+                                 filterState={stateRow.modeFilter}
+                              />
+                           )
+                        })}
+                        <DividerRibbon />
+                     </>
+                  )}
+
+                  {isAdmin && (
+                     <div style={{ display: 'flex' }}>
+                        <ButtonAdminCreateAndUpdateRows />
+                        <ButtonAdminCreateAndUpdateRowsHistory />
+
+                     </div>
+                  )}
+
+
+                  <div style={{ position: 'absolute', display: 'flex', right: 30 }}>
+                     {(pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-rfa' || pageSheetTypeName === 'page-rfam') && (
+                        <DrawingStatusStatisticRight
+                           onClickquickFilterStatus={onClickquickFilterStatus}
+                           stateRow={stateRow}
+                           pageSheetTypeName={pageSheetTypeName}
+                        />
+                     )}
+                     <div style={{ fontSize: 25, color: colorType.primary, marginTop: -5, paddingTop: 0 }}>{projectName}</div>
+                  </div>
+               </>
+            )}
+         </ButtonBox>
 
 
          <div style={{ display: 'flex', overflowX: 'hidden', height: currentWindow.height - offsetHeight }}>
@@ -1445,8 +1443,8 @@ const OverallComponentDMS = (props) => {
                <div style={{ width: sideBarWidth, background: colorType.primary }}>
                   {(
                      (role !== 'Consultant' && role !== 'Client')
-                        ? ['side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
-                        : ['side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt']
+                        ? ['side-dms', 'side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt', 'side-mm']
+                        : ['side-rfa', 'side-rfam', 'side-rfi', 'side-cvi', 'side-dt', 'side-mm']
                   ).map((btnType, i) => {
                      return (
                         <IconSidePanel
@@ -1720,6 +1718,7 @@ const ModalStyledSetting = styled(Modal)`
 `;
 const ButtonBox = styled.div`
    width: 100%;
+   height: 46px;
    position: relative;
    display: flex;
    padding-top: 7px;
