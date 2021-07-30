@@ -1305,8 +1305,8 @@ const OverallComponentDMS = (props) => {
                      ? <InputSearch
                         searchGlobal={searchGlobal}
                         stateRow={stateRow}
+                        stateProject={stateProject}
                         getSheetRows={getSheetRows}
-                        modeFilter={stateRow.modeFilter}
                      />
                      : <IconTable type='search' onClick={() => setSearchInputShown(true)} />}
 

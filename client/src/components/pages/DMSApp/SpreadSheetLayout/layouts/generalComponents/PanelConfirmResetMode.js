@@ -6,10 +6,10 @@ import ButtonColumnTag from './ButtonColumnTag';
 import ButtonGroupComp from './ButtonGroupComp';
 
 
-const PanelConfirmResetMode = ({ applyResetMode, onClickCancelModal, modeFilter, modeSort, modeSearch, pageSheetTypeName }) => {
+const PanelConfirmResetMode = ({ applyResetMode, onClickCancelModal, modeFilter, modeSort, modeSearch, pageSheetTypeName, isDashboard }) => {
 
 
-    const [btnArr, setBtnArr] = useState(pageSheetTypeName === 'page-spreadsheet' ? [
+    const [btnArr, setBtnArr] = useState((pageSheetTypeName === 'page-spreadsheet' || isDashboard) ? [
         { id: mongoObjectId(), header: 'Filter', mode: modeFilter.length > 0 ? 'shown' : 'hidden' },
         { id: mongoObjectId(), header: 'Sort', mode: Object.keys(modeSort).length > 0 ? 'shown' : 'hidden' },
         { id: mongoObjectId(), header: 'Search', mode: Object.keys(modeSearch).length > 0 ? 'shown' : 'hidden' },

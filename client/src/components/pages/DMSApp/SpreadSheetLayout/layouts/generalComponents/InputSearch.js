@@ -1,22 +1,24 @@
 import { Icon, Tooltip } from 'antd';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { colorType } from '../../constants';
-import { Context as ProjectContext } from '../../contexts/projectContext';
 
 
 
-const InputSearch = ({ searchGlobal, stateRow, getSheetRows, isDashboard, setTableAction, modeFilter }) => {
+const InputSearch = ({ searchGlobal, stateRow, stateProject, getSheetRows, isDashboard, setTableAction }) => {
 
-   const { state: stateProject } = useContext(ProjectContext);
-   const { pageSheetTypeName } = stateProject.allDataOneSheet;
+   let pageSheetTypeName, modeFilter;
+   if (!isDashboard) {
+      pageSheetTypeName = stateProject.allDataOneSheet.pageSheetTypeName;
+      modeFilter = stateRow.modeFilter;
+   };
 
    const [mode, setMode] = useState(false);
    const [value, setValue] = useState('');
 
-   
+
    useEffect(() => {
-      if (modeFilter.length === 0) {
+      if (!isDashboard && modeFilter.length === 0) {
          setValue('');
       };
    }, [modeFilter]);

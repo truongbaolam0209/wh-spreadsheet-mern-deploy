@@ -4,7 +4,6 @@ import FormGroup from '../../SpreadSheetLayout/layouts/generalComponents/FormGro
 import FormSort from '../../SpreadSheetLayout/layouts/generalComponents/FormSort';
 import PanelConfirm from '../../SpreadSheetLayout/layouts/generalComponents/PanelConfirm';
 import PanelConfirmResetMode from '../../SpreadSheetLayout/layouts/generalComponents/PanelConfirmResetMode';
-import ReorderColumnForm from '../../SpreadSheetLayout/layouts/generalComponents/ReorderColumnForm';
 
 
 
@@ -14,8 +13,6 @@ const PanelSettingDashboard = (props) => {
       panelSettingType, commandAction, onClickCancelModal,
       rowsAll, modeFilter, modeSort, modeSearch, headers
    } = props;
-
-   const applyReorderColumns = (data) => commandAction({ type: 'reorder-columns', data });
 
    const applyFilter = (filter) => commandAction({ type: 'filter-by-columns', data: { modeFilter: filter } });
 
@@ -51,7 +48,8 @@ const PanelSettingDashboard = (props) => {
                onClickCancelModal={onClickCancelModal}
                headers={headers}
                modeFilter={modeFilter}
-               rowsAll={rowsAll}
+               rowsInputData={rowsAll}
+               isDashboard={true}
             />
          )}
 
@@ -75,16 +73,13 @@ const PanelSettingDashboard = (props) => {
 
          {panelSettingType === 'swap-ICON-2' && (
             <PanelConfirmResetMode
-               onClickCancel={onClickCancelModal}
+               onClickCancelModal={onClickCancelModal}
                applyResetMode={applyResetMode}
                modeFilter={modeFilter}
                modeSort={modeSort}
                modeSearch={modeSearch}
+               isDashboard={true}
             />
-         )}
-
-         {panelSettingType === 'reorderColumn-ICON' && (
-            <ReorderColumnForm applyReorderColumns={applyReorderColumns} onClickCancelModal={onClickCancelModal} />
          )}
 
 

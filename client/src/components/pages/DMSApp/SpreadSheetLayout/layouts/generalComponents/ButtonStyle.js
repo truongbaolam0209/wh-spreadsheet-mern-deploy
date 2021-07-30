@@ -20,7 +20,11 @@ const ButtonStyle = ({
 
 
    const { state: stateRow } = useContext(RowContext);
-   const { loading } = stateRow;
+   
+   let loading;
+   if (stateRow) { // Dashboard doesn't query to get stateRow
+      loading = stateRow.loading;
+   };
 
    const [isClicked, setIsClicked] = useState(false);
 

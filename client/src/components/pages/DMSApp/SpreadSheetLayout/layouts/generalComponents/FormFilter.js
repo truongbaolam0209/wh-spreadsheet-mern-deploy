@@ -13,12 +13,12 @@ import ButtonStyle from './ButtonStyle';
 const { Option } = Select;
 
 
-const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsInputData, modeFilter, pageSheetTypeName, companies }) => {
+const FormFilter = ({ applyFilter, onClickCancelModal, headers, rowsInputData, modeFilter, pageSheetTypeName, companies, isDashboard }) => {
 
    const refType = getKeyTextForSheet(pageSheetTypeName);
 
    const [filterColumn, setFilterColumn] = useState(
-      (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry')
+      (pageSheetTypeName === 'page-spreadsheet' || isDashboard)
          ? (modeFilter.length > 1 ? modeFilter.map(item => ({ ...item })) : [
             { id: mongoObjectId(), header: 'Status', value: 'Select Value...' },
             { isIncludedParent: 'included' }
@@ -347,7 +347,7 @@ const getColumnsValue = (rows, headers, pageSheetTypeName, companies) => {
 
 
 
-            } else if (pageSheetTypeName === 'page-spreadsheet' || pageSheetTypeName === 'page-data-entry') {
+            } else {
                valueArr.push(row[hd] || '');
             };
          });
