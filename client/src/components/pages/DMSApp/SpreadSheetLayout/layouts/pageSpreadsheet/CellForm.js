@@ -168,7 +168,7 @@ const CellForm = (props) => {
             const isRepliedFormUploaded = getInfoValueFromRefDataForm(rowData, 'reply', refType, 'linkFormReply', replyCompanyData);
 
 
-            if ((roleTradeCompany.role === 'Consultant' && replyCompanyData === company) || isBothSideActionUser) {
+            if ((roleTradeCompany.role === 'Consultant' && replyCompanyData === company) || (isBothSideActionUser && replyCompanyData)) {
                if (
                   isSignedOffAlreadySubmitted &&
                   ((!isThisRefAlreadyReplied && (pageSheetTypeName === 'page-rfam' || pageSheetTypeName === 'page-rfi')))
